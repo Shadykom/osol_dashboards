@@ -212,7 +212,7 @@ export class DashboardService {
         const [customers, transactions] = await Promise.all([
           supabase.from(TABLES.CUSTOMERS)
             .select('*', { count: 'exact', head: true })
-            .eq('branch_id', branch.branch_id),
+            .eq('onboarding_branch', branch.branch_id),
           
           supabase.from(TABLES.TRANSACTIONS)
             .select('transaction_amount', { count: 'exact' })

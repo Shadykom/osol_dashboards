@@ -11,7 +11,7 @@ import {
   BarChart3,
   PieChart,
   FileSpreadsheet,
-  FilePdf,
+  FileDown,
   Printer,
   Mail,
   Clock,

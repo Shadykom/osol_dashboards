@@ -18,7 +18,7 @@ export function Header() {
         {/* Logo and Brand */}
         <div className="flex items-center space-x-4">
           <img 
-            src="/src/assets/osol-logo.png" 
+            src="/osol-logo.png" 
             alt="Osol Logo" 
             className="h-8 w-auto"
           />
