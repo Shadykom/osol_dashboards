@@ -1,44 +1,16 @@
-// src/pages/CustomDashboard.jsx
+// Enhanced CustomDashboard.jsx with DashboardSharing integration and Widget Configuration
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutGrid,
-  Save,
-  RefreshCw,
-  Settings,
-  Plus,
-  X,
-  GripVertical,
-  Maximize2,
-  Minimize2,
-  Eye,
-  EyeOff,
-  TrendingUp,
-  Users,
-  DollarSign,
-  CreditCard,
-  PiggyBank,
-  Activity,
-  BarChart3,
-  PieChart,
-  LineChart,
-  Calendar,
-  Clock,
-  AlertCircle,
-  CheckCircle,
-  Shield,
-  Building2,
-  Download,
-  Upload,
-  RotateCcw,
-  Lock,
-  Unlock,
-  Grid3X3,
-  Palette,
-  ArrowUpDown,
-  Sparkles,
-  ChevronRight
+  LayoutGrid, Save, RefreshCw, Settings, Plus, X, GripVertical,
+  Maximize2, Minimize2, Eye, EyeOff, TrendingUp, Users, DollarSign,
+  CreditCard, PiggyBank, Activity, BarChart3, PieChart, LineChart,
+  Calendar, Clock, AlertCircle, CheckCircle, Shield, Building2,
+  Download, Upload, RotateCcw, Lock, Unlock, Grid3X3, Palette,
+  ArrowUpDown, Sparkles, ChevronRight, Share2, Filter, Columns,
+  Type, Move, Trash2, Copy, Database, SlidersHorizontal, Target,
+  Layers, ChevronLeft, Info, FileText, Code, Image, Zap, MoreVertical
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +21,13 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -58,11 +37,19 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { toast } from 'sonner';
-import { supabase, TABLES } from '@/lib/supabase';
-import { DashboardService } from '@/services/dashboardService';
-import { CustomerService } from '@/services/customerService';
-import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { cn } from '@/lib/utils';
 import {
   LineChart as RechartsLineChart,
@@ -81,18 +68,39 @@ import {
   Legend,
   ResponsiveContainer,
   RadialBarChart,
-  RadialBar
+  RadialBar,
+  ComposedChart,
+  ScatterChart,
+  Scatter,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Treemap
 } from 'recharts';
 
-// Import CSS for react-grid-layout
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
+// Import the DashboardSharing component
+// Note: In real implementation, import from actual file
+// import { DashboardSharing } from '@/components/dashboard/DashboardSharing';
+
+// Mock DashboardSharing for this example
+const DashboardSharing = ({ dashboard, isOpen, onClose }) => (
+  <Dialog open={isOpen} onOpenChange={onClose}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Share Dashboard</DialogTitle>
+      </DialogHeader>
+      <p>DashboardSharing component implementation here</p>
+    </DialogContent>
+  </Dialog>
+);
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181', '#F6AD55'];
 
-// Widget catalog with categories
+// Enhanced widget catalog with more options
 const WIDGET_CATALOG = {
   kpis: {
     category: 'Key Metrics',
@@ -105,7 +113,14 @@ const WIDGET_CATALOG = {
         defaultSize: { w: 3, h: 2 },
         minW: 2,
         minH: 2,
-        dataKey: 'total_customers'
+        dataKey: 'total_customers',
+        configurable: {
+          dataSource: true,
+          format: true,
+          comparison: true,
+          threshold: true,
+          sparkline: true
+        }
       },
       accounts_kpi: {
         name: 'Total Accounts',
@@ -114,43 +129,14 @@ const WIDGET_CATALOG = {
         defaultSize: { w: 3, h: 2 },
         minW: 2,
         minH: 2,
-        dataKey: 'total_accounts'
-      },
-      revenue_kpi: {
-        name: 'Monthly Revenue',
-        icon: DollarSign,
-        description: 'Current month revenue',
-        defaultSize: { w: 3, h: 2 },
-        minW: 2,
-        minH: 2,
-        dataKey: 'monthly_revenue'
-      },
-      transactions_kpi: {
-        name: 'Daily Transactions',
-        icon: Activity,
-        description: "Today's transaction count",
-        defaultSize: { w: 3, h: 2 },
-        minW: 2,
-        minH: 2,
-        dataKey: 'daily_transactions'
-      },
-      deposits_kpi: {
-        name: 'Total Deposits',
-        icon: PiggyBank,
-        description: 'Customer deposits',
-        defaultSize: { w: 3, h: 2 },
-        minW: 2,
-        minH: 2,
-        dataKey: 'total_deposits'
-      },
-      loans_kpi: {
-        name: 'Loan Portfolio',
-        icon: PiggyBank,
-        description: 'Outstanding loans',
-        defaultSize: { w: 3, h: 2 },
-        minW: 2,
-        minH: 2,
-        dataKey: 'total_loans'
+        dataKey: 'total_accounts',
+        configurable: {
+          dataSource: true,
+          format: true,
+          comparison: true,
+          threshold: true,
+          sparkline: true
+        }
       }
     }
   },
@@ -165,7 +151,17 @@ const WIDGET_CATALOG = {
         defaultSize: { w: 6, h: 4 },
         minW: 4,
         minH: 3,
-        chartType: 'area'
+        chartType: 'area',
+        configurable: {
+          chartType: true,
+          dataSource: true,
+          timeRange: true,
+          aggregation: true,
+          filters: true,
+          axes: true,
+          colors: true,
+          legend: true
+        }
       },
       customer_segments: {
         name: 'Customer Segments',
@@ -174,191 +170,58 @@ const WIDGET_CATALOG = {
         defaultSize: { w: 4, h: 4 },
         minW: 3,
         minH: 3,
-        chartType: 'pie'
-      },
-      transaction_activity: {
-        name: 'Transaction Activity',
-        icon: Activity,
-        description: 'Transaction by channel',
-        defaultSize: { w: 6, h: 4 },
-        minW: 4,
-        minH: 3,
-        chartType: 'bar'
-      },
-      loan_portfolio: {
-        name: 'Loan Portfolio',
-        icon: PiggyBank,
-        description: 'Loan distribution',
-        defaultSize: { w: 4, h: 4 },
-        minW: 3,
-        minH: 3,
-        chartType: 'radial'
-      },
-      account_types: {
-        name: 'Account Types',
-        icon: CreditCard,
-        description: 'Account distribution',
-        defaultSize: { w: 4, h: 4 },
-        minW: 3,
-        minH: 3,
-        chartType: 'pie'
-      },
-      branch_performance: {
-        name: 'Branch Performance',
-        icon: Building2,
-        description: 'Performance by branch',
-        defaultSize: { w: 6, h: 4 },
-        minW: 4,
-        minH: 3,
-        chartType: 'bar'
-      }
-    }
-  },
-  comparisons: {
-    category: 'Comparisons',
-    icon: ArrowUpDown,
-    widgets: {
-      period_comparison: {
-        name: 'Period Comparison',
-        icon: Calendar,
-        description: 'Compare time periods',
-        defaultSize: { w: 12, h: 4 },
-        minW: 8,
-        minH: 3,
-        comparisonType: 'month'
-      },
-      branch_comparison: {
-        name: 'Branch Comparison',
-        icon: Building2,
-        description: 'Compare branches',
-        defaultSize: { w: 6, h: 4 },
-        minW: 4,
-        minH: 3,
-        comparisonType: 'branch'
-      },
-      product_comparison: {
-        name: 'Product Comparison',
-        icon: BarChart3,
-        description: 'Compare products',
-        defaultSize: { w: 6, h: 4 },
-        minW: 4,
-        minH: 3,
-        comparisonType: 'product'
-      }
-    }
-  },
-  status: {
-    category: 'Status & Alerts',
-    icon: AlertCircle,
-    widgets: {
-      compliance_status: {
-        name: 'Compliance Status',
-        icon: Shield,
-        description: 'Compliance scores',
-        defaultSize: { w: 4, h: 3 },
-        minW: 3,
-        minH: 2
-      },
-      recent_transactions: {
-        name: 'Recent Transactions',
-        icon: Clock,
-        description: 'Latest transactions',
-        defaultSize: { w: 6, h: 4 },
-        minW: 4,
-        minH: 3
-      },
-      system_alerts: {
-        name: 'System Alerts',
-        icon: AlertCircle,
-        description: 'Active alerts',
-        defaultSize: { w: 4, h: 3 },
-        minW: 3,
-        minH: 2
+        chartType: 'pie',
+        configurable: {
+          chartType: true,
+          dataSource: true,
+          filters: true,
+          colors: true,
+          labels: true,
+          animation: true
+        }
       }
     }
   }
 };
 
-// Dashboard templates
-const DASHBOARD_TEMPLATES = {
-  executive: {
-    name: 'Executive Overview',
-    description: 'High-level KPIs and strategic metrics',
-    icon: TrendingUp,
-    layout: [
-      { i: 'customers_kpi_1', x: 0, y: 0, w: 3, h: 2, static: false },
-      { i: 'accounts_kpi_1', x: 3, y: 0, w: 3, h: 2, static: false },
-      { i: 'revenue_kpi_1', x: 6, y: 0, w: 3, h: 2, static: false },
-      { i: 'deposits_kpi_1', x: 9, y: 0, w: 3, h: 2, static: false },
-      { i: 'revenue_trend_1', x: 0, y: 2, w: 6, h: 4, static: false },
-      { i: 'customer_segments_1', x: 6, y: 2, w: 6, h: 4, static: false },
-      { i: 'period_comparison_1', x: 0, y: 6, w: 12, h: 4, static: false }
-    ],
-    widgets: {
-      'customers_kpi_1': { type: 'customers_kpi', category: 'kpis' },
-      'accounts_kpi_1': { type: 'accounts_kpi', category: 'kpis' },
-      'revenue_kpi_1': { type: 'revenue_kpi', category: 'kpis' },
-      'deposits_kpi_1': { type: 'deposits_kpi', category: 'kpis' },
-      'revenue_trend_1': { type: 'revenue_trend', category: 'charts' },
-      'customer_segments_1': { type: 'customer_segments', category: 'charts' },
-      'period_comparison_1': { type: 'period_comparison', category: 'comparisons' }
-    }
-  },
-  operations: {
-    name: 'Operations Dashboard',
-    description: 'Real-time operational metrics',
-    icon: Activity,
-    layout: [
-      { i: 'transactions_kpi_1', x: 0, y: 0, w: 3, h: 2, static: false },
-      { i: 'accounts_kpi_1', x: 3, y: 0, w: 3, h: 2, static: false },
-      { i: 'system_alerts_1', x: 6, y: 0, w: 6, h: 2, static: false },
-      { i: 'transaction_activity_1', x: 0, y: 2, w: 6, h: 4, static: false },
-      { i: 'recent_transactions_1', x: 6, y: 2, w: 6, h: 4, static: false },
-      { i: 'branch_performance_1', x: 0, y: 6, w: 12, h: 4, static: false }
-    ],
-    widgets: {
-      'transactions_kpi_1': { type: 'transactions_kpi', category: 'kpis' },
-      'accounts_kpi_1': { type: 'accounts_kpi', category: 'kpis' },
-      'system_alerts_1': { type: 'system_alerts', category: 'status' },
-      'transaction_activity_1': { type: 'transaction_activity', category: 'charts' },
-      'recent_transactions_1': { type: 'recent_transactions', category: 'status' },
-      'branch_performance_1': { type: 'branch_performance', category: 'charts' }
-    }
-  }
+// Chart type options
+const CHART_TYPES = {
+  line: { name: 'Line Chart', icon: LineChart, component: RechartsLineChart },
+  area: { name: 'Area Chart', icon: AreaChart, component: AreaChart },
+  bar: { name: 'Bar Chart', icon: BarChart3, component: BarChart },
+  pie: { name: 'Pie Chart', icon: PieChart, component: RechartsPieChart },
+  scatter: { name: 'Scatter Plot', icon: Activity, component: ScatterChart },
+  radar: { name: 'Radar Chart', icon: Activity, component: RadarChart },
+  radial: { name: 'Radial Bar', icon: PieChart, component: RadialBarChart }
 };
 
-// Color themes
-const COLOR_THEMES = {
-  default: {
-    name: 'Default Gold',
-    primary: '#E6B800',
-    secondary: '#4A5568',
-    accent: '#68D391'
-  },
-  ocean: {
-    name: 'Ocean Blue',
-    primary: '#3B82F6',
-    secondary: '#1E40AF',
-    accent: '#60A5FA'
-  },
-  forest: {
-    name: 'Forest Green',
-    primary: '#10B981',
-    secondary: '#047857',
-    accent: '#34D399'
-  },
-  sunset: {
-    name: 'Sunset Orange',
-    primary: '#F97316',
-    secondary: '#DC2626',
-    accent: '#FB923C'
-  }
-};
+// Data aggregation options
+const AGGREGATION_OPTIONS = [
+  { value: 'sum', label: 'Sum' },
+  { value: 'avg', label: 'Average' },
+  { value: 'min', label: 'Minimum' },
+  { value: 'max', label: 'Maximum' },
+  { value: 'count', label: 'Count' }
+];
+
+// Time range options
+const TIME_RANGE_OPTIONS = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'last7days', label: 'Last 7 Days' },
+  { value: 'last30days', label: 'Last 30 Days' },
+  { value: 'last90days', label: 'Last 90 Days' },
+  { value: 'thisMonth', label: 'This Month' },
+  { value: 'lastMonth', label: 'Last Month' },
+  { value: 'thisYear', label: 'This Year' },
+  { value: 'custom', label: 'Custom Range' }
+];
 
 export function CustomDashboard() {
   // Layout state
   const [layouts, setLayouts] = useState({});
   const [widgets, setWidgets] = useState(new Map());
+  const [widgetConfigs, setWidgetConfigs] = useState(new Map());
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('executive');
   
@@ -379,131 +242,336 @@ export function CustomDashboard() {
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showSharing, setShowSharing] = useState(false);
   const [selectedWidgetConfig, setSelectedWidgetConfig] = useState(null);
+  const [showWidgetConfig, setShowWidgetConfig] = useState(false);
   
-  // Responsive breakpoints
-  const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
-  const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+  // Widget configuration dialog state
+  const [configFormData, setConfigFormData] = useState({
+    title: '',
+    chartType: 'area',
+    dataSource: 'default',
+    timeRange: 'last30days',
+    aggregation: 'sum',
+    showLegend: true,
+    showGrid: true,
+    showTooltip: true,
+    animationEnabled: true,
+    colorScheme: 'default',
+    filters: {},
+    customQuery: '',
+    refreshRate: 'inherit',
+    thresholds: [],
+    sparklineEnabled: false,
+    comparisonEnabled: false,
+    comparisonType: 'previous_period'
+  });
 
-  // Load saved layout on mount
+  // Mock data for the example
   useEffect(() => {
-    const saved = localStorage.getItem('customDashboardLayout');
-    if (saved) {
-      try {
-        const config = JSON.parse(saved);
-        setLayouts(config.layouts || {});
-        setWidgets(new Map(config.widgets || []));
-        setDashboardName(config.name || 'My Custom Dashboard');
-        setColorTheme(config.theme || 'default');
-        setAutoRefresh(config.autoRefresh ?? true);
-        setRefreshInterval(config.refreshInterval || 30000);
-      } catch (error) {
-        console.error('Error loading saved layout:', error);
-        loadTemplate(selectedTemplate);
-      }
-    } else {
-      loadTemplate(selectedTemplate);
-    }
-  }, []);
-
-  // Fetch all widget data
-  const fetchAllData = useCallback(async () => {
-    try {
-      const [kpis, comparison, customerAnalytics, transactionAnalytics, loanAnalytics, recentTransactions] = await Promise.all([
-        DashboardService.getExecutiveKPIs(),
-        DashboardService.getMonthlyComparison(),
-        CustomerService.getCustomerAnalytics(),
-        DashboardService.getTransactionAnalytics(),
-        DashboardService.getLoanAnalytics(),
-        DashboardService.getRecentTransactions(5)
-      ]);
-
-      // Mock additional data
-      const mockAlerts = [
-        { id: 1, type: 'warning', message: 'High transaction volume detected', severity: 'medium', time: '5 min ago' },
-        { id: 2, type: 'info', message: 'System maintenance scheduled', severity: 'low', time: '1 hour ago' },
-        { id: 3, type: 'error', message: 'Failed transaction spike', severity: 'high', time: '2 hours ago' }
-      ];
-
-      const mockBranchData = [
-        { branch: 'Riyadh Main', revenue: 12500000, customers: 3500, efficiency: 92 },
-        { branch: 'Jeddah Central', revenue: 10200000, customers: 2800, efficiency: 88 },
-        { branch: 'Dammam Branch', revenue: 7800000, customers: 2100, efficiency: 85 }
-      ];
-
-      const mockAccountStats = {
-        totalAccounts: kpis.data?.total_accounts || 18293,
-        activeAccounts: Math.round((kpis.data?.total_accounts || 18293) * 0.85),
-        dormantAccounts: Math.round((kpis.data?.total_accounts || 18293) * 0.1),
-        blockedAccounts: Math.round((kpis.data?.total_accounts || 18293) * 0.05)
-      };
-
-      const mockComplianceData = {
-        overallScore: 88,
-        amlScore: 92,
-        kycScore: 85,
-        regulatoryScore: 90,
-        dataPrivacyScore: 87
-      };
-
+    // Simulate loading data
+    setTimeout(() => {
       setWidgetData({
-        kpis: kpis.data,
-        comparison: comparison.data,
-        customerAnalytics: customerAnalytics.data,
-        transactionAnalytics: transactionAnalytics.data,
-        loanAnalytics: loanAnalytics.data,
-        recentTransactions: recentTransactions.data,
-        alerts: mockAlerts,
-        branchPerformance: mockBranchData,
-        accountStats: mockAccountStats,
-        complianceData: mockComplianceData
+        kpis: {
+          total_customers: 12847,
+          total_accounts: 18293,
+          monthly_revenue: 4250000,
+          daily_transactions: 3294,
+          total_deposits: 850000000,
+          total_loans: 320000000
+        },
+        comparison: {
+          trends: [
+            { month: 'Jan', revenue: 3200000 },
+            { month: 'Feb', revenue: 3500000 },
+            { month: 'Mar', revenue: 3800000 },
+            { month: 'Apr', revenue: 4250000 }
+          ]
+        },
+        customerAnalytics: {
+          by_segment: [
+            { segment: 'Premium', count: 2500 },
+            { segment: 'Standard', count: 8000 },
+            { segment: 'Basic', count: 2347 }
+          ]
+        }
       });
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load some dashboard data');
-    } finally {
       setLoading(false);
-    }
+    }, 1000);
   }, []);
 
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+  // Open widget configuration
+  const openWidgetConfig = useCallback((widgetId) => {
+    const widget = widgets.get(widgetId);
+    if (!widget) return;
 
-  // Auto-refresh
-  useEffect(() => {
-    if (!autoRefresh) return;
+    const existingConfig = widgetConfigs.get(widgetId) || {};
+    const widgetDef = WIDGET_CATALOG[widget.category]?.widgets[widget.type];
+    
+    setSelectedWidgetConfig({ id: widgetId, ...widget, definition: widgetDef });
+    setConfigFormData({
+      title: existingConfig.title || widgetDef?.name || '',
+      chartType: existingConfig.chartType || widgetDef?.chartType || 'area',
+      dataSource: existingConfig.dataSource || 'default',
+      timeRange: existingConfig.timeRange || 'last30days',
+      aggregation: existingConfig.aggregation || 'sum',
+      showLegend: existingConfig.showLegend ?? true,
+      showGrid: existingConfig.showGrid ?? true,
+      showTooltip: existingConfig.showTooltip ?? true,
+      animationEnabled: existingConfig.animationEnabled ?? true,
+      colorScheme: existingConfig.colorScheme || 'default',
+      filters: existingConfig.filters || {},
+      customQuery: existingConfig.customQuery || '',
+      refreshRate: existingConfig.refreshRate || 'inherit',
+      thresholds: existingConfig.thresholds || [],
+      sparklineEnabled: existingConfig.sparklineEnabled || false,
+      comparisonEnabled: existingConfig.comparisonEnabled || false,
+      comparisonType: existingConfig.comparisonType || 'previous_period'
+    });
+    setShowWidgetConfig(true);
+  }, [widgets, widgetConfigs]);
 
-    const interval = setInterval(() => {
-      fetchAllData();
-    }, refreshInterval);
+  // Save widget configuration
+  const saveWidgetConfig = useCallback(() => {
+    if (!selectedWidgetConfig) return;
 
-    return () => clearInterval(interval);
-  }, [autoRefresh, refreshInterval, fetchAllData]);
+    setWidgetConfigs(prev => {
+      const newMap = new Map(prev);
+      newMap.set(selectedWidgetConfig.id, { ...configFormData });
+      return newMap;
+    });
 
-  // Real-time subscriptions
-  useEffect(() => {
-    const subscription = supabase
-      .channel('dashboard-updates')
-      .on('postgres_changes', { event: '*', schema: 'kastle_banking' }, () => {
-        fetchAllData();
-      })
-      .subscribe();
+    toast.success('Widget configuration saved');
+    setShowWidgetConfig(false);
+    setSelectedWidgetConfig(null);
+  }, [selectedWidgetConfig, configFormData]);
 
-    return () => {
-      subscription.unsubscribe();
+  // Remove widget
+  const removeWidget = useCallback((widgetId) => {
+    setLayouts(prev => ({
+      ...prev,
+      lg: prev.lg.filter(item => item.i !== widgetId)
+    }));
+
+    setWidgets(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(widgetId);
+      return newMap;
+    });
+
+    setWidgetConfigs(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(widgetId);
+      return newMap;
+    });
+
+    toast.success('Widget removed');
+  }, []);
+
+  // Duplicate widget
+  const duplicateWidget = useCallback((widgetId) => {
+    const widget = widgets.get(widgetId);
+    const config = widgetConfigs.get(widgetId);
+    if (!widget) return;
+
+    const widgetDef = WIDGET_CATALOG[widget.category]?.widgets[widget.type];
+    const newWidgetId = `${widget.type}_${Date.now()}`;
+    const originalLayout = layouts.lg?.find(item => item.i === widgetId);
+    
+    const newLayout = {
+      i: newWidgetId,
+      x: (originalLayout?.x || 0) + 1,
+      y: originalLayout?.y || 0,
+      w: originalLayout?.w || widgetDef?.defaultSize.w || 4,
+      h: originalLayout?.h || widgetDef?.defaultSize.h || 3,
+      minW: widgetDef?.minW || 2,
+      minH: widgetDef?.minH || 2,
+      static: false
     };
-  }, [fetchAllData]);
 
-  // Load template
-  const loadTemplate = useCallback((templateKey) => {
-    const template = DASHBOARD_TEMPLATES[templateKey];
-    if (!template) return;
+    setLayouts(prev => ({
+      ...prev,
+      lg: [...(prev.lg || []), newLayout]
+    }));
 
-    setLayouts({ lg: template.layout });
-    setWidgets(new Map(Object.entries(template.widgets)));
-    setSelectedTemplate(templateKey);
-  }, []);
+    setWidgets(prev => {
+      const newMap = new Map(prev);
+      newMap.set(newWidgetId, { ...widget });
+      return newMap;
+    });
+
+    if (config) {
+      setWidgetConfigs(prev => {
+        const newMap = new Map(prev);
+        newMap.set(newWidgetId, { ...config });
+        return newMap;
+      });
+    }
+
+    toast.success('Widget duplicated');
+  }, [widgets, widgetConfigs, layouts]);
+
+  // Render enhanced widget
+  const renderWidget = useCallback((widgetId) => {
+    const widget = widgets.get(widgetId);
+    const config = widgetConfigs.get(widgetId) || {};
+    if (!widget) return null;
+
+    const { type, category } = widget;
+    const widgetDef = WIDGET_CATALOG[category]?.widgets[type];
+    if (!widgetDef) return null;
+
+    const title = config.title || widgetDef.name;
+
+    // Handle KPI widgets with enhancements
+    if (category === 'kpis') {
+      const value = widgetData.kpis?.[widgetDef.dataKey] || 0;
+      let formattedValue = value.toLocaleString();
+      let change = '+12.5%';
+      let trend = 'up';
+
+      // Apply custom formatting
+      if (config.format === 'currency') {
+        formattedValue = `SAR ${(value / 1000000).toFixed(1)}M`;
+      }
+
+      const sparklineData = [
+        { value: value * 0.8 },
+        { value: value * 0.85 },
+        { value: value * 0.9 },
+        { value: value * 0.95 },
+        { value: value }
+      ];
+
+      return (
+        <WidgetWrapper
+          id={widgetId}
+          title={title}
+          icon={widgetDef.icon}
+          onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
+          onConfigure={isEditMode ? () => openWidgetConfig(widgetId) : undefined}
+          onDuplicate={isEditMode ? () => duplicateWidget(widgetId) : undefined}
+          actions={isEditMode ? ['configure', 'duplicate', 'remove'] : []}
+        >
+          <div className="p-6">
+            <div className="text-2xl font-bold">{formattedValue}</div>
+            <p className="text-sm text-muted-foreground">{widgetDef.description}</p>
+            
+            {config.comparisonEnabled && (
+              <div className={`text-sm mt-1 ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+                {trend === 'up' ? <TrendingUp className="inline h-3 w-3" /> : <TrendingUp className="inline h-3 w-3 rotate-180" />}
+                {change} vs {config.comparisonType.replace('_', ' ')}
+              </div>
+            )}
+            
+            {config.sparklineEnabled && (
+              <div className="mt-3 h-10">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={sparklineData}>
+                    <Line type="monotone" dataKey="value" stroke="#E6B800" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </WidgetWrapper>
+      );
+    }
+
+    // Handle chart widgets with custom configurations
+    if (category === 'charts') {
+      let chartData = [];
+      
+      switch (type) {
+        case 'revenue_trend':
+          chartData = widgetData.comparison?.trends || [];
+          break;
+        case 'customer_segments':
+          chartData = widgetData.customerAnalytics?.by_segment || [];
+          break;
+      }
+
+      const ChartComponent = CHART_TYPES[config.chartType || widgetDef.chartType]?.component || AreaChart;
+
+      return (
+        <WidgetWrapper
+          id={widgetId}
+          title={title}
+          icon={widgetDef.icon}
+          onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
+          onConfigure={isEditMode ? () => openWidgetConfig(widgetId) : undefined}
+          onDuplicate={isEditMode ? () => duplicateWidget(widgetId) : undefined}
+          actions={isEditMode ? ['configure', 'duplicate', 'remove'] : []}
+        >
+          <div className="p-6">
+            <ResponsiveContainer width="100%" height={200}>
+              {config.chartType === 'pie' || widgetDef.chartType === 'pie' ? (
+                <RechartsPieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={config.showLabels !== false ? ({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%` : false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey={type === 'customer_segments' ? 'count' : 'value'}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  {config.showTooltip && <Tooltip />}
+                  {config.showLegend && <Legend />}
+                </RechartsPieChart>
+              ) : (
+                <ChartComponent data={chartData}>
+                  {config.showGrid && <CartesianGrid strokeDasharray="3 3" />}
+                  <XAxis dataKey={type === 'revenue_trend' ? 'month' : 'name'} />
+                  <YAxis />
+                  {config.showTooltip && <Tooltip />}
+                  {config.showLegend && <Legend />}
+                  {config.chartType === 'area' && (
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="#E6B800" 
+                      fill="#E6B800" 
+                      fillOpacity={0.3}
+                      animationDuration={config.animationEnabled ? 1000 : 0}
+                    />
+                  )}
+                  {config.chartType === 'line' && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="#E6B800"
+                      animationDuration={config.animationEnabled ? 1000 : 0}
+                    />
+                  )}
+                  {config.chartType === 'bar' && (
+                    <Bar 
+                      dataKey="revenue" 
+                      fill="#4A5568"
+                      animationDuration={config.animationEnabled ? 1000 : 0}
+                    />
+                  )}
+                </ChartComponent>
+              )}
+            </ResponsiveContainer>
+          </div>
+        </WidgetWrapper>
+      );
+    }
+
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">Unknown widget type: {type}</p>
+        </CardContent>
+      </Card>
+    );
+  }, [widgets, widgetConfigs, widgetData, isEditMode, removeWidget, openWidgetConfig, duplicateWidget]);
 
   // Add widget
   const addWidget = useCallback((widgetType, category) => {
@@ -538,351 +606,20 @@ export function CustomDashboard() {
     toast.success(`${widgetConfig.name} added to dashboard`);
   }, [layouts]);
 
-  // Remove widget
-  const removeWidget = useCallback((widgetId) => {
-    setLayouts(prev => ({
-      ...prev,
-      lg: prev.lg.filter(item => item.i !== widgetId)
-    }));
-
-    setWidgets(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(widgetId);
-      return newMap;
-    });
-
-    toast.success('Widget removed');
-  }, []);
-
-  // Handle layout change
-  const handleLayoutChange = useCallback((currentLayout, allLayouts) => {
-    setLayouts(allLayouts);
-  }, []);
-
-  // Save dashboard
-  const saveDashboard = useCallback(() => {
-    const config = {
-      name: dashboardName,
-      layouts,
-      widgets: Array.from(widgets.entries()),
-      theme: colorTheme,
+  const dashboardData = {
+    id: 'custom-dashboard',
+    name: dashboardName,
+    layouts,
+    widgets: Array.from(widgets.entries()),
+    configs: Array.from(widgetConfigs.entries()),
+    theme: colorTheme,
+    settings: {
       autoRefresh,
       refreshInterval,
       showGridLines,
-      compactMode,
-      lastSaved: new Date().toISOString()
-    };
-
-    localStorage.setItem('customDashboardLayout', JSON.stringify(config));
-    toast.success('Dashboard saved successfully');
-  }, [dashboardName, layouts, widgets, colorTheme, autoRefresh, refreshInterval, showGridLines, compactMode]);
-
-  // Export dashboard
-  const exportDashboard = useCallback(() => {
-    const config = {
-      name: dashboardName,
-      layouts,
-      widgets: Array.from(widgets.entries()),
-      theme: colorTheme,
-      exportDate: new Date().toISOString()
-    };
-
-    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dashboard-${dashboardName.toLowerCase().replace(/\s+/g, '-')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast.success('Dashboard exported');
-  }, [dashboardName, layouts, widgets, colorTheme]);
-
-  // Import dashboard
-  const importDashboard = useCallback((event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const config = JSON.parse(e.target.result);
-        setDashboardName(config.name || 'Imported Dashboard');
-        setLayouts(config.layouts || {});
-        setWidgets(new Map(config.widgets || []));
-        setColorTheme(config.theme || 'default');
-        toast.success('Dashboard imported successfully');
-      } catch (error) {
-        console.error('Error importing dashboard:', error);
-        toast.error('Failed to import dashboard');
-      }
-    };
-    reader.readAsText(file);
-  }, []);
-
-  // Render widget
-  const renderWidget = useCallback((widgetId) => {
-    const widget = widgets.get(widgetId);
-    if (!widget) return null;
-
-    const { type, category } = widget;
-    const widgetConfig = WIDGET_CATALOG[category]?.widgets[type];
-    if (!widgetConfig) return null;
-
-    // Handle KPI widgets
-    if (category === 'kpis') {
-      const value = widgetData.kpis?.[widgetConfig.dataKey] || 0;
-      let formattedValue = value.toLocaleString();
-      let change = '+12.5%';
-      let trend = 'up';
-
-      switch (type) {
-        case 'revenue_kpi':
-          formattedValue = `SAR ${(value / 1000000).toFixed(1)}M`;
-          break;
-        case 'deposits_kpi':
-        case 'loans_kpi':
-          formattedValue = `SAR ${(value / 1000000000).toFixed(1)}B`;
-          break;
-      }
-
-      return (
-        <WidgetWrapper
-          id={widgetId}
-          title={widgetConfig.name}
-          icon={widgetConfig.icon}
-          onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
-          onConfigure={isEditMode ? () => setSelectedWidgetConfig({ id: widgetId, ...widget }) : undefined}
-        >
-          <div className="p-6">
-            <div className="text-2xl font-bold">{formattedValue}</div>
-            <p className="text-sm text-muted-foreground">{widgetConfig.description}</p>
-            <div className={`text-sm mt-1 ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
-              {trend === 'up' ? <TrendingUp className="inline h-3 w-3" /> : <TrendingDown className="inline h-3 w-3" />}
-              {change}
-            </div>
-          </div>
-        </WidgetWrapper>
-      );
+      compactMode
     }
-
-    // Handle chart widgets
-    if (category === 'charts') {
-      let chartData = [];
-      
-      switch (type) {
-        case 'revenue_trend':
-          chartData = widgetData.comparison?.trends || [];
-          break;
-        case 'customer_segments':
-          chartData = widgetData.customerAnalytics?.by_segment || [];
-          break;
-        case 'transaction_activity':
-          chartData = widgetData.transactionAnalytics?.by_channel || [];
-          break;
-        case 'branch_performance':
-          chartData = widgetData.branchPerformance || [];
-          break;
-        case 'loan_portfolio':
-          const loanData = widgetData.loanAnalytics;
-          chartData = [
-            { name: 'Disbursed', value: loanData?.disbursed_amount || 0 },
-            { name: 'Outstanding', value: loanData?.outstanding_amount || 0 }
-          ];
-          break;
-      }
-
-      return (
-        <WidgetWrapper
-          id={widgetId}
-          title={widgetConfig.name}
-          icon={widgetConfig.icon}
-          onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
-          onConfigure={isEditMode ? () => setSelectedWidgetConfig({ id: widgetId, ...widget }) : undefined}
-        >
-          <div className="p-6">
-            <ResponsiveContainer width="100%" height={200}>
-              {widgetConfig.chartType === 'pie' ? (
-                <RechartsPieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey={type === 'customer_segments' ? 'count' : 'value'}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </RechartsPieChart>
-              ) : widgetConfig.chartType === 'area' ? (
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => `SAR ${(value / 1000000).toFixed(1)}M`} />
-                  <Area type="monotone" dataKey="revenue" stroke="#E6B800" fill="#E6B800" fillOpacity={0.3} />
-                </AreaChart>
-              ) : widgetConfig.chartType === 'bar' ? (
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={type === 'branch_performance' ? 'branch' : 'channel'} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey={type === 'branch_performance' ? 'efficiency' : 'count'} fill="#4A5568" />
-                </BarChart>
-              ) : widgetConfig.chartType === 'radial' ? (
-                <RadialBarChart cx="50%" cy="50%" innerRadius="30%" outerRadius="90%" data={chartData}>
-                  <RadialBar dataKey="value" cornerRadius={10} fill="#8884d8" />
-                  <Tooltip formatter={(value) => `SAR ${(value / 1000000).toFixed(1)}M`} />
-                </RadialBarChart>
-              ) : null}
-            </ResponsiveContainer>
-          </div>
-        </WidgetWrapper>
-      );
-    }
-
-    // Handle comparison widgets
-    if (category === 'comparisons') {
-      return (
-        <WidgetWrapper
-          id={widgetId}
-          title={widgetConfig.name}
-          icon={widgetConfig.icon}
-          onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
-          onConfigure={isEditMode ? () => setSelectedWidgetConfig({ id: widgetId, ...widget }) : undefined}
-          noPadding
-        >
-          <ComparisonWidget
-            title=""
-            data={{ monthlyComparison: widgetData.comparison }}
-            comparisonType={widgetConfig.comparisonType}
-          />
-        </WidgetWrapper>
-      );
-    }
-
-    // Handle status widgets
-    if (category === 'status') {
-      if (type === 'compliance_status') {
-        const scores = [
-          { name: 'Overall', score: widgetData.complianceData?.overallScore || 0 },
-          { name: 'AML/CFT', score: widgetData.complianceData?.amlScore || 0 },
-          { name: 'KYC', score: widgetData.complianceData?.kycScore || 0 },
-          { name: 'Regulatory', score: widgetData.complianceData?.regulatoryScore || 0 }
-        ];
-
-        return (
-          <WidgetWrapper
-            id={widgetId}
-            title={widgetConfig.name}
-            icon={widgetConfig.icon}
-            onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
-            onConfigure={isEditMode ? () => setSelectedWidgetConfig({ id: widgetId, ...widget }) : undefined}
-          >
-            <div className="p-6 space-y-3">
-              {scores.map((item, index) => (
-                <div key={index}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>{item.name}</span>
-                    <span className="font-semibold">{item.score}%</span>
-                  </div>
-                  <Progress value={item.score} className="h-2" />
-                </div>
-              ))}
-            </div>
-          </WidgetWrapper>
-        );
-      }
-
-      if (type === 'recent_transactions') {
-        return (
-          <WidgetWrapper
-            id={widgetId}
-            title={widgetConfig.name}
-            icon={widgetConfig.icon}
-            onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
-            onConfigure={isEditMode ? () => setSelectedWidgetConfig({ id: widgetId, ...widget }) : undefined}
-          >
-            <div className="p-6 space-y-3">
-              {(widgetData.recentTransactions || []).slice(0, 5).map((transaction, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{transaction.customer}</p>
-                    <p className="text-sm text-muted-foreground">{transaction.type} • {transaction.time}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{transaction.amount}</p>
-                    <Badge variant={transaction.status === 'Completed' ? 'success' : 'warning'}>
-                      {transaction.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </WidgetWrapper>
-        );
-      }
-
-      if (type === 'system_alerts') {
-        return (
-          <WidgetWrapper
-            id={widgetId}
-            title={widgetConfig.name}
-            icon={widgetConfig.icon}
-            onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
-            onConfigure={isEditMode ? () => setSelectedWidgetConfig({ id: widgetId, ...widget }) : undefined}
-          >
-            <div className="p-6 space-y-3">
-              {(widgetData.alerts || []).map((alert) => (
-                <div key={alert.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-                  {alert.type === 'error' ? (
-                    <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
-                  ) : alert.type === 'warning' ? (
-                    <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 text-blue-500 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm">{alert.message}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">{alert.severity}</Badge>
-                      <span className="text-xs text-muted-foreground">{alert.time}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </WidgetWrapper>
-        );
-      }
-    }
-
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground">Unknown widget type: {type}</p>
-        </CardContent>
-      </Card>
-    );
-  }, [widgets, widgetData, isEditMode, removeWidget]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchAllData();
-    setRefreshing(false);
-    toast.success('Dashboard refreshed');
   };
-
-  const theme = COLOR_THEMES[colorTheme];
 
   if (loading) {
     return (
@@ -910,23 +647,22 @@ export function CustomDashboard() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
+            onClick={() => setShowSharing(true)}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={exportDashboard}
+            onClick={() => toast.info('Refreshing dashboard...')}
           >
-            <Download className="h-4 w-4 mr-2" />
-            Export
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
           <Button
             size="sm"
-            onClick={saveDashboard}
+            onClick={() => toast.success('Dashboard saved')}
           >
             <Save className="h-4 w-4 mr-2" />
             Save
@@ -953,28 +689,6 @@ export function CustomDashboard() {
                   {isEditMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                   {isEditMode ? 'Edit Mode' : 'View Mode'}
                 </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="auto-refresh"
-                  checked={autoRefresh}
-                  onCheckedChange={setAutoRefresh}
-                />
-                <Label htmlFor="auto-refresh" className="cursor-pointer">
-                  Auto Refresh
-                </Label>
-                {autoRefresh && (
-                  <Select value={refreshInterval.toString()} onValueChange={(v) => setRefreshInterval(parseInt(v))}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30000">30 seconds</SelectItem>
-                      <SelectItem value="60000">1 minute</SelectItem>
-                      <SelectItem value="300000">5 minutes</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
               </div>
             </div>
           </div>
@@ -1006,30 +720,6 @@ export function CustomDashboard() {
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => loadTemplate(selectedTemplate)}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Layout
-              </Button>
-              <label>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={importDashboard}
-                  className="hidden"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => e.currentTarget.previousSibling.click()}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import
-                </Button>
-              </label>
             </div>
           </CardContent>
         )}
@@ -1042,284 +732,415 @@ export function CustomDashboard() {
           isEditMode && "ring-2 ring-primary/50 p-4",
           showGridLines && isEditMode && "dashboard-grid"
         )}
-        style={{
-          '--theme-primary': theme.primary,
-          '--theme-secondary': theme.secondary,
-          '--theme-accent': theme.accent,
-        }}
       >
-        {widgets.size === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="py-12 text-center">
-              <Grid3X3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-2">No widgets added yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Start by adding widgets to your dashboard
-              </p>
-              {isEditMode && (
-                <Button onClick={() => setShowAddWidget(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Widget
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <ResponsiveGridLayout
-            className="layout"
-            layouts={layouts}
-            breakpoints={breakpoints}
-            cols={cols}
-            rowHeight={compactMode ? 50 : 60}
-            isDraggable={isEditMode}
-            isResizable={isEditMode}
-            onLayoutChange={handleLayoutChange}
-            margin={compactMode ? [12, 12] : [16, 16]}
-            containerPadding={[0, 0]}
-            useCSSTransforms={true}
-            preventCollision={false}
-            compactType="vertical"
-          >
-            {Array.from(widgets.keys()).map((widgetId) => (
-              <div key={widgetId} className="dashboard-widget">
-                {renderWidget(widgetId)}
-              </div>
-            ))}
-          </ResponsiveGridLayout>
-        )}
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={layouts}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+          rowHeight={60}
+          isDraggable={isEditMode}
+          isResizable={isEditMode}
+          onLayoutChange={(current, all) => setLayouts(all)}
+        >
+          {Array.from(widgets.keys()).map((widgetId) => (
+            <div key={widgetId}>
+              {renderWidget(widgetId)}
+            </div>
+          ))}
+        </ResponsiveGridLayout>
       </div>
 
-      {/* Add Widget Dialog */}
-      <Dialog open={showAddWidget} onOpenChange={setShowAddWidget}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      {/* Widget Configuration Dialog */}
+      <Dialog open={showWidgetConfig} onOpenChange={setShowWidgetConfig}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Add Widget to Dashboard</DialogTitle>
+            <DialogTitle>Configure Widget</DialogTitle>
             <DialogDescription>
-              Choose from our widget catalog to enhance your dashboard
+              Customize the widget appearance and behavior
             </DialogDescription>
           </DialogHeader>
           
-          <Tabs defaultValue="kpis" className="mt-4">
-            <TabsList className="grid w-full grid-cols-4">
-              {Object.entries(WIDGET_CATALOG).map(([key, category]) => (
-                <TabsTrigger key={key} value={key}>
-                  <category.icon className="w-4 h-4 mr-2" />
-                  {category.category}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            
-            {Object.entries(WIDGET_CATALOG).map(([categoryKey, category]) => (
-              <TabsContent key={categoryKey} value={categoryKey} className="mt-4">
-                <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(category.widgets).map(([widgetKey, widget]) => (
-                    <Card
-                      key={widgetKey}
-                      className="cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => addWidget(widgetKey, categoryKey)}
+          <ScrollArea className="flex-1 pr-4">
+            <Tabs defaultValue="general" className="mt-4">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="data">Data Source</TabsTrigger>
+                <TabsTrigger value="display">Display</TabsTrigger>
+                <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="general" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="widget-title">Widget Title</Label>
+                  <Input
+                    id="widget-title"
+                    value={configFormData.title}
+                    onChange={(e) => setConfigFormData({ ...configFormData, title: e.target.value })}
+                    placeholder="Enter widget title"
+                  />
+                </div>
+
+                {selectedWidgetConfig?.definition?.configurable?.chartType && (
+                  <div className="space-y-2">
+                    <Label>Chart Type</Label>
+                    <RadioGroup
+                      value={configFormData.chartType}
+                      onValueChange={(value) => setConfigFormData({ ...configFormData, chartType: value })}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                            <widget.icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium">{widget.name}</h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {widget.description}
-                            </p>
-                            <Badge variant="secondary" className="text-xs mt-2">
-                              {widget.defaultSize.w}x{widget.defaultSize.h}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      <div className="grid grid-cols-3 gap-3">
+                        {Object.entries(CHART_TYPES).map(([key, type]) => (
+                          <Card
+                            key={key}
+                            className={cn(
+                              "cursor-pointer",
+                              configFormData.chartType === key && "ring-2 ring-primary"
+                            )}
+                            onClick={() => setConfigFormData({ ...configFormData, chartType: key })}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex items-center gap-2">
+                                <RadioGroupItem value={key} />
+                                <type.icon className="h-4 w-4" />
+                                <span className="text-sm">{type.name}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
+
+                {selectedWidgetConfig?.definition?.configurable?.comparison && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Enable Comparison</Label>
+                      <Switch
+                        checked={configFormData.comparisonEnabled}
+                        onCheckedChange={(checked) => 
+                          setConfigFormData({ ...configFormData, comparisonEnabled: checked })
+                        }
+                      />
+                    </div>
+                    
+                    {configFormData.comparisonEnabled && (
+                      <div className="space-y-2">
+                        <Label>Comparison Type</Label>
+                        <Select
+                          value={configFormData.comparisonType}
+                          onValueChange={(value) => 
+                            setConfigFormData({ ...configFormData, comparisonType: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="previous_period">Previous Period</SelectItem>
+                            <SelectItem value="previous_year">Previous Year</SelectItem>
+                            <SelectItem value="target">Target</SelectItem>
+                            <SelectItem value="average">Average</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="data" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Data Source</Label>
+                  <Select
+                    value={configFormData.dataSource}
+                    onValueChange={(value) => setConfigFormData({ ...configFormData, dataSource: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default</SelectItem>
+                      <SelectItem value="realtime">Real-time</SelectItem>
+                      <SelectItem value="custom">Custom Query</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedWidgetConfig?.definition?.configurable?.timeRange && (
+                  <div className="space-y-2">
+                    <Label>Time Range</Label>
+                    <Select
+                      value={configFormData.timeRange}
+                      onValueChange={(value) => setConfigFormData({ ...configFormData, timeRange: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIME_RANGE_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {selectedWidgetConfig?.definition?.configurable?.aggregation && (
+                  <div className="space-y-2">
+                    <Label>Aggregation</Label>
+                    <Select
+                      value={configFormData.aggregation}
+                      onValueChange={(value) => setConfigFormData({ ...configFormData, aggregation: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGGREGATION_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {configFormData.dataSource === 'custom' && (
+                  <div className="space-y-2">
+                    <Label>Custom Query</Label>
+                    <Textarea
+                      value={configFormData.customQuery}
+                      onChange={(e) => setConfigFormData({ ...configFormData, customQuery: e.target.value })}
+                      placeholder="Enter SQL query..."
+                      rows={4}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Refresh Rate</Label>
+                  <Select
+                    value={configFormData.refreshRate}
+                    onValueChange={(value) => setConfigFormData({ ...configFormData, refreshRate: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inherit">Inherit from Dashboard</SelectItem>
+                      <SelectItem value="30s">Every 30 seconds</SelectItem>
+                      <SelectItem value="1m">Every minute</SelectItem>
+                      <SelectItem value="5m">Every 5 minutes</SelectItem>
+                      <SelectItem value="manual">Manual only</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </TabsContent>
-            ))}
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+              
+              <TabsContent value="display" className="space-y-4 mt-4">
+                <div className="space-y-4">
+                  {selectedWidgetConfig?.definition?.configurable?.legend && (
+                    <div className="flex items-center justify-between">
+                      <Label>Show Legend</Label>
+                      <Switch
+                        checked={configFormData.showLegend}
+                        onCheckedChange={(checked) => 
+                          setConfigFormData({ ...configFormData, showLegend: checked })
+                        }
+                      />
+                    </div>
+                  )}
+                  
+                  {selectedWidgetConfig?.definition?.configurable?.axes && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <Label>Show Grid Lines</Label>
+                        <Switch
+                          checked={configFormData.showGrid}
+                          onCheckedChange={(checked) => 
+                            setConfigFormData({ ...configFormData, showGrid: checked })
+                          }
+                        />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <Label>Show Tooltip</Label>
+                        <Switch
+                          checked={configFormData.showTooltip}
+                          onCheckedChange={(checked) => 
+                            setConfigFormData({ ...configFormData, showTooltip: checked })
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  {selectedWidgetConfig?.definition?.configurable?.animation && (
+                    <div className="flex items-center justify-between">
+                      <Label>Enable Animation</Label>
+                      <Switch
+                        checked={configFormData.animationEnabled}
+                        onCheckedChange={(checked) => 
+                          setConfigFormData({ ...configFormData, animationEnabled: checked })
+                        }
+                      />
+                    </div>
+                  )}
 
-      {/* Templates Dialog */}
-      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Choose Dashboard Template</DialogTitle>
-            <DialogDescription>
-              Start with a pre-configured template
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 mt-4">
-            {Object.entries(DASHBOARD_TEMPLATES).map(([key, template]) => (
-              <Card
-                key={key}
-                className={cn(
-                  "cursor-pointer transition-all",
-                  selectedTemplate === key && "ring-2 ring-primary"
-                )}
-                onClick={() => {
-                  loadTemplate(key);
-                  setShowTemplates(false);
-                  toast.success(`Loaded ${template.name} template`);
-                }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <template.icon className="w-5 h-5 text-primary" />
-                      <div>
-                        <h4 className="font-medium">{template.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {template.description}
-                        </p>
+                  {selectedWidgetConfig?.definition?.configurable?.sparkline && (
+                    <div className="flex items-center justify-between">
+                      <Label>Show Sparkline</Label>
+                      <Switch
+                        checked={configFormData.sparklineEnabled}
+                        onCheckedChange={(checked) => 
+                          setConfigFormData({ ...configFormData, sparklineEnabled: checked })
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {selectedWidgetConfig?.definition?.configurable?.colors && (
+                    <div className="space-y-2">
+                      <Label>Color Scheme</Label>
+                      <Select
+                        value={configFormData.colorScheme}
+                        onValueChange={(value) => setConfigFormData({ ...configFormData, colorScheme: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">Default</SelectItem>
+                          <SelectItem value="monochrome">Monochrome</SelectItem>
+                          <SelectItem value="gradient">Gradient</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="advanced" className="space-y-4 mt-4">
+                {selectedWidgetConfig?.definition?.configurable?.threshold && (
+                  <div className="space-y-4">
+                    <Label>Thresholds</Label>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input placeholder="Warning at" type="number" />
+                        <Input placeholder="Critical at" type="number" />
+                        <Button size="sm">Add</Button>
                       </div>
                     </div>
-                    {selectedTemplate === key && <Badge>Active</Badge>}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+                )}
 
-      {/* Settings Dialog */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Dashboard Settings</DialogTitle>
-            <DialogDescription>
-              Configure your dashboard appearance and behavior
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6 mt-4">
-            {/* Dashboard Name */}
-            <div className="space-y-2">
-              <Label htmlFor="dashboard-name">Dashboard Name</Label>
-              <Input
-                id="dashboard-name"
-                value={dashboardName}
-                onChange={(e) => setDashboardName(e.target.value)}
-                placeholder="Enter dashboard name"
-              />
-            </div>
+                {selectedWidgetConfig?.definition?.configurable?.filters && (
+                  <div className="space-y-4">
+                    <Label>Filters</Label>
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        Add filters to refine the data shown in this widget
+                      </AlertDescription>
+                    </Alert>
+                    <Button variant="outline" size="sm">
+                      <Filter className="h-4 w-4 mr-2" />
+                      Add Filter
+                    </Button>
+                  </div>
+                )}
 
-            {/* Color Theme */}
-            <div className="space-y-2">
-              <Label>Color Theme</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(COLOR_THEMES).map(([key, theme]) => (
-                  <Card
-                    key={key}
-                    className={cn(
-                      "cursor-pointer transition-all",
-                      colorTheme === key && "ring-2 ring-primary"
-                    )}
-                    onClick={() => setColorTheme(key)}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex gap-1">
-                          <div
-                            className="w-6 h-6 rounded"
-                            style={{ backgroundColor: theme.primary }}
-                          />
-                          <div
-                            className="w-6 h-6 rounded"
-                            style={{ backgroundColor: theme.secondary }}
-                          />
-                          <div
-                            className="w-6 h-6 rounded"
-                            style={{ backgroundColor: theme.accent }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium">{theme.name}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Display Settings */}
-            <div className="space-y-4">
-              <h4 className="font-medium">Display Settings</h4>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="grid-lines">Show Grid Lines</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Display grid lines in edit mode
-                  </p>
+                <div className="space-y-2">
+                  <Label>Widget Notes</Label>
+                  <Textarea
+                    placeholder="Add notes about this widget configuration..."
+                    rows={3}
+                  />
                 </div>
-                <Switch
-                  id="grid-lines"
-                  checked={showGridLines}
-                  onCheckedChange={setShowGridLines}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="compact-mode">Compact Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Reduce spacing between widgets
-                  </p>
-                </div>
-                <Switch
-                  id="compact-mode"
-                  checked={compactMode}
-                  onCheckedChange={setCompactMode}
-                />
-              </div>
-            </div>
-          </div>
+              </TabsContent>
+            </Tabs>
+          </ScrollArea>
           
           <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setShowSettings(false)}>
+            <Button variant="outline" onClick={() => setShowWidgetConfig(false)}>
               Cancel
             </Button>
-            <Button onClick={() => {
-              saveDashboard();
-              setShowSettings(false);
-            }}>
-              Save Settings
+            <Button onClick={saveWidgetConfig}>
+              Save Configuration
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Help Tips */}
-      {isEditMode && (
-        <Card className="border-muted bg-muted/50">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-2">
-              <h3 className="font-medium flex items-center justify-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Dashboard Customization Tips
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground mt-4">
-                <div className="flex items-start gap-2">
-                  <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>Drag widgets to rearrange and resize by dragging corners</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>Use templates as a starting point then customize</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>Save your layout to preserve your customizations</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Add Widget Dialog */}
+      <Dialog open={showAddWidget} onOpenChange={setShowAddWidget}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Add Widget</DialogTitle>
+            <DialogDescription>Choose a widget to add to your dashboard</DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="kpis">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="kpis">Key Metrics</TabsTrigger>
+              <TabsTrigger value="charts">Analytics</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="kpis" className="grid grid-cols-2 gap-3 mt-4">
+              {Object.entries(WIDGET_CATALOG.kpis.widgets).map(([key, widget]) => (
+                <Card
+                  key={key}
+                  className="cursor-pointer hover:shadow-md"
+                  onClick={() => addWidget(key, 'kpis')}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <widget.icon className="h-5 w-5 text-primary" />
+                      <div>
+                        <h4 className="font-medium">{widget.name}</h4>
+                        <p className="text-sm text-muted-foreground">{widget.description}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+            
+            <TabsContent value="charts" className="grid grid-cols-2 gap-3 mt-4">
+              {Object.entries(WIDGET_CATALOG.charts.widgets).map(([key, widget]) => (
+                <Card
+                  key={key}
+                  className="cursor-pointer hover:shadow-md"
+                  onClick={() => addWidget(key, 'charts')}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <widget.icon className="h-5 w-5 text-primary" />
+                      <div>
+                        <h4 className="font-medium">{widget.name}</h4>
+                        <p className="text-sm text-muted-foreground">{widget.description}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dashboard Sharing Dialog */}
+      <DashboardSharing 
+        dashboard={dashboardData}
+        isOpen={showSharing}
+        onClose={() => setShowSharing(false)}
+      />
 
       <style jsx>{`
         .dashboard-grid {
@@ -1328,54 +1149,13 @@ export function CustomDashboard() {
             linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
           background-size: 20px 20px;
         }
-        
-        .dashboard-widget {
-          transition: all 0.3s ease;
-        }
-        
-        .dashboard-widget:hover {
-          z-index: 10;
-        }
-        
-        .react-grid-item {
-          transition: all 200ms ease;
-          transition-property: left, top, width, height;
-        }
-        
-        .react-grid-item.cssTransforms {
-          transition-property: transform, width, height;
-        }
-        
-        .react-grid-item.resizing {
-          z-index: 1;
-          will-change: width, height;
-        }
-        
-        .react-grid-item.dragging {
-          transition: none;
-          z-index: 3;
-          will-change: transform;
-        }
-        
-        .react-grid-item.dropping {
-          visibility: hidden;
-        }
-        
-        .react-grid-placeholder {
-          background: hsl(var(--primary) / 0.2);
-          opacity: 0.5;
-          transition-duration: 100ms;
-          z-index: 2;
-          border-radius: 0.5rem;
-          border: 2px dashed hsl(var(--primary));
-        }
       `}</style>
     </div>
   );
 }
 
-// Widget wrapper component
-function WidgetWrapper({ id, title, icon: Icon, children, onRemove, onConfigure, noPadding }) {
+// Enhanced Widget wrapper with more actions
+function WidgetWrapper({ id, title, icon: Icon, children, onRemove, onConfigure, onDuplicate, actions = [] }) {
   return (
     <Card className="h-full relative group overflow-hidden">
       <CardHeader className="pb-2">
@@ -1384,33 +1164,43 @@ function WidgetWrapper({ id, title, icon: Icon, children, onRemove, onConfigure,
             <Icon className="h-4 w-4" />
             {title}
           </CardTitle>
-          {(onRemove || onConfigure) && (
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {onConfigure && (
+          {actions.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
-                  onClick={onConfigure}
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <Settings className="h-4 w-4" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
-              )}
-              {onRemove && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onRemove}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {actions.includes('configure') && (
+                  <DropdownMenuItem onClick={onConfigure}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configure
+                  </DropdownMenuItem>
+                )}
+                {actions.includes('duplicate') && (
+                  <DropdownMenuItem onClick={onDuplicate}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplicate
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                {actions.includes('remove') && (
+                  <DropdownMenuItem onClick={onRemove} className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </CardHeader>
-      <CardContent className={cn("h-[calc(100%-4rem)]", noPadding && "p-0")}>
+      <CardContent className="h-[calc(100%-4rem)]">
         {children}
       </CardContent>
     </Card>
