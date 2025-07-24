@@ -126,7 +126,7 @@ function NavItem({ item, level = 0 }) {
               isActive && "bg-accent text-accent-foreground"
             )}
           >
-            <item.icon className="h-4 w-4" />
+            {item.icon && <item.icon className="h-4 w-4" />}
             <span className="flex-1 text-left">{item.title}</span>
             {isOpen ? (
               <ChevronDown className="h-4 w-4" />
@@ -155,7 +155,7 @@ function NavItem({ item, level = 0 }) {
       asChild
     >
       <Link to={item.href}>
-        <item.icon className="h-4 w-4" />
+        {item.icon && <item.icon className="h-4 w-4" />}
         <span>{item.title}</span>
       </Link>
     </Button>
@@ -176,13 +176,17 @@ export function Sidebar() {
       {/* Footer */}
       <div className="border-t p-4">
         <div className="space-y-1">
-          <Button variant="ghost" className="w-full justify-start gap-2 font-normal">
-            <Settings className="h-4 w-4" />
-            <span>Settings</span>
+          <Button variant="ghost" className="w-full justify-start gap-2 font-normal" asChild>
+            <Link to="/settings">
+              <Settings className="h-4 w-4" />
+              <span>Settings</span>
+            </Link>
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-2 font-normal">
-            <HelpCircle className="h-4 w-4" />
-            <span>Help & Support</span>
+          <Button variant="ghost" className="w-full justify-start gap-2 font-normal" asChild>
+            <Link to="/help">
+              <HelpCircle className="h-4 w-4" />
+              <span>Help & Support</span>
+            </Link>
           </Button>
         </div>
       </div>
