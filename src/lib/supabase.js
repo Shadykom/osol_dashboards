@@ -4,12 +4,15 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
 
-// Create Supabase client
+// Create Supabase client with kastle_banking schema
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
+  },
+  db: {
+    schema: 'kastle_banking'  // Specify the kastle_banking schema
   },
   realtime: {
     params: {
@@ -18,18 +21,30 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Database schema constants
+// Database schema constants - now using just table names without schema prefix
 export const TABLES = {
-  CUSTOMERS: 'kastle_banking.customers',
-  ACCOUNTS: 'kastle_banking.accounts',
-  TRANSACTIONS: 'kastle_banking.transactions',
-  LOAN_ACCOUNTS: 'kastle_banking.loan_accounts',
-  ACCOUNT_TYPES: 'kastle_banking.account_types',
-  TRANSACTION_TYPES: 'kastle_banking.transaction_types',
-  BRANCHES: 'kastle_banking.branches',
-  CURRENCIES: 'kastle_banking.currencies',
-  COUNTRIES: 'kastle_banking.countries',
-  AUDIT_TRAIL: 'kastle_banking.audit_trail'
+  CUSTOMERS: 'customers',
+  ACCOUNTS: 'accounts',
+  TRANSACTIONS: 'transactions',
+  LOAN_ACCOUNTS: 'loan_accounts',
+  ACCOUNT_TYPES: 'account_types',
+  TRANSACTION_TYPES: 'transaction_types',
+  BRANCHES: 'branches',
+  CURRENCIES: 'currencies',
+  COUNTRIES: 'countries',
+  AUDIT_TRAIL: 'audit_trail',
+  AUTH_USER_PROFILES: 'auth_user_profiles',
+  REALTIME_NOTIFICATIONS: 'realtime_notifications',
+  CUSTOMER_ADDRESSES: 'customer_addresses',
+  CUSTOMER_CONTACTS: 'customer_contacts',
+  CUSTOMER_DOCUMENTS: 'customer_documents',
+  CUSTOMER_TYPES: 'customer_types',
+  LOAN_APPLICATIONS: 'loan_applications',
+  COLLECTION_BUCKETS: 'collection_buckets',
+  COLLECTION_CASES: 'collection_cases',
+  PRODUCTS: 'products',
+  PRODUCT_CATEGORIES: 'product_categories',
+  BANK_CONFIG: 'bank_config'
 };
 
 // Helper function to handle Supabase errors
