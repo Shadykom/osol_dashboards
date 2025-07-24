@@ -1,0 +1,1 @@
+import{j as o}from"./index-BnNFJ9rs.js";const n=()=>o.jsxs("div",{className:"min-h-screen p-8",children:[o.jsx("h1",{className:"text-3xl font-bold mb-4",children:"EnhancedBookingWorkflow"}),o.jsx("p",{className:"text-gray-600",children:"EnhancedBookingWorkflow placeholder"})]});export{n as default};

@@ -1,0 +1,1 @@
+import{j as e}from"./index-BnNFJ9rs.js";const r=()=>e.jsxs("div",{className:"min-h-screen p-8",children:[e.jsx("h1",{className:"text-3xl font-bold mb-4",children:"InvestorProfilePage"}),e.jsx("p",{className:"text-gray-600",children:"InvestorProfilePage placeholder"})]});export{r as default};

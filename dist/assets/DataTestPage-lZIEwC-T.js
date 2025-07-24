@@ -1,0 +1,1 @@
+import{j as e}from"./index-BnNFJ9rs.js";const s=()=>e.jsxs("div",{className:"min-h-screen p-8",children:[e.jsx("h1",{className:"text-3xl font-bold mb-4",children:"DataTestPage"}),e.jsx("p",{className:"text-gray-600",children:"DataTestPage placeholder"})]});export{s as default};

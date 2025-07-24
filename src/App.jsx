@@ -78,7 +78,7 @@ const NotFoundPage = lazyLoadWithRetry(() => import("./components/NotFoundPage")
 const Howitworks = lazyLoadWithRetry(() => import("./components/HowItWorksPage"), "HowItWorksPage");
 
 // NEW: Enhanced Dashboard Components
-const CustomDashboard = lazyLoadWithRetry(() => import("./pages/CustomDashboard"), "CustomDashboard");
+const CustomDashboard = lazyLoadWithRetry(() => import("./pages/CustomDashboard").then(m => ({ default: m.CustomDashboard })), "CustomDashboard");
 const SharedDashboardView = lazyLoadWithRetry(() => import("./pages/SharedDashboardView"), "SharedDashboardView");
 
 // Map components - load with special handling

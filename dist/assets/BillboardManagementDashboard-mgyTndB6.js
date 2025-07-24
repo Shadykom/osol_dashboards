@@ -1,0 +1,1 @@
+import{j as a}from"./index-BnNFJ9rs.js";const s=()=>a.jsxs("div",{className:"min-h-screen p-8",children:[a.jsx("h1",{className:"text-3xl font-bold mb-4",children:"BillboardManagementDashboard"}),a.jsx("p",{className:"text-gray-600",children:"BillboardManagementDashboard placeholder"})]});export{s as default};
