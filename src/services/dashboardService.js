@@ -416,29 +416,84 @@ export class DashboardService {
    */
   static async getRecentTransactions(limit = 10) {
     try {
-      const { data, error } = await supabase
+      // First get transactions
+      const { data: transactions, error: transactionsError } = await supabase
         .from(TABLES.TRANSACTIONS)
-        .select(`
-          *,
-          accounts!inner(customer_id, customers!inner(full_name))
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (error) {
-        throw error;
+      if (transactionsError) {
+        throw transactionsError;
       }
 
+      if (!transactions || transactions.length === 0) {
+        return formatApiResponse([]);
+      }
+
+      // Get account IDs from transactions
+      const accountIds = [...new Set(transactions.map(t => t.account_id).filter(Boolean))];
+      
+      if (accountIds.length === 0) {
+        // If no account IDs, return transactions with unknown customer
+        const formattedTransactions = transactions.map(transaction => ({
+          id: transaction.transaction_ref,
+          customer: 'Unknown Customer',
+          account: transaction.account_number,
+          amount: `${transaction.currency_code} ${parseFloat(transaction.transaction_amount).toLocaleString()}`,
+          type: transaction.debit_credit === 'DEBIT' ? 'Withdrawal' : 'Deposit',
+          status: transaction.status,
+          time: this.formatTimeAgo(transaction.created_at)
+        }));
+        return formatApiResponse(formattedTransactions);
+      }
+
+      // Get accounts for these transactions
+      const { data: accounts, error: accountsError } = await supabase
+        .from(TABLES.ACCOUNTS)
+        .select('account_id, customer_id, account_number')
+        .in('account_id', accountIds);
+
+      if (accountsError) {
+        console.warn('Could not fetch accounts:', accountsError);
+      }
+
+      // Get customer IDs from accounts
+      const customerIds = [...new Set(accounts?.map(a => a.customer_id).filter(Boolean) || [])];
+      
+      let customers = [];
+      if (customerIds.length > 0) {
+        const { data: customersData, error: customersError } = await supabase
+          .from(TABLES.CUSTOMERS)
+          .select('customer_id, full_name')
+          .in('customer_id', customerIds);
+
+        if (customersError) {
+          console.warn('Could not fetch customers:', customersError);
+        } else {
+          customers = customersData || [];
+        }
+      }
+
+      // Create lookup maps
+      const accountMap = new Map(accounts?.map(a => [a.account_id, a]) || []);
+      const customerMap = new Map(customers.map(c => [c.customer_id, c]));
+
       // Format the data for display
-      const formattedTransactions = data?.map(transaction => ({
-        id: transaction.transaction_ref,
-        customer: transaction.accounts?.customers?.full_name || 'Unknown Customer',
-        account: transaction.account_number,
-        amount: `${transaction.currency_code} ${parseFloat(transaction.transaction_amount).toLocaleString()}`,
-        type: transaction.debit_credit === 'DEBIT' ? 'Withdrawal' : 'Deposit',
-        status: transaction.status,
-        time: this.formatTimeAgo(transaction.created_at)
-      })) || [];
+      const formattedTransactions = transactions.map(transaction => {
+        const account = accountMap.get(transaction.account_id);
+        const customer = account ? customerMap.get(account.customer_id) : null;
+        
+        return {
+          id: transaction.transaction_ref,
+          customer: customer?.full_name || 'Unknown Customer',
+          account: transaction.account_number,
+          amount: `${transaction.currency_code} ${parseFloat(transaction.transaction_amount).toLocaleString()}`,
+          type: transaction.debit_credit === 'DEBIT' ? 'Withdrawal' : 'Deposit',
+          status: transaction.status,
+          time: this.formatTimeAgo(transaction.created_at)
+        };
+      });
 
       return formatApiResponse(formattedTransactions);
     } catch (error) {
