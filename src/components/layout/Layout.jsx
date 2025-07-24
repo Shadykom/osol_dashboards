@@ -1,8 +1,7 @@
-import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 
-export function Layout() {
+export function Layout({ children }) {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
@@ -14,7 +13,7 @@ export function Layout() {
         
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-6">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>
