@@ -11,6 +11,9 @@ import { Loans } from './pages/Loans';
 import { Reports } from './pages/Reports';
 import { Analytics } from './pages/Analytics';
 import { Compliance } from './pages/Compliance';
+import CollectionOverview from './pages/CollectionOverview';
+import CollectionCases from './pages/CollectionCases';
+import CollectionReports from './pages/CollectionReports';
 import { Toaster } from './components/ui/sonner';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -35,6 +38,9 @@ function App() {
           <Route path="/operations" element={<OperationsDashboard />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/compliance" element={<Compliance />} />
+          <Route path="/collection-overview" element={<CollectionOverview />} />
+          <Route path="/collection-cases" element={<CollectionCases />} />
+          <Route path="/collection-reports" element={<CollectionReports />} />
           <Route path="/settings" element={<div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p>System settings coming soon...</p></div>} />
           
           {/* Customer sub-routes */}

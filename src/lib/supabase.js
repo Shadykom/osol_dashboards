@@ -41,7 +41,30 @@ export const TABLES = {
   COLLECTION_CASES: 'kastle_banking.collection_cases',
   PRODUCTS: 'kastle_banking.products',
   PRODUCT_CATEGORIES: 'kastle_banking.product_categories',
-  BANK_CONFIG: 'kastle_banking.bank_config'
+  BANK_CONFIG: 'kastle_banking.bank_config',
+  
+  // kastle_collection schema tables
+  COLLECTION_AUDIT_TRAIL: 'kastle_collection.collection_audit_trail',
+  COLLECTION_CALL_RECORDS: 'kastle_collection.collection_call_records',
+  COLLECTION_CAMPAIGNS: 'kastle_collection.collection_campaigns',
+  COLLECTION_CASE_DETAILS: 'kastle_collection.collection_case_details',
+  COLLECTION_INTERACTIONS: 'kastle_collection.collection_interactions',
+  COLLECTION_OFFICERS: 'kastle_collection.collection_officers',
+  COLLECTION_SCORES: 'kastle_collection.collection_scores',
+  COLLECTION_STRATEGIES: 'kastle_collection.collection_strategies',
+  COLLECTION_SYSTEM_PERFORMANCE: 'kastle_collection.collection_system_performance',
+  COLLECTION_TEAMS: 'kastle_collection.collection_teams',
+  DAILY_COLLECTION_SUMMARY: 'kastle_collection.daily_collection_summary',
+  DIGITAL_COLLECTION_ATTEMPTS: 'kastle_collection.digital_collection_attempts',
+  FIELD_VISITS: 'kastle_collection.field_visits',
+  HARDSHIP_APPLICATIONS: 'kastle_collection.hardship_applications',
+  IVR_PAYMENT_ATTEMPTS: 'kastle_collection.ivr_payment_attempts',
+  LEGAL_CASES: 'kastle_collection.legal_cases',
+  LOAN_RESTRUCTURING: 'kastle_collection.loan_restructuring',
+  OFFICER_PERFORMANCE_METRICS: 'kastle_collection.officer_performance_metrics',
+  PROMISE_TO_PAY: 'kastle_collection.promise_to_pay',
+  REPOSSESSED_ASSETS: 'kastle_collection.repossessed_assets',
+  SHARIA_COMPLIANCE_LOG: 'kastle_collection.sharia_compliance_log'
 };
 
 // Helper function to handle Supabase errors

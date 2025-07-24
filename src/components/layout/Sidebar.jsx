@@ -13,7 +13,8 @@ import {
   Building2,
   TrendingUp,
   Shield,
-  HelpCircle
+  HelpCircle,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,15 @@ const navigationItems = [
       { title: 'Applications', href: '/loans/applications' },
       { title: 'Disbursements', href: '/loans/disbursements' },
       { title: 'Collections', href: '/loans/collections' },
+    ],
+  },
+  {
+    title: 'Collection',
+    icon: DollarSign,
+    children: [
+      { title: 'Collection Overview', href: '/collection-overview' },
+      { title: 'Collection Cases', href: '/collection-cases' },
+      { title: 'Collection Reports', href: '/collection-reports' },
     ],
   },
   {
