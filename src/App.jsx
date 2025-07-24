@@ -5,12 +5,14 @@ import { CustomDashboard } from './pages/CustomDashboard';
 import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
 import { OperationsDashboard } from './pages/OperationsDashboard';
 import { Customers } from './pages/Customers';
+import { Toaster } from './components/ui/sonner';
 import './App.css';
 
 function App() {
   return (
-    <Router>
-      <Layout>
+    <>
+      <Router>
+        <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -26,9 +28,11 @@ function App() {
           <Route path="/analytics" element={<div className="p-6"><h1 className="text-2xl font-bold">Analytics</h1><p>Advanced analytics coming soon...</p></div>} />
           <Route path="/compliance" element={<div className="p-6"><h1 className="text-2xl font-bold">Compliance</h1><p>Compliance monitoring coming soon...</p></div>} />
           <Route path="/settings" element={<div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p>System settings coming soon...</p></div>} />
-        </Routes>
-      </Layout>
-    </Router>
+          </Routes>
+        </Layout>
+      </Router>
+      <Toaster />
+    </>
   );
 }
 

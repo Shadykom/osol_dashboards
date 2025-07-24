@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { 
   Plus, 
   Settings, 
@@ -302,17 +302,10 @@ export function EnhancedCustomDashboard() {
         lastUpdated: new Date()
       });
 
-      toast({
-        title: "Dashboard Updated",
-        description: "All widgets have been refreshed with latest data",
-      });
+      toast.success("Dashboard Updated: All widgets have been refreshed with latest data");
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load some dashboard data",
-        variant: "destructive"
-      });
+      toast.error("Failed to load some dashboard data");
     } finally {
       setIsLoading(false);
     }
@@ -369,10 +362,7 @@ export function EnhancedCustomDashboard() {
     });
 
     setShowAddWidget(false);
-    toast({
-      title: "Widget Added",
-      description: `${widgetConfig.name} has been added to your dashboard`,
-    });
+    toast.success(`Widget Added: ${widgetConfig.name} has been added to your dashboard`);
   }, []);
 
   // Remove widget
@@ -388,10 +378,7 @@ export function EnhancedCustomDashboard() {
       return newMap;
     });
 
-    toast({
-      title: "Widget Removed",
-      description: "Widget has been removed from your dashboard",
-    });
+    toast.success("Widget Removed: Widget has been removed from your dashboard");
   }, []);
 
   // Configure widget
@@ -432,10 +419,7 @@ export function EnhancedCustomDashboard() {
     localStorage.setItem('osol_custom_dashboard', JSON.stringify(dashboardConfig));
     setLastSaved(new Date());
     
-    toast({
-      title: "Dashboard Saved",
-      description: "Your dashboard configuration has been saved successfully",
-    });
+    toast.success("Dashboard Saved: Your dashboard configuration has been saved successfully");
   }, [dashboardName, selectedTemplate, layouts, widgets, colorTheme, autoRefresh, refreshInterval, showGridLines, compactMode]);
 
   // Load saved dashboard
@@ -463,17 +447,10 @@ export function EnhancedCustomDashboard() {
         setShowGridLines(config.settings?.showGridLines ?? true);
         setCompactMode(config.settings?.compactMode || false);
         
-        toast({
-          title: "Dashboard Loaded",
-          description: "Your saved dashboard has been restored",
-        });
+        toast.success("Dashboard Loaded: Your saved dashboard has been restored");
       } catch (error) {
         console.error('Error loading saved dashboard:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load saved dashboard",
-          variant: "destructive"
-        });
+        toast.error("Failed to load saved dashboard");
       }
     }
   }, []);
@@ -504,10 +481,7 @@ export function EnhancedCustomDashboard() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast({
-      title: "Dashboard Exported",
-      description: "Dashboard configuration has been downloaded",
-    });
+    toast.success("Dashboard Exported: Dashboard configuration has been downloaded");
   }, [dashboardName, layouts, widgets, colorTheme, autoRefresh, refreshInterval, showGridLines, compactMode]);
 
   // Render widget based on type
@@ -852,10 +826,7 @@ export function EnhancedCustomDashboard() {
                   variant="outline"
                   onClick={() => {
                     loadDashboardTemplate(selectedTemplate);
-                    toast({
-                      title: "Layout Reset",
-                      description: "Dashboard has been reset to template defaults",
-                    });
+                    toast.success("Layout Reset: Dashboard has been reset to template defaults");
                   }}
                 >
                   <RotateCcw className="w-4 h-4 mr-2" />
