@@ -1,3 +1,4 @@
+// src/components/ui/date-range-picker.jsx
 import * as React from "react"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
@@ -14,6 +15,8 @@ export function DatePickerWithRange({
   className,
   date,
   setDate,
+  placeholder = "Pick a date range",
+  ...props
 }) {
   return (
     <div className={cn("grid gap-2", className)}>
@@ -23,7 +26,7 @@ export function DatePickerWithRange({
             id="date"
             variant={"outline"}
             className={cn(
-              "w-[240px] justify-start text-left font-normal",
+              "w-[300px] justify-start text-left font-normal",
               !date && "text-muted-foreground"
             )}
           >
@@ -38,7 +41,7 @@ export function DatePickerWithRange({
                 format(date.from, "LLL dd, y")
               )
             ) : (
-              <span>Pick a date range</span>
+              <span>{placeholder}</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -50,6 +53,7 @@ export function DatePickerWithRange({
             selected={date}
             onSelect={setDate}
             numberOfMonths={2}
+            {...props}
           />
         </PopoverContent>
       </Popover>
