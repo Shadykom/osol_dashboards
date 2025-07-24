@@ -12,6 +12,8 @@ import { Reports } from './pages/Reports';
 import { Analytics } from './pages/Analytics';
 import { Compliance } from './pages/Compliance';
 import { Toaster } from './components/ui/sonner';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import './App.css';
 
 function App() {
