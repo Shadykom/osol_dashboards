@@ -18,7 +18,6 @@ import { CollectionService } from '../services/collectionService';
 
 const CollectionCases = () => {
   const [cases, setCases] = useState([]);
-  const [filteredCases, setFilteredCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDetails, setCaseDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,13 +39,29 @@ const CollectionCases = () => {
   }, []);
 
   useEffect(() => {
-    applyFilters();
-  }, [cases, filters]);
+    // Reload data when filters change
+    const debounceTimer = setTimeout(() => {
+      loadCollectionCases();
+    }, 500); // Debounce to avoid too many API calls
+    
+    return () => clearTimeout(debounceTimer);
+  }, [filters]);
 
   const loadCollectionCases = async () => {
     setLoading(true);
     try {
-      const response = await CollectionService.getCollectionCases({ limit: 200 });
+      const response = await CollectionService.getCollectionCases({ 
+        limit: 200,
+        search: filters.search || null,
+        status: filters.status || null,
+        priority: filters.priority || null,
+        bucket: filters.bucket || null,
+        assignedTo: filters.assignedTo || null,
+        minAmount: filters.minAmount || null,
+        maxAmount: filters.maxAmount || null,
+        minDpd: filters.minDpd || null,
+        maxDpd: filters.maxDpd || null
+      });
       if (response.success) {
         setCases(response.data);
       }
@@ -69,48 +84,6 @@ const CollectionCases = () => {
     } finally {
       setDetailsLoading(false);
     }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...cases];
-
-    // Search filter
-    if (filters.search) {
-      const searchTerm = filters.search.toLowerCase();
-      filtered = filtered.filter(case_ => 
-        case_.customerName?.toLowerCase().includes(searchTerm) ||
-        case_.caseNumber?.toLowerCase().includes(searchTerm) ||
-        case_.accountNumber?.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    // Status filter
-    if (filters.status) {
-      filtered = filtered.filter(case_ => case_.status === filters.status);
-    }
-
-    // Priority filter
-    if (filters.priority) {
-      filtered = filtered.filter(case_ => case_.priority === filters.priority);
-    }
-
-    // Amount filters
-    if (filters.minAmount) {
-      filtered = filtered.filter(case_ => case_.totalOutstanding >= parseFloat(filters.minAmount));
-    }
-    if (filters.maxAmount) {
-      filtered = filtered.filter(case_ => case_.totalOutstanding <= parseFloat(filters.maxAmount));
-    }
-
-    // DPD filters
-    if (filters.minDpd) {
-      filtered = filtered.filter(case_ => case_.daysPastDue >= parseInt(filters.minDpd));
-    }
-    if (filters.maxDpd) {
-      filtered = filtered.filter(case_ => case_.daysPastDue <= parseInt(filters.maxDpd));
-    }
-
-    setFilteredCases(filtered);
   };
 
   const handleFilterChange = (key, value) => {
@@ -295,9 +268,9 @@ const CollectionCases = () => {
       {/* Cases Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Collection Cases ({filteredCases.length})</CardTitle>
+          <CardTitle>Collection Cases ({cases.length})</CardTitle>
           <CardDescription>
-            Showing {filteredCases.length} of {cases.length} total cases
+            Showing {cases.length} of {cases.length} total cases
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -317,7 +290,7 @@ const CollectionCases = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCases.map((caseItem) => (
+                {cases.map((caseItem) => (
                   <TableRow key={caseItem.caseId}>
                     <TableCell className="font-medium">{caseItem.caseNumber}</TableCell>
                     <TableCell>

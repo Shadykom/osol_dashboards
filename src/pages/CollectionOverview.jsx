@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { 
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -10,7 +11,7 @@ import {
 import { 
   TrendingUp, TrendingDown, Users, DollarSign, 
   Phone, Calendar, AlertTriangle, CheckCircle,
-  Clock, Target, Activity, FileText
+  Clock, Target, Activity, FileText, Filter
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
 
@@ -19,17 +20,22 @@ const CollectionOverview = () => {
   const [performance, setPerformance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+  const [filters, setFilters] = useState({
+    branch: '',
+    team: '',
+    status: ''
+  });
 
   useEffect(() => {
     loadCollectionData();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, filters]);
 
   const loadCollectionData = async () => {
     setLoading(true);
     try {
       const [overviewResponse, performanceResponse] = await Promise.all([
-        CollectionService.getCollectionOverview(),
-        CollectionService.getCollectionPerformance(selectedPeriod)
+        CollectionService.getCollectionOverview({ ...filters }),
+        CollectionService.getCollectionPerformance(selectedPeriod, { ...filters })
       ]);
 
       if (overviewResponse.success) {
@@ -43,6 +49,18 @@ const CollectionOverview = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      branch: '',
+      team: '',
+      status: ''
+    });
   };
 
   const formatCurrency = (amount) => {
@@ -125,6 +143,64 @@ const CollectionOverview = () => {
           </Button>
         </div>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Select value={filters.branch} onValueChange={(value) => handleFilterChange('branch', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Branches</SelectItem>
+                <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
+                <SelectItem value="JEDDAH">Jeddah</SelectItem>
+                <SelectItem value="DAMMAM">Dammam</SelectItem>
+                <SelectItem value="KHOBAR">Khobar</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filters.team} onValueChange={(value) => handleFilterChange('team', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Team" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Teams</SelectItem>
+                <SelectItem value="TEAM_A">Team A</SelectItem>
+                <SelectItem value="TEAM_B">Team B</SelectItem>
+                <SelectItem value="TEAM_C">Team C</SelectItem>
+                <SelectItem value="TEAM_D">Team D</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="RESOLVED">Resolved</SelectItem>
+                <SelectItem value="LEGAL">Legal</SelectItem>
+                <SelectItem value="WRITTEN_OFF">Written Off</SelectItem>
+                <SelectItem value="SETTLED">Settled</SelectItem>
+                <SelectItem value="CLOSED">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button variant="outline" onClick={clearFilters}>
+              Clear Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
