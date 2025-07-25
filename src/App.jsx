@@ -127,6 +127,8 @@ function SafeApp() {
               <Route path="/loans" element={<Loans />} />
               <Route path="/loans/applications" element={<Loans />} />
               <Route path="/loans/disbursed" element={<Loans />} />
+              <Route path="/loans/disbursements" element={<Loans />} />
+              <Route path="/loans/collections" element={<Loans />} />
               <Route path="/loans/overdue" element={<Loans />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/analytics" element={<Analytics />} />
