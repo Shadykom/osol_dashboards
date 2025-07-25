@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ClientOnly } from '@/components/ui/ClientOnly';
 import {
   LineChart,
   Line,
@@ -192,7 +193,7 @@ export function ExecutiveDashboard() {
         
         <div className="flex items-center space-x-2">
           <Badge variant="outline" className="text-xs">
-            Last updated: {lastUpdated.toLocaleTimeString()}
+            Last updated: <ClientOnly fallback="--:--:--">{lastUpdated.toLocaleTimeString()}</ClientOnly>
           </Badge>
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
