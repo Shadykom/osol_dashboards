@@ -202,8 +202,8 @@ function NavItem({ item, level = 0, isCollapsed }) {
           <Button
             variant="ghost"
             className={cn(
-              "w-full justify-start gap-3 font-normal group hover:bg-accent/50 transition-colors",
-              level > 0 && "ml-4 w-[calc(100%-1rem)]",
+              "w-full justify-start gap-2 font-normal group hover:bg-accent/50 transition-colors h-9 px-3",
+              level > 0 && "ml-6 w-[calc(100%-1.5rem)]",
               isActive && "bg-accent text-accent-foreground font-medium"
             )}
           >
@@ -215,18 +215,18 @@ function NavItem({ item, level = 0, isCollapsed }) {
             )}
             {!isCollapsed && (
               <>
-                <span className="flex-1 text-left">{item.title}</span>
-                <div className="flex items-center gap-2">
+                <span className="flex-1 text-left text-sm">{item.title}</span>
+                <div className="flex items-center gap-1">
                   {item.badge && (
                     <Badge 
                       variant={item.badgeVariant || "secondary"} 
-                      className="h-5 px-1.5 text-xs"
+                      className="h-4 px-1 text-xs"
                     >
                       {item.badge}
                     </Badge>
                   )}
                   <ChevronRight className={cn(
-                    "h-4 w-4 transition-transform duration-200",
+                    "h-3 w-3 transition-transform duration-200",
                     isOpen && "rotate-90"
                   )} />
                 </div>
@@ -235,7 +235,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
           </Button>
         </CollapsibleTrigger>
         {!isCollapsed && (
-          <CollapsibleContent className="space-y-1 mt-1">
+          <CollapsibleContent className="mt-0.5">
             {item.children.map((child, index) => (
               <NavItem key={index} item={child} level={level + 1} isCollapsed={isCollapsed} />
             ))}
@@ -249,8 +249,8 @@ function NavItem({ item, level = 0, isCollapsed }) {
     <Button
       variant="ghost"
       className={cn(
-        "w-full justify-start gap-3 font-normal group hover:bg-accent/50 transition-colors",
-        level > 0 && "ml-4 w-[calc(100%-1rem)]",
+        "w-full justify-start gap-2 font-normal group hover:bg-accent/50 transition-colors h-9 px-3",
+        level > 0 && "ml-6 w-[calc(100%-1.5rem)]",
         isActive && "bg-accent text-accent-foreground font-medium"
       )}
       asChild
@@ -264,11 +264,11 @@ function NavItem({ item, level = 0, isCollapsed }) {
         )}
         {!isCollapsed && (
           <>
-            <span className="flex-1">{item.title}</span>
+            <span className="flex-1 text-sm">{item.title}</span>
             {item.badge && (
               <Badge 
                 variant={item.badgeVariant || "secondary"} 
-                className="h-5 px-1.5 text-xs"
+                className="h-4 px-1 text-xs"
               >
                 {item.badge}
               </Badge>
@@ -289,7 +289,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
           <TooltipContent side="right" className="flex items-center gap-4">
             <span>{item.title}</span>
             {item.badge && (
-              <Badge variant={item.badgeVariant || "secondary"} className="h-5 px-1.5 text-xs">
+              <Badge variant={item.badgeVariant || "secondary"} className="h-4 px-1 text-xs">
                 {item.badge}
               </Badge>
             )}
@@ -313,11 +313,11 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
       isCollapsed ? "w-16" : "w-64"
     )}>
       {/* Header */}
-      <div className="flex h-16 items-center justify-between px-4 border-b">
+      <div className="flex h-14 items-center justify-between px-3 border-b">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
+            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+              <Building2 className="h-4 w-4 text-primary-foreground" />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold">BankOS Pro</span>
@@ -337,13 +337,13 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
 
       {/* Search */}
       {!isCollapsed && (
-        <div className="p-4">
+        <div className="p-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder={t('common.search')}
-              className="w-full rounded-lg border bg-background px-9 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-md border bg-background px-8 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -352,16 +352,16 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
       )}
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3">
-        <div className="space-y-6 py-4">
+      <ScrollArea className="flex-1 px-2">
+        <div className="space-y-4 py-2">
           {navigationItems.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {!isCollapsed && (
-                <h4 className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground">
+                <h4 className="mb-1 px-3 text-xs font-semibold uppercase text-muted-foreground">
                   {section.title}
                 </h4>
               )}
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {section.items.map((item, index) => (
                   <NavItem key={index} item={item} isCollapsed={isCollapsed} />
                 ))}
@@ -372,15 +372,15 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
       </ScrollArea>
       
       {/* Footer */}
-      <div className="border-t p-3">
+      <div className="border-t p-2">
         {/* User Profile */}
         <div className={cn(
-          "flex items-center gap-3 rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer mb-2",
+          "flex items-center gap-2 rounded-lg p-2 hover:bg-accent/50 transition-colors cursor-pointer mb-1",
           isCollapsed && "justify-center"
         )}>
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-7 w-7">
             <AvatarImage src="/api/placeholder/32/32" />
-            <AvatarFallback>JD</AvatarFallback>
+            <AvatarFallback className="text-xs">JD</AvatarFallback>
           </Avatar>
           {!isCollapsed && (
             <div className="flex-1">
@@ -390,45 +390,45 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
           )}
         </div>
 
-        <Separator className="my-2" />
+        <Separator className="my-1" />
 
         {/* Footer Actions */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <Button 
             variant="ghost" 
             className={cn(
-              "w-full justify-start gap-3 font-normal h-9",
-              isCollapsed && "justify-center px-2"
+              "w-full justify-start gap-2 font-normal h-8 px-2",
+              isCollapsed && "justify-center"
             )} 
             asChild
           >
             <Link to="/settings">
-              <Settings className="h-4 w-4" />
-              {!isCollapsed && <span>{t('navigation.settings')}</span>}
+              <Settings className="h-3.5 w-3.5" />
+              {!isCollapsed && <span className="text-sm">{t('navigation.settings')}</span>}
             </Link>
           </Button>
           <Button 
             variant="ghost" 
             className={cn(
-              "w-full justify-start gap-3 font-normal h-9",
-              isCollapsed && "justify-center px-2"
+              "w-full justify-start gap-2 font-normal h-8 px-2",
+              isCollapsed && "justify-center"
             )} 
             asChild
           >
             <Link to="/help">
-              <HelpCircle className="h-4 w-4" />
-              {!isCollapsed && <span>{t('navigation.helpSupport')}</span>}
+              <HelpCircle className="h-3.5 w-3.5" />
+              {!isCollapsed && <span className="text-sm">{t('navigation.helpSupport')}</span>}
             </Link>
           </Button>
           <Button 
             variant="ghost" 
             className={cn(
-              "w-full justify-start gap-3 font-normal h-9 text-red-600 hover:text-red-600 hover:bg-red-50",
-              isCollapsed && "justify-center px-2"
+              "w-full justify-start gap-2 font-normal h-8 px-2 text-red-600 hover:text-red-600 hover:bg-red-50",
+              isCollapsed && "justify-center"
             )}
           >
-            <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span>{t('common.logout')}</span>}
+            <LogOut className="h-3.5 w-3.5" />
+            {!isCollapsed && <span className="text-sm">{t('common.logout')}</span>}
           </Button>
         </div>
       </div>

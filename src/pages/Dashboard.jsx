@@ -196,9 +196,9 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('navigation.mainDashboard')}</h1>
           <p className="text-muted-foreground">
@@ -213,7 +213,7 @@ export function Dashboard() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-destructive">
+        <Card className="border-destructive mb-4">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2 text-destructive">
               <span className="text-sm">⚠️ Database connection error. Showing demo data.</span>
@@ -222,111 +222,112 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {kpiData.map((kpi, index) => (
-          <KPICard key={index} {...kpi} isLoading={loading} />
-        ))}
-      </div>
+      {/* Main Content - Scrollable Area */}
+      <div className="flex-1 overflow-auto">
+        {/* KPI Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-6">
+          {kpiData.map((kpi, index) => (
+            <KPICard key={index} {...kpi} isLoading={loading} />
+          ))}
+        </div>
 
-      {/* Recent Activity */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        {/* Recent Transactions */}
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>{t('dashboard.recentTransactions')}</CardTitle>
-            <CardDescription>
-              {t('transactions.transactionHistory')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-4">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="animate-pulse bg-muted h-4 w-32 rounded"></div>
-                      <div className="animate-pulse bg-muted h-3 w-48 rounded"></div>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <div className="animate-pulse bg-muted h-4 w-20 rounded"></div>
-                      <div className="animate-pulse bg-muted h-3 w-16 rounded"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {displayTransactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {transaction.customer}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {transaction.account} • {transaction.type}
-                      </p>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <p className="text-sm font-medium">{transaction.amount}</p>
-                      <div className="flex items-center space-x-2">
-                        {getStatusBadge(transaction.status, t)}
-                        <span className="text-xs text-muted-foreground">
-                          {transaction.time}
-                        </span>
+        {/* Recent Activity */}
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          {/* Recent Transactions */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>{t('dashboard.recentTransactions')}</CardTitle>
+              <CardDescription>
+                {t('transactions.transactionHistory')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="animate-pulse bg-muted h-4 w-32 rounded"></div>
+                        <div className="animate-pulse bg-muted h-3 w-48 rounded"></div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <div className="animate-pulse bg-muted h-4 w-20 rounded"></div>
+                        <div className="animate-pulse bg-muted h-3 w-16 rounded"></div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {displayTransactions.map((transaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {transaction.customer}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {transaction.account} • {transaction.type}
+                        </p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <p className="text-sm font-medium">{transaction.amount}</p>
+                        <div className="flex items-center space-x-2">
+                          {getStatusBadge(transaction.status, t)}
+                          <span className="text-xs text-muted-foreground">
+                            {transaction.time}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Quick Actions */}
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Frequently used operations
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+              <CardDescription>
+                Frequently used operations
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
                 <div className="space-y-1">
                   <p className="font-medium">Add New Customer</p>
-                  <p className="text-muted-foreground">Register a new customer</p>
+                  <p className="text-xs text-muted-foreground">Register a new customer</p>
                 </div>
                 <Users className="h-4 w-4" />
               </button>
               
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent">
+              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
                 <div className="space-y-1">
                   <p className="font-medium">Open Account</p>
-                  <p className="text-muted-foreground">Create new account</p>
+                  <p className="text-xs text-muted-foreground">Create new account</p>
                 </div>
                 <CreditCard className="h-4 w-4" />
               </button>
               
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent">
+              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
                 <div className="space-y-1">
                   <p className="font-medium">Process Transaction</p>
-                  <p className="text-muted-foreground">Manual transaction entry</p>
+                  <p className="text-xs text-muted-foreground">Manual transaction entry</p>
                 </div>
                 <Activity className="h-4 w-4" />
               </button>
               
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent">
+              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
                 <div className="space-y-1">
                   <p className="font-medium">Generate Report</p>
-                  <p className="text-muted-foreground">Create custom report</p>
+                  <p className="text-xs text-muted-foreground">Create custom report</p>
                 </div>
                 <TrendingUp className="h-4 w-4" />
               </button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

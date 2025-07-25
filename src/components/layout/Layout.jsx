@@ -7,15 +7,17 @@ export function Layout({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className={cn(
-          "flex-1 overflow-auto bg-gray-50/50 transition-all duration-300",
-          isSidebarCollapsed ? "ml-0" : "ml-0"
+          "flex-1 overflow-auto bg-gray-50/50 p-6",
+          "transition-all duration-300"
         )}>
-          {children}
+          <div className="h-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>
