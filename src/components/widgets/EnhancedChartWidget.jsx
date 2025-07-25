@@ -4,8 +4,6 @@ import { useWidgetData } from '@/hooks/useWidgetData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatNumber } from '@/utils/formatters';
-import { ClientOnly } from '@/components/ui/ClientOnly';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,7 +89,7 @@ const formatValue = (value, format) => {
         maximumFractionDigits: 1
       }).format(value);
     default:
-      return formatNumber(value);
+      return value.toLocaleString();
   }
 };
 
@@ -652,7 +650,7 @@ export function EnhancedChartWidget({
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-4">
             {lastUpdated && (
-                              <span>Updated <ClientOnly fallback="--:--:--">{new Date(lastUpdated).toLocaleTimeString('en-US')}</ClientOnly></span>
+              <span>Updated {new Date(lastUpdated).toLocaleTimeString()}</span>
             )}
             {data && (
               <span>{data.length} data points</span>

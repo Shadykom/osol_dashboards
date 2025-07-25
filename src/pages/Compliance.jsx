@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { formatNumber, formatCurrency as formatCurrencyUtil, formatDate, formatDateTime } from '@/utils/formatters';
-import { ClientOnly } from '@/components/ui/ClientOnly';
 import { 
   Shield,
   AlertTriangle,
@@ -146,7 +144,7 @@ export function Compliance() {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
         trends.push({
-          month: formatDate(date, { month: 'short' }),
+          month: date.toLocaleDateString('en-US', { month: 'short' }),
           overallScore: 85 + Math.random() * 10,
           amlScore: 88 + Math.random() * 10,
           kycScore: 82 + Math.random() * 10,
@@ -526,19 +524,19 @@ export function Compliance() {
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Verified</span>
-                                                <Badge variant="success">{formatNumber(kycStatus.verified)}</Badge>
+                  <Badge variant="success">{kycStatus.verified.toLocaleString()}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">{t('common.pending')}</span>
-                                      <Badge variant="warning">{formatNumber(kycStatus.pending)}</Badge>
+                  <Badge variant="warning">{kycStatus.pending.toLocaleString()}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Expired</span>
-                                      <Badge variant="destructive">{formatNumber(kycStatus.expired)}</Badge>
+                  <Badge variant="destructive">{kycStatus.expired.toLocaleString()}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Rejected</span>
-                                      <Badge variant="destructive">{formatNumber(kycStatus.rejected)}</Badge>
+                  <Badge variant="destructive">{kycStatus.rejected.toLocaleString()}</Badge>
                 </div>
               </div>
             </CardContent>
@@ -602,7 +600,7 @@ export function Compliance() {
                               {alert.severity}
                             </Badge>
                             <span className="text-xs text-muted-foreground">
-                              <ClientOnly fallback="--/--/----">{formatDateTime(alert.timestamp)}</ClientOnly>
+                              {new Date(alert.timestamp).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -663,7 +661,7 @@ export function Compliance() {
                           <Progress value={assessment.score} className="w-20" />
                         </div>
                       </TableCell>
-                                                      <TableCell><ClientOnly fallback="--/--/----">{formatDate(assessment.lastAssessment)}</ClientOnly></TableCell>
+                      <TableCell>{new Date(assessment.lastAssessment).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm">Review</Button>
                       </TableCell>
@@ -705,7 +703,7 @@ export function Compliance() {
                         <p className="font-medium">{entry.action}</p>
                         <p className="text-sm text-muted-foreground">{entry.details}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          By {entry.user} • <ClientOnly fallback="--/--/----">{formatDateTime(entry.timestamp)}</ClientOnly>
+                          By {entry.user} • {new Date(entry.timestamp).toLocaleString()}
                         </p>
                       </div>
                     </div>

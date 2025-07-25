@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { formatNumber } from '@/utils/formatters';
 import { 
   X,
   Settings,
@@ -151,7 +150,7 @@ export function ChartWidget({
   const defaultFormatters = {
     currency: (value) => `SAR ${(value / 1000000).toFixed(1)}M`,
     percentage: (value) => `${value}%`,
-          number: (value) => formatNumber(value)
+    number: (value) => value.toLocaleString()
   };
 
   const formatValue = formatTooltip || defaultFormatters.number;
@@ -358,7 +357,7 @@ export const CHART_PRESETS = {
   },
   transactions: {
     chartType: 'line',
-          formatTooltip: (value) => formatNumber(value),
+    formatTooltip: (value) => value.toLocaleString(),
     colors: ['#4A5568'],
     showGrid: true
   },

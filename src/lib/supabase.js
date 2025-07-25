@@ -25,29 +25,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Create client for kastle_banking schema
-export const supabaseBanking = createClient(supabaseUrl, supabaseAnonKey, {
-  db: {
-    schema: 'kastle_banking'
-  },
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-});
-
-// Create client for kastle_collection schema
-export const supabaseCollection = createClient(supabaseUrl, supabaseAnonKey, {
-  db: {
-    schema: 'kastle_collection'
-  },
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-});
+// Use the main client for all operations since schema-qualified table names work
+export const supabaseBanking = supabase;
+export const supabaseCollection = supabase;
 
 // Database schema constants - using schema-qualified table names
 export const TABLES = {
@@ -148,11 +128,7 @@ export function formatApiResponse(data, error = null, pagination = null) {
 
 // Helper function to get appropriate client for table
 export function getClientForTable(tableName) {
-  if (tableName.startsWith('kastle_banking.')) {
-    return supabaseBanking;
-  } else if (tableName.startsWith('kastle_collection.')) {
-    return supabaseCollection;
-  }
+  // Always use the main client since we're using schema-qualified table names
   return supabase;
 }
 

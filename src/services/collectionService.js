@@ -1,4 +1,4 @@
-import { supabase, supabaseCollection, TABLES, formatApiResponse, handleSupabaseError } from '../lib/supabase.js';
+import { supabase, TABLES, formatApiResponse, handleSupabaseError } from '../lib/supabase.js';
 
 /**
  * Comprehensive Collection Service - Complete collection management operations

@@ -4,8 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClientOnly } from '@/components/ui/ClientOnly';
-import { formatNumber, formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
 import {
   LineChart,
   Line,
@@ -123,14 +121,14 @@ function formatCurrency(amount, currency = 'SAR') {
   if (amount >= 1000) {
     return `${currency} ${(amount / 1000).toFixed(1)}K`;
   }
-  return `${currency} ${formatNumber(amount)}`;
+  return `${currency} ${amount.toLocaleString()}`;
 }
 
 function OperationalKPICard({ title, value, change, trend, icon: Icon, description, format = 'number', status }) {
   const formattedValue = format === 'currency' ? formatCurrency(value) : 
                         format === 'percentage' ? `${value}%` : 
                         format === 'time' ? `${value}s` :
-                        typeof value === 'number' ? formatNumber(value) : value;
+                        typeof value === 'number' ? value.toLocaleString() : value;
 
   const getStatusColor = () => {
     if (status === 'critical') return 'border-red-500 bg-red-50';

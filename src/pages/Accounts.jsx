@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { formatNumber, formatCurrency as formatCurrencyUtil, formatDate } from '@/utils/formatters';
-import { ClientOnly } from '@/components/ui/ClientOnly';
 import { 
   CreditCard, 
   TrendingUp, 
@@ -206,7 +204,7 @@ export function Accounts() {
           .lt('created_at', nextMonth.toISOString());
 
         trends.push({
-          month: formatDate(date, { month: 'short' }),
+          month: date.toLocaleDateString('en-US', { month: 'short' }),
           accounts: count || 0
         });
       }
@@ -298,14 +296,14 @@ export function Accounts() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Accounts"
-                            value={formatNumber(stats.totalAccounts)}
+          value={stats.totalAccounts.toLocaleString()}
           icon={CreditCard}
           color="text-blue-500"
           trend={12}
         />
         <StatCard
           title="Active Accounts"
-                      value={formatNumber(stats.activeAccounts)}
+          value={stats.activeAccounts.toLocaleString()}
           icon={Activity}
           color="text-green-500"
           trend={8}
@@ -319,7 +317,7 @@ export function Accounts() {
         />
         <StatCard
           title="Blocked Accounts"
-                      value={formatNumber(stats.blockedAccounts)}
+          value={stats.blockedAccounts.toLocaleString()}
           icon={Lock}
           color="text-red-500"
           trend={-5}
@@ -495,7 +493,7 @@ export function Accounts() {
                             {account.account_type?.replace('_', ' ')}
                           </Badge>
                         </TableCell>
-                                                      <TableCell>SAR {formatNumber(parseFloat(account.current_balance))}</TableCell>
+                        <TableCell>SAR {parseFloat(account.current_balance).toLocaleString()}</TableCell>
                         <TableCell>
                           <Badge 
                             variant={
@@ -508,7 +506,7 @@ export function Accounts() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                                                          <ClientOnly fallback="--/--/----">{formatDate(account.created_at)}</ClientOnly>
+                          {new Date(account.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm">

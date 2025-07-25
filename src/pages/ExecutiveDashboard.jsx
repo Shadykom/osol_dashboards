@@ -3,8 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClientOnly } from '@/components/ui/ClientOnly';
-import { formatNumber, formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
 import {
   LineChart,
   Line,
@@ -103,13 +101,13 @@ function formatCurrency(amount, currency = 'SAR') {
   if (amount >= 1000) {
     return `${currency} ${(amount / 1000).toFixed(1)}K`;
   }
-  return `${currency} ${formatNumber(amount)}`;
+  return `${currency} ${amount.toLocaleString()}`;
 }
 
 function KPICard({ title, value, change, trend, icon: Icon, description, format = 'number' }) {
   const formattedValue = format === 'currency' ? formatCurrency(value) : 
                         format === 'percentage' ? `${value}%` : 
-                        typeof value === 'number' ? formatNumber(value) : value;
+                        typeof value === 'number' ? value.toLocaleString() : value;
 
   return (
     <Card>
@@ -194,7 +192,7 @@ export function ExecutiveDashboard() {
         
         <div className="flex items-center space-x-2">
           <Badge variant="outline" className="text-xs">
-            Last updated: <ClientOnly fallback="--:--:--">{lastUpdated.toLocaleTimeString()}</ClientOnly>
+            Last updated: {lastUpdated.toLocaleTimeString()}
           </Badge>
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />

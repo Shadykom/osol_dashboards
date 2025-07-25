@@ -1,7 +1,6 @@
 import { BaseWidget } from './BaseWidget';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatNumber } from '@/utils/formatters';
 
 export function KPIWidget({
   id,
@@ -26,7 +25,7 @@ export function KPIWidget({
       if (val >= 1000) {
         return `${(val / 1000).toFixed(1)}K`;
       }
-      return formatNumber(val);
+      return val.toLocaleString();
     }
     return val;
   };

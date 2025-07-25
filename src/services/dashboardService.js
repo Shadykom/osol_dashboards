@@ -26,38 +26,38 @@ export class DashboardService {
       // Use Promise.allSettled to handle partial failures gracefully
       const results = await Promise.allSettled([
         // Get total customers
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.CUSTOMERS))
+        supabase
+          .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true }),
 
         // Get total accounts
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.ACCOUNTS))
+        supabase
+          .from(TABLES.ACCOUNTS)
           .select('*', { count: 'exact', head: true }),
 
         // Get deposits data
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.ACCOUNTS))
+        supabase
+          .from(TABLES.ACCOUNTS)
           .select('current_balance')
           .eq('account_status', 'ACTIVE'),
 
         // Get loans data
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.LOAN_ACCOUNTS))
+        supabase
+          .from(TABLES.LOAN_ACCOUNTS)
           .select('outstanding_balance')
           .in('loan_status', ['ACTIVE', 'DISBURSED']),
 
         // Get daily transactions
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.TRANSACTIONS))
+        supabase
+          .from(TABLES.TRANSACTIONS)
           .select('*', { count: 'exact', head: true })
           .gte('transaction_date', new Date().toISOString().split('T')[0]),
 
         // Get recent transactions
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.TRANSACTIONS))
-          .select('id, customer_id, amount, transaction_type, status, transaction_datetime')
-          .order('transaction_datetime', { ascending: false })
+        supabase
+          .from(TABLES.TRANSACTIONS)
+          .select('transaction_id, account_number, transaction_amount, transaction_type_id, status, transaction_date, narration')
+          .order('transaction_date', { ascending: false })
           .limit(5)
       ]);
 
@@ -100,10 +100,13 @@ export class DashboardService {
         dailyTransactions,
         monthlyRevenue,
         recentTransactions: recentTransactions.map(tx => ({
-          ...tx,
-          customer_name: tx.customer_name || `Customer ${tx.customer_id || 'Unknown'}`,
-          type: tx.transaction_type || 'UNKNOWN',
-          amount: parseFloat(tx.amount) || 0
+          id: tx.transaction_id,
+          customer_name: tx.beneficiary_name || `Account ${tx.account_number}`,
+          type: tx.transaction_type_id || 'UNKNOWN',
+          amount: parseFloat(tx.transaction_amount) || 0,
+          status: tx.status || 'UNKNOWN',
+          transaction_datetime: tx.transaction_date,
+          description: tx.narration
         })),
         // Additional metrics
         metrics: {
@@ -140,18 +143,19 @@ export class DashboardService {
         return formatApiResponse(MOCK_DATA.dashboard.recentTransactions.slice(0, limit));
       }
 
-      const { data, error } = await supabaseBanking
-        .from(getTableNameOnly(TABLES.TRANSACTIONS))
+      const { data, error } = await supabase
+        .from(TABLES.TRANSACTIONS)
         .select(`
-          id,
-          customer_id,
-          amount,
-          transaction_type,
+          transaction_id,
+          account_number,
+          transaction_amount,
+          transaction_type_id,
           status,
-          transaction_datetime,
-          description
+          transaction_date,
+          narration,
+          beneficiary_name
         `)
-        .order('transaction_datetime', { ascending: false })
+        .order('transaction_date', { ascending: false })
         .limit(limit);
 
       if (error) {
@@ -160,14 +164,17 @@ export class DashboardService {
       }
 
       const formattedTransactions = data?.map(tx => ({
-        ...tx,
-        customer_name: tx.customer_name || `Customer ${tx.customer_id || 'Unknown'}`,
-        type: tx.transaction_type || 'UNKNOWN',
-        amount: parseFloat(tx.amount) || 0,
+        id: tx.transaction_id,
+        customer_name: tx.beneficiary_name || `Account ${tx.account_number}`,
+        type: tx.transaction_type_id || 'UNKNOWN',
+        amount: parseFloat(tx.transaction_amount) || 0,
+        status: tx.status || 'UNKNOWN',
+        transaction_datetime: tx.transaction_date,
+        description: tx.narration,
         formatted_amount: new Intl.NumberFormat('ar-SA', {
           style: 'currency',
           currency: 'SAR'
-        }).format(parseFloat(tx.amount) || 0)
+        }).format(parseFloat(tx.transaction_amount) || 0)
       })) || [];
 
       return formatApiResponse(formattedTransactions);
@@ -194,19 +201,19 @@ export class DashboardService {
 
       const results = await Promise.allSettled([
         // Total customers
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.CUSTOMERS))
+        supabase
+          .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true }),
 
         // Active customers
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.CUSTOMERS))
+        supabase
+          .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true })
-          .eq('status', 'ACTIVE'),
+          .eq('is_active', true),
 
         // New customers this month
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.CUSTOMERS))
+        supabase
+          .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true })
           .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
       ]);
@@ -249,19 +256,19 @@ export class DashboardService {
 
       const results = await Promise.allSettled([
         // Total accounts
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.ACCOUNTS))
+        supabase
+          .from(TABLES.ACCOUNTS)
           .select('*', { count: 'exact', head: true }),
 
         // Active accounts
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.ACCOUNTS))
+        supabase
+          .from(TABLES.ACCOUNTS)
           .select('*', { count: 'exact', head: true })
           .eq('account_status', 'ACTIVE'),
 
         // Account balances
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.ACCOUNTS))
+        supabase
+          .from(TABLES.ACCOUNTS)
           .select('current_balance')
           .eq('account_status', 'ACTIVE')
       ]);
@@ -308,19 +315,19 @@ export class DashboardService {
 
       const results = await Promise.allSettled([
         // Total loan accounts
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.LOAN_ACCOUNTS))
+        supabase
+          .from(TABLES.LOAN_ACCOUNTS)
           .select('*', { count: 'exact', head: true }),
 
         // Active loans
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.LOAN_ACCOUNTS))
+        supabase
+          .from(TABLES.LOAN_ACCOUNTS)
           .select('*', { count: 'exact', head: true })
           .in('loan_status', ['ACTIVE', 'DISBURSED']),
 
         // Outstanding balances
-        supabaseBanking
-          .from(getTableNameOnly(TABLES.LOAN_ACCOUNTS))
+        supabase
+          .from(TABLES.LOAN_ACCOUNTS)
           .select('outstanding_balance')
           .in('loan_status', ['ACTIVE', 'DISBURSED'])
       ]);
@@ -347,6 +354,265 @@ export class DashboardService {
         activeLoans: 1245,
         totalOutstanding: MOCK_DATA.dashboard.totalLoans,
         averageLoanSize: MOCK_DATA.dashboard.totalLoans / 1245
+      });
+    }
+  }
+
+  /**
+   * Get transaction analytics with fallback
+   */
+  static async getTransactionAnalytics() {
+    try {
+      if (!isSupabaseConfigured) {
+        return formatApiResponse({
+          by_channel: [
+            { channel: 'ATM', count: 1250, percentage: 35 },
+            { channel: 'Online', count: 980, percentage: 28 },
+            { channel: 'Branch', count: 750, percentage: 21 },
+            { channel: 'Mobile', count: 570, percentage: 16 }
+          ],
+          success_rate: 94.5,
+          total_transactions: 3550,
+          failed_transactions: 195
+        });
+      }
+
+      // Get transaction analytics from database
+      const { data, error } = await supabase
+        .from(TABLES.TRANSACTIONS)
+        .select('channel, status')
+        .gte('transaction_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
+      if (error) {
+        console.warn('Transaction analytics query failed, using mock data:', error);
+        return formatApiResponse({
+          by_channel: [],
+          success_rate: 0,
+          total_transactions: 0,
+          failed_transactions: 0
+        });
+      }
+
+      // Process analytics data
+      const channelStats = {};
+      let totalTransactions = data?.length || 0;
+      let successfulTransactions = 0;
+
+      data?.forEach(tx => {
+        const channel = tx.channel || 'Unknown';
+        if (!channelStats[channel]) {
+          channelStats[channel] = 0;
+        }
+        channelStats[channel]++;
+
+        if (tx.status === 'COMPLETED' || tx.status === 'SUCCESS') {
+          successfulTransactions++;
+        }
+      });
+
+      const by_channel = Object.entries(channelStats).map(([channel, count]) => ({
+        channel,
+        count,
+        percentage: totalTransactions > 0 ? Math.round((count / totalTransactions) * 100) : 0
+      }));
+
+      const success_rate = totalTransactions > 0 ? (successfulTransactions / totalTransactions) * 100 : 0;
+
+      return formatApiResponse({
+        by_channel,
+        success_rate: Math.round(success_rate * 10) / 10,
+        total_transactions: totalTransactions,
+        failed_transactions: totalTransactions - successfulTransactions
+      });
+
+    } catch (error) {
+      console.error('Transaction analytics error:', error);
+      return formatApiResponse({
+        by_channel: [],
+        success_rate: 0,
+        total_transactions: 0,
+        failed_transactions: 0
+      });
+    }
+  }
+
+  /**
+   * Get loan analytics with fallback
+   */
+  static async getLoanAnalytics() {
+    try {
+      if (!isSupabaseConfigured) {
+        return formatApiResponse({
+          total_disbursed: 1800000000,
+          total_outstanding: 1200000000,
+          npa_ratio: 3.2,
+          collection_efficiency: 96.8,
+          average_ticket_size: 450000
+        });
+      }
+
+      const results = await Promise.allSettled([
+        // Total disbursed
+        supabase
+          .from(TABLES.LOAN_ACCOUNTS)
+          .select('principal_amount'),
+
+        // Outstanding amounts
+        supabase
+          .from(TABLES.LOAN_ACCOUNTS)
+          .select('outstanding_balance')
+          .in('loan_status', ['ACTIVE', 'DISBURSED']),
+
+        // NPA loans
+        supabase
+          .from(TABLES.LOAN_ACCOUNTS)
+          .select('outstanding_balance')
+          .not('npa_date', 'is', null)
+      ]);
+
+      const [disbursedResult, outstandingResult, npaResult] = results;
+
+      const disbursedData = disbursedResult.status === 'fulfilled' ? disbursedResult.value.data || [] : [];
+      const outstandingData = outstandingResult.status === 'fulfilled' ? outstandingResult.value.data || [] : [];
+      const npaData = npaResult.status === 'fulfilled' ? npaResult.value.data || [] : [];
+
+      const total_disbursed = disbursedData.reduce((sum, loan) => sum + (parseFloat(loan.principal_amount) || 0), 0);
+      const total_outstanding = outstandingData.reduce((sum, loan) => sum + (parseFloat(loan.outstanding_balance) || 0), 0);
+      const npa_amount = npaData.reduce((sum, loan) => sum + (parseFloat(loan.outstanding_balance) || 0), 0);
+
+      const npa_ratio = total_outstanding > 0 ? (npa_amount / total_outstanding) * 100 : 0;
+      const collection_efficiency = 100 - npa_ratio;
+      const average_ticket_size = disbursedData.length > 0 ? total_disbursed / disbursedData.length : 0;
+
+      return formatApiResponse({
+        total_disbursed,
+        total_outstanding,
+        npa_ratio: Math.round(npa_ratio * 10) / 10,
+        collection_efficiency: Math.round(collection_efficiency * 10) / 10,
+        average_ticket_size: Math.round(average_ticket_size)
+      });
+
+    } catch (error) {
+      console.error('Loan analytics error:', error);
+      return formatApiResponse({
+        total_disbursed: 0,
+        total_outstanding: 0,
+        npa_ratio: 0,
+        collection_efficiency: 0,
+        average_ticket_size: 0
+      });
+    }
+  }
+
+  /**
+   * Get monthly comparison data with fallback
+   */
+  static async getMonthlyComparison() {
+    try {
+      if (!isSupabaseConfigured) {
+        return formatApiResponse({
+          current_month: {
+            customers: 1250,
+            transactions: 8500,
+            revenue: 4200000
+          },
+          previous_month: {
+            customers: 1180,
+            transactions: 7800,
+            revenue: 3900000
+          },
+          growth: {
+            customers: 5.9,
+            transactions: 9.0,
+            revenue: 7.7
+          }
+        });
+      }
+
+      // For now, return mock data as implementing proper monthly comparison requires complex date queries
+      return formatApiResponse({
+        current_month: {
+          customers: 0,
+          transactions: 0,
+          revenue: 0
+        },
+        previous_month: {
+          customers: 0,
+          transactions: 0,
+          revenue: 0
+        },
+        growth: {
+          customers: 0,
+          transactions: 0,
+          revenue: 0
+        }
+      });
+
+    } catch (error) {
+      console.error('Monthly comparison error:', error);
+      return formatApiResponse({
+        current_month: { customers: 0, transactions: 0, revenue: 0 },
+        previous_month: { customers: 0, transactions: 0, revenue: 0 },
+        growth: { customers: 0, transactions: 0, revenue: 0 }
+      });
+    }
+  }
+
+  /**
+   * Get branch comparison data with fallback
+   */
+  static async getBranchComparison() {
+    try {
+      if (!isSupabaseConfigured) {
+        return formatApiResponse([
+          { branch: 'Main Branch', customers: 450, transactions: 2800, revenue: 1200000 },
+          { branch: 'City Center', customers: 380, transactions: 2200, revenue: 980000 },
+          { branch: 'Mall Branch', customers: 320, transactions: 1900, revenue: 850000 },
+          { branch: 'Airport', customers: 280, transactions: 1600, revenue: 720000 }
+        ]);
+      }
+
+      // For now, return mock data as implementing branch comparison requires complex aggregations
+      return formatApiResponse([]);
+
+    } catch (error) {
+      console.error('Branch comparison error:', error);
+      return formatApiResponse([]);
+    }
+  }
+
+  /**
+   * Get real-time metrics with fallback
+   */
+  static async getRealTimeMetrics() {
+    try {
+      if (!isSupabaseConfigured) {
+        return formatApiResponse({
+          active_sessions: 245,
+          pending_approvals: 12,
+          system_alerts: 3,
+          server_status: 'healthy',
+          last_backup: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+        });
+      }
+
+      // For now, return mock data as real-time metrics require system monitoring integration
+      return formatApiResponse({
+        active_sessions: 0,
+        pending_approvals: 0,
+        system_alerts: 0,
+        server_status: 'unknown',
+        last_backup: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Real-time metrics error:', error);
+      return formatApiResponse({
+        active_sessions: 0,
+        pending_approvals: 0,
+        system_alerts: 0,
+        server_status: 'error',
+        last_backup: null
       });
     }
   }

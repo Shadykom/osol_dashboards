@@ -5,8 +5,6 @@ import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ResponsiveContainer, LineChart, Line, Tooltip } from 'recharts';
-import { formatNumber } from '@/utils/formatters';
-import { ClientOnly } from '@/components/ui/ClientOnly';
 
 export function EnhancedKPIWidget({ widgetId, config, onConfigure }) {
   const { data, loading, error, lastUpdated, refetch } = useWidgetData(widgetId, config);
@@ -60,7 +58,7 @@ export function EnhancedKPIWidget({ widgetId, config, onConfigure }) {
           maximumFractionDigits: 1 
         }).format(value);
       default:
-        return `${config.prefix || ''}${formatNumber(value)}${config.suffix || ''}`;
+        return `${config.prefix || ''}${value.toLocaleString()}${config.suffix || ''}`;
     }
   };
 
@@ -163,7 +161,7 @@ export function EnhancedKPIWidget({ widgetId, config, onConfigure }) {
 
         {lastUpdated && (
           <p className="text-xs text-muted-foreground mt-3">
-                          Updated <ClientOnly fallback="--:--:--">{new Date(lastUpdated).toLocaleTimeString('en-US')}</ClientOnly>
+            Updated {new Date(lastUpdated).toLocaleTimeString()}
           </p>
         )}
       </CardContent>

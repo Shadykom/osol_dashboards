@@ -116,9 +116,18 @@ function SafeApp() {
               <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
               <Route path="/dashboards/operations" element={<OperationsDashboard />} />
               <Route path="/customers" element={<Customers />} />
+              <Route path="/customers/new" element={<Customers />} />
+              <Route path="/customers/kyc-pending" element={<Customers />} />
+              <Route path="/customers/risk" element={<Customers />} />
               <Route path="/accounts" element={<Accounts />} />
+              <Route path="/accounts/new" element={<Accounts />} />
               <Route path="/transactions" element={<Transactions />} />
+              <Route path="/transactions/pending" element={<Transactions />} />
+              <Route path="/transactions/failed" element={<Transactions />} />
               <Route path="/loans" element={<Loans />} />
+              <Route path="/loans/applications" element={<Loans />} />
+              <Route path="/loans/disbursed" element={<Loans />} />
+              <Route path="/loans/overdue" element={<Loans />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/compliance" element={<Compliance />} />
