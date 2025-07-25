@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,8 +16,9 @@ import {
   AlertCircle, Calendar, Target, Activity
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
-import { ar } from 'date-fns/locale';
+import { ar, enUS } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
+import { useRTL } from '@/hooks/useRTL';
 
 // ألوان فئات التقادم
 const AGING_COLORS = {
@@ -30,6 +32,8 @@ const AGING_COLORS = {
 };
 
 const DelinquencyExecutiveDashboard = () => {
+  const { t, i18n } = useTranslation();
+  const isRTL = useRTL();
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('current');
   const [dashboardData, setDashboardData] = useState({
@@ -39,6 +43,20 @@ const DelinquencyExecutiveDashboard = () => {
     topDelinquents: [],
     performanceComparison: null
   });
+
+  // دالة لترجمة أسماء فئات التقادم
+  const translateAgingBucket = (bucketName) => {
+    const bucketMap = {
+      'Current': t('delinquencyDashboard.aging.current'),
+      '1-30 Days': t('delinquencyDashboard.aging.days1_30'),
+      '31-60 Days': t('delinquencyDashboard.aging.days31_60'),
+      '61-90 Days': t('delinquencyDashboard.aging.days61_90'),
+      '91-180 Days': t('delinquencyDashboard.aging.days91_180'),
+      '181-365 Days': t('delinquencyDashboard.aging.days181_365'),
+      'Over 365 Days': t('delinquencyDashboard.aging.over365Days')
+    };
+    return bucketMap[bucketName] || bucketName;
+  };
 
   // جلب البيانات من قاعدة البيانات
   useEffect(() => {
@@ -141,7 +159,7 @@ const DelinquencyExecutiveDashboard = () => {
 
   // تنسيق الأرقام
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat('ar-SA', {
+    return new Intl.NumberFormat(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -150,7 +168,11 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const formatPercentage = (value) => {
-    return `${parseFloat(value).toFixed(2)}%`;
+    return new Intl.NumberFormat(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+      style: 'percent',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value / 100);
   };
 
   if (loading) {
@@ -158,7 +180,7 @@ const DelinquencyExecutiveDashboard = () => {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">جاري تحميل البيانات...</p>
+          <p className="mt-4 text-gray-600">{t('delinquencyDashboard.loading')}</p>
         </div>
       </div>
     );
@@ -167,21 +189,21 @@ const DelinquencyExecutiveDashboard = () => {
   const { portfolioSummary, agingDistribution, collectionTrends, topDelinquents, performanceComparison } = dashboardData;
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen" dir="rtl">
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       {/* العنوان والفترة */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">لوحة بيانات المتأخرات - المستوى التنفيذي</h1>
-          <p className="text-gray-600 mt-2">نظرة شاملة على أداء التحصيل وصحة المحفظة</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('delinquencyDashboard.title')}</h1>
+          <p className="text-gray-600 mt-2">{t('delinquencyDashboard.subtitle')}</p>
         </div>
         <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="اختر الفترة" />
+            <SelectValue placeholder={t('delinquencyDashboard.selectPeriod')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="current">الشهر الحالي</SelectItem>
-            <SelectItem value="quarter">الربع الحالي</SelectItem>
-            <SelectItem value="year">السنة الحالية</SelectItem>
+            <SelectItem value="current">{t('delinquencyDashboard.currentMonth')}</SelectItem>
+            <SelectItem value="quarter">{t('delinquencyDashboard.currentQuarter')}</SelectItem>
+            <SelectItem value="year">{t('delinquencyDashboard.currentYear')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -191,13 +213,13 @@ const DelinquencyExecutiveDashboard = () => {
         {/* إجمالي المحفظة */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي المحفظة</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('delinquencyDashboard.kpi.totalPortfolio')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(portfolioSummary?.total_portfolio_value || 0)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {portfolioSummary?.total_loans || 0} قرض نشط
+              {portfolioSummary?.total_loans || 0} {t('delinquencyDashboard.kpi.activeLoans')}
             </p>
           </CardContent>
         </Card>
@@ -205,7 +227,7 @@ const DelinquencyExecutiveDashboard = () => {
         {/* إجمالي المتأخرات */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي المتأخرات</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('delinquencyDashboard.kpi.totalDelinquency')}</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -214,7 +236,7 @@ const DelinquencyExecutiveDashboard = () => {
               <Badge variant={portfolioSummary?.delinquency_rate > 5 ? "destructive" : "secondary"}>
                 {formatPercentage(portfolioSummary?.delinquency_rate || 0)}
               </Badge>
-              <span className="text-xs text-muted-foreground mr-2">من إجمالي المحفظة</span>
+              <span className="text-xs text-muted-foreground mr-2">{t('delinquencyDashboard.kpi.fromTotalPortfolio')}</span>
             </div>
           </CardContent>
         </Card>
@@ -222,7 +244,7 @@ const DelinquencyExecutiveDashboard = () => {
         {/* معدل التحصيل */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">معدل التحصيل الشهري</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('delinquencyDashboard.kpi.monthlyCollectionRate')}</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -234,13 +256,13 @@ const DelinquencyExecutiveDashboard = () => {
         {/* عدد الحسابات المتأخرة */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">الحسابات المتأخرة</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('delinquencyDashboard.kpi.delinquentAccounts')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{portfolioSummary?.delinquent_loans || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {((portfolioSummary?.delinquent_loans / portfolioSummary?.total_loans) * 100).toFixed(1)}% من إجمالي القروض
+              {((portfolioSummary?.delinquent_loans / portfolioSummary?.total_loans) * 100).toFixed(1)}% {t('delinquencyDashboard.kpi.fromTotalLoans')}
             </p>
           </CardContent>
         </Card>
@@ -250,13 +272,13 @@ const DelinquencyExecutiveDashboard = () => {
       {performanceComparison && (
         <Card>
           <CardHeader>
-            <CardTitle>مقارنة الأداء بالفترات السابقة</CardTitle>
+            <CardTitle>{t('delinquencyDashboard.performanceComparison.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
               {/* مقارنة بالشهر السابق */}
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">مقارنة بالشهر السابق</p>
+                <p className="text-sm text-gray-600">{t('delinquencyDashboard.performanceComparison.comparedToPrevMonth')}</p>
                 <div className="flex items-center justify-center mt-2">
                   {performanceComparison.delinquency_rate < performanceComparison.prev_month_delinquency_rate ? (
                     <TrendingDown className="h-5 w-5 text-green-500 ml-1" />
@@ -277,7 +299,7 @@ const DelinquencyExecutiveDashboard = () => {
 
               {/* مقارنة بالربع السابق */}
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">مقارنة بالربع السابق</p>
+                <p className="text-sm text-gray-600">{t('delinquencyDashboard.performanceComparison.comparedToPrevQuarter')}</p>
                 <div className="flex items-center justify-center mt-2">
                   {performanceComparison.delinquency_rate < performanceComparison.prev_quarter_delinquency_rate ? (
                     <TrendingDown className="h-5 w-5 text-green-500 ml-1" />
@@ -298,7 +320,7 @@ const DelinquencyExecutiveDashboard = () => {
 
               {/* مقارنة بالعام السابق */}
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">مقارنة بالعام السابق</p>
+                <p className="text-sm text-gray-600">{t('delinquencyDashboard.performanceComparison.comparedToPrevYear')}</p>
                 <div className="flex items-center justify-center mt-2">
                   {performanceComparison.delinquency_rate < performanceComparison.prev_year_delinquency_rate ? (
                     <TrendingDown className="h-5 w-5 text-green-500 ml-1" />
@@ -326,7 +348,7 @@ const DelinquencyExecutiveDashboard = () => {
         {/* توزيع المتأخرات حسب فئات التقادم */}
         <Card>
           <CardHeader>
-            <CardTitle>توزيع المتأخرات حسب فئات التقادم</CardTitle>
+            <CardTitle>{t('delinquencyDashboard.charts.agingDistribution')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -336,7 +358,7 @@ const DelinquencyExecutiveDashboard = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ bucket_name, percentage }) => `${bucket_name}: ${percentage}%`}
+                  label={({ bucket_name, percentage }) => `${translateAgingBucket(bucket_name)}: ${percentage}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="total_amount"
@@ -356,7 +378,7 @@ const DelinquencyExecutiveDashboard = () => {
                       className="w-3 h-3 rounded-full ml-2"
                       style={{ backgroundColor: bucket.color_code || AGING_COLORS[bucket.bucket_name] }}
                     />
-                    <span className="text-sm">{bucket.bucket_name}</span>
+                    <span className="text-sm">{translateAgingBucket(bucket.bucket_name)}</span>
                   </div>
                   <div className="text-sm">
                     <span className="font-medium">{formatCurrency(bucket.total_amount)}</span>
@@ -371,7 +393,7 @@ const DelinquencyExecutiveDashboard = () => {
         {/* اتجاهات معدل التحصيل */}
         <Card>
           <CardHeader>
-            <CardTitle>اتجاهات معدل التحصيل الشهري</CardTitle>
+            <CardTitle>{t('delinquencyDashboard.charts.monthlyCollectionTrends')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -379,7 +401,7 @@ const DelinquencyExecutiveDashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="period_date"
-                  tickFormatter={(date) => format(new Date(date), 'MMM yyyy', { locale: ar })}
+                  tickFormatter={(date) => format(new Date(date), 'MMM yyyy', { locale: i18n.language === 'ar' ? ar : enUS })}
                 />
                 <YAxis yAxisId="left" />
                 <YAxis yAxisId="right" orientation="right" />
@@ -388,14 +410,14 @@ const DelinquencyExecutiveDashboard = () => {
                     if (name === 'collection_rate') return formatPercentage(value);
                     return formatCurrency(value);
                   }}
-                  labelFormatter={(date) => format(new Date(date), 'MMMM yyyy', { locale: ar })}
+                  labelFormatter={(date) => format(new Date(date), 'MMMM yyyy', { locale: i18n.language === 'ar' ? ar : enUS })}
                 />
                 <Legend />
                 <Bar
                   yAxisId="left"
                   dataKey="total_collected_amount"
                   fill="#4CAF50"
-                  name="المبلغ المحصل"
+                  name={t('delinquencyDashboard.charts.collectedAmount')}
                 />
                 <Line
                   yAxisId="right"
@@ -403,7 +425,7 @@ const DelinquencyExecutiveDashboard = () => {
                   dataKey="collection_rate"
                   stroke="#2196F3"
                   strokeWidth={2}
-                  name="معدل التحصيل %"
+                  name={t('delinquencyDashboard.charts.collectionRatePercent')}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -414,19 +436,19 @@ const DelinquencyExecutiveDashboard = () => {
       {/* أكبر العملاء المتأخرين */}
       <Card>
         <CardHeader>
-          <CardTitle>أكبر 10 عملاء متأخرين</CardTitle>
+          <CardTitle>{t('delinquencyDashboard.charts.top10Delinquents')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-right py-2">اسم العميل</th>
-                  <th className="text-right py-2">رقم العميل</th>
-                  <th className="text-right py-2">عدد القروض المتأخرة</th>
-                  <th className="text-right py-2">إجمالي المتأخرات</th>
-                  <th className="text-right py-2">أقصى أيام تأخير</th>
-                  <th className="text-right py-2">حالة التحصيل</th>
+                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.customerName')}</th>
+                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.customerNumber')}</th>
+                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.delinquentLoansCount')}</th>
+                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.totalDelinquency')}</th>
+                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.maxDaysOverdue')}</th>
+                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.collectionStatus')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -438,7 +460,7 @@ const DelinquencyExecutiveDashboard = () => {
                     <td className="py-3 font-medium">{formatCurrency(customer.total_outstanding)}</td>
                     <td className="py-3 text-center">
                       <Badge variant={customer.max_days_past_due > 90 ? "destructive" : "warning"}>
-                        {customer.max_days_past_due} يوم
+                        {customer.max_days_past_due} {t('delinquencyDashboard.table.days')}
                       </Badge>
                     </td>
                     <td className="py-3">{customer.collection_statuses}</td>
@@ -454,12 +476,12 @@ const DelinquencyExecutiveDashboard = () => {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>التوصيات الاستراتيجية:</strong>
-          <ul className="mt-2 mr-4 list-disc">
-            <li>التركيز على العملاء في فئة 61-90 يوم لمنع انتقالهم لفئات أعلى</li>
-            <li>مراجعة سياسات الإقراض للعملاء ذوي المخاطر العالية</li>
-            <li>تعزيز فرق التحصيل في الفروع ذات الأداء المنخفض</li>
-            <li>تطوير برامج إعادة الهيكلة للقروض المتعثرة طويلة الأجل</li>
+          <strong>{t('delinquencyDashboard.recommendations.title')}</strong>
+          <ul className={`mt-2 ${isRTL ? 'mr-4' : 'ml-4'} list-disc`}>
+            <li>{t('delinquencyDashboard.recommendations.focus61_90')}</li>
+            <li>{t('delinquencyDashboard.recommendations.reviewPolicies')}</li>
+            <li>{t('delinquencyDashboard.recommendations.strengthenTeams')}</li>
+            <li>{t('delinquencyDashboard.recommendations.developPrograms')}</li>
           </ul>
         </AlertDescription>
       </Alert>

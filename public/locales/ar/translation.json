@@ -400,5 +400,76 @@
   "help_support": {
     "title": "المساعدة والدعم",
     "description": "وثائق المساعدة والدعم قيد التطوير..."
+  },
+  "delinquencyDashboard": {
+    "title": "لوحة بيانات المتأخرات - المستوى التنفيذي",
+    "subtitle": "نظرة شاملة على أداء التحصيل وصحة المحفظة",
+    "selectPeriod": "اختر الفترة",
+    "currentMonth": "الشهر الحالي",
+    "currentQuarter": "الربع الحالي",
+    "currentYear": "السنة الحالية",
+    "kpi": {
+      "totalPortfolio": "إجمالي المحفظة",
+      "activeLoans": "قرض نشط",
+      "totalDelinquency": "إجمالي المتأخرات",
+      "fromTotalPortfolio": "من إجمالي المحفظة",
+      "monthlyCollectionRate": "معدل التحصيل الشهري",
+      "delinquentAccounts": "الحسابات المتأخرة",
+      "fromTotalLoans": "من إجمالي القروض"
+    },
+    "performanceComparison": {
+      "title": "مقارنة الأداء بالفترات السابقة",
+      "comparedToPrevMonth": "مقارنة بالشهر السابق",
+      "comparedToPrevQuarter": "مقارنة بالربع السابق",
+      "comparedToPrevYear": "مقارنة بالعام السابق"
+    },
+    "charts": {
+      "agingDistribution": "توزيع المتأخرات حسب فئات التقادم",
+      "collectionTrends": "اتجاهات التحصيل",
+      "topDelinquents": "أكبر العملاء المتأخرين",
+      "delinquencyTrend": "اتجاه معدل المتأخرات",
+      "monthlyCollectionTrends": "اتجاهات معدل التحصيل الشهري",
+      "top10Delinquents": "أكبر 10 عملاء متأخرين",
+      "collectedAmount": "المبلغ المحصل",
+      "collectionRatePercent": "معدل التحصيل %"
+    },
+    "aging": {
+      "current": "جاري",
+      "days1_30": "1-30 يوم",
+      "days31_60": "31-60 يوم",
+      "days61_90": "61-90 يوم",
+      "days91_180": "91-180 يوم",
+      "days181_365": "181-365 يوم",
+      "over365Days": "أكثر من 365 يوم"
+    },
+    "table": {
+      "customerName": "اسم العميل",
+      "accountNumber": "رقم الحساب",
+      "outstandingAmount": "المبلغ المستحق",
+      "daysOverdue": "أيام التأخر",
+      "lastPaymentDate": "تاريخ آخر دفعة",
+      "riskCategory": "فئة المخاطر",
+      "customerNumber": "رقم العميل",
+      "delinquentLoansCount": "عدد القروض المتأخرة",
+      "totalDelinquency": "إجمالي المتأخرات",
+      "maxDaysOverdue": "أقصى أيام تأخير",
+      "collectionStatus": "حالة التحصيل",
+      "days": "يوم"
+    },
+    "tabs": {
+      "overview": "نظرة عامة",
+      "aging": "التقادم",
+      "trends": "الاتجاهات",
+      "performance": "الأداء"
+    },
+    "loading": "جاري تحميل البيانات...",
+    "noData": "لا توجد بيانات متاحة",
+    "recommendations": {
+      "title": "التوصيات الاستراتيجية:",
+      "focus61_90": "التركيز على العملاء في فئة 61-90 يوم لمنع انتقالهم لفئات أعلى",
+      "reviewPolicies": "مراجعة سياسات الإقراض للعملاء ذوي المخاطر العالية",
+      "strengthenTeams": "تعزيز فرق التحصيل في الفروع ذات الأداء المنخفض",
+      "developPrograms": "تطوير برامج إعادة الهيكلة للقروض المتعثرة طويلة الأجل"
+    }
   }
 }
