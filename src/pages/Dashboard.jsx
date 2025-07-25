@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useTranslation } from 'react-i18next';
-import { formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
 
 // Mock data as fallback
 const mockKpis = {
