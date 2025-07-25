@@ -341,11 +341,11 @@ export function Reports() {
           <p className="text-muted-foreground">Generate, schedule, and manage all banking reports</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.info('Schedule report functionality coming soon')}>
             <Calendar className="h-4 w-4" />
             Schedule Report
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => toast.info('Custom report functionality coming soon')}>
             <FileText className="h-4 w-4" />
             Create Custom Report
           </Button>
@@ -442,11 +442,11 @@ export function Reports() {
                                   </>
                                 )}
                               </Button>
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" onClick={() => toast.info('Schedule functionality coming soon')}>
                                 <Calendar className="h-3 w-3 mr-2" />
                                 Schedule
                               </Button>
-                              <Button size="sm" variant="outline">
+                              <Button size="sm" variant="outline" onClick={() => toast.info('Email functionality coming soon')}>
                                 <Mail className="h-3 w-3 mr-2" />
                                 Email
                               </Button>

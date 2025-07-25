@@ -286,7 +286,7 @@ export function Accounts() {
           <h1 className="text-3xl font-bold tracking-tight">Accounts Management</h1>
           <p className="text-muted-foreground">Manage and monitor all bank accounts</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => toast.info('New account functionality coming soon')}>
           <Plus className="h-4 w-4" />
           Open New Account
         </Button>
@@ -402,7 +402,7 @@ export function Accounts() {
                 <CardDescription>Complete list of bank accounts</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => toast.info('Export functionality coming soon')}>
                   <Download className="h-4 w-4 mr-2" />
                   Export
                 </Button>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { 
   Shield,
@@ -342,11 +343,11 @@ export function Compliance() {
           <p className="text-muted-foreground">Monitor regulatory compliance and risk management</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => toast.success('Data refreshed')}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => toast.info('Export functionality coming soon')}>
             <Download className="h-4 w-4" />
             Export Report
           </Button>

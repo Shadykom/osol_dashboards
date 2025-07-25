@@ -393,7 +393,7 @@ export function Transactions() {
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => toast.info('Export functionality coming soon')}>
             <Download className="h-4 w-4" />
             Export
           </Button>
@@ -563,6 +563,22 @@ export function Transactions() {
                           <div className="flex items-center gap-2">
                             <status.icon className={`h-4 w-4 ${status.color}`} />
                             {status.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {Object.entries(TRANSACTION_TYPES).map(([key, type]) => (
+                        <SelectItem key={key} value={key.toLowerCase()}>
+                          <div className="flex items-center gap-2">
+                            <type.icon className={`h-4 w-4 ${type.color}`} />
+                            {type.label}
                           </div>
                         </SelectItem>
                       ))}

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 const mockCustomers = [
   {
@@ -76,7 +77,7 @@ export function Customers() {
             {t('customers.customerDetails')}
           </p>
         </div>
-        <Button>
+        <Button onClick={() => toast.info('Add customer functionality coming soon')}>
           <Plus className="mr-2 h-4 w-4" />
           {t('customers.addNewCustomer')}
         </Button>
@@ -101,7 +102,7 @@ export function Customers() {
                 />
               </div>
             </div>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => toast.info('Filter functionality coming soon')}>
               <Filter className="mr-2 h-4 w-4" />
               {t('common.filter')}
             </Button>
@@ -139,7 +140,7 @@ export function Customers() {
                   <p className="text-sm text-muted-foreground">
                     {customer.accounts} {t(customer.accounts !== 1 ? 'common.accounts' : 'common.account')}
                   </p>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => toast.info('Customer details coming soon')}>
                     {t('customers.viewDetails')}
                   </Button>
                 </div>
