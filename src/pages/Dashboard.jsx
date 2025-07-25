@@ -9,11 +9,13 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Activity,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
+import { useState, useEffect } from 'react';
 
 // Mock data as fallback
 const mockKpis = {
@@ -139,16 +141,73 @@ function getStatusBadge(status) {
 
 export function Dashboard() {
   const { t } = useTranslation();
-  const { kpis, recentTransactions, loading, error, refreshData } = useDashboard();
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Initialize dashboard hook with proper error handling
+  const dashboardData = useDashboard(true, 30000);
+  
+  // Ensure hook is properly initialized
+  useEffect(() => {
+    setIsInitialized(true);
+  }, []);
+  
+  // Destructure with defaults to prevent errors
+  const {
+    kpis = mockKpis,
+    recentTransactions = mockRecentTransactions,
+    transactionAnalytics = mockTransactionAnalytics,
+    customerAnalytics = mockCustomerAnalytics,
+    loanAnalytics = mockLoanAnalytics,
+    monthlyComparison = mockMonthlyComparison,
+    branchComparison = mockBranchComparison,
+    loading = false,
+    error = null,
+    refreshData = () => {},
+    getKPIWithTrend = () => ({ value: 0, change: '0%', trend: 'neutral' })
+  } = dashboardData || {};
 
-  // Use real data if available, otherwise fall back to mock data
-  const displayKpis = kpis || mockKpis;
-  const displayTransactions = recentTransactions?.length > 0 ? recentTransactions : mockRecentTransactions;
+  const formatCurrency = (value) => {
+    return formatCurrencyUtil(value, 'SAR');
+  };
+
+  // Show loading state
+  if (!isInitialized || (loading && !kpis)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">{t('loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state with fallback data
+  if (error && !kpis) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
+          <p className="text-destructive">{t('error_loading_data')}: {error}</p>
+          <Button 
+            onClick={refreshData} 
+            variant="outline" 
+            size="sm" 
+            className="mt-2"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            {t('retry')}
+          </Button>
+        </div>
+        <p className="text-muted-foreground mb-4">{t('showing_cached_data')}</p>
+        {/* Continue rendering with mock data */}
+      </div>
+    );
+  }
 
   const kpiData = [
     {
       title: t('dashboard.totalCustomers'),
-      value: displayKpis.total_customers?.toLocaleString() || '0',
+      value: kpis.total_customers?.toLocaleString() || '0',
       change: '+12.5%',
       trend: 'up',
       icon: Users,
@@ -156,7 +215,7 @@ export function Dashboard() {
     },
     {
       title: t('dashboard.activeAccounts'),
-      value: displayKpis.total_accounts?.toLocaleString() || '0',
+      value: kpis.total_accounts?.toLocaleString() || '0',
       change: '+8.2%',
       trend: 'up',
       icon: CreditCard,
@@ -164,7 +223,7 @@ export function Dashboard() {
     },
     {
       title: t('dashboard.totalDeposits'),
-      value: formatCurrency(displayKpis.total_deposits || 0),
+      value: formatCurrency(kpis.total_deposits || 0),
       change: '+15.3%',
       trend: 'up',
       icon: DollarSign,
@@ -172,7 +231,7 @@ export function Dashboard() {
     },
     {
       title: t('dashboard.totalLoans'),
-      value: formatCurrency(displayKpis.total_loans || 0),
+      value: formatCurrency(kpis.total_loans || 0),
       change: '+22.1%',
       trend: 'up',
       icon: TrendingUp,
@@ -180,7 +239,7 @@ export function Dashboard() {
     },
     {
       title: 'Daily Transactions',
-      value: displayKpis.daily_transactions?.toLocaleString() || '0',
+      value: kpis.daily_transactions?.toLocaleString() || '0',
       change: '-2.4%',
       trend: 'down',
       icon: Activity,
@@ -188,7 +247,7 @@ export function Dashboard() {
     },
     {
       title: 'Monthly Revenue',
-      value: formatCurrency(displayKpis.monthly_revenue || 0),
+      value: formatCurrency(kpis.monthly_revenue || 0),
       change: '+18.7%',
       trend: 'up',
       icon: DollarSign,
@@ -258,7 +317,7 @@ export function Dashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {displayTransactions.map((transaction) => (
+                {recentTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-sm font-medium leading-none">

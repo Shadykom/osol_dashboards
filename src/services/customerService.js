@@ -1,4 +1,4 @@
-import { supabase, TABLES, formatApiResponse } from '@/lib/supabase';
+import { supabase, TABLES, formatApiResponse, isMockMode } from '@/lib/supabase';
 
 export class CustomerService {
   /**
@@ -244,6 +244,28 @@ export class CustomerService {
    * Get customer analytics
    */
   static async getCustomerAnalytics() {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse({
+        by_segment: [
+          { segment: 'Premium', count: 2847, percentage: 22.1 },
+          { segment: 'Regular', count: 8293, percentage: 64.5 },
+          { segment: 'Basic', count: 1707, percentage: 13.4 }
+        ],
+        kyc_status: [
+          { status: 'Verified', count: 11234, percentage: 87.4 },
+          { status: 'Pending', count: 1023, percentage: 8.0 },
+          { status: 'Rejected', count: 590, percentage: 4.6 }
+        ],
+        by_risk_category: [
+          { category: 'Low', count: 9234, percentage: 71.9 },
+          { category: 'Medium', count: 2893, percentage: 22.5 },
+          { category: 'High', count: 720, percentage: 5.6 }
+        ],
+        total_customers: 12847
+      });
+    }
+
     try {
       // Get segment distribution
       const { data: segmentData, error: segmentError } = await supabase
