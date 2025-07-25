@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS kastle_banking.aging_buckets (
 -- جدول المتأخرات
 CREATE TABLE IF NOT EXISTS kastle_banking.delinquencies (
     id SERIAL PRIMARY KEY,
-    loan_account_id INTEGER REFERENCES kastle_banking.loan_accounts(id),
-    customer_id INTEGER REFERENCES kastle_banking.customers(id),
+    loan_account_id INTEGER REFERENCES kastle_banking.loan_accounts(loan_account_id),
+    customer_id VARCHAR(20) REFERENCES kastle_banking.customers(customer_id),
     outstanding_amount DECIMAL(15,2) NOT NULL,
     days_past_due INTEGER NOT NULL,
     aging_bucket_id INTEGER REFERENCES kastle_banking.aging_buckets(id),
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS kastle_banking.portfolio_summary (
 -- جدول أداء التحصيل حسب الفرع
 CREATE TABLE IF NOT EXISTS kastle_banking.branch_collection_performance (
     id SERIAL PRIMARY KEY,
-    branch_id INTEGER REFERENCES kastle_banking.branches(id),
+    branch_id VARCHAR(10) REFERENCES kastle_banking.branches(branch_id),
     period_date DATE NOT NULL,
     total_delinquent_amount DECIMAL(15,2) NOT NULL,
     total_collected_amount DECIMAL(15,2) NOT NULL,
@@ -134,15 +134,15 @@ ORDER BY ab.display_order;
 -- View لأكبر العملاء المتأخرين
 CREATE OR REPLACE VIEW kastle_banking.top_delinquent_customers AS
 SELECT 
-    c.id as customer_id,
+    c.customer_id,
     c.first_name || ' ' || c.last_name as customer_name,
-    c.customer_number,
+    c.customer_id as customer_number,
     COUNT(DISTINCT d.loan_account_id) as delinquent_accounts,
     SUM(d.outstanding_amount) as total_outstanding,
     MAX(d.days_past_due) as max_days_past_due,
     STRING_AGG(DISTINCT d.collection_status, ', ') as collection_statuses
 FROM kastle_banking.customers c
-JOIN kastle_banking.delinquencies d ON c.id = d.customer_id
-GROUP BY c.id, c.first_name, c.last_name, c.customer_number
+JOIN kastle_banking.delinquencies d ON c.customer_id = d.customer_id
+GROUP BY c.customer_id, c.first_name, c.last_name
 ORDER BY total_outstanding DESC
 LIMIT 20;
