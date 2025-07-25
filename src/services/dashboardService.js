@@ -1,11 +1,77 @@
 // src/services/dashboardService.js
-import { supabase, TABLES, formatApiResponse } from '@/lib/supabase';
+import { supabase, TABLES, formatApiResponse, isMockMode } from '@/lib/supabase';
+
+// Mock data for development
+const mockData = {
+  kpis: {
+    total_customers: 12847,
+    total_accounts: 18293,
+    total_deposits: 2400000000,
+    total_loans: 1800000000,
+    daily_transactions: 8547,
+    monthly_revenue: 45200000
+  },
+  recentTransactions: [
+    {
+      id: 'TRN20250124_001',
+      customer_name: 'Ahmed Al-Rashid',
+      account_number: '1234567890',
+      amount: 15000,
+      transaction_type: 'TRANSFER',
+      status: 'COMPLETED',
+      transaction_date: new Date().toISOString()
+    },
+    {
+      id: 'TRN20250124_002',
+      customer_name: 'Fatima Al-Zahra',
+      account_number: '1234567891',
+      amount: 5500,
+      transaction_type: 'DEPOSIT',
+      status: 'PENDING',
+      transaction_date: new Date().toISOString()
+    }
+  ],
+  transactionAnalytics: {
+    by_channel: [
+      { channel: 'Mobile', count: 4523, percentage: 52.9 },
+      { channel: 'Web', count: 2834, percentage: 33.1 },
+      { channel: 'ATM', count: 892, percentage: 10.4 },
+      { channel: 'Branch', count: 298, percentage: 3.6 }
+    ],
+    success_rate: 94.3,
+    total_transactions: 8547,
+    completed_transactions: 8062
+  },
+  customerAnalytics: {
+    by_segment: [
+      { segment: 'Premium', count: 2847, percentage: 22.1 },
+      { segment: 'Regular', count: 8293, percentage: 64.5 },
+      { segment: 'Basic', count: 1707, percentage: 13.4 }
+    ],
+    kyc_status: [
+      { status: 'Verified', count: 11234, percentage: 87.4 },
+      { status: 'Pending', count: 1023, percentage: 8.0 },
+      { status: 'Rejected', count: 590, percentage: 4.6 }
+    ],
+    by_risk_category: [
+      { category: 'Low', count: 9234, percentage: 71.9 },
+      { category: 'Medium', count: 2893, percentage: 22.5 },
+      { category: 'High', count: 720, percentage: 5.6 }
+    ],
+    total_customers: 12847
+  }
+};
 
 export class DashboardService {
   /**
    * Get executive dashboard KPIs
    */
   static async getExecutiveKPIs() {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse(mockData.kpis);
+    }
+
     try {
       // Get total customers
       const { count: totalCustomers, error: customersError } = await supabase
@@ -66,6 +132,25 @@ export class DashboardService {
    * Get month-to-month comparison data
    */
   static async getMonthlyComparison() {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse({
+        current_month: {
+          revenue: 45200000,
+          customers: 847,
+          transactions: 234567,
+          deposits: 120000000
+        },
+        previous_month: {
+          revenue: 38100000,
+          customers: 723,
+          transactions: 198234,
+          deposits: 98000000
+        },
+        trends: []
+      });
+    }
+
     try {
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth();
@@ -186,6 +271,17 @@ export class DashboardService {
    * Get branch comparison data
    */
   static async getBranchComparison() {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse({
+        branches: [
+          { branch_name: 'Riyadh Main', customers: 3421, deposits: 450000000, loans: 320000000 },
+          { branch_name: 'Jeddah Central', customers: 2893, deposits: 380000000, loans: 290000000 },
+          { branch_name: 'Dammam Plaza', customers: 2234, deposits: 310000000, loans: 240000000 }
+        ]
+      });
+    }
+
     try {
       // Get branches
       const { data: branches, error: branchError } = await supabase
@@ -251,6 +347,11 @@ export class DashboardService {
    * Get transaction analytics
    */
   static async getTransactionAnalytics(params = {}) {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse(mockData.transactionAnalytics);
+    }
+
     try {
       const {
         from_date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days ago
@@ -315,6 +416,21 @@ export class DashboardService {
    * Get loan portfolio analytics
    */
   static async getLoanAnalytics() {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse({
+        total_portfolio: 1800000000,
+        disbursed_amount: 450000000,
+        outstanding_amount: 1350000000,
+        by_status: [
+          { status: 'ACTIVE', count: 3234, amount: 1200000000 },
+          { status: 'DISBURSED', count: 892, amount: 150000000 },
+          { status: 'CLOSED', count: 5432, amount: 0 }
+        ],
+        default_rate: 2.3
+      });
+    }
+
     try {
       // Get all loan accounts
       const { data: loansData, error: loansError } = await supabase
@@ -379,6 +495,16 @@ export class DashboardService {
    * Get real-time metrics
    */
   static async getRealTimeMetrics() {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse({
+        active_sessions: 342,
+        pending_transactions: 67,
+        failed_transactions_today: 12,
+        system_alerts: 3
+      });
+    }
+
     try {
       // Get pending transactions count
       const { count: pendingTransactions, error: pendingError } = await supabase
@@ -415,6 +541,11 @@ export class DashboardService {
    * Get recent transactions
    */
   static async getRecentTransactions(limit = 10) {
+    // Return mock data if in mock mode
+    if (isMockMode) {
+      return formatApiResponse(mockData.recentTransactions.slice(0, limit));
+    }
+
     try {
       // First get transactions
       const { data: transactions, error: transactionsError } = await supabase
