@@ -1,12 +1,14 @@
 import i18n from '@/i18n/i18n';
 
 export function formatNumber(number, options = {}) {
-  const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+  // Always use English locale for numbers
+  const locale = 'en-US';
   return new Intl.NumberFormat(locale, options).format(number);
 }
 
 export function formatCurrency(amount, currency = 'SAR') {
-  const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+  // Always use English locale for numbers
+  const locale = 'en-US';
   
   return new Intl.NumberFormat(locale, {
     style: 'currency',
@@ -42,7 +44,8 @@ export function formatTime(date, options = {}) {
 }
 
 export function formatPercentage(value, decimals = 1) {
-  const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+  // Always use English locale for numbers
+  const locale = 'en-US';
   
   return new Intl.NumberFormat(locale, {
     style: 'percent',

@@ -173,7 +173,7 @@ export class DashboardService {
         status: tx.status || 'UNKNOWN',
         transaction_datetime: tx.transaction_date,
         description: tx.narration,
-        formatted_amount: new Intl.NumberFormat('ar-SA', {
+                  formatted_amount: new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: tx.currency_code || 'SAR'
         }).format(parseFloat(tx.transaction_amount) || 0)

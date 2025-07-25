@@ -153,7 +153,7 @@ const EarlyWarningDashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -162,7 +162,7 @@ const EarlyWarningDashboard = () => {
   };
 
   const formatNumber = (num) => {
-    return new Intl.NumberFormat('ar-SA').format(num);
+    return new Intl.NumberFormat('en-US').format(num);
   };
 
   const getRiskColor = (level) => {

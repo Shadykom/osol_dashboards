@@ -159,7 +159,7 @@ const DelinquencyExecutiveDashboard = () => {
 
   // تنسيق الأرقام
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -168,7 +168,7 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const formatPercentage = (value) => {
-    return new Intl.NumberFormat(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+    return new Intl.NumberFormat('en-US', {
       style: 'percent',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
