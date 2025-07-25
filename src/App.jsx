@@ -23,6 +23,7 @@ import FieldCollectionDashboard from './pages/FieldCollectionDashboard';
 import OfficerPerformanceDashboard from './pages/OfficerPerformanceDashboard';
 import ShariaComplianceDashboard from './pages/ShariaComplianceDashboard';
 import VintageAnalysisDashboard from './pages/VintageAnalysisDashboard';
+import DelinquencyExecutiveDashboard from './pages/DelinquencyExecutiveDashboard';
 import DatabaseTest from './pages/DatabaseTest';
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -227,6 +228,7 @@ function SafeApp() {
             <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
             <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
             <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
+            <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
             
             {/* Legacy URL Redirects (backwards compatibility) */}
             <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
