@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Filter } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 const mockCustomers = [
   {
@@ -46,9 +45,7 @@ function getSegmentBadge(segment) {
     'CORPORATE': 'outline'
   };
   
-  const { t } = useTranslation();
-  
-  return <Badge variant={variants[segment] || 'default'}>{t(`common.${segment.toLowerCase()}`)}</Badge>;
+  return <Badge variant={variants[segment] || 'default'}>{segment}</Badge>;
 }
 
 function getKYCBadge(status) {
@@ -58,36 +55,32 @@ function getKYCBadge(status) {
     'REJECTED': 'destructive'
   };
   
-  const { t } = useTranslation();
-  
-  return <Badge variant={variants[status] || 'default'}>{t(`common.${status.toLowerCase()}`)}</Badge>;
+  return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
 }
 
 export function Customers() {
-  const { t } = useTranslation();
-  
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('customers.title')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
           <p className="text-muted-foreground">
-            {t('customers.customerDetails')}
+            Manage customer information and relationships
           </p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          {t('customers.addNewCustomer')}
+          Add Customer
         </Button>
       </div>
 
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('customers.searchCustomers')}</CardTitle>
+          <CardTitle>Search Customers</CardTitle>
           <CardDescription>
-            {t('customers.searchCustomers')}
+            Find customers by name, ID, email, or phone number
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -96,14 +89,14 @@ export function Customers() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={t('customers.searchCustomers')}
+                  placeholder="Search customers..."
                   className="pl-10"
                 />
               </div>
             </div>
             <Button variant="outline">
               <Filter className="mr-2 h-4 w-4" />
-              {t('common.filter')}
+              Filters
             </Button>
           </div>
         </CardContent>
@@ -112,9 +105,9 @@ export function Customers() {
       {/* Customer List */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('common.customerList')}</CardTitle>
+          <CardTitle>Customer List</CardTitle>
           <CardDescription>
-            {mockCustomers.length} {t('common.customersFound')}
+            {mockCustomers.length} customers found
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -137,10 +130,10 @@ export function Customers() {
                 <div className="text-right space-y-1">
                   <p className="font-medium">{customer.total_balance}</p>
                   <p className="text-sm text-muted-foreground">
-                    {customer.accounts} {t(customer.accounts !== 1 ? 'common.accounts' : 'common.account')}
+                    {customer.accounts} account{customer.accounts !== 1 ? 's' : ''}
                   </p>
                   <Button variant="outline" size="sm">
-                    {t('customers.viewDetails')}
+                    View Details
                   </Button>
                 </div>
               </div>

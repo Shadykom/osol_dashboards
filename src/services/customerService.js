@@ -1,10 +1,15 @@
-import { supabase, TABLES, formatApiResponse, isMockMode } from '@/lib/supabase';
+import { supabase, TABLES, formatApiResponse, isSupabaseConfigured } from '@/lib/supabase';
+import { MockCustomerService } from './mockCustomerService';
 
 export class CustomerService {
   /**
    * Get all customers with pagination and filtering
    */
   static async getCustomers(params = {}) {
+    if (!isSupabaseConfigured) {
+      return MockCustomerService.getCustomers(params);
+    }
+
     try {
       const {
         page = 1,
@@ -244,26 +249,8 @@ export class CustomerService {
    * Get customer analytics
    */
   static async getCustomerAnalytics() {
-    // Return mock data if in mock mode
-    if (isMockMode) {
-      return formatApiResponse({
-        by_segment: [
-          { segment: 'Premium', count: 2847, percentage: 22.1 },
-          { segment: 'Regular', count: 8293, percentage: 64.5 },
-          { segment: 'Basic', count: 1707, percentage: 13.4 }
-        ],
-        kyc_status: [
-          { status: 'Verified', count: 11234, percentage: 87.4 },
-          { status: 'Pending', count: 1023, percentage: 8.0 },
-          { status: 'Rejected', count: 590, percentage: 4.6 }
-        ],
-        by_risk_category: [
-          { category: 'Low', count: 9234, percentage: 71.9 },
-          { category: 'Medium', count: 2893, percentage: 22.5 },
-          { category: 'High', count: 720, percentage: 5.6 }
-        ],
-        total_customers: 12847
-      });
+    if (!isSupabaseConfigured) {
+      return MockCustomerService.getCustomerAnalytics();
     }
 
     try {
@@ -334,7 +321,8 @@ export class CustomerService {
 
       return formatApiResponse(analytics);
     } catch (error) {
-      return formatApiResponse(null, error);
+      console.error('Error fetching customer analytics, falling back to mock data:', error);
+      return MockCustomerService.getCustomerAnalytics();
     }
   }
 }

@@ -9,13 +9,9 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Activity,
-  RefreshCw,
-  Loader2
+  RefreshCw
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
-import { useTranslation } from 'react-i18next';
-import { formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
-import { useState, useEffect } from 'react';
 
 // Mock data as fallback
 const mockKpis = {
@@ -125,7 +121,6 @@ function KPICard({ title, value, change, trend, icon: Icon, description, isLoadi
 }
 
 function getStatusBadge(status) {
-  const { t } = useTranslation();
   const variants = {
     'Completed': 'default',
     'COMPLETED': 'default',
@@ -135,111 +130,52 @@ function getStatusBadge(status) {
     'FAILED': 'destructive'
   };
   
-  const statusKey = status.toLowerCase();
-  return <Badge variant={variants[status] || 'default'}>{t(`common.${statusKey}`)}</Badge>;
+  return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
 }
 
 export function Dashboard() {
-  const { t } = useTranslation();
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  // Initialize dashboard hook with proper error handling
-  const dashboardData = useDashboard(true, 30000);
-  
-  // Ensure hook is properly initialized
-  useEffect(() => {
-    setIsInitialized(true);
-  }, []);
-  
-  // Destructure with defaults to prevent errors
-  const {
-    kpis = mockKpis,
-    recentTransactions = mockRecentTransactions,
-    transactionAnalytics = mockTransactionAnalytics,
-    customerAnalytics = mockCustomerAnalytics,
-    loanAnalytics = mockLoanAnalytics,
-    monthlyComparison = mockMonthlyComparison,
-    branchComparison = mockBranchComparison,
-    loading = false,
-    error = null,
-    refreshData = () => {},
-    getKPIWithTrend = () => ({ value: 0, change: '0%', trend: 'neutral' })
-  } = dashboardData || {};
+  const { kpis, recentTransactions, loading, error, refreshData } = useDashboard();
 
-  const formatCurrency = (value) => {
-    return formatCurrencyUtil(value, 'SAR');
-  };
-
-  // Show loading state
-  if (!isInitialized || (loading && !kpis)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">{t('loading')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state with fallback data
-  if (error && !kpis) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
-          <p className="text-destructive">{t('error_loading_data')}: {error}</p>
-          <Button 
-            onClick={refreshData} 
-            variant="outline" 
-            size="sm" 
-            className="mt-2"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {t('retry')}
-          </Button>
-        </div>
-        <p className="text-muted-foreground mb-4">{t('showing_cached_data')}</p>
-        {/* Continue rendering with mock data */}
-      </div>
-    );
-  }
+  // Use real data if available, otherwise fall back to mock data
+  const displayKpis = kpis || mockKpis;
+  const displayTransactions = recentTransactions?.length > 0 ? recentTransactions : mockRecentTransactions;
 
   const kpiData = [
     {
-      title: t('dashboard.totalCustomers'),
-      value: kpis.total_customers?.toLocaleString() || '0',
+      title: 'Total Customers',
+      value: displayKpis.total_customers?.toLocaleString() || '0',
       change: '+12.5%',
       trend: 'up',
       icon: Users,
-      description: t('customers.activeCustomers')
+      description: 'Active customers'
     },
     {
-      title: t('dashboard.activeAccounts'),
-      value: kpis.total_accounts?.toLocaleString() || '0',
+      title: 'Total Accounts',
+      value: displayKpis.total_accounts?.toLocaleString() || '0',
       change: '+8.2%',
       trend: 'up',
       icon: CreditCard,
-      description: t('accounts.totalAccounts')
+      description: 'All account types'
     },
     {
-      title: t('dashboard.totalDeposits'),
-      value: formatCurrency(kpis.total_deposits || 0),
+      title: 'Total Deposits',
+      value: formatCurrency(displayKpis.total_deposits || 0),
       change: '+15.3%',
       trend: 'up',
       icon: DollarSign,
-      description: t('dashboard.totalDeposits')
+      description: 'Customer deposits'
     },
     {
-      title: t('dashboard.totalLoans'),
-      value: formatCurrency(kpis.total_loans || 0),
+      title: 'Loan Portfolio',
+      value: formatCurrency(displayKpis.total_loans || 0),
       change: '+22.1%',
       trend: 'up',
       icon: TrendingUp,
-      description: t('loans.totalLoans')
+      description: 'Outstanding loans'
     },
     {
       title: 'Daily Transactions',
-      value: kpis.daily_transactions?.toLocaleString() || '0',
+      value: displayKpis.daily_transactions?.toLocaleString() || '0',
       change: '-2.4%',
       trend: 'down',
       icon: Activity,
@@ -247,7 +183,7 @@ export function Dashboard() {
     },
     {
       title: 'Monthly Revenue',
-      value: formatCurrency(kpis.monthly_revenue || 0),
+      value: formatCurrency(displayKpis.monthly_revenue || 0),
       change: '+18.7%',
       trend: 'up',
       icon: DollarSign,
@@ -260,14 +196,14 @@ export function Dashboard() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('navigation.mainDashboard')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            {t('dashboard.welcomeBack')}
+            Welcome back! Here's what's happening with your banking operations today.
           </p>
         </div>
         <Button onClick={refreshData} variant="outline" size="sm">
           <RefreshCw className="mr-2 h-4 w-4" />
-          {t('common.refresh')}
+          Refresh
         </Button>
       </div>
 
@@ -294,9 +230,9 @@ export function Dashboard() {
         {/* Recent Transactions */}
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>{t('dashboard.recentTransactions')}</CardTitle>
+            <CardTitle>Recent Transactions</CardTitle>
             <CardDescription>
-              {t('transactions.transactionHistory')}
+              Latest transactions across all channels
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -317,7 +253,7 @@ export function Dashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {recentTransactions.map((transaction) => (
+                {displayTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-sm font-medium leading-none">

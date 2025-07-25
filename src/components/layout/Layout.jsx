@@ -1,23 +1,22 @@
-import { useState } from 'react';
-import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { cn } from '@/lib/utils';
+import { Sidebar } from './Sidebar';
 
 export function Layout({ children }) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
   return (
-    <div className="flex h-screen">
-      <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <Sidebar />
+      
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className={cn(
-          "flex-1 overflow-auto bg-gray-50/50 transition-all duration-300",
-          isSidebarCollapsed ? "ml-0" : "ml-0"
-        )}>
+        
+        {/* Page Content */}
+        <main className="flex-1 overflow-auto p-6">
           {children}
         </main>
       </div>
     </div>
   );
 }
+

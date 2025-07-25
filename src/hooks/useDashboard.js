@@ -24,17 +24,10 @@ export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
     setError(null);
     
     try {
-      // Load all dashboard data in parallel
-      const [
-        kpisResponse,
-        transactionsResponse,
-        transactionAnalyticsResponse,
-        customerAnalyticsResponse,
-        loanAnalyticsResponse,
-        monthlyComparisonResponse,
-        branchComparisonResponse,
-        realTimeMetricsResponse
-      ] = await Promise.all([
+      console.log('Loading dashboard data...');
+      
+      // Load all dashboard data in parallel with individual error handling
+      const results = await Promise.allSettled([
         DashboardService.getExecutiveKPIs(),
         DashboardService.getRecentTransactions(10),
         DashboardService.getTransactionAnalytics(),
@@ -45,45 +38,47 @@ export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
         DashboardService.getRealTimeMetrics()
       ]);
 
-      // Check for errors in responses
-      const responses = [
-        kpisResponse,
-        transactionsResponse,
-        transactionAnalyticsResponse,
-        customerAnalyticsResponse,
-        loanAnalyticsResponse,
-        monthlyComparisonResponse,
-        branchComparisonResponse,
-        realTimeMetricsResponse
-      ];
+      // Process results and extract data
+      const [
+        kpisResult,
+        transactionsResult,
+        transactionAnalyticsResult,
+        customerAnalyticsResult,
+        loanAnalyticsResult,
+        monthlyComparisonResult,
+        branchComparisonResult,
+        realTimeMetricsResult
+      ] = results;
 
-      const hasError = responses.some(response => !response.success);
-      
-      if (hasError) {
-        // Find first error
-        const errorResponse = responses.find(response => !response.success);
-        throw new Error(errorResponse?.error?.error || 'Failed to load dashboard data');
-      }
+      // Extract data from successful results, use null for failed ones
+      const extractData = (result) => {
+        if (result.status === 'fulfilled' && result.value?.success) {
+          return result.value.data;
+        }
+        console.warn('Failed to load data:', result.reason || result.value?.error);
+        return null;
+      };
 
       // Update state with loaded data
       setData({
-        kpis: kpisResponse.data,
-        recentTransactions: transactionsResponse.data,
-        transactionAnalytics: transactionAnalyticsResponse.data,
-        customerAnalytics: customerAnalyticsResponse.data,
-        loanAnalytics: loanAnalyticsResponse.data,
-        monthlyComparison: monthlyComparisonResponse.data,
-        branchComparison: branchComparisonResponse.data,
-        realTimeMetrics: realTimeMetricsResponse.data
+        kpis: extractData(kpisResult),
+        recentTransactions: extractData(transactionsResult) || [],
+        transactionAnalytics: extractData(transactionAnalyticsResult),
+        customerAnalytics: extractData(customerAnalyticsResult),
+        loanAnalytics: extractData(loanAnalyticsResult),
+        monthlyComparison: extractData(monthlyComparisonResult),
+        branchComparison: extractData(branchComparisonResult),
+        realTimeMetrics: extractData(realTimeMetricsResult)
       });
       
       setLastUpdated(new Date());
+      console.log('Dashboard data loaded successfully');
       
     } catch (err) {
       console.error('Dashboard data loading error:', err);
       setError(err.message || 'Failed to load dashboard data');
       
-      // Set default/mock data to ensure UI doesn't break
+      // Set empty data structure to prevent UI crashes
       setData({
         kpis: {
           total_customers: 0,

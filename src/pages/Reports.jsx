@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
 import { 
   FileText,
   Download,
@@ -107,7 +106,6 @@ const REPORT_CATEGORIES = {
 };
 
 export function Reports() {
-  const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState('financial');
   const [recentReports, setRecentReports] = useState([]);
   const [scheduledReports, setScheduledReports] = useState([]);
@@ -362,7 +360,7 @@ export function Reports() {
           subtitle="This month"
         />
         <StatCard
-          title={t('common.pendingReports')}
+          title="Pending Reports"
           value={reportStats.pendingReports}
           icon={Clock}
           color="text-yellow-500"

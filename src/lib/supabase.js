@@ -1,51 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseConfig, validateSupabaseConfig } from './supabaseConfig';
 
-// Check if we're in mock mode
-const ENABLE_MOCK_DATA = import.meta.env.VITE_ENABLE_MOCK_DATA === 'true';
+// Get Supabase configuration
+const config = getSupabaseConfig();
 
-// Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
-
-// Check if credentials are properly configured
-const isConfigured = supabaseUrl !== 'https://your-project.supabase.co' && 
-                    supabaseAnonKey !== 'your-anon-key' &&
-                    supabaseAnonKey !== 'your-anon-key-here';
-
-// Create a mock client for development when credentials are not configured
-const createMockClient = () => {
-  console.warn('Supabase credentials not configured. Using mock data mode.');
-  
-  return {
-    from: () => ({
-      select: () => Promise.resolve({ data: [], error: null, count: 0 }),
-      insert: () => Promise.resolve({ data: null, error: null }),
-      update: () => Promise.resolve({ data: null, error: null }),
-      delete: () => Promise.resolve({ data: null, error: null }),
-      eq: () => ({ 
-        select: () => Promise.resolve({ data: [], error: null }),
-        single: () => Promise.resolve({ data: null, error: null })
-      }),
-      gte: () => ({ select: () => Promise.resolve({ data: [], error: null, count: 0 }) }),
-      in: () => ({ select: () => Promise.resolve({ data: [], error: null }) })
-    }),
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-      signIn: () => Promise.resolve({ data: null, error: { message: 'Mock mode active' } }),
-      signOut: () => Promise.resolve({ error: null })
-    },
-    realtime: {
-      channel: () => ({
-        on: () => ({ subscribe: () => {} }),
-        unsubscribe: () => {}
-      })
-    }
-  };
-};
-
-// Create Supabase client or mock client
-export const supabase = (isConfigured && !ENABLE_MOCK_DATA) 
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+// Create Supabase client only if properly configured
+export const supabase = config.isConfigured 
+  ? createClient(config.url, config.anonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -57,10 +18,10 @@ export const supabase = (isConfigured && !ENABLE_MOCK_DATA)
         }
       }
     })
-  : createMockClient();
+  : null;
 
-// Export a flag to indicate if we're in mock mode
-export const isMockMode = !isConfigured || ENABLE_MOCK_DATA;
+// Export configuration status
+export const isSupabaseConfigured = config.isConfigured;
 
 // Database schema constants - using full schema.table names for kastle_banking schema
 export const TABLES = {

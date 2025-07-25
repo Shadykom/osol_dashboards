@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
 import { 
   PiggyBank,
   TrendingUp, 
@@ -78,7 +77,6 @@ const LOAN_TYPES = {
 };
 
 export function Loans() {
-  const { t } = useTranslation();
   const [loans, setLoans] = useState([]);
   const [stats, setStats] = useState({
     totalLoans: 0,
@@ -707,7 +705,7 @@ export function Loans() {
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm">
-                              {t('customers.viewDetails')}
+                              View Details
                             </Button>
                           </TableCell>
                         </TableRow>

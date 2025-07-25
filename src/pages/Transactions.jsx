@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
 import { 
   ArrowUpDown,
   TrendingUp, 
@@ -65,7 +64,6 @@ const TRANSACTION_STATUS = {
 };
 
 export function Transactions() {
-  const { t } = useTranslation();
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState({
     totalTransactions: 0,
@@ -425,7 +423,7 @@ export function Transactions() {
           subtitle="Completed transactions"
         />
         <StatCard
-          title={t('common.pending')}
+          title="Pending"
           value={stats.pendingTransactions.toLocaleString()}
           icon={Clock}
           color="text-yellow-500"
@@ -654,7 +652,7 @@ export function Transactions() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Button variant="ghost" size="sm">
-                                    {t('customers.viewDetails')}
+                                    View Details
                                   </Button>
                                 </TableCell>
                               </motion.tr>
