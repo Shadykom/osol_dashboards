@@ -1,4 +1,4 @@
-import { supabase, TABLES, formatApiResponse } from '@/lib/supabase';
+import { supabaseBanking, TABLES, formatApiResponse } from '@/lib/supabase';
 
 export class CustomerService {
   /**
@@ -15,9 +15,15 @@ export class CustomerService {
         risk_category = ''
       } = params;
 
-      let query = supabase
+      let query = supabaseBanking
         .from(TABLES.CUSTOMERS)
-        .select('*', { count: 'exact' });
+        .select(`
+          *,
+          customer_contacts(
+            contact_type,
+            contact_value
+          )
+        `, { count: 'exact' });
 
       // Apply search filter
       if (search) {
@@ -67,9 +73,32 @@ export class CustomerService {
    */
   static async getCustomer(customerId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
-        .select('*')
+        .select(`
+          *,
+          customer_contacts(
+            contact_type,
+            contact_value
+          ),
+          customer_addresses(
+            address_type,
+            address_line1,
+            address_line2,
+            city,
+            state,
+            country_code,
+            postal_code,
+            is_primary
+          ),
+          customer_documents(
+            document_type,
+            document_number,
+            issue_date,
+            expiry_date,
+            verification_status
+          )
+        `)
         .eq('customer_id', customerId)
         .single();
 
@@ -95,7 +124,7 @@ export class CustomerService {
         customerData.full_name = `${customerData.first_name} ${customerData.middle_name || ''} ${customerData.last_name}`.trim();
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .insert([customerData])
         .select()
@@ -125,7 +154,7 @@ export class CustomerService {
 
       updates.updated_at = new Date().toISOString();
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .update(updates)
         .eq('customer_id', customerId)
@@ -143,13 +172,14 @@ export class CustomerService {
    */
   static async getCustomerAccounts(customerId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select(`
           *,
-          account_types:account_type_id (
+          account_types(
             type_name,
-            description
+            type_code,
+            account_category
           )
         `)
         .eq('customer_id', customerId)
@@ -181,13 +211,14 @@ export class CustomerService {
 
       const accountNumbers = accountsResponse.data.map(account => account.account_number);
 
-      let query = supabase
+      let query = supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select(`
           *,
-          transaction_types:transaction_type_id (
+          transaction_types(
             type_name,
-            description
+            type_code,
+            transaction_category
           )
         `, { count: 'exact' })
         .in('account_number', accountNumbers);
@@ -228,9 +259,17 @@ export class CustomerService {
    */
   static async getCustomerLoans(customerId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
-        .select('*')
+        .select(`
+          *,
+          loan_applications(
+            application_number,
+            requested_amount,
+            approved_amount,
+            application_status
+          )
+        `)
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false });
 
@@ -246,18 +285,18 @@ export class CustomerService {
   static async getCustomerAnalytics() {
     try {
       // Get segment distribution
-      const { data: segmentData, error: segmentError } = await supabase
+      const { data: segmentData, error: segmentError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('segment')
         .not('segment', 'is', null);
 
       // Get KYC status distribution
-      const { data: kycData, error: kycError } = await supabase
+      const { data: kycData, error: kycError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('kyc_status');
 
       // Get risk category distribution
-      const { data: riskData, error: riskError } = await supabase
+      const { data: riskData, error: riskError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('risk_category')
         .not('risk_category', 'is', null);
@@ -315,5 +354,64 @@ export class CustomerService {
       return formatApiResponse(null, error);
     }
   }
-}
 
+  /**
+   * Add customer contact
+   */
+  static async addCustomerContact(customerId, contactData) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from(TABLES.CUSTOMER_CONTACTS)
+        .insert([{
+          customer_id: customerId,
+          ...contactData
+        }])
+        .select()
+        .single();
+
+      return formatApiResponse(data, error);
+    } catch (error) {
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Add customer address
+   */
+  static async addCustomerAddress(customerId, addressData) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from(TABLES.CUSTOMER_ADDRESSES)
+        .insert([{
+          customer_id: customerId,
+          ...addressData
+        }])
+        .select()
+        .single();
+
+      return formatApiResponse(data, error);
+    } catch (error) {
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Upload customer document
+   */
+  static async uploadCustomerDocument(customerId, documentData) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from(TABLES.CUSTOMER_DOCUMENTS)
+        .insert([{
+          customer_id: customerId,
+          ...documentData
+        }])
+        .select()
+        .single();
+
+      return formatApiResponse(data, error);
+    } catch (error) {
+      return formatApiResponse(null, error);
+    }
+  }
+}
