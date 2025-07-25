@@ -122,8 +122,7 @@ function KPICard({ title, value, change, trend, icon: Icon, description, isLoadi
   );
 }
 
-function getStatusBadge(status) {
-  const { t } = useTranslation();
+function getStatusBadge(status, t) {
   const variants = {
     'Completed': 'default',
     'COMPLETED': 'default',
@@ -271,7 +270,7 @@ export function Dashboard() {
                     <div className="text-right space-y-1">
                       <p className="text-sm font-medium">{transaction.amount}</p>
                       <div className="flex items-center space-x-2">
-                        {getStatusBadge(transaction.status)}
+                        {getStatusBadge(transaction.status, t)}
                         <span className="text-xs text-muted-foreground">
                           {transaction.time}
                         </span>
