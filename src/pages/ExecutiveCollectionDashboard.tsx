@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react';
 
 const ExecutiveCollectionDashboard = () => {
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [selectedBranch, setSelectedBranch] = useState('all');
@@ -675,7 +673,7 @@ const ExecutiveCollectionDashboard = () => {
                     <span className="font-bold">98.5%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">{t('common.pendingReviews')}</span>
+                    <span className="text-sm">Pending Reviews</span>
                     <span className="font-bold">12</span>
                   </div>
                 </div>

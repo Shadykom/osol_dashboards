@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +19,6 @@ import {
 } from 'lucide-react';
 
 const ShariaComplianceDashboard = () => {
-  const { t } = useTranslation();
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -349,7 +347,7 @@ const ShariaComplianceDashboard = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>{t('common.approvedMethods')}</CardTitle>
+                <CardTitle>Approved Collection Methods</CardTitle>
                 <CardDescription>Sharia-compliant collection practices</CardDescription>
               </CardHeader>
               <CardContent>
@@ -415,7 +413,7 @@ const ShariaComplianceDashboard = () => {
               </div>
               <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">{t('common.totalPendingDistribution')}</span>
+                  <span className="font-medium">Total Pending Distribution</span>
                   <span className="text-xl font-bold text-blue-600">
                     {formatCurrency(complianceMetrics.overview.pendingDistribution)}
                   </span>
@@ -544,7 +542,7 @@ const ShariaComplianceDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HandHeart className="h-5 w-5" />
-                {t('common.approvedCharityPartners')}
+                Approved Charity Partners
               </CardTitle>
               <CardDescription>Organizations receiving late payment charge distributions</CardDescription>
             </CardHeader>

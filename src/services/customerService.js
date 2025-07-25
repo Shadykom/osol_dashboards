@@ -1,15 +1,10 @@
-import { supabase, TABLES, formatApiResponse, isSupabaseConfigured } from '@/lib/supabase';
-import { MockCustomerService } from './mockCustomerService';
+import { supabase, TABLES, formatApiResponse } from '@/lib/supabase';
 
 export class CustomerService {
   /**
    * Get all customers with pagination and filtering
    */
   static async getCustomers(params = {}) {
-    if (!isSupabaseConfigured) {
-      return MockCustomerService.getCustomers(params);
-    }
-
     try {
       const {
         page = 1,
@@ -249,10 +244,6 @@ export class CustomerService {
    * Get customer analytics
    */
   static async getCustomerAnalytics() {
-    if (!isSupabaseConfigured) {
-      return MockCustomerService.getCustomerAnalytics();
-    }
-
     try {
       // Get segment distribution
       const { data: segmentData, error: segmentError } = await supabase
@@ -321,8 +312,7 @@ export class CustomerService {
 
       return formatApiResponse(analytics);
     } catch (error) {
-      console.error('Error fetching customer analytics, falling back to mock data:', error);
-      return MockCustomerService.getCustomerAnalytics();
+      return formatApiResponse(null, error);
     }
   }
 }

@@ -37,38 +37,7 @@
     "currency": "ريال",
     "language": "اللغة",
     "english": "English",
-    "arabic": "العربية",
-    "customerList": "قائمة العملاء",
-    "customersFound": "عملاء تم العثور عليهم",
-    "accounts": "حسابات",
-    "account": "حساب",
-    "approved": "موافق عليه",
-    "pending": "قيد الانتظار",
-    "retail": "تجزئة",
-    "premium": "مميز",
-    "hni": "عالي القيمة",
-    "corporate": "شركات",
-    "completed": "مكتمل",
-    "failed": "فاشل",
-    "cancelled": "ملغي",
-    "rejected": "مرفوض",
-    "pendingReports": "التقارير المعلقة",
-    "pendingApprovals": "الموافقات المعلقة",
-    "pendingReviews": "المراجعات المعلقة",
-    "approvedMethods": "الطرق المعتمدة",
-    "totalPendingDistribution": "إجمالي التوزيع المعلق",
-    "approvedCharityPartners": "شركاء الخير المعتمدون",
-    "disbursed": "مصروف",
-    "active": "نشط",
-    "overdue": "متأخر",
-    "closed": "مغلق",
-    "defaulted": "متعثر",
-    "personalLoan": "قرض شخصي",
-    "mortgage": "رهن عقاري",
-    "autoLoan": "قرض سيارة",
-    "takeAction": "اتخاذ إجراء",
-    "verified": "تم التحقق",
-    "expired": "منتهي الصلاحية"
+    "arabic": "العربية"
   },
   "navigation": {
     "overview": "نظرة عامة",
@@ -311,93 +280,5 @@
     "dataVisualization": "تصور البيانات",
     "exportData": "تصدير البيانات",
     "customizeView": "تخصيص العرض"
-  },
-  "add_new_customer": {
-    "title": "إضافة عميل جديد",
-    "description": "نموذج إضافة العميل قيد التطوير..."
-  },
-  "kyc_pending": {
-    "title": "في انتظار اعرف عميلك",
-    "description": "قائمة العملاء في انتظار اعرف عميلك قيد التطوير..."
-  },
-  "risk_assessment": {
-    "title": "تقييم المخاطر",
-    "description": "تقييم المخاطر قيد التطوير..."
-  },
-  "open_new_account": {
-    "title": "فتح حساب جديد",
-    "description": "نموذج فتح الحساب قيد التطوير..."
-  },
-  "blocked_accounts": {
-    "title": "الحسابات المحظورة",
-    "description": "قائمة الحسابات المحظورة قيد التطوير..."
-  },
-  "dormant_accounts": {
-    "title": "الحسابات الخاملة",
-    "description": "قائمة الحسابات الخاملة قيد التطوير..."
-  },
-  "pending_transactions": {
-    "title": "المعاملات المعلقة",
-    "description": "الموافقات المعلقة قيد التطوير..."
-  },
-  "failed_transactions": {
-    "title": "المعاملات الفاشلة",
-    "description": "قائمة المعاملات الفاشلة قيد التطوير..."
-  },
-  "bulk_upload": {
-    "title": "رفع جماعي",
-    "description": "رفع المعاملات الجماعية قيد التطوير..."
-  },
-  "loan_applications": {
-    "title": "طلبات القروض",
-    "description": "طلبات القروض قيد التطوير..."
-  },
-  "loan_disbursements": {
-    "title": "صرف القروض",
-    "description": "صرف القروض قيد التطوير..."
-  },
-  "loan_collections": {
-    "title": "تحصيل القروض",
-    "description": "التحصيل قيد التطوير..."
-  },
-  "financial_reports": {
-    "title": "التقارير المالية",
-    "description": "التقارير المالية قيد التطوير..."
-  },
-  "regulatory_reports": {
-    "title": "التقارير التنظيمية",
-    "description": "التقارير التنظيمية قيد التطوير..."
-  },
-  "customer_reports": {
-    "title": "تقارير العملاء",
-    "description": "تقارير العملاء قيد التطوير..."
-  },
-  "risk_reports": {
-    "title": "تقارير المخاطر",
-    "description": "تقارير المخاطر قيد التطوير..."
-  },
-  "branch_management": {
-    "title": "إدارة الفروع",
-    "description": "إدارة الفروع قيد التطوير..."
-  },
-  "user_management": {
-    "title": "إدارة المستخدمين",
-    "description": "إدارة المستخدمين قيد التطوير..."
-  },
-  "audit_trail": {
-    "title": "سجل التدقيق",
-    "description": "سجل التدقيق قيد التطوير..."
-  },
-  "system_health": {
-    "title": "صحة النظام",
-    "description": "مراقبة صحة النظام قيد التطوير..."
-  },
-  "system_settings": {
-    "title": "الإعدادات",
-    "description": "إعدادات النظام قيد التطوير..."
-  },
-  "help_support": {
-    "title": "المساعدة والدعم",
-    "description": "وثائق المساعدة والدعم قيد التطوير..."
   }
 }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +20,6 @@ import {
 } from 'lucide-react';
 
 const FieldCollectionDashboard = () => {
-  const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [selectedRegion, setSelectedRegion] = useState('all');
@@ -378,7 +376,7 @@ const FieldCollectionDashboard = () => {
           <AlertDescription>
             <div className="flex items-center justify-between">
               <span>{fieldMetrics.safetyMetrics.checkInsMissed} agents missed safety check-ins today</span>
-              <Button size="sm" variant="outline">{t('customers.viewDetails')}</Button>
+              <Button size="sm" variant="outline">View Details</Button>
             </div>
           </AlertDescription>
         </Alert>

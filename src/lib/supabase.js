@@ -1,27 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
-import { getSupabaseConfig, validateSupabaseConfig } from './supabaseConfig';
 
-// Get Supabase configuration
-const config = getSupabaseConfig();
+// Supabase configuration
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
 
-// Create Supabase client only if properly configured
-export const supabase = config.isConfigured 
-  ? createClient(config.url, config.anonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 10
-        }
-      }
-    })
-  : null;
-
-// Export configuration status
-export const isSupabaseConfigured = config.isConfigured;
+// Create Supabase client without schema specification to use public schema
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});
 
 // Database schema constants - using full schema.table names for kastle_banking schema
 export const TABLES = {

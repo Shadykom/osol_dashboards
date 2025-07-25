@@ -12,6 +12,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/useDashboard';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
 
 // Mock data as fallback
 const mockKpis = {
@@ -134,6 +136,7 @@ function getStatusBadge(status) {
 }
 
 export function Dashboard() {
+  const { t } = useTranslation();
   const { kpis, recentTransactions, loading, error, refreshData } = useDashboard();
 
   // Use real data if available, otherwise fall back to mock data
@@ -142,36 +145,36 @@ export function Dashboard() {
 
   const kpiData = [
     {
-      title: 'Total Customers',
+      title: t('dashboard.totalCustomers'),
       value: displayKpis.total_customers?.toLocaleString() || '0',
       change: '+12.5%',
       trend: 'up',
       icon: Users,
-      description: 'Active customers'
+      description: t('customers.activeCustomers')
     },
     {
-      title: 'Total Accounts',
+      title: t('dashboard.activeAccounts'),
       value: displayKpis.total_accounts?.toLocaleString() || '0',
       change: '+8.2%',
       trend: 'up',
       icon: CreditCard,
-      description: 'All account types'
+      description: t('accounts.totalAccounts')
     },
     {
-      title: 'Total Deposits',
+      title: t('dashboard.totalDeposits'),
       value: formatCurrency(displayKpis.total_deposits || 0),
       change: '+15.3%',
       trend: 'up',
       icon: DollarSign,
-      description: 'Customer deposits'
+      description: t('dashboard.totalDeposits')
     },
     {
-      title: 'Loan Portfolio',
+      title: t('dashboard.totalLoans'),
       value: formatCurrency(displayKpis.total_loans || 0),
       change: '+22.1%',
       trend: 'up',
       icon: TrendingUp,
-      description: 'Outstanding loans'
+      description: t('loans.totalLoans')
     },
     {
       title: 'Daily Transactions',
@@ -196,14 +199,14 @@ export function Dashboard() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('navigation.mainDashboard')}</h1>
           <p className="text-muted-foreground">
-            Welcome back! Here's what's happening with your banking operations today.
+            {t('dashboard.welcomeBack')}
           </p>
         </div>
         <Button onClick={refreshData} variant="outline" size="sm">
           <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
 
@@ -230,9 +233,9 @@ export function Dashboard() {
         {/* Recent Transactions */}
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
+            <CardTitle>{t('dashboard.recentTransactions')}</CardTitle>
             <CardDescription>
-              Latest transactions across all channels
+              {t('transactions.transactionHistory')}
             </CardDescription>
           </CardHeader>
           <CardContent>
