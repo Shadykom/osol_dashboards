@@ -1,7 +1,8 @@
 // Console error suppressor for production
+/* global process */
 export const consoleErrorSuppressor = {
   activate: () => {
-    if (process.env.NODE_ENV === 'production') {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
       const originalError = console.error;
       console.error = (...args) => {
         // Filter out specific errors we want to suppress

@@ -210,7 +210,6 @@ export const DashboardUtils = {
 
 // hooks/useDashboardState.js
 import { useState, useCallback, useEffect } from 'react';
-import { DashboardUtils } from '@/utils/dashboardUtils';
 import { DashboardService } from '@/services/dashboardService';
 
 export function useDashboardState(initialConfig = null) {
@@ -400,7 +399,6 @@ export function useDashboardState(initialConfig = null) {
 }
 
 // hooks/useWidgetResize.js
-import { useState, useCallback, useEffect } from 'react';
 
 export function useWidgetResize(widgetId, onResize) {
   const [isResizing, setIsResizing] = useState(false);
@@ -425,7 +423,6 @@ export function useWidgetResize(widgetId, onResize) {
 }
 
 // hooks/useDashboardShortcuts.js
-import { useEffect } from 'react';
 
 export function useDashboardShortcuts({
   onSave,
@@ -486,7 +483,6 @@ export function useDashboardShortcuts({
 }
 
 // hooks/useDashboardTour.js
-import { useState, useEffect } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 

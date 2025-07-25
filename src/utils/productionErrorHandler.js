@@ -1,7 +1,8 @@
 // Production error handler
+/* global process */
 export const productionErrorHandler = {
   activate: () => {
-    if (process.env.NODE_ENV === 'production') {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
       window.addEventListener('error', (event) => {
         // Log errors to console in development
         console.error('Global error:', event.error);
