@@ -1,4 +1,4 @@
-import { Bell, Search, Sun, Moon, Settings, User } from 'lucide-react';
+import { Bell, Search, Sun, Moon, Settings, User, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,14 +15,22 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelector } from '@/components/ui/language-selector';
 
-export function Header() {
+export function Header({ onMenuClick }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { t } = useTranslation();
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-background px-6">
-      {/* Left side - Search */}
+    <header className="flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
+      {/* Left side - Menu and Search */}
       <div className="flex items-center gap-4 flex-1 max-w-xl">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="h-9 w-9 md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

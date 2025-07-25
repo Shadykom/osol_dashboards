@@ -50,6 +50,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import osoulLogo from '@/assets/osol-logo.png';
 
 const getNavigationItems = (t) => [
   {
@@ -313,30 +314,41 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
 
   return (
     <div className={cn(
-      "flex h-full flex-col border-r bg-background transition-all duration-300",
-      isCollapsed ? "w-16" : "w-64"
+      "flex h-screen flex-col border-r bg-background transition-all duration-300 overflow-hidden",
+      isCollapsed ? "w-16" : "w-80 md:w-64"
     )}>
       {/* Header */}
-      <div className="flex h-14 items-center justify-between px-3 border-b">
+      <div className="flex h-16 items-center justify-between px-3 border-b">
         {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="h-4 w-4 text-primary-foreground" />
-            </div>
+          <div className="flex items-center gap-3">
+            <img 
+              src={osoulLogo} 
+              alt="Osoul" 
+              className="h-10 w-10 object-contain"
+            />
             <div className="flex flex-col">
               <span className="text-sm font-semibold">BankOS Pro</span>
               <span className="text-xs text-muted-foreground">v2.0.0</span>
             </div>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-        </Button>
+        {isCollapsed && (
+          <img 
+            src={osoulLogo} 
+            alt="Osoul" 
+            className="h-8 w-8 object-contain mx-auto"
+          />
+        )}
+        {!isCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hidden md:block"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Search */}
@@ -356,8 +368,8 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
       )}
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-2">
-        <div className="space-y-4 py-2">
+      <ScrollArea className="flex-1 px-2 overflow-y-auto">
+        <div className="space-y-4 py-2 pb-20">
           {navigationItems.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {!isCollapsed && (
