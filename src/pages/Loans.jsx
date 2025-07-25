@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { formatNumber, formatCurrency as formatCurrencyUtil, formatDate } from '@/utils/formatters';
+import { ClientOnly } from '@/components/ui/ClientOnly';
 import { 
   PiggyBank,
   TrendingUp, 
@@ -273,7 +275,7 @@ export function Loans() {
           .lt('created_at', nextMonth.toISOString());
 
         trends.push({
-          month: date.toLocaleDateString('en-US', { month: 'short' }),
+          month: formatDate(date, { month: 'short' }),
           disbursed: disbursed / 1000000, // Convert to millions
           applications: applications || 0
         });
@@ -391,7 +393,7 @@ export function Loans() {
         />
         <StatCard
           title="Active Loans"
-          value={stats.activeLoans.toLocaleString()}
+                      value={formatNumber(stats.activeLoans)}
           icon={PiggyBank}
           color="text-green-500"
           subtitle={`${stats.totalLoans} total loans`}
@@ -677,10 +679,10 @@ export function Loans() {
                               {LOAN_TYPES[loan.loan_type]?.label || loan.loan_type}
                             </Badge>
                           </TableCell>
-                          <TableCell>SAR {parseFloat(loan.loan_amount).toLocaleString()}</TableCell>
+                                                        <TableCell>SAR {formatNumber(parseFloat(loan.loan_amount))}</TableCell>
                           <TableCell>
                             <div>
-                              <div>SAR {parseFloat(loan.outstanding_balance).toLocaleString()}</div>
+                                                              <div>SAR {formatNumber(parseFloat(loan.outstanding_balance))}</div>
                               <Progress 
                                 value={((loan.loan_amount - loan.outstanding_balance) / loan.loan_amount) * 100} 
                                 className="w-20 h-2 mt-1"
@@ -696,9 +698,9 @@ export function Loans() {
                           <TableCell>
                             {nextPayment ? (
                               <div className={isOverdue ? 'text-red-500' : ''}>
-                                <div>{nextPayment.toLocaleDateString()}</div>
+                                                                  <div><ClientOnly fallback="--/--/----">{formatDate(nextPayment)}</ClientOnly></div>
                                 <div className="text-sm">
-                                  SAR {parseFloat(loan.monthly_payment || 0).toLocaleString()}
+                                  SAR {formatNumber(parseFloat(loan.monthly_payment || 0))}
                                 </div>
                               </div>
                             ) : (

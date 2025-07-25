@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientOnly } from '@/components/ui/ClientOnly';
+import { formatNumber, formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
 import {
   LineChart,
   Line,
@@ -102,13 +103,13 @@ function formatCurrency(amount, currency = 'SAR') {
   if (amount >= 1000) {
     return `${currency} ${(amount / 1000).toFixed(1)}K`;
   }
-  return `${currency} ${amount.toLocaleString()}`;
+  return `${currency} ${formatNumber(amount)}`;
 }
 
 function KPICard({ title, value, change, trend, icon: Icon, description, format = 'number' }) {
   const formattedValue = format === 'currency' ? formatCurrency(value) : 
                         format === 'percentage' ? `${value}%` : 
-                        typeof value === 'number' ? value.toLocaleString() : value;
+                        typeof value === 'number' ? formatNumber(value) : value;
 
   return (
     <Card>

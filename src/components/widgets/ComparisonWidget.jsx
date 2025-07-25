@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatNumber } from '@/utils/formatters';
 import {
   LineChart,
   Line,
@@ -105,8 +106,8 @@ export function ComparisonWidget({
                 <p className="text-sm text-muted-foreground">Current Month</p>
                 <p className="text-2xl font-bold">
                   {selectedMetric === 'revenue' && `SAR ${(comparisonMetrics.revenue.current / 1000000).toFixed(1)}M`}
-                  {selectedMetric === 'customers' && comparisonMetrics.customers.current.toLocaleString()}
-                  {selectedMetric === 'transactions' && comparisonMetrics.transactions.current.toLocaleString()}
+                  {selectedMetric === 'customers' && formatNumber(comparisonMetrics.customers.current)}
+                  {selectedMetric === 'transactions' && formatNumber(comparisonMetrics.transactions.current)}
                   {selectedMetric === 'deposits' && `SAR ${(comparisonMetrics.deposits.current / 1000000000).toFixed(1)}B`}
                 </p>
                 <div className="flex items-center gap-2">
@@ -129,8 +130,8 @@ export function ComparisonWidget({
                 <p className="text-sm text-muted-foreground">Previous Month</p>
                 <p className="text-2xl font-bold">
                   {selectedMetric === 'revenue' && `SAR ${(comparisonMetrics.revenue.previous / 1000000).toFixed(1)}M`}
-                  {selectedMetric === 'customers' && comparisonMetrics.customers.previous.toLocaleString()}
-                  {selectedMetric === 'transactions' && comparisonMetrics.transactions.previous.toLocaleString()}
+                  {selectedMetric === 'customers' && formatNumber(comparisonMetrics.customers.previous)}
+                  {selectedMetric === 'transactions' && formatNumber(comparisonMetrics.transactions.previous)}
                   {selectedMetric === 'deposits' && `SAR ${(comparisonMetrics.deposits.previous / 1000000000).toFixed(1)}B`}
                 </p>
               </div>
@@ -259,10 +260,10 @@ export function ComparisonWidget({
                 <p className="font-medium">{item.metric}</p>
                 <div className="flex items-center gap-4 mt-1">
                   <span className="text-sm text-muted-foreground">
-                    2024: {item.metric === 'Revenue' ? `SAR ${item.previous}M` : item.previous.toLocaleString()}
+                    2024: {item.metric === 'Revenue' ? `SAR ${item.previous}M` : formatNumber(item.previous)}
                   </span>
                   <span className="text-sm font-medium">
-                    2025: {item.metric === 'Revenue' ? `SAR ${item.current}M` : item.current.toLocaleString()}
+                    2025: {item.metric === 'Revenue' ? `SAR ${item.current}M` : formatNumber(item.current)}
                   </span>
                 </div>
               </div>

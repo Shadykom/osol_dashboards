@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatNumber, formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
 import { 
   Users, 
   CreditCard, 
@@ -74,7 +75,7 @@ function formatCurrency(amount, currency = 'SAR') {
   if (amount >= 1000) {
     return `${currency} ${(amount / 1000).toFixed(1)}K`;
   }
-  return `${currency} ${amount.toLocaleString()}`;
+  return `${currency} ${formatNumber(amount)}`;
 }
 
 function KPICard({ title, value, change, trend, icon: Icon, description, isLoading }) {
@@ -148,7 +149,7 @@ export function Dashboard() {
   const kpiData = [
     {
       title: t('dashboard.totalCustomers'),
-      value: displayKpis.total_customers?.toLocaleString() || '0',
+      value: displayKpis.total_customers ? formatNumber(displayKpis.total_customers) : '0',
       change: '+12.5%',
       trend: 'up',
       icon: Users,
@@ -156,7 +157,7 @@ export function Dashboard() {
     },
     {
       title: t('dashboard.activeAccounts'),
-      value: displayKpis.total_accounts?.toLocaleString() || '0',
+      value: displayKpis.total_accounts ? formatNumber(displayKpis.total_accounts) : '0',
       change: '+8.2%',
       trend: 'up',
       icon: CreditCard,
@@ -180,7 +181,7 @@ export function Dashboard() {
     },
     {
       title: 'Daily Transactions',
-      value: displayKpis.daily_transactions?.toLocaleString() || '0',
+      value: displayKpis.daily_transactions ? formatNumber(displayKpis.daily_transactions) : '0',
       change: '-2.4%',
       trend: 'down',
       icon: Activity,
