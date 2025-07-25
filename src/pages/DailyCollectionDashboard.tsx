@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 const DailyCollectionDashboard = () => {
+  const { t } = useTranslation();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLive, setIsLive] = useState(true);
   const [selectedQueue, setSelectedQueue] = useState('all');
@@ -645,7 +647,7 @@ const DailyCollectionDashboard = () => {
                           <span className="font-bold text-green-600">{stats.assigned}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm">Pending</span>
+                          <span className="text-sm">{t('common.pending')}</span>
                           <span className="font-bold text-yellow-600">{stats.pending}</span>
                         </div>
                         <div className="flex justify-between">

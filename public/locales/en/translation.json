@@ -37,7 +37,38 @@
     "currency": "SAR",
     "language": "Language",
     "english": "English",
-    "arabic": "العربية"
+    "arabic": "العربية",
+    "customerList": "Customer List",
+    "customersFound": "customers found",
+    "accounts": "accounts",
+    "account": "account",
+    "approved": "APPROVED",
+    "pending": "PENDING",
+    "retail": "RETAIL",
+    "premium": "PREMIUM",
+    "hni": "HNI",
+    "corporate": "CORPORATE",
+    "completed": "COMPLETED",
+    "failed": "FAILED",
+    "cancelled": "CANCELLED",
+    "rejected": "REJECTED",
+    "pendingReports": "Pending Reports",
+    "pendingApprovals": "Pending Approvals",
+    "pendingReviews": "Pending Reviews",
+    "approvedMethods": "Approved Methods",
+    "totalPendingDistribution": "Total Pending Distribution",
+    "approvedCharityPartners": "Approved Charity Partners",
+    "disbursed": "DISBURSED",
+    "active": "ACTIVE",
+    "overdue": "OVERDUE",
+    "closed": "CLOSED",
+    "defaulted": "DEFAULTED",
+    "personalLoan": "Personal Loan",
+    "mortgage": "Mortgage",
+    "autoLoan": "Auto Loan",
+    "takeAction": "Take Action",
+    "verified": "Verified",
+    "expired": "Expired"
   },
   "navigation": {
     "overview": "Overview",
@@ -280,5 +311,93 @@
     "dataVisualization": "Data Visualization",
     "exportData": "Export Data",
     "customizeView": "Customize View"
+  },
+  "add_new_customer": {
+    "title": "Add New Customer",
+    "description": "Add customer form coming soon..."
+  },
+  "kyc_pending": {
+    "title": "KYC Pending",
+    "description": "KYC pending customers coming soon..."
+  },
+  "risk_assessment": {
+    "title": "Risk Assessment",
+    "description": "Risk assessment coming soon..."
+  },
+  "open_new_account": {
+    "title": "Open New Account",
+    "description": "Account opening form coming soon..."
+  },
+  "blocked_accounts": {
+    "title": "Blocked Accounts",
+    "description": "Blocked accounts list coming soon..."
+  },
+  "dormant_accounts": {
+    "title": "Dormant Accounts",
+    "description": "Dormant accounts list coming soon..."
+  },
+  "pending_transactions": {
+    "title": "Pending Transactions",
+    "description": "Pending approvals coming soon..."
+  },
+  "failed_transactions": {
+    "title": "Failed Transactions",
+    "description": "Failed transactions list coming soon..."
+  },
+  "bulk_upload": {
+    "title": "Bulk Upload",
+    "description": "Bulk transaction upload coming soon..."
+  },
+  "loan_applications": {
+    "title": "Loan Applications",
+    "description": "Loan applications coming soon..."
+  },
+  "loan_disbursements": {
+    "title": "Loan Disbursements",
+    "description": "Disbursements coming soon..."
+  },
+  "loan_collections": {
+    "title": "Loan Collections",
+    "description": "Collections coming soon..."
+  },
+  "financial_reports": {
+    "title": "Financial Reports",
+    "description": "Financial reports coming soon..."
+  },
+  "regulatory_reports": {
+    "title": "Regulatory Reports",
+    "description": "Regulatory reports coming soon..."
+  },
+  "customer_reports": {
+    "title": "Customer Reports",
+    "description": "Customer reports coming soon..."
+  },
+  "risk_reports": {
+    "title": "Risk Reports",
+    "description": "Risk reports coming soon..."
+  },
+  "branch_management": {
+    "title": "Branch Management",
+    "description": "Branch management coming soon..."
+  },
+  "user_management": {
+    "title": "User Management",
+    "description": "User management coming soon..."
+  },
+  "audit_trail": {
+    "title": "Audit Trail",
+    "description": "Audit trail coming soon..."
+  },
+  "system_health": {
+    "title": "System Health",
+    "description": "System health monitoring coming soon..."
+  },
+  "system_settings": {
+    "title": "Settings",
+    "description": "System settings coming soon..."
+  },
+  "help_support": {
+    "title": "Help & Support",
+    "description": "Help documentation and support coming soon..."
   }
 }
