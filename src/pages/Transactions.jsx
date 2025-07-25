@@ -132,7 +132,7 @@ export function Transactions() {
           *,
           accounts!transactions_account_id_fkey (
             account_number,
-            customers (
+            kastle_banking.customers (
               first_name,
               last_name
             )

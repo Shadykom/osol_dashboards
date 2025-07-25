@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+/* eslint-env node */
+/* global require */
 export default {
   darkMode: ["class"],
   content: [
