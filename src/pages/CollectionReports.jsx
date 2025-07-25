@@ -94,27 +94,6 @@ const CollectionReports = () => {
           <h1 className="text-3xl font-bold text-gray-900">Collection Reports & Analytics</h1>
           <p className="text-gray-600 mt-1">Comprehensive collection performance analysis</p>
         </div>
-        <div className="flex gap-2">
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => exportReport('pdf')}>
-            <Download className="h-4 w-4 mr-2" />
-            Export PDF
-          </Button>
-          <Button variant="outline" onClick={() => exportReport('excel')}>
-            <Download className="h-4 w-4 mr-2" />
-            Export Excel
-          </Button>
-        </div>
       </div>
 
       {/* Report Type Selection */}
@@ -126,9 +105,9 @@ const CollectionReports = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Select value={selectedReportType} onValueChange={setSelectedReportType}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger>
                 <SelectValue placeholder="Select Report Type" />
               </SelectTrigger>
               <SelectContent>
@@ -139,9 +118,32 @@ const CollectionReports = () => {
                 <SelectItem value="campaign_effectiveness">Campaign Effectiveness Report</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={loadReportData}>
-              Generate Report
-            </Button>
+            
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="quarterly">Quarterly</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <div className="flex gap-2 col-span-2">
+              <Button onClick={loadReportData} className="flex-1">
+                Generate Report
+              </Button>
+              <Button variant="outline" onClick={() => exportReport('pdf')}>
+                <Download className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+              <Button variant="outline" onClick={() => exportReport('excel')}>
+                <Download className="h-4 w-4 mr-2" />
+                Excel
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

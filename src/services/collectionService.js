@@ -38,7 +38,7 @@ export class CollectionService {
   /**
    * Get collection overview with correct schema references
    */
-  static async getCollectionOverview() {
+  static async getCollectionOverview(filters = {}) {
     try {
       const isConnected = await this.checkDatabaseConnection();
       
@@ -47,16 +47,38 @@ export class CollectionService {
       }
 
       // collection_cases is in banking schema
-      const casesResponse = await supabaseBanking
+      let query = supabaseBanking
         .from(TABLES.COLLECTION_CASES)
-        .select('case_status, total_outstanding, days_past_due');
+        .select('case_status, total_outstanding, days_past_due, branch_id');
+
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.status) {
+        query = query.eq('case_status', filters.status);
+      }
+
+      const casesResponse = await query;
 
       // daily_collection_summary is in collection schema
-      const summaryResponse = await supabaseCollection
+      let summaryQuery = supabaseCollection
         .from(TABLES.DAILY_COLLECTION_SUMMARY)
-        .select('total_collected, collection_rate')
+        .select('total_collected, collection_rate, branch_id, team_id')
         .order('summary_date', { ascending: false })
         .limit(30);
+
+      // Apply filters to summary
+      if (filters.branch) {
+        summaryQuery = summaryQuery.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        summaryQuery = summaryQuery.eq('team_id', filters.team);
+      }
+
+      const summaryResponse = await summaryQuery;
 
       if (casesResponse.error || summaryResponse.error) {
         throw casesResponse.error || summaryResponse.error;
@@ -89,12 +111,63 @@ export class CollectionService {
    */
   static async getCollectionCases(params = {}) {
     try {
-      const { limit = 200, offset = 0, status = null } = params;
+      const { 
+        limit = 200, 
+        offset = 0, 
+        status = null,
+        priority = null,
+        bucket = null,
+        assignedTo = null,
+        minAmount = null,
+        maxAmount = null,
+        minDpd = null,
+        maxDpd = null,
+        search = null
+      } = params;
 
       const isConnected = await this.checkDatabaseConnection();
       
       if (!isConnected) {
-        return formatApiResponse(this.getMockCasesData());
+        // Apply filters to mock data
+        let mockData = this.getMockCasesData();
+        
+        // Apply search filter
+        if (search) {
+          const searchLower = search.toLowerCase();
+          mockData = mockData.filter(c => 
+            c.customerName?.toLowerCase().includes(searchLower) ||
+            c.caseNumber?.toLowerCase().includes(searchLower) ||
+            c.accountNumber?.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        // Apply status filter
+        if (status) {
+          mockData = mockData.filter(c => c.status === status);
+        }
+        
+        // Apply priority filter
+        if (priority) {
+          mockData = mockData.filter(c => c.priority === priority);
+        }
+        
+        // Apply amount filters
+        if (minAmount !== null) {
+          mockData = mockData.filter(c => c.totalOutstanding >= parseFloat(minAmount));
+        }
+        if (maxAmount !== null) {
+          mockData = mockData.filter(c => c.totalOutstanding <= parseFloat(maxAmount));
+        }
+        
+        // Apply DPD filters
+        if (minDpd !== null) {
+          mockData = mockData.filter(c => c.daysPastDue >= parseInt(minDpd));
+        }
+        if (maxDpd !== null) {
+          mockData = mockData.filter(c => c.daysPastDue <= parseInt(maxDpd));
+        }
+        
+        return formatApiResponse(mockData);
       }
 
       // Build query - collection_cases is in banking schema
@@ -120,12 +193,48 @@ export class CollectionService {
             )
           )
         `)
-        .range(offset, offset + limit - 1)
         .order('created_at', { ascending: false });
 
+      // Apply filters to database query
       if (status) {
         query = query.eq('case_status', status);
       }
+      
+      if (priority) {
+        query = query.eq('priority', priority);
+      }
+      
+      if (bucket) {
+        query = query.eq('bucket_id', bucket);
+      }
+      
+      if (assignedTo) {
+        query = query.eq('assigned_to', assignedTo);
+      }
+      
+      if (minAmount !== null) {
+        query = query.gte('total_outstanding', parseFloat(minAmount));
+      }
+      
+      if (maxAmount !== null) {
+        query = query.lte('total_outstanding', parseFloat(maxAmount));
+      }
+      
+      if (minDpd !== null) {
+        query = query.gte('days_past_due', parseInt(minDpd));
+      }
+      
+      if (maxDpd !== null) {
+        query = query.lte('days_past_due', parseInt(maxDpd));
+      }
+      
+      // Apply search filter using OR conditions
+      if (search) {
+        query = query.or(`case_number.ilike.%${search}%,account_number.ilike.%${search}%,customers.full_name.ilike.%${search}%`);
+      }
+      
+      // Apply pagination
+      query = query.range(offset, offset + limit - 1);
 
       const { data, error } = await query;
 
@@ -269,7 +378,7 @@ export class CollectionService {
   /**
    * Get collection performance
    */
-  static async getCollectionPerformance(period = 'monthly') {
+  static async getCollectionPerformance(period = 'monthly', filters = {}) {
     try {
       const isConnected = await this.checkDatabaseConnection();
       
@@ -280,19 +389,30 @@ export class CollectionService {
       const dateFilter = this.getDateFilter(period);
       
       // Get daily summary from collection schema
-      const { data, error } = await supabaseCollection
+      let query = supabaseCollection
         .from(TABLES.DAILY_COLLECTION_SUMMARY)
         .select('*')
         .gte('summary_date', dateFilter)
         .order('summary_date', { ascending: true });
 
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        query = query.eq('team_id', filters.team);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
 
       const performance = {
         dailyTrends: data || [],
-        topOfficers: await this.getTopOfficers(),
-        teamComparison: await this.getTeamComparison(),
-        campaignEffectiveness: await this.getCampaignEffectiveness()
+        topOfficers: await this.getTopOfficers(filters),
+        teamComparison: await this.getTeamComparison(filters),
+        campaignEffectiveness: await this.getCampaignEffectiveness(filters)
       };
 
       return formatApiResponse(performance);
@@ -305,12 +425,12 @@ export class CollectionService {
   /**
    * Get top performing officers
    */
-  static async getTopOfficers() {
+  static async getTopOfficers(filters = {}) {
     try {
       const today = new Date().toISOString().split('T')[0];
       
       // Get officer performance from collection schema
-      const { data } = await supabaseCollection
+      let query = supabaseCollection
         .from(TABLES.OFFICER_PERFORMANCE_METRICS)
         .select(`
           officer_id,
@@ -325,6 +445,17 @@ export class CollectionService {
         .eq('metric_date', today)
         .order('amount_collected', { ascending: false })
         .limit(10);
+
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        query = query.eq('team_id', filters.team);
+      }
+
+      const { data } = await query;
 
       return data?.map(d => ({
         officerId: d.officer_id,
@@ -341,16 +472,18 @@ export class CollectionService {
   /**
    * Get team comparison
    */
-  static async getTeamComparison() {
+  static async getTeamComparison(filters = {}) {
     try {
       const today = new Date().toISOString().split('T')[0];
       
       // Get team performance from collection schema
-      const { data } = await supabaseCollection
+      let query = supabaseCollection
         .from(TABLES.DAILY_COLLECTION_SUMMARY)
         .select(`
           team_id,
           total_collected,
+          collection_rate,
+          branch_id,
           collection_teams!inner(
             team_id,
             team_name
@@ -358,6 +491,17 @@ export class CollectionService {
         `)
         .eq('summary_date', today)
         .not('team_id', 'is', null);
+
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        query = query.eq('team_id', filters.team);
+      }
+
+      const { data } = await query;
 
       return data?.map(d => ({
         teamName: d.collection_teams?.team_name || `Team ${d.team_id}`,
@@ -371,15 +515,26 @@ export class CollectionService {
   /**
    * Get campaign effectiveness
    */
-  static async getCampaignEffectiveness() {
+  static async getCampaignEffectiveness(filters = {}) {
     try {
       // Get active campaigns from collection schema
-      const { data } = await supabaseCollection
+      let query = supabaseCollection
         .from(TABLES.COLLECTION_CAMPAIGNS)
         .select('*')
         .eq('status', 'ACTIVE')
         .order('created_at', { ascending: false })
         .limit(5);
+
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        query = query.eq('team_id', filters.team);
+      }
+
+      const { data } = await query;
 
       return data?.map(c => ({
         campaignName: c.campaign_name,
@@ -408,10 +563,10 @@ export class CollectionService {
         strategicInitiatives,
         riskIndicators
       ] = await Promise.all([
-        this.getPortfolioHealthScore(),
+        this.getPortfolioHealthScore(filters),
         this.getNPFTrend(filters.period || 'monthly'),
-        this.getBucketDistribution(),
-        this.getTop10Defaulters(),
+        this.getBucketDistribution(filters),
+        this.getTop10Defaulters(filters),
         this.getBranchPerformance(filters.period || 'monthly'),
         this.getStrategicInitiatives(),
         this.getRiskIndicators()
@@ -475,10 +630,10 @@ export class CollectionService {
   /**
    * Get bucket distribution
    */
-  static async getBucketDistribution() {
+  static async getBucketDistribution(filters = {}) {
     try {
       // Get collection cases with bucket info from banking schema
-      const { data, error } = await supabaseBanking
+      let query = supabaseBanking
         .from(TABLES.COLLECTION_CASES)
         .select(`
           days_past_due,
@@ -490,6 +645,17 @@ export class CollectionService {
           )
         `)
         .eq('case_status', 'ACTIVE');
+
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        query = query.eq('team_id', filters.team);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -517,10 +683,10 @@ export class CollectionService {
   /**
    * Get top 10 defaulters
    */
-  static async getTop10Defaulters() {
+  static async getTop10Defaulters(filters = {}) {
     try {
       // Get top defaulters from banking schema with customer info
-      const { data, error } = await supabaseBanking
+      let query = supabaseBanking
         .from(TABLES.COLLECTION_CASES)
         .select(`
           customer_id,
@@ -533,6 +699,17 @@ export class CollectionService {
         .eq('case_status', 'ACTIVE')
         .order('total_outstanding', { ascending: false })
         .limit(10);
+
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        query = query.eq('team_id', filters.team);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -551,20 +728,32 @@ export class CollectionService {
   /**
    * Get branch performance
    */
-  static async getBranchPerformance(period = 'monthly') {
+  static async getBranchPerformance(period = 'monthly', filters = {}) {
     try {
       const dateFilter = this.getDateFilter(period);
       
       // Get branch performance from collection schema
-      const { data, error } = await supabaseCollection
+      let query = supabaseCollection
         .from(TABLES.DAILY_COLLECTION_SUMMARY)
         .select(`
           branch_id,
           total_due_amount,
           total_collected,
-          collection_rate
+          collection_rate,
+          team_id
         `)
         .gte('summary_date', dateFilter);
+
+      // Apply filters
+      if (filters.branch) {
+        query = query.eq('branch_id', filters.branch);
+      }
+      
+      if (filters.team) {
+        query = query.eq('team_id', filters.team);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -601,14 +790,14 @@ export class CollectionService {
   /**
    * Get portfolio health score
    */
-  static async getPortfolioHealthScore() {
+  static async getPortfolioHealthScore(filters = {}) {
     try {
       const components = await Promise.all([
-        this.calculateCollectionEfficiency(),
-        this.calculateRiskManagement(),
-        this.calculateCustomerContact(),
-        this.calculateDigitalAdoption(),
-        this.calculateCompliance()
+        this.calculateCollectionEfficiency(filters),
+        this.calculateRiskManagement(filters),
+        this.calculateCustomerContact(filters),
+        this.calculateDigitalAdoption(filters),
+        this.calculateCompliance(filters)
       ]);
 
       const weights = [30, 25, 20, 15, 10];
@@ -689,24 +878,24 @@ export class CollectionService {
     }
   }
 
-  static async calculateCollectionEfficiency() {
+  static async calculateCollectionEfficiency(filters = {}) {
     // Implement collection efficiency calculation
     return 78;
   }
 
-  static async calculateRiskManagement() {
+  static async calculateRiskManagement(filters = {}) {
     return 65;
   }
 
-  static async calculateCustomerContact() {
+  static async calculateCustomerContact(filters = {}) {
     return 82;
   }
 
-  static async calculateDigitalAdoption() {
+  static async calculateDigitalAdoption(filters = {}) {
     return 70;
   }
 
-  static async calculateCompliance() {
+  static async calculateCompliance(filters = {}) {
     return 68;
   }
 
@@ -852,6 +1041,90 @@ export class CollectionService {
         status: 'LEGAL',
         priority: 'CRITICAL',
         assignedTo: 'Legal Team'
+      },
+      {
+        caseId: 4,
+        caseNumber: 'COL-2024-004',
+        customerName: 'Desert Palm LLC',
+        customerPhone: '+966504567890',
+        accountNumber: 'ACC4567890123',
+        totalOutstanding: 55000,
+        daysPastDue: 15,
+        status: 'ACTIVE',
+        priority: 'LOW',
+        assignedTo: 'Abdullah Hassan'
+      },
+      {
+        caseId: 5,
+        caseNumber: 'COL-2024-005',
+        customerName: 'Tech Solutions Ltd',
+        customerPhone: '+966505678901',
+        accountNumber: 'ACC5678901234',
+        totalOutstanding: 200000,
+        daysPastDue: 60,
+        status: 'RESOLVED',
+        priority: 'HIGH',
+        assignedTo: 'Mohammed Ali'
+      },
+      {
+        caseId: 6,
+        caseNumber: 'COL-2024-006',
+        customerName: 'Green Valley Trading',
+        customerPhone: '+966506789012',
+        accountNumber: 'ACC6789012345',
+        totalOutstanding: 35000,
+        daysPastDue: 120,
+        status: 'WRITTEN_OFF',
+        priority: 'LOW',
+        assignedTo: 'Sara Ahmed'
+      },
+      {
+        caseId: 7,
+        caseNumber: 'COL-2024-007',
+        customerName: 'Al-Jazeera Corp',
+        customerPhone: '+966507890123',
+        accountNumber: 'ACC7890123456',
+        totalOutstanding: 750000,
+        daysPastDue: 180,
+        status: 'LEGAL',
+        priority: 'CRITICAL',
+        assignedTo: 'Legal Team'
+      },
+      {
+        caseId: 8,
+        caseNumber: 'COL-2024-008',
+        customerName: 'Noor Holdings',
+        customerPhone: '+966508901234',
+        accountNumber: 'ACC8901234567',
+        totalOutstanding: 95000,
+        daysPastDue: 25,
+        status: 'ACTIVE',
+        priority: 'MEDIUM',
+        assignedTo: 'Abdullah Hassan'
+      },
+      {
+        caseId: 9,
+        caseNumber: 'COL-2024-009',
+        customerName: 'Pearl Investments',
+        customerPhone: '+966509012345',
+        accountNumber: 'ACC9012345678',
+        totalOutstanding: 180000,
+        daysPastDue: 75,
+        status: 'SETTLED',
+        priority: 'HIGH',
+        assignedTo: 'Mohammed Ali'
+      },
+      {
+        caseId: 10,
+        caseNumber: 'COL-2024-010',
+        customerName: 'Blue Ocean Enterprises',
+        customerPhone: '+966510123456',
+        accountNumber: 'ACC0123456789',
+        totalOutstanding: 42000,
+        daysPastDue: 10,
+        status: 'ACTIVE',
+        priority: 'LOW',
+        assignedTo: 'Sara Ahmed'
       }
     ];
   }
