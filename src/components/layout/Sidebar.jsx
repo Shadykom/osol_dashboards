@@ -33,7 +33,9 @@ import {
   LogOut,
   Menu,
   X,
-  Coins
+  Coins,
+  Grid3x3,
+  Wallet
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -57,27 +59,27 @@ const getNavigationItems = (t) => [
         title: t('navigation.mainDashboard'),
         href: '/dashboard',
         icon: Home,
-        badge: null,
       },
-      {
-        title: t('navigation.dashboards'),
-        icon: LayoutDashboard,
-        badge: '3',
-        children: [
-          { title: t('navigation.executiveDashboard'), href: '/executive-dashboard', icon: Building2 },
-          { title: t('navigation.operationsDashboard'), href: '/operations-dashboard', icon: Activity },
-          { title: t('navigation.customDashboard'), href: '/custom-dashboard', icon: Target },
-        ],
-      },
-    ]
+    ],
   },
+  {
+    title: t('navigation.dashboards'),
+    icon: Grid3x3,
+    badge: '3',
+    items: [
+      { title: t('navigation.executiveDashboard'), href: '/dashboards/executive', icon: Building2 },
+      { title: t('navigation.operationsDashboard'), href: '/dashboards/operations', icon: Activity },
+      { title: t('navigation.customDashboard'), href: '/dashboards/custom', icon: Target },
+    ],
+  },
+  // Banking Operations
   {
     title: t('navigation.bankingOperations'),
     items: [
       {
         title: t('navigation.customers'),
         icon: Users,
-        children: [
+        items: [
           { title: t('navigation.allCustomers'), href: '/customers', badge: '12.5k' },
           { title: t('navigation.addCustomer'), href: '/customers/new' },
           { title: t('navigation.kycPending'), href: '/customers/kyc-pending', badge: '23' },
@@ -87,7 +89,7 @@ const getNavigationItems = (t) => [
       {
         title: t('navigation.accounts'),
         icon: CreditCard,
-        children: [
+        items: [
           { title: t('navigation.allAccounts'), href: '/accounts' },
           { title: t('navigation.openAccount'), href: '/accounts/new' },
           { title: t('navigation.blockedAccounts'), href: '/accounts/blocked', badge: '5' },
@@ -97,7 +99,7 @@ const getNavigationItems = (t) => [
       {
         title: t('navigation.transactions'),
         icon: ArrowUpDown,
-        children: [
+        items: [
           { title: t('navigation.allTransactions'), href: '/transactions' },
           { title: t('navigation.pendingApproval'), href: '/transactions/pending', badge: '156' },
           { title: t('navigation.failedTransactions'), href: '/transactions/failed', badge: '23' },
@@ -106,25 +108,26 @@ const getNavigationItems = (t) => [
       },
       {
         title: t('navigation.loans'),
-        icon: PiggyBank,
-        children: [
+        icon: Wallet,
+        items: [
           { title: t('navigation.loans'), href: '/loans' },
           { title: t('navigation.loanApplications'), href: '/loans/applications', badge: '45' },
           { title: t('navigation.disbursements'), href: '/loans/disbursements' },
           { title: t('navigation.collections'), href: '/loans/collections' },
         ],
       },
-    ]
+    ],
   },
+  // Collections
   {
     title: t('navigation.collections'),
     items: [
       {
         title: t('navigation.collectionDashboards'),
-        icon: Coins,
-        badge: 'New',
-        badgeVariant: 'default',
-        children: [
+        icon: LayoutDashboard,
+        badge: '11',
+        isExpanded: true,
+        items: [
           { title: t('navigation.collectionOverview'), href: '/collection/overview', icon: Eye },
           { title: t('navigation.dailyCollection'), href: '/collection/daily', icon: Calendar, badge: 'Live' },
           { title: t('navigation.digitalCollection'), href: '/collection/digital', icon: Smartphone },
@@ -139,15 +142,16 @@ const getNavigationItems = (t) => [
           { title: t('navigation.collectionReports'), href: '/collection/reports', icon: BarChart3 },
         ],
       },
-    ]
+    ],
   },
+  // Management
   {
     title: t('navigation.management') || 'Management',
     items: [
       {
         title: t('navigation.reports'),
         icon: FileText,
-        children: [
+        items: [
           { title: t('navigation.financialReports'), href: '/reports/financial' },
           { title: t('navigation.regulatoryReports'), href: '/reports/regulatory' },
           { title: t('navigation.customerReports'), href: '/reports/customers' },
@@ -156,8 +160,8 @@ const getNavigationItems = (t) => [
       },
       {
         title: t('navigation.operations'),
-        icon: Building2,
-        children: [
+        icon: Settings,
+        items: [
           { title: t('navigation.branchManagement'), href: '/operations/branches' },
           { title: t('navigation.userManagement'), href: '/operations/users' },
           { title: t('navigation.auditTrail'), href: '/operations/audit' },
@@ -174,24 +178,24 @@ const getNavigationItems = (t) => [
         href: '/compliance',
         icon: Shield,
       },
-    ]
-  }
+    ],
+  },
 ];
 
 function NavItem({ item, level = 0, isCollapsed }) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   
-  const hasChildren = item.children && item.children.length > 0;
+  const hasChildren = item.items && item.items.length > 0;
   const isActive = item.href === location.pathname || 
-    (hasChildren && item.children.some(child => child.href === location.pathname));
+    (hasChildren && item.items.some(child => child.href === location.pathname));
 
   // Auto-expand if child is active
   useEffect(() => {
-    if (hasChildren && item.children.some(child => child.href === location.pathname)) {
+    if (hasChildren && item.items.some(child => child.href === location.pathname)) {
       setIsOpen(true);
     }
-  }, [location.pathname, hasChildren, item.children]);
+  }, [location.pathname, hasChildren, item.items]);
 
   const ItemIcon = item.icon;
 
@@ -236,7 +240,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
         </CollapsibleTrigger>
         {!isCollapsed && (
           <CollapsibleContent className="mt-0.5">
-            {item.children.map((child, index) => (
+            {item.items.map((child, index) => (
               <NavItem key={index} item={child} level={level + 1} isCollapsed={isCollapsed} />
             ))}
           </CollapsibleContent>

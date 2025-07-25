@@ -195,11 +195,14 @@ function SafeApp() {
             {/* Account Routes */}
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/accounts/new" element={<Accounts />} />
+            <Route path="/accounts/blocked" element={<Accounts />} />
+            <Route path="/accounts/dormant" element={<Accounts />} />
             
             {/* Transaction Routes */}
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/transactions/pending" element={<Transactions />} />
             <Route path="/transactions/failed" element={<Transactions />} />
+            <Route path="/transactions/bulk" element={<Transactions />} />
             
             {/* Loan Routes */}
             <Route path="/loans" element={<Loans />} />
@@ -209,8 +212,20 @@ function SafeApp() {
             <Route path="/loans/collections" element={<Loans />} />
             <Route path="/loans/overdue" element={<Loans />} />
             
-            {/* Other Routes */}
+            {/* Reports Routes */}
             <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/financial" element={<Reports />} />
+            <Route path="/reports/regulatory" element={<Reports />} />
+            <Route path="/reports/customers" element={<Reports />} />
+            <Route path="/reports/risk" element={<Reports />} />
+            
+            {/* Operations Routes */}
+            <Route path="/operations/branches" element={<OperationsDashboard />} />
+            <Route path="/operations/users" element={<OperationsDashboard />} />
+            <Route path="/operations/audit" element={<OperationsDashboard />} />
+            <Route path="/operations/health" element={<OperationsDashboard />} />
+            
+            {/* Other Routes */}
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/compliance" element={<Compliance />} />
             <Route path="/database-test" element={<DatabaseTest />} />
