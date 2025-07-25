@@ -82,7 +82,7 @@ export function Accounts() {
         .from(TABLES.ACCOUNTS)
         .select(`
           *,
-          customers (
+          kastle_banking.customers (
             customer_id,
             first_name,
             last_name,
