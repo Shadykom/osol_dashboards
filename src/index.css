@@ -64,6 +64,42 @@
   }
 }
 
+/* Full height layout */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Ensure full height for main content */
+main {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Optimize card spacing */
+.card {
+  @apply shadow-sm;
+}
+
+/* Compact sidebar styles */
+.sidebar-compact {
+  scrollbar-width: thin;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  main {
+    @apply p-4;
+  }
+}
+
+@media (max-width: 768px) {
+  main {
+    @apply p-3;
+  }
+}
+
 /* Animations */
 @keyframes in {
   from {
@@ -97,8 +133,8 @@
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -107,7 +143,7 @@
 
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
