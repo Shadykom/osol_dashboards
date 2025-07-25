@@ -1,4 +1,4 @@
-import { supabase, TABLES, formatApiResponse, handleSupabaseError } from '../lib/supabase.js';
+import { supabase, supabaseCollection, TABLES, formatApiResponse, handleSupabaseError } from '../lib/supabase.js';
 
 /**
  * Comprehensive Collection Service - Complete collection management operations
@@ -89,8 +89,8 @@ export class CollectionService {
     try {
       const dateFilter = this.getDateFilter(period);
       
-      const { data, error } = await supabase
-        .from(TABLES.COLLECTION_CASES)
+      const { data, error } = await supabaseCollection
+        .from(TABLES.COLLECTION_CASE_DETAILS)
         .select('created_at, total_outstanding, days_past_due')
         .gte('created_at', dateFilter)
         .order('created_at', { ascending: true });
@@ -117,6 +117,102 @@ export class CollectionService {
       }));
     } catch (error) {
       console.error('NPF trend error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get bucket distribution
+   */
+  static async getBucketDistribution() {
+    try {
+      const { data, error } = await supabaseCollection
+        .from(TABLES.COLLECTION_CASE_DETAILS)
+        .select('days_past_due, total_outstanding')
+        .eq('case_status', 'ACTIVE');
+
+      if (error) throw error;
+
+      const buckets = {
+        'CURRENT': { count: 0, amount: 0 },
+        'BUCKET_1': { count: 0, amount: 0 },
+        'BUCKET_2': { count: 0, amount: 0 },
+        'BUCKET_3': { count: 0, amount: 0 },
+        'BUCKET_4': { count: 0, amount: 0 },
+        'BUCKET_5': { count: 0, amount: 0 }
+      };
+
+      data?.forEach(case_ => {
+        const bucket = this.getDPDBucket(case_.days_past_due);
+        buckets[bucket].count++;
+        buckets[bucket].amount += parseFloat(case_.total_outstanding) || 0;
+      });
+
+      return Object.entries(buckets).map(([bucket, data]) => ({
+        bucket,
+        count: data.count,
+        amount: data.amount
+      }));
+    } catch (error) {
+      console.error('Bucket distribution error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get top 10 defaulters
+   */
+  static async getTop10Defaulters() {
+    try {
+      const { data, error } = await supabaseCollection
+        .from(TABLES.COLLECTION_CASE_DETAILS)
+        .select('customer_id, total_outstanding, days_past_due')
+        .eq('case_status', 'ACTIVE')
+        .order('total_outstanding', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      console.error('Top 10 defaulters error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get branch performance
+   */
+  static async getBranchPerformance(period = 'monthly') {
+    try {
+      const dateFilter = this.getDateFilter(period);
+      
+      const { data, error } = await supabaseCollection
+        .from(TABLES.COLLECTION_CASE_DETAILS)
+        .select('branch_id, total_outstanding, amount_collected')
+        .gte('created_at', dateFilter);
+
+      if (error) throw error;
+
+      // Group by branch
+      const branchData = {};
+      data?.forEach(case_ => {
+        const branchId = case_.branch_id || 'UNKNOWN';
+        if (!branchData[branchId]) {
+          branchData[branchId] = { outstanding: 0, collected: 0 };
+        }
+        branchData[branchId].outstanding += parseFloat(case_.total_outstanding) || 0;
+        branchData[branchId].collected += parseFloat(case_.amount_collected) || 0;
+      });
+
+      return Object.entries(branchData).map(([branchId, data]) => ({
+        branchId,
+        outstanding: data.outstanding,
+        collected: data.collected,
+        collectionRate: data.outstanding > 0 ? (data.collected / data.outstanding * 100).toFixed(2) : 0
+      }));
+    } catch (error) {
+      console.error('Branch performance error:', error);
       return [];
     }
   }
@@ -244,28 +340,28 @@ export class CollectionService {
         yesterdayPerformance
       ] = await Promise.all([
         // Total due today
-        supabase.from(TABLES.COLLECTION_CASES)
+        supabaseCollection.from(TABLES.COLLECTION_CASE_DETAILS)
           .select('total_outstanding')
           .eq('case_status', 'ACTIVE'),
 
         // PTP due today
-        supabase.from(TABLES.PROMISE_TO_PAY)
+        supabaseCollection.from(TABLES.PROMISE_TO_PAY)
           .select('ptp_amount')
           .eq('ptp_date', today)
           .eq('status', 'ACTIVE'),
 
         // Field visits scheduled
-        supabase.from(TABLES.FIELD_VISITS)
+        supabaseCollection.from(TABLES.FIELD_VISITS)
           .select('visit_id', { count: 'exact', head: true })
           .eq('visit_date', today),
 
         // Legal cases updates
-        supabase.from(TABLES.LEGAL_CASES)
+        supabaseCollection.from(TABLES.LEGAL_CASES)
           .select('legal_case_id', { count: 'exact', head: true })
           .eq('next_hearing_date', today),
 
         // Yesterday's performance
-        supabase.from(TABLES.DAILY_COLLECTION_SUMMARY)
+        supabaseCollection.from(TABLES.DAILY_COLLECTION_SUMMARY)
           .select('total_due_amount, total_collected')
           .eq('summary_date', yesterday)
           .single()
@@ -308,7 +404,7 @@ export class CollectionService {
         activeCalls
       ] = await Promise.all([
         // Collector status
-        supabase.from(TABLES.COLLECTION_OFFICERS)
+        supabaseCollection.from(TABLES.COLLECTION_OFFICERS)
           .select('officer_id, status, last_active')
           .eq('status', 'ACTIVE'),
 
@@ -321,7 +417,7 @@ export class CollectionService {
           .limit(10),
 
         // Today's interactions
-        supabase.from(TABLES.COLLECTION_INTERACTIONS)
+        supabaseCollection.from(TABLES.COLLECTION_INTERACTIONS)
           .select('*')
           .gte('interaction_datetime', todayStart.toISOString()),
 
@@ -387,6 +483,115 @@ export class CollectionService {
   }
 
   /**
+   * Get collector activity
+   */
+  static async getCollectorActivity() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data, error } = await supabaseCollection
+        .from(TABLES.COLLECTION_OFFICERS)
+        .select(`
+          officer_id,
+          officer_name,
+          status,
+          last_active,
+          daily_target,
+          daily_collected
+        `)
+        .eq('status', 'ACTIVE');
+
+      if (error) throw error;
+
+      return data?.map(officer => ({
+        ...officer,
+        achievement: officer.daily_target > 0 ? 
+          (officer.daily_collected / officer.daily_target * 100).toFixed(1) : 0,
+        isActive: new Date(officer.last_active) > new Date(Date.now() - 300000) // 5 minutes
+      })) || [];
+    } catch (error) {
+      console.error('Collector activity error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get hourly collection trend
+   */
+  static async getHourlyCollectionTrend() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data, error } = await supabase
+        .from(TABLES.TRANSACTIONS)
+        .select('amount, transaction_datetime')
+        .gte('transaction_datetime', today + 'T00:00:00Z')
+        .lte('transaction_datetime', today + 'T23:59:59Z')
+        .eq('transaction_type', 'PAYMENT');
+
+      if (error) throw error;
+
+      // Group by hour
+      const hourlyData = {};
+      for (let i = 0; i < 24; i++) {
+        hourlyData[i] = 0;
+      }
+
+      data?.forEach(transaction => {
+        const hour = new Date(transaction.transaction_datetime).getHours();
+        hourlyData[hour] += parseFloat(transaction.amount) || 0;
+      });
+
+      return Object.entries(hourlyData).map(([hour, amount]) => ({
+        hour: parseInt(hour),
+        amount
+      }));
+    } catch (error) {
+      console.error('Hourly collection trend error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get queue status
+   */
+  static async getQueueStatus() {
+    try {
+      const { data, error } = await supabaseCollection
+        .from(TABLES.COLLECTION_CASE_DETAILS)
+        .select('case_status, priority_level')
+        .eq('case_status', 'ACTIVE');
+
+      if (error) throw error;
+
+      const queueStats = {
+        high: 0,
+        medium: 0,
+        low: 0,
+        total: data?.length || 0
+      };
+
+      data?.forEach(case_ => {
+        switch (case_.priority_level) {
+          case 'HIGH':
+            queueStats.high++;
+            break;
+          case 'MEDIUM':
+            queueStats.medium++;
+            break;
+          default:
+            queueStats.low++;
+        }
+      });
+
+      return queueStats;
+    } catch (error) {
+      console.error('Queue status error:', error);
+      return { high: 0, medium: 0, low: 0, total: 0 };
+    }
+  }
+
+  /**
    * Get critical alerts
    */
   static async getCriticalAlerts() {
@@ -395,8 +600,8 @@ export class CollectionService {
       const today = new Date().toISOString().split('T')[0];
 
       // High value payments due
-      const { data: highValueCases } = await supabase
-        .from(TABLES.COLLECTION_CASES)
+      const { data: highValueCases } = await supabaseCollection
+        .from(TABLES.COLLECTION_CASE_DETAILS)
         .select('case_number, customer_id, total_outstanding')
         .gte('total_outstanding', 1000000)
         .eq('case_status', 'ACTIVE')
@@ -411,7 +616,7 @@ export class CollectionService {
       });
 
       // Legal hearings today
-      const { data: legalHearings } = await supabase
+      const { data: legalHearings } = await supabaseCollection
         .from(TABLES.LEGAL_CASES)
         .select('case_number, court_name, next_hearing_date')
         .eq('next_hearing_date', today)
@@ -442,715 +647,6 @@ export class CollectionService {
   }
 
   // ============================================================================
-  // COLLECTION PERFORMANCE ANALYTICS
-  // ============================================================================
-
-  /**
-   * Get comprehensive collection analytics
-   */
-  static async getCollectionAnalytics(period = 'monthly') {
-    try {
-      const [
-        recoveryAnalysis,
-        bucketMigration,
-        vintageAnalysis,
-        channelPerformance,
-        segmentAnalysis,
-        forecastData
-      ] = await Promise.all([
-        this.getRecoveryAnalysis(period),
-        this.getBucketMigrationAnalysis(period),
-        this.getVintageAnalysis(),
-        this.getChannelPerformanceAnalysis(period),
-        this.getSegmentAnalysis(),
-        this.getCollectionForecast()
-      ]);
-
-      return formatApiResponse({
-        recoveryAnalysis,
-        bucketMigration,
-        vintageAnalysis,
-        channelPerformance,
-        segmentAnalysis,
-        forecastData
-      });
-    } catch (error) {
-      console.error('Collection analytics error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Get vintage analysis
-   */
-  static async getVintageAnalysis() {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_vintage_analysis')
-        .select('*')
-        .order('origination_month', { ascending: false })
-        .limit(12);
-
-      if (error) throw error;
-
-      return data || [];
-    } catch (error) {
-      console.error('Vintage analysis error:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get bucket migration analysis
-   */
-  static async getBucketMigrationAnalysis(period) {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_bucket_movement')
-        .select(`
-          *,
-          from_bucket:from_bucket_id(bucket_name),
-          to_bucket:to_bucket_id(bucket_name)
-        `)
-        .gte('movement_date', this.getDateFilter(period))
-        .order('movement_date', { ascending: false });
-
-      if (error) throw error;
-
-      // Calculate migration rates
-      const migrationMatrix = {};
-      data?.forEach(movement => {
-        const from = movement.from_bucket?.bucket_name || 'Unknown';
-        const to = movement.to_bucket?.bucket_name || 'Unknown';
-        
-        if (!migrationMatrix[from]) migrationMatrix[from] = {};
-        if (!migrationMatrix[from][to]) migrationMatrix[from][to] = 0;
-        
-        migrationMatrix[from][to]++;
-      });
-
-      return {
-        movements: data || [],
-        migrationMatrix
-      };
-    } catch (error) {
-      console.error('Bucket migration error:', error);
-      return { movements: [], migrationMatrix: {} };
-    }
-  }
-
-  /**
-   * Get channel performance analysis
-   */
-  static async getChannelPerformanceAnalysis(period) {
-    try {
-      const dateFilter = this.getDateFilter(period);
-
-      const { data, error } = await supabase
-        .from(TABLES.DIGITAL_COLLECTION_ATTEMPTS)
-        .select('channel_type, payment_made, payment_amount, cost_per_message')
-        .gte('sent_datetime', dateFilter + 'T00:00:00Z');
-
-      if (error) throw error;
-
-      // Aggregate by channel
-      const channels = {};
-      data?.forEach(attempt => {
-        const channel = attempt.channel_type;
-        if (!channels[channel]) {
-          channels[channel] = {
-            channel,
-            attempts: 0,
-            successful: 0,
-            totalAmount: 0,
-            totalCost: 0
-          };
-        }
-        
-        channels[channel].attempts++;
-        if (attempt.payment_made) {
-          channels[channel].successful++;
-          channels[channel].totalAmount += parseFloat(attempt.payment_amount) || 0;
-        }
-        channels[channel].totalCost += parseFloat(attempt.cost_per_message) || 0;
-      });
-
-      // Calculate metrics
-      return Object.values(channels).map(ch => ({
-        ...ch,
-        successRate: ch.attempts > 0 ? (ch.successful / ch.attempts * 100).toFixed(1) : 0,
-        avgTicketSize: ch.successful > 0 ? (ch.totalAmount / ch.successful).toFixed(0) : 0,
-        costPerSuccess: ch.successful > 0 ? (ch.totalCost / ch.successful).toFixed(2) : 0,
-        roi: ch.totalCost > 0 ? ((ch.totalAmount - ch.totalCost) / ch.totalCost * 100).toFixed(1) : 0
-      }));
-    } catch (error) {
-      console.error('Channel performance error:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get customer segment analysis
-   */
-  static async getSegmentAnalysis() {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_customer_segments')
-        .select('*')
-        .eq('is_active', true);
-
-      if (error) throw error;
-
-      return data?.map(segment => ({
-        ...segment,
-        performanceGap: segment.target_recovery_rate - segment.actual_recovery_rate,
-        efficiency: segment.target_recovery_rate > 0 ?
-          (segment.actual_recovery_rate / segment.target_recovery_rate * 100).toFixed(1) : 0
-      })) || [];
-    } catch (error) {
-      console.error('Segment analysis error:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get collection forecast
-   */
-  static async getCollectionForecast() {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_forecasts')
-        .select('*')
-        .gte('forecast_date', new Date().toISOString().split('T')[0])
-        .order('forecast_date', { ascending: true })
-        .limit(30);
-
-      if (error) throw error;
-
-      return data || [];
-    } catch (error) {
-      console.error('Collection forecast error:', error);
-      return [];
-    }
-  }
-
-  // ============================================================================
-  // QUEUE MANAGEMENT SERVICES
-  // ============================================================================
-
-  /**
-   * Get queue management data
-   */
-  static async getQueueManagement() {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_queue_management')
-        .select(`
-          *,
-          officer:assigned_officer_id(officer_name),
-          team:assigned_team_id(team_name)
-        `)
-        .eq('is_active', true)
-        .order('priority_level', { ascending: true });
-
-      if (error) throw error;
-
-      return formatApiResponse(data || []);
-    } catch (error) {
-      console.error('Queue management error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Update queue assignment
-   */
-  static async updateQueueAssignment(queueId, officerId, teamId) {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_queue_management')
-        .update({
-          assigned_officer_id: officerId,
-          assigned_team_id: teamId,
-          last_refreshed: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('queue_id', queueId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return formatApiResponse(data);
-    } catch (error) {
-      console.error('Update queue assignment error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Optimize queue distribution
-   */
-  static async optimizeQueueDistribution() {
-    try {
-      // Get all active queues and officers
-      const [queues, officers] = await Promise.all([
-        supabase.from('kastle_collection.collection_queue_management')
-          .select('*')
-          .eq('is_active', true),
-        supabase.from(TABLES.COLLECTION_OFFICERS)
-          .select('officer_id, collection_limit')
-          .eq('status', 'ACTIVE')
-      ]);
-
-      // Implement queue optimization algorithm
-      // This would include workload balancing, skill matching, etc.
-      const optimizedAssignments = this.calculateOptimalQueueDistribution(
-        queues.data,
-        officers.data
-      );
-
-      // Update assignments
-      const updates = await Promise.all(
-        optimizedAssignments.map(assignment =>
-          this.updateQueueAssignment(
-            assignment.queueId,
-            assignment.officerId,
-            assignment.teamId
-          )
-        )
-      );
-
-      return formatApiResponse({
-        optimized: true,
-        assignments: updates.length,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Optimize queue distribution error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  // ============================================================================
-  // COMPLIANCE AND REPORTING SERVICES
-  // ============================================================================
-
-  /**
-   * Get Sharia compliance report
-   */
-  static async getShariaComplianceReport(period = 'monthly') {
-    try {
-      const dateFilter = this.getDateFilter(period);
-
-      const [
-        latePaymentCharges,
-        charityDistribution,
-        complianceViolations,
-        methodsCompliance
-      ] = await Promise.all([
-        // Late payment charges collected
-        supabase.from(TABLES.SHARIA_COMPLIANCE_LOG)
-          .select('late_payment_charges, charity_amount')
-          .gte('created_at', dateFilter + 'T00:00:00Z'),
-
-        // Charity distribution status
-        supabase.from(TABLES.SHARIA_COMPLIANCE_LOG)
-          .select('*')
-          .eq('compliance_type', 'CHARITY_DISTRIBUTION')
-          .gte('distribution_date', dateFilter),
-
-        // Compliance violations
-        supabase.from('kastle_collection.collection_compliance_violations')
-          .select('*')
-          .eq('violation_type', 'SHARIA_COMPLIANCE')
-          .gte('violation_date', dateFilter),
-
-        // Collection methods compliance
-        supabase.from(TABLES.COLLECTION_INTERACTIONS)
-          .select('interaction_type, outcome')
-          .gte('interaction_datetime', dateFilter + 'T00:00:00Z')
-      ]);
-
-      const totalLateCharges = latePaymentCharges.data?.reduce((sum, record) =>
-        sum + (parseFloat(record.late_payment_charges) || 0), 0) || 0;
-
-      const totalCharityDistributed = charityDistribution.data?.reduce((sum, record) =>
-        sum + (parseFloat(record.charity_amount) || 0), 0) || 0;
-
-      return formatApiResponse({
-        latePaymentCharges: totalLateCharges,
-        charityDistributed: totalCharityDistributed,
-        pendingDistribution: totalLateCharges - totalCharityDistributed,
-        complianceRate: 98.5, // Would be calculated based on violations
-        violations: complianceViolations.data || [],
-        approvedMethods: this.getApprovedCollectionMethods(),
-        complianceStatus: complianceViolations.data?.length === 0 ? 'COMPLIANT' : 'VIOLATIONS_FOUND'
-      });
-    } catch (error) {
-      console.error('Sharia compliance report error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Get SAMA compliance report
-   */
-  static async getSAMAComplianceReport(reportType, period) {
-    try {
-      const reports = {
-        NPF: await this.generateNPFReport(period),
-        PROVISION: await this.generateProvisionReport(period),
-        WRITEOFF: await this.generateWriteOffReport(period),
-        RECOVERY: await this.generateRecoveryReport(period),
-        RESTRUCTURING: await this.generateRestructuringReport(period)
-      };
-
-      return formatApiResponse(reports[reportType] || null);
-    } catch (error) {
-      console.error('SAMA compliance report error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Generate NPF report for SAMA
-   */
-  static async generateNPFReport(period) {
-    try {
-      const { data, error } = await supabase
-        .from(TABLES.COLLECTION_CASES)
-        .select(`
-          *,
-          customer:customer_id(customer_type),
-          product:kastle_banking.products(product_name, product_category_id)
-        `)
-        .gte('days_past_due', 90);
-
-      if (error) throw error;
-
-      // Group by required SAMA categories
-      const npfByCategory = {
-        retail: { count: 0, amount: 0 },
-        corporate: { count: 0, amount: 0 },
-        sme: { count: 0, amount: 0 }
-      };
-
-      const npfByProduct = {};
-      const npfByBucket = {};
-
-      data?.forEach(case_ => {
-        // By customer type
-        const customerType = case_.customer?.customer_type || 'retail';
-        npfByCategory[customerType].count++;
-        npfByCategory[customerType].amount += parseFloat(case_.total_outstanding) || 0;
-
-        // By product
-        const productName = case_.product?.product_name || 'Unknown';
-        if (!npfByProduct[productName]) {
-          npfByProduct[productName] = { count: 0, amount: 0 };
-        }
-        npfByProduct[productName].count++;
-        npfByProduct[productName].amount += parseFloat(case_.total_outstanding) || 0;
-
-        // By bucket
-        const bucket = this.getDPDBucket(case_.days_past_due);
-        if (!npfByBucket[bucket]) {
-          npfByBucket[bucket] = { count: 0, amount: 0 };
-        }
-        npfByBucket[bucket].count++;
-        npfByBucket[bucket].amount += parseFloat(case_.total_outstanding) || 0;
-      });
-
-      return {
-        reportDate: new Date().toISOString(),
-        period,
-        totalNPF: data?.length || 0,
-        totalNPFAmount: data?.reduce((sum, c) => sum + parseFloat(c.total_outstanding), 0) || 0,
-        byCategory: npfByCategory,
-        byProduct: npfByProduct,
-        byBucket: npfByBucket,
-        regulatory_compliant: true
-      };
-    } catch (error) {
-      console.error('NPF report generation error:', error);
-      return null;
-    }
-  }
-
-  // ============================================================================
-  // EARLY WARNING SYSTEM
-  // ============================================================================
-
-  /**
-   * Get early warning indicators
-   */
-  static async getEarlyWarningIndicators() {
-    try {
-      const [
-        firstPaymentDefaults,
-        irregularPayments,
-        multipleLoans,
-        highDTI,
-        industryRisks,
-        behavioralChanges
-      ] = await Promise.all([
-        this.detectFirstPaymentDefaults(),
-        this.detectIrregularPaymentPatterns(),
-        this.detectMultipleLoanCustomers(),
-        this.detectHighDTICustomers(),
-        this.detectIndustryRisks(),
-        this.detectBehavioralChanges()
-      ]);
-
-      return formatApiResponse({
-        indicators: {
-          firstPaymentDefaults,
-          irregularPayments,
-          multipleLoans,
-          highDTI,
-          industryRisks,
-          behavioralChanges
-        },
-        totalRiskAccounts: firstPaymentDefaults.length + irregularPayments.length +
-                          multipleLoans.length + highDTI.length,
-        criticalAlerts: this.generateEarlyWarningAlerts({
-          firstPaymentDefaults,
-          irregularPayments,
-          multipleLoans,
-          highDTI
-        })
-      });
-    } catch (error) {
-      console.error('Early warning indicators error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Detect first payment defaults
-   */
-  static async detectFirstPaymentDefaults() {
-    try {
-      const { data, error } = await supabase
-        .from(TABLES.LOAN_ACCOUNTS)
-        .select(`
-          loan_account_number,
-          customer_id,
-          first_installment_date,
-          ${TABLES.TRANSACTIONS}!inner(transaction_datetime, amount)
-        `)
-        .eq('loan_status', 'ACTIVE')
-        .lte('first_installment_date', new Date().toISOString());
-
-      if (error) throw error;
-
-      // Identify loans with no first payment
-      const defaulters = data?.filter(loan => {
-        const firstPaymentDue = new Date(loan.first_installment_date);
-        const hasFirstPayment = loan.kastle_banking?.some(transaction =>
-          new Date(transaction.transaction_datetime) <= firstPaymentDue
-        );
-        return !hasFirstPayment;
-      }) || [];
-
-      return defaulters;
-    } catch (error) {
-      console.error('First payment defaults detection error:', error);
-      return [];
-    }
-  }
-
-  // ============================================================================
-  // AUTOMATION AND AI SERVICES
-  // ============================================================================
-
-  /**
-   * Get automation metrics
-   */
-  static async getAutomationMetrics(period = 'monthly') {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_automation_metrics')
-        .select('*')
-        .gte('metric_date', this.getDateFilter(period))
-        .order('metric_date', { ascending: true });
-
-      if (error) throw error;
-
-      // Calculate aggregated metrics
-      const metrics = {
-        byType: {},
-        totalSavings: 0,
-        avgEfficiencyGain: 0,
-        overallSuccessRate: 0
-      };
-
-      data?.forEach(record => {
-        if (!metrics.byType[record.automation_type]) {
-          metrics.byType[record.automation_type] = {
-            attempts: 0,
-            successful: 0,
-            collected: 0,
-            costSaved: 0
-          };
-        }
-
-        const typeMetrics = metrics.byType[record.automation_type];
-        typeMetrics.attempts += record.total_attempts || 0;
-        typeMetrics.successful += record.successful_contacts || 0;
-        typeMetrics.collected += parseFloat(record.amount_collected) || 0;
-        typeMetrics.costSaved += parseFloat(record.cost_saved) || 0;
-
-        metrics.totalSavings += parseFloat(record.cost_saved) || 0;
-        metrics.avgEfficiencyGain += parseFloat(record.efficiency_gain) || 0;
-      });
-
-      if (data?.length > 0) {
-        metrics.avgEfficiencyGain /= data.length;
-      }
-
-      return formatApiResponse(metrics);
-    } catch (error) {
-      console.error('Automation metrics error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Get AI model performance
-   */
-  static async getAIModelPerformance() {
-    try {
-      // This would integrate with actual AI/ML models
-      // For now, returning mock performance data
-      return formatApiResponse({
-        riskScoring: {
-          accuracy: 87.5,
-          precision: 89.2,
-          recall: 85.8,
-          f1Score: 87.5,
-          lastUpdated: new Date().toISOString()
-        },
-        paymentPrediction: {
-          accuracy: 82.3,
-          mape: 12.5, // Mean Absolute Percentage Error
-          rmse: 15420, // Root Mean Square Error
-          lastUpdated: new Date().toISOString()
-        },
-        customerSegmentation: {
-          silhouetteScore: 0.72,
-          clusters: 5,
-          lastUpdated: new Date().toISOString()
-        },
-        collectionStrategy: {
-          uplift: 23.5, // Percentage improvement
-          costReduction: 18.2,
-          lastUpdated: new Date().toISOString()
-        }
-      });
-    } catch (error) {
-      console.error('AI model performance error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  // ============================================================================
-  // SETTLEMENT AND RECOVERY SERVICES
-  // ============================================================================
-
-  /**
-   * Get settlement offers
-   */
-  static async getSettlementOffers(filters = {}) {
-    try {
-      let query = supabase
-        .from('kastle_collection.collection_settlement_offers')
-        .select(`
-          *,
-          case:case_id(case_number, total_outstanding),
-          customer:customer_id(full_name, phone_number)
-        `);
-
-      if (filters.status) query = query.eq('offer_status', filters.status);
-      if (filters.customerId) query = query.eq('customer_id', filters.customerId);
-      if (filters.dateFrom) query = query.gte('offer_date', filters.dateFrom);
-      if (filters.dateTo) query = query.lte('offer_date', filters.dateTo);
-
-      const { data, error } = await query.order('offer_date', { ascending: false });
-
-      if (error) throw error;
-
-      return formatApiResponse(data || []);
-    } catch (error) {
-      console.error('Get settlement offers error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Create settlement offer
-   */
-  static async createSettlementOffer(offerData) {
-    try {
-      const { data, error } = await supabase
-        .from('kastle_collection.collection_settlement_offers')
-        .insert({
-          ...offerData,
-          offer_status: 'PENDING',
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Create audit trail
-      await this.createAuditTrail('SETTLEMENT_OFFER_CREATED', 'settlement_offer', data.offer_id, null, data);
-
-      return formatApiResponse(data);
-    } catch (error) {
-      console.error('Create settlement offer error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  /**
-   * Get asset recovery status
-   */
-  static async getAssetRecoveryStatus() {
-    try {
-      const { data, error } = await supabase
-        .from(TABLES.REPOSSESSED_ASSETS)
-        .select(`
-          *,
-          case:case_id(case_number, customer_id)
-        `)
-        .order('repossession_date', { ascending: false });
-
-      if (error) throw error;
-
-      // Calculate summary metrics
-      const summary = {
-        totalAssets: data?.length || 0,
-        inPossession: data?.filter(a => a.status === 'IN_POSSESSION').length || 0,
-        underAuction: data?.filter(a => a.status === 'UNDER_AUCTION').length || 0,
-        sold: data?.filter(a => a.status === 'SOLD').length || 0,
-        totalValue: data?.reduce((sum, a) => sum + (parseFloat(a.estimated_value) || 0), 0) || 0,
-        totalRecovered: data?.reduce((sum, a) => sum + (parseFloat(a.net_recovery) || 0), 0) || 0
-      };
-
-      return formatApiResponse({
-        assets: data || [],
-        summary
-      });
-    } catch (error) {
-      console.error('Asset recovery status error:', error);
-      return formatApiResponse(null, error);
-    }
-  }
-
-  // ============================================================================
   // HELPER METHODS
   // ============================================================================
 
@@ -1176,91 +672,6 @@ export class CollectionService {
     if (dpd <= 90) return 'BUCKET_3';
     if (dpd <= 180) return 'BUCKET_4';
     return 'BUCKET_5';
-  }
-
-  /**
-   * Calculate optimal queue distribution
-   */
-  static calculateOptimalQueueDistribution(queues, officers) {
-    // Implement sophisticated queue distribution algorithm
-    // This is a simplified version
-    const assignments = [];
-    let officerIndex = 0;
-
-    queues?.forEach(queue => {
-      if (officers && officers[officerIndex]) {
-        assignments.push({
-          queueId: queue.queue_id,
-          officerId: officers[officerIndex].officer_id,
-          teamId: queue.assigned_team_id
-        });
-        officerIndex = (officerIndex + 1) % officers.length;
-      }
-    });
-
-    return assignments;
-  }
-
-  /**
-   * Get approved collection methods for Sharia compliance
-   */
-  static getApprovedCollectionMethods() {
-    return [
-      'Polite phone reminders',
-      'Written notices via mail/email',
-      'Personal visits with respect',
-      'Negotiation and settlement offers',
-      'Legal action as last resort',
-      'No harassment or public shaming',
-      'No collection during prayer times',
-      'Respectful treatment of customers'
-    ];
-  }
-
-  /**
-   * Generate early warning alerts
-   */
-  static generateEarlyWarningAlerts(indicators) {
-    const alerts = [];
-
-    if (indicators.firstPaymentDefaults.length > 5) {
-      alerts.push({
-        type: 'CRITICAL',
-        message: `${indicators.firstPaymentDefaults.length} accounts with first payment default`,
-        action: 'Immediate contact required'
-      });
-    }
-
-    if (indicators.multipleLoans.length > 10) {
-      alerts.push({
-        type: 'WARNING',
-        message: `${indicators.multipleLoans.length} customers with multiple loans showing stress`,
-        action: 'Review exposure and consider restructuring'
-      });
-    }
-
-    return alerts;
-  }
-
-  /**
-   * Create audit trail
-   */
-  static async createAuditTrail(actionType, entityType, entityId, oldValues, newValues) {
-    try {
-      await supabase
-        .from(TABLES.COLLECTION_AUDIT_TRAIL)
-        .insert({
-          user_id: 'SYSTEM', // Would get from auth context
-          action_type: actionType,
-          entity_type: entityType,
-          entity_id: entityId,
-          old_values: oldValues,
-          new_values: newValues,
-          action_timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-      console.error('Audit trail error:', error);
-    }
   }
 
   /**
@@ -1315,29 +726,6 @@ export class CollectionService {
   }
 
   /**
-   * Detect various risk patterns
-   */
-  static async detectIrregularPaymentPatterns() {
-    return []; // Would implement pattern detection
-  }
-
-  static async detectMultipleLoanCustomers() {
-    return []; // Would implement detection logic
-  }
-
-  static async detectHighDTICustomers() {
-    return []; // Would implement DTI calculation
-  }
-
-  static async detectIndustryRisks() {
-    return []; // Would implement industry risk detection
-  }
-
-  static async detectBehavioralChanges() {
-    return []; // Would implement behavioral analysis
-  }
-
-  /**
    * Get date filter based on period
    */
   static getDateFilter(period) {
@@ -1362,3 +750,4 @@ export class CollectionService {
     }
   }
 }
+

@@ -4,8 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
 
-// Create Supabase client using default public schema
+// Create Supabase client with kastle_banking as default schema
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: {
+    schema: 'kastle_banking'
+  },
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -18,51 +21,64 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Database schema constants - using full table names as they should be in public schema
+// Create separate client for kastle_collection schema
+export const supabaseCollection = createClient(supabaseUrl, supabaseAnonKey, {
+  db: {
+    schema: 'kastle_collection'
+  },
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+// Database schema constants - using actual table names in their respective schemas
 export const TABLES = {
-  CUSTOMERS: 'kastle_banking_customers',
-  ACCOUNTS: 'kastle_banking_accounts', 
-  TRANSACTIONS: 'kastle_banking_transactions',
-  LOAN_ACCOUNTS: 'kastle_banking_loan_accounts',
-  BRANCHES: 'kastle_banking_branches',
-  CURRENCIES: 'kastle_banking_currencies',
-  COUNTRIES: 'kastle_banking_countries',
-  AUDIT_TRAIL: 'kastle_banking_audit_trail',
-  AUTH_USER_PROFILES: 'kastle_banking_auth_user_profiles',
-  REALTIME_NOTIFICATIONS: 'kastle_banking_realtime_notifications',
-  CUSTOMER_ADDRESSES: 'kastle_banking_customer_addresses',
-  CUSTOMER_CONTACTS: 'kastle_banking_customer_contacts',
-  CUSTOMER_DOCUMENTS: 'kastle_banking_customer_documents',
-  CUSTOMER_TYPES: 'kastle_banking_customer_types',
-  LOAN_APPLICATIONS: 'kastle_banking_loan_applications',
-  COLLECTION_BUCKETS: 'kastle_banking_collection_buckets',
-  COLLECTION_CASES: 'kastle_banking_collection_cases',
-  PRODUCTS: 'kastle_banking_products',
-  PRODUCT_CATEGORIES: 'kastle_banking_product_categories',
-  BANK_CONFIG: 'kastle_banking_bank_config',
+  // kastle_banking schema tables
+  CUSTOMERS: 'customers',
+  ACCOUNTS: 'accounts',
+  TRANSACTIONS: 'transactions',
+  LOAN_ACCOUNTS: 'loan_accounts',
+  BRANCHES: 'branches',
+  CURRENCIES: 'currencies',
+  COUNTRIES: 'countries',
+  AUDIT_TRAIL: 'audit_trail',
+  AUTH_USER_PROFILES: 'auth_user_profiles',
+  REALTIME_NOTIFICATIONS: 'realtime_notifications',
+  CUSTOMER_ADDRESSES: 'customer_addresses',
+  CUSTOMER_CONTACTS: 'customer_contacts',
+  CUSTOMER_DOCUMENTS: 'customer_documents',
+  CUSTOMER_TYPES: 'customer_types',
+  LOAN_APPLICATIONS: 'loan_applications',
+  COLLECTION_BUCKETS: 'collection_buckets',
+  COLLECTION_CASES: 'collection_cases',
+  PRODUCTS: 'products',
+  PRODUCT_CATEGORIES: 'product_categories',
+  BANK_CONFIG: 'bank_config',
   
-  // kastle_collection tables in public schema
-  COLLECTION_AUDIT_TRAIL: 'kastle_collection_audit_trail',
-  COLLECTION_CALL_RECORDS: 'kastle_collection_call_records',
-  COLLECTION_CAMPAIGNS: 'kastle_collection_campaigns',
-  COLLECTION_CASE_DETAILS: 'kastle_collection_case_details',
-  COLLECTION_INTERACTIONS: 'kastle_collection_interactions',
-  COLLECTION_OFFICERS: 'kastle_collection_officers',
-  COLLECTION_SCORES: 'kastle_collection_scores',
-  COLLECTION_STRATEGIES: 'kastle_collection_strategies',
-  COLLECTION_SYSTEM_PERFORMANCE: 'kastle_collection_system_performance',
-  COLLECTION_TEAMS: 'kastle_collection_teams',
-  DAILY_COLLECTION_SUMMARY: 'kastle_collection_daily_collection_summary',
-  DIGITAL_COLLECTION_ATTEMPTS: 'kastle_collection_digital_collection_attempts',
-  FIELD_VISITS: 'kastle_collection_field_visits',
-  HARDSHIP_APPLICATIONS: 'kastle_collection_hardship_applications',
-  IVR_PAYMENT_ATTEMPTS: 'kastle_collection_ivr_payment_attempts',
-  LEGAL_CASES: 'kastle_collection_legal_cases',
-  LOAN_RESTRUCTURING: 'kastle_collection_loan_restructuring',
-  OFFICER_PERFORMANCE_METRICS: 'kastle_collection_officer_performance_metrics',
-  PROMISE_TO_PAY: 'kastle_collection_promise_to_pay',
-  REPOSSESSED_ASSETS: 'kastle_collection_repossessed_assets',
-  SHARIA_COMPLIANCE_LOG: 'kastle_collection_sharia_compliance_log'
+  // kastle_collection schema tables
+  COLLECTION_AUDIT_TRAIL: 'audit_trail',
+  COLLECTION_CALL_RECORDS: 'call_records',
+  COLLECTION_CAMPAIGNS: 'campaigns',
+  COLLECTION_CASE_DETAILS: 'case_details',
+  COLLECTION_INTERACTIONS: 'interactions',
+  COLLECTION_OFFICERS: 'officers',
+  COLLECTION_SCORES: 'scores',
+  COLLECTION_STRATEGIES: 'strategies',
+  COLLECTION_SYSTEM_PERFORMANCE: 'system_performance',
+  COLLECTION_TEAMS: 'teams',
+  DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
+  DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
+  FIELD_VISITS: 'field_visits',
+  HARDSHIP_APPLICATIONS: 'hardship_applications',
+  IVR_PAYMENT_ATTEMPTS: 'ivr_payment_attempts',
+  LEGAL_CASES: 'legal_cases',
+  LOAN_RESTRUCTURING: 'loan_restructuring',
+  OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
+  PROMISE_TO_PAY: 'promise_to_pay',
+  REPOSSESSED_ASSETS: 'repossessed_assets',
+  SHARIA_COMPLIANCE_LOG: 'sharia_compliance_log'
 };
 
 // Helper function to handle Supabase errors
@@ -105,5 +121,4 @@ export function formatApiResponse(data, error = null, pagination = null) {
     pagination
   };
 }
-
 
