@@ -102,18 +102,18 @@ INSERT INTO kastle_banking.portfolio_summary (
     delinquent_loans
 )
 SELECT 
-    DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month' * month_offset) as snapshot_date,
+    DATE_TRUNC('month', CURRENT_DATE - (gs.month_offset || ' months')::INTERVAL) as snapshot_date,
     -- إجمالي قيمة المحفظة (متزايد بمرور الوقت)
-    (4500000 + month_offset * 50000 + RANDOM() * 500000)::DECIMAL(15,2) as total_portfolio_value,
+    (4500000 + gs.month_offset * 50000 + RANDOM() * 500000)::DECIMAL(15,2) as total_portfolio_value,
     -- إجمالي المتأخرات (متغير)
-    (200000 + SIN(month_offset) * 50000 + RANDOM() * 50000)::DECIMAL(15,2) as total_delinquent_value,
+    (200000 + SIN(gs.month_offset) * 50000 + RANDOM() * 50000)::DECIMAL(15,2) as total_delinquent_value,
     -- نسبة المتأخرات (بين 3% و 7%)
-    (3.5 + SIN(month_offset * 0.5) * 1.5 + RANDOM() * 2)::DECIMAL(5,2) as delinquency_rate,
+    (3.5 + SIN(gs.month_offset * 0.5) * 1.5 + RANDOM() * 2)::DECIMAL(5,2) as delinquency_rate,
     -- إجمالي القروض
-    (1000 + month_offset * 20 + (RANDOM() * 100)::INTEGER) as total_loans,
+    (1000 + gs.month_offset * 20 + (RANDOM() * 100)::INTEGER) as total_loans,
     -- القروض المتأخرة
-    (60 + SIN(month_offset) * 20 + (RANDOM() * 20)::INTEGER) as delinquent_loans
-FROM generate_series(0, 11) as month_offset;
+    (60 + SIN(gs.month_offset) * 20 + (RANDOM() * 20)::INTEGER) as delinquent_loans
+FROM generate_series(0, 11) as gs(month_offset);
 
 -- 3. إدراج معدلات التحصيل الشهرية
 INSERT INTO kastle_banking.collection_rates (
@@ -127,7 +127,7 @@ INSERT INTO kastle_banking.collection_rates (
 )
 SELECT 
     'MONTHLY' as period_type,
-    DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month' * month_offset) as period_date,
+    ps.snapshot_date as period_date,
     ps.total_delinquent_value as total_delinquent_amount,
     -- المبلغ المحصل (50-70% من المتأخرات)
     (ps.total_delinquent_value * (0.5 + RANDOM() * 0.2))::DECIMAL(15,2) as total_collected_amount,
@@ -150,7 +150,7 @@ INSERT INTO kastle_banking.collection_rates (
 )
 SELECT 
     'DAILY' as period_type,
-    CURRENT_DATE - INTERVAL '1 day' * day_offset as period_date,
+    CURRENT_DATE - (gs.day_offset || ' days')::INTERVAL as period_date,
     -- المتأخرات اليومية (أصغر من الشهرية)
     (8000 + RANDOM() * 4000)::DECIMAL(15,2) as total_delinquent_amount,
     -- المبلغ المحصل يومياً
@@ -161,7 +161,7 @@ SELECT
     (10 + (RANDOM() * 10)::INTEGER) as number_of_accounts,
     -- الحسابات المحصلة
     (5 + (RANDOM() * 8)::INTEGER) as number_of_accounts_collected
-FROM generate_series(0, 29) as day_offset;
+FROM generate_series(0, 29) as gs(day_offset);
 
 -- 5. إدراج معدلات التحصيل الأسبوعية (آخر 12 أسبوع)
 INSERT INTO kastle_banking.collection_rates (
@@ -175,13 +175,13 @@ INSERT INTO kastle_banking.collection_rates (
 )
 SELECT 
     'WEEKLY' as period_type,
-    DATE_TRUNC('week', CURRENT_DATE - INTERVAL '1 week' * week_offset) as period_date,
+    DATE_TRUNC('week', CURRENT_DATE - (gs.week_offset || ' weeks')::INTERVAL) as period_date,
     (40000 + RANDOM() * 20000)::DECIMAL(15,2) as total_delinquent_amount,
     (25000 + RANDOM() * 15000)::DECIMAL(15,2) as total_collected_amount,
     (55 + RANDOM() * 20)::DECIMAL(5,2) as collection_rate,
     (50 + (RANDOM() * 30)::INTEGER) as number_of_accounts,
     (30 + (RANDOM() * 20)::INTEGER) as number_of_accounts_collected
-FROM generate_series(0, 11) as week_offset;
+FROM generate_series(0, 11) as gs(week_offset);
 
 -- 6. إدراج أداء التحصيل حسب الفروع
 INSERT INTO kastle_banking.branch_collection_performance (
