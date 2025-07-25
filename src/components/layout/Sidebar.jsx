@@ -130,6 +130,7 @@ const getNavigationItems = (t) => [
           { title: t('navigation.digitalCollection'), href: '/collection-digital', icon: Smartphone },
           { title: t('navigation.earlyWarning'), href: '/collection-early-warning', icon: AlertTriangle, badge: '45' },
           { title: t('navigation.executiveCollection'), href: '/collection-executive', icon: Building2 },
+          { title: t('navigation.delinquencyExecutive'), href: '/collection/delinquency-executive', icon: AlertTriangle, badge: 'New' },
           { title: t('navigation.fieldCollection'), href: '/collection-field', icon: MapPin },
           { title: t('navigation.officerPerformance'), href: '/collection-officer-performance', icon: Trophy },
           { title: t('navigation.shariaCompliance'), href: '/collection-sharia-compliance', icon: BookOpen },
