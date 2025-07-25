@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -245,6 +246,7 @@ function AlertCard({ alert }) {
 }
 
 export function OperationsDashboard() {
+  const { t } = useTranslation();
   const [selectedView, setSelectedView] = useState('realtime');
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -348,7 +350,7 @@ export function OperationsDashboard() {
             status="good"
           />
           <OperationalKPICard
-            title="Pending Approvals"
+            title={t('common.pendingApprovals')}
             value={operationalKPIs.pendingApprovals}
             change="+12"
             trend="down"
