@@ -185,7 +185,7 @@ const OfficerPerformanceDashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -194,7 +194,7 @@ const OfficerPerformanceDashboard = () => {
   };
 
   const formatNumber = (num) => {
-    return new Intl.NumberFormat('ar-SA').format(num);
+    return new Intl.NumberFormat('en-US').format(num);
   };
 
   const getTrendIcon = (trend) => {

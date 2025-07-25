@@ -118,7 +118,7 @@ const ShariaComplianceDashboard = () => {
   ];
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -128,7 +128,7 @@ const ShariaComplianceDashboard = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Pending';
-    return new Date(dateString).toLocaleDateString('ar-SA');
+    return new Date(dateString).toLocaleDateString('en-US');
   };
 
   const getComplianceColor = (rate) => {

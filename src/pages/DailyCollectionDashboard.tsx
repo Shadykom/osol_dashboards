@@ -126,7 +126,7 @@ const DailyCollectionDashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -135,10 +135,11 @@ const DailyCollectionDashboard = () => {
   };
 
   const formatTime = (date) => {
-    return date.toLocaleTimeString('ar-SA', { 
+    return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit', 
-      second: '2-digit' 
+      second: '2-digit',
+      hour12: false
     });
   };
 

@@ -132,7 +132,7 @@ const ExecutiveCollectionDashboard = () => {
   const COLORS = ['#E6B800', '#F4D03F', '#F7DC6F', '#F9E79F', '#FCF3CF'];
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -141,7 +141,7 @@ const ExecutiveCollectionDashboard = () => {
   };
 
   const formatNumber = (num) => {
-    return new Intl.NumberFormat('ar-SA').format(num);
+    return new Intl.NumberFormat('en-US').format(num);
   };
 
   const getPriorityBadge = (priority) => {
