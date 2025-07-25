@@ -46,7 +46,9 @@ function getSegmentBadge(segment) {
     'CORPORATE': 'outline'
   };
   
-  return <Badge variant={variants[segment] || 'default'}>{segment}</Badge>;
+  const { t } = useTranslation();
+  
+  return <Badge variant={variants[segment] || 'default'}>{t(`common.${segment.toLowerCase()}`)}</Badge>;
 }
 
 function getKYCBadge(status) {
@@ -56,7 +58,9 @@ function getKYCBadge(status) {
     'REJECTED': 'destructive'
   };
   
-  return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+  const { t } = useTranslation();
+  
+  return <Badge variant={variants[status] || 'default'}>{t(`common.${status.toLowerCase()}`)}</Badge>;
 }
 
 export function Customers() {
@@ -108,9 +112,9 @@ export function Customers() {
       {/* Customer List */}
       <Card>
         <CardHeader>
-          <CardTitle>Customer List</CardTitle>
+          <CardTitle>{t('common.customerList')}</CardTitle>
           <CardDescription>
-            {mockCustomers.length} customers found
+            {mockCustomers.length} {t('common.customersFound')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -133,10 +137,10 @@ export function Customers() {
                 <div className="text-right space-y-1">
                   <p className="font-medium">{customer.total_balance}</p>
                   <p className="text-sm text-muted-foreground">
-                    {customer.accounts} account{customer.accounts !== 1 ? 's' : ''}
+                    {customer.accounts} {t(customer.accounts !== 1 ? 'common.accounts' : 'common.account')}
                   </p>
                   <Button variant="outline" size="sm">
-                    View Details
+                    {t('customers.viewDetails')}
                   </Button>
                 </div>
               </div>

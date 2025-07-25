@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { 
   Shield,
   AlertTriangle,
@@ -79,6 +80,7 @@ const RISK_LEVELS = {
 };
 
 export function Compliance() {
+  const { t } = useTranslation();
   const [complianceStats, setComplianceStats] = useState({
     overallScore: 0,
     amlScore: 0,
@@ -408,7 +410,7 @@ export function Compliance() {
         <motion.div variants={itemVariants}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('common.pendingReviews')}</CardTitle>
               <FileSearch className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
@@ -525,7 +527,7 @@ export function Compliance() {
                   <Badge variant="success">{kycStatus.verified.toLocaleString()}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Pending</span>
+                  <span className="text-sm">{t('common.pending')}</span>
                   <Badge variant="warning">{kycStatus.pending.toLocaleString()}</Badge>
                 </div>
                 <div className="flex items-center justify-between">

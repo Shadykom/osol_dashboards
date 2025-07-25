@@ -123,6 +123,7 @@ function KPICard({ title, value, change, trend, icon: Icon, description, isLoadi
 }
 
 function getStatusBadge(status) {
+  const { t } = useTranslation();
   const variants = {
     'Completed': 'default',
     'COMPLETED': 'default',
@@ -132,7 +133,8 @@ function getStatusBadge(status) {
     'FAILED': 'destructive'
   };
   
-  return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+  const statusKey = status.toLowerCase();
+  return <Badge variant={variants[status] || 'default'}>{t(`common.${statusKey}`)}</Badge>;
 }
 
 export function Dashboard() {

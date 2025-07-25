@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { 
   CreditCard, 
   TrendingUp, 
@@ -50,6 +51,7 @@ import {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export function Accounts() {
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState([]);
   const [stats, setStats] = useState({
     totalAccounts: 0,
@@ -508,7 +510,7 @@ export function Accounts() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm">
-                            View Details
+                            {t('customers.viewDetails')}
                           </Button>
                         </TableCell>
                       </TableRow>
