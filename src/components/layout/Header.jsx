@@ -12,9 +12,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { LanguageSelector } from '@/components/ui/language-selector';
 
 export function Header() {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-6">
@@ -24,7 +27,7 @@ export function Header() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search customers, accounts, transactions..."
+            placeholder={t('common.searchPlaceholder')}
             className="pl-9 h-9 w-full"
           />
         </div>
@@ -32,6 +35,9 @@ export function Header() {
 
       {/* Right side - Actions */}
       <div className="flex items-center gap-2">
+        {/* Language Selector */}
+        <LanguageSelector />
+        
         {/* Theme Toggle */}
         <Button
           variant="ghost"
@@ -57,43 +63,43 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('common.notifications')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <div className="space-y-1">
               <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-blue-500" />
-                  <span className="font-medium text-sm">New loan application</span>
+                  <span className="font-medium text-sm">{t('notifications.newLoanApplication')}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  Ahmed Al-Rashid applied for SAR 250,000
+                  Ahmed Al-Rashid applied for {t('common.currency')} 250,000
                 </span>
-                <span className="text-xs text-muted-foreground">2 minutes ago</span>
+                <span className="text-xs text-muted-foreground">2 {t('notifications.minutesAgo')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                  <span className="font-medium text-sm">High risk alert</span>
+                  <span className="font-medium text-sm">{t('notifications.highRiskAlert')}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  15 accounts showing early warning signs
+                  15 {t('notifications.accountsShowingWarning')}
                 </span>
-                <span className="text-xs text-muted-foreground">15 minutes ago</span>
+                <span className="text-xs text-muted-foreground">15 {t('notifications.minutesAgo')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="font-medium text-sm">Target achieved</span>
+                  <span className="font-medium text-sm">{t('notifications.targetAchieved')}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  Daily collection target reached: SAR 3.2M
+                  {t('notifications.dailyCollectionTarget')}: {t('common.currency')} 3.2M
                 </span>
-                <span className="text-xs text-muted-foreground">1 hour ago</span>
+                <span className="text-xs text-muted-foreground">1 {t('notifications.hoursAgo')}</span>
               </DropdownMenuItem>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-center">
-              View all notifications
+              {t('notifications.viewAllNotifications')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -121,15 +127,15 @@ export function Header() {
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
-              Profile
+              {t('common.profile')}
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />
-              Settings
+              {t('common.settings')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-red-600">
-              Logout
+              {t('common.logout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

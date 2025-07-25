@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   LayoutDashboard, 
   Users, 
@@ -48,127 +49,127 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-const navigationItems = [
+const getNavigationItems = (t) => [
   {
-    title: 'Overview',
+    title: t('navigation.overview'),
     items: [
       {
-        title: 'Main Dashboard',
+        title: t('navigation.mainDashboard'),
         href: '/dashboard',
         icon: Home,
         badge: null,
       },
       {
-        title: 'Dashboards',
+        title: t('navigation.dashboards'),
         icon: LayoutDashboard,
         badge: '3',
         children: [
-          { title: 'Executive Dashboard', href: '/executive-dashboard', icon: Building2 },
-          { title: 'Operations Dashboard', href: '/operations-dashboard', icon: Activity },
-          { title: 'Custom Dashboard', href: '/custom-dashboard', icon: Target },
+          { title: t('navigation.executiveDashboard'), href: '/executive-dashboard', icon: Building2 },
+          { title: t('navigation.operationsDashboard'), href: '/operations-dashboard', icon: Activity },
+          { title: t('navigation.customDashboard'), href: '/custom-dashboard', icon: Target },
         ],
       },
     ]
   },
   {
-    title: 'Banking Operations',
+    title: t('navigation.bankingOperations'),
     items: [
       {
-        title: 'Customers',
+        title: t('navigation.customers'),
         icon: Users,
         children: [
-          { title: 'All Customers', href: '/customers', badge: '12.5k' },
-          { title: 'Add Customer', href: '/customers/new' },
-          { title: 'KYC Pending', href: '/customers/kyc-pending', badge: '23' },
-          { title: 'Risk Assessment', href: '/customers/risk' },
+          { title: t('navigation.allCustomers'), href: '/customers', badge: '12.5k' },
+          { title: t('navigation.addCustomer'), href: '/customers/new' },
+          { title: t('navigation.kycPending'), href: '/customers/kyc-pending', badge: '23' },
+          { title: t('navigation.riskAssessment'), href: '/customers/risk' },
         ],
       },
       {
-        title: 'Accounts',
+        title: t('navigation.accounts'),
         icon: CreditCard,
         children: [
-          { title: 'All Accounts', href: '/accounts' },
-          { title: 'Open Account', href: '/accounts/new' },
-          { title: 'Blocked Accounts', href: '/accounts/blocked', badge: '5' },
-          { title: 'Dormant Accounts', href: '/accounts/dormant' },
+          { title: t('navigation.allAccounts'), href: '/accounts' },
+          { title: t('navigation.openAccount'), href: '/accounts/new' },
+          { title: t('navigation.blockedAccounts'), href: '/accounts/blocked', badge: '5' },
+          { title: t('navigation.dormantAccounts'), href: '/accounts/dormant' },
         ],
       },
       {
-        title: 'Transactions',
+        title: t('navigation.transactions'),
         icon: ArrowUpDown,
         children: [
-          { title: 'All Transactions', href: '/transactions' },
-          { title: 'Pending Approval', href: '/transactions/pending', badge: '156' },
-          { title: 'Failed Transactions', href: '/transactions/failed', badge: '23' },
-          { title: 'Bulk Upload', href: '/transactions/bulk' },
+          { title: t('navigation.allTransactions'), href: '/transactions' },
+          { title: t('navigation.pendingApproval'), href: '/transactions/pending', badge: '156' },
+          { title: t('navigation.failedTransactions'), href: '/transactions/failed', badge: '23' },
+          { title: t('navigation.bulkUpload'), href: '/transactions/bulk' },
         ],
       },
       {
-        title: 'Loans',
+        title: t('navigation.loans'),
         icon: PiggyBank,
         children: [
-          { title: 'Loan Portfolio', href: '/loans' },
-          { title: 'Applications', href: '/loans/applications', badge: '45' },
-          { title: 'Disbursements', href: '/loans/disbursements' },
-          { title: 'Collections', href: '/loans/collections' },
+          { title: t('navigation.loans'), href: '/loans' },
+          { title: t('navigation.loanApplications'), href: '/loans/applications', badge: '45' },
+          { title: t('navigation.disbursements'), href: '/loans/disbursements' },
+          { title: t('navigation.collections'), href: '/loans/collections' },
         ],
       },
     ]
   },
   {
-    title: 'Collections',
+    title: t('navigation.collections'),
     items: [
       {
-        title: 'Collections Hub',
+        title: t('navigation.collectionDashboards'),
         icon: Coins,
         badge: 'New',
         badgeVariant: 'default',
         children: [
-          { title: 'Overview', href: '/collection-overview', icon: Eye },
-          { title: 'Daily Collection', href: '/collection-daily', icon: Calendar, badge: 'Live' },
-          { title: 'Digital Collection', href: '/collection-digital', icon: Smartphone },
-          { title: 'Early Warning', href: '/collection-early-warning', icon: AlertTriangle, badge: '45' },
-          { title: 'Executive View', href: '/collection-executive', icon: Building2 },
-          { title: 'Field Collection', href: '/collection-field', icon: MapPin },
-          { title: 'Officer Performance', href: '/collection-officer-performance', icon: Trophy },
-          { title: 'Sharia Compliance', href: '/collection-sharia-compliance', icon: BookOpen },
-          { title: 'Vintage Analysis', href: '/collection-vintage-analysis', icon: Layers },
-          { title: 'Collection Cases', href: '/collection-cases', icon: FileText, badge: '234' },
-          { title: 'Collection Reports', href: '/collection-reports', icon: BarChart3 },
+          { title: t('navigation.collectionOverview'), href: '/collection-overview', icon: Eye },
+          { title: t('navigation.dailyCollection'), href: '/collection-daily', icon: Calendar, badge: 'Live' },
+          { title: t('navigation.digitalCollection'), href: '/collection-digital', icon: Smartphone },
+          { title: t('navigation.earlyWarning'), href: '/collection-early-warning', icon: AlertTriangle, badge: '45' },
+          { title: t('navigation.executiveCollection'), href: '/collection-executive', icon: Building2 },
+          { title: t('navigation.fieldCollection'), href: '/collection-field', icon: MapPin },
+          { title: t('navigation.officerPerformance'), href: '/collection-officer-performance', icon: Trophy },
+          { title: t('navigation.shariaCompliance'), href: '/collection-sharia-compliance', icon: BookOpen },
+          { title: t('navigation.vintageAnalysis'), href: '/collection-vintage-analysis', icon: Layers },
+          { title: t('navigation.collectionCases'), href: '/collection-cases', icon: FileText, badge: '234' },
+          { title: t('navigation.collectionReports'), href: '/collection-reports', icon: BarChart3 },
         ],
       },
     ]
   },
   {
-    title: 'Management',
+    title: t('navigation.management') || 'Management',
     items: [
       {
-        title: 'Reports',
+        title: t('navigation.reports'),
         icon: FileText,
         children: [
-          { title: 'Financial Reports', href: '/reports/financial' },
-          { title: 'Regulatory Reports', href: '/reports/regulatory' },
-          { title: 'Customer Reports', href: '/reports/customers' },
-          { title: 'Risk Reports', href: '/reports/risk' },
+          { title: t('navigation.financialReports'), href: '/reports/financial' },
+          { title: t('navigation.regulatoryReports'), href: '/reports/regulatory' },
+          { title: t('navigation.customerReports'), href: '/reports/customers' },
+          { title: t('navigation.riskReports'), href: '/reports/risk' },
         ],
       },
       {
-        title: 'Operations',
+        title: t('navigation.operations'),
         icon: Building2,
         children: [
-          { title: 'Branch Management', href: '/operations/branches' },
-          { title: 'User Management', href: '/operations/users' },
-          { title: 'Audit Trail', href: '/operations/audit' },
-          { title: 'System Health', href: '/operations/health' },
+          { title: t('navigation.branchManagement'), href: '/operations/branches' },
+          { title: t('navigation.userManagement'), href: '/operations/users' },
+          { title: t('navigation.auditTrail'), href: '/operations/audit' },
+          { title: t('navigation.systemHealth'), href: '/operations/health' },
         ],
       },
       {
-        title: 'Analytics',
+        title: t('navigation.analytics'),
         href: '/analytics',
         icon: TrendingUp,
       },
       {
-        title: 'Compliance',
+        title: t('navigation.compliance'),
         href: '/compliance',
         icon: Shield,
       },
@@ -302,6 +303,8 @@ function NavItem({ item, level = 0, isCollapsed }) {
 
 export function Sidebar({ isCollapsed, setIsCollapsed }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { t } = useTranslation();
+  const navigationItems = getNavigationItems(t);
 
   return (
     <div className={cn(
@@ -338,7 +341,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t('common.search')}
               className="w-full rounded-lg border bg-background px-9 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -400,7 +403,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
           >
             <Link to="/settings">
               <Settings className="h-4 w-4" />
-              {!isCollapsed && <span>Settings</span>}
+              {!isCollapsed && <span>{t('navigation.settings')}</span>}
             </Link>
           </Button>
           <Button 
@@ -413,7 +416,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
           >
             <Link to="/help">
               <HelpCircle className="h-4 w-4" />
-              {!isCollapsed && <span>Help & Support</span>}
+              {!isCollapsed && <span>{t('navigation.helpSupport')}</span>}
             </Link>
           </Button>
           <Button 
@@ -424,7 +427,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
             )}
           >
             <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span>Logout</span>}
+            {!isCollapsed && <span>{t('common.logout')}</span>}
           </Button>
         </div>
       </div>

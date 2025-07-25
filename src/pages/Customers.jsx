@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Filter } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const mockCustomers = [
   {
@@ -59,28 +60,30 @@ function getKYCBadge(status) {
 }
 
 export function Customers() {
+  const { t } = useTranslation();
+  
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('customers.title')}</h1>
           <p className="text-muted-foreground">
-            Manage customer information and relationships
+            {t('customers.customerDetails')}
           </p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Add Customer
+          {t('customers.addNewCustomer')}
         </Button>
       </div>
 
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Search Customers</CardTitle>
+          <CardTitle>{t('customers.searchCustomers')}</CardTitle>
           <CardDescription>
-            Find customers by name, ID, email, or phone number
+            {t('customers.searchCustomers')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -89,14 +92,14 @@ export function Customers() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search customers..."
+                  placeholder={t('customers.searchCustomers')}
                   className="pl-10"
                 />
               </div>
             </div>
             <Button variant="outline">
               <Filter className="mr-2 h-4 w-4" />
-              Filters
+              {t('common.filter')}
             </Button>
           </div>
         </CardContent>
