@@ -1,265 +1,307 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Layout } from './components/layout/Layout';
-import { Dashboard } from './pages/Dashboard';
-import { CustomDashboard } from './pages/CustomDashboard';
-import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
-import { OperationsDashboard } from './pages/OperationsDashboard';
-import { Customers } from './pages/Customers';
-import { Accounts } from './pages/Accounts';
-import { Transactions } from './pages/Transactions';
-import { Loans } from './pages/Loans';
-import { Reports } from './pages/Reports';
-import { Analytics } from './pages/Analytics';
-import { Compliance } from './pages/Compliance';
-import CollectionOverview from './pages/CollectionOverview';
-import CollectionCases from './pages/CollectionCases';
-import CollectionReports from './pages/CollectionReports';
-import DailyCollectionDashboard from './pages/DailyCollectionDashboard';
-import DigitalCollectionDashboard from './pages/DigitalCollectionDashboard';
-import EarlyWarningDashboard from './pages/EarlyWarningDashboard';
-import ExecutiveCollectionDashboard from './pages/ExecutiveCollectionDashboard';
-import FieldCollectionDashboard from './pages/FieldCollectionDashboard';
-import OfficerPerformanceDashboard from './pages/OfficerPerformanceDashboard';
-import ShariaComplianceDashboard from './pages/ShariaComplianceDashboard';
-import VintageAnalysisDashboard from './pages/VintageAnalysisDashboard';
-import DatabaseTest from './pages/DatabaseTest';
-import { Toaster } from './components/ui/sonner';
-import { useTranslation } from 'react-i18next';
-import { testConnection } from './lib/supabase';
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
-import './App.css';
+// lib/supabase.js
+import { createClient } from '@supabase/supabase-js';
 
-// Route Redirect Component
-function RouteRedirect() {
-  const location = useLocation();
-  
-  // Handle legacy URL patterns
-  useEffect(() => {
-    const path = location.pathname;
-    
-    // Map old URLs to new URLs
-    const redirectMap = {
-      '/collection-daily': '/collection/daily',
-      '/collection-overview': '/collection/overview',
-      '/collection-cases': '/collection/cases',
-      '/collection-reports': '/collection/reports',
-      '/collection-digital': '/collection/digital',
-      '/collection-early-warning': '/collection/early-warning',
-      '/collection-executive': '/collection/executive',
-      '/collection-field': '/collection/field',
-      '/collection-officer-performance': '/collection/officer-performance',
-      '/collection-sharia-compliance': '/collection/sharia-compliance',
-      '/collection-vintage-analysis': '/collection/vintage-analysis'
-    };
-    
-    if (redirectMap[path]) {
-      window.location.replace(redirectMap[path]);
-    }
-  }, [location]);
-  
-  return null;
-}
+// Get environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
+// Check if environment variables are loaded
+console.log('Supabase URL:', supabaseUrl ? 'Configured' : 'Missing');
+console.log('Supabase Anon Key:', supabaseAnonKey ? 'Configured' : 'Missing');
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('App Error Boundary caught an error:', error, errorInfo);
-    this.setState({
-      error: error,
-      errorInfo: errorInfo
-    });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-          <h1 style={{ color: '#dc2626' }}>Something went wrong</h1>
-          <p>The Osoul Dashboard encountered an error and needs to be refreshed.</p>
-          <details style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '10px', borderRadius: '4px', marginTop: '10px' }}>
-            <summary style={{ cursor: 'pointer' }}>Error Details</summary>
-            {this.state.error && this.state.error.toString()}
-            <br />
-            {this.state.errorInfo && this.state.errorInfo.componentStack}
-          </details>
-          <button 
-            onClick={() => window.location.reload()} 
-            style={{ 
-              marginTop: '10px', 
-              padding: '10px 20px', 
-              backgroundColor: '#2563eb', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
-            }}
-          >
-            Refresh Page
-          </button>
-          <button 
-            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })} 
-            style={{ 
-              marginTop: '10px', 
-              marginLeft: '10px',
-              padding: '10px 20px', 
-              backgroundColor: '#16a34a', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-// 404 Page Component
-function NotFound() {
-  return (
-    <div style={{ textAlign: 'center', padding: '50px' }}>
-      <h1 style={{ fontSize: '48px', color: '#dc2626' }}>404</h1>
-      <h2>Page Not Found</h2>
-      <p>The page you are looking for doesn't exist.</p>
-      <button 
-        onClick={() => window.location.href = '/dashboard'} 
-        style={{ 
-          marginTop: '20px', 
-          padding: '10px 20px', 
-          backgroundColor: '#2563eb', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '4px', 
-          cursor: 'pointer' 
-        }}
-      >
-        Go to Dashboard
-      </button>
-    </div>
-  );
-}
-
-// Safe App Component
-function SafeApp() {
-  const { i18n } = useTranslation();
-  
-  // Test database connection on mount
-  useEffect(() => {
-    testConnection().then(result => {
-      if (result.success) {
-        console.log('✅ Database connection established');
-      } else {
-        console.warn('⚠️ Running in offline/mock mode:', result.error);
+// Create Supabase clients
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      db: {
+        schema: 'kastle_banking' // Default to banking schema
       }
-    });
-  }, []);
-  
-  return (
-    <div className={`app ${i18n.language === 'ar' ? 'rtl' : 'ltr'}`} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
-      <Router>
-        <RouteRedirect />
-        <Layout>
-          <Routes>
-            {/* Main Routes */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            
-            {/* Dashboard Routes */}
-            <Route path="/dashboards/custom" element={<CustomDashboard />} />
-            <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
-            <Route path="/dashboards/operations" element={<OperationsDashboard />} />
-            
-            {/* Customer Routes */}
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/customers/new" element={<Customers />} />
-            <Route path="/customers/kyc-pending" element={<Customers />} />
-            <Route path="/customers/risk" element={<Customers />} />
-            
-            {/* Account Routes */}
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/accounts/new" element={<Accounts />} />
-            
-            {/* Transaction Routes */}
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/transactions/pending" element={<Transactions />} />
-            <Route path="/transactions/failed" element={<Transactions />} />
-            
-            {/* Loan Routes */}
-            <Route path="/loans" element={<Loans />} />
-            <Route path="/loans/applications" element={<Loans />} />
-            <Route path="/loans/disbursed" element={<Loans />} />
-            <Route path="/loans/disbursements" element={<Loans />} />
-            <Route path="/loans/collections" element={<Loans />} />
-            <Route path="/loans/overdue" element={<Loans />} />
-            
-            {/* Other Routes */}
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/compliance" element={<Compliance />} />
-            <Route path="/database-test" element={<DatabaseTest />} />
-            
-            {/* Collection Routes */}
-            <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
-            <Route path="/collection/overview" element={<CollectionOverview />} />
-            <Route path="/collection/cases" element={<CollectionCases />} />
-            <Route path="/collection/reports" element={<CollectionReports />} />
-            <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
-            <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
-            <Route path="/collection/early-warning" element={<EarlyWarningDashboard />} />
-            <Route path="/collection/executive" element={<ExecutiveCollectionDashboard />} />
-            <Route path="/collection/field" element={<FieldCollectionDashboard />} />
-            <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
-            <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
-            <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
-            
-            {/* Legacy URL Redirects (backwards compatibility) */}
-            <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
-            <Route path="/collection-overview" element={<Navigate to="/collection/overview" replace />} />
-            <Route path="/collection-cases" element={<Navigate to="/collection/cases" replace />} />
-            <Route path="/collection-reports" element={<Navigate to="/collection/reports" replace />} />
-            <Route path="/collection-digital" element={<Navigate to="/collection/digital" replace />} />
-            <Route path="/collection-early-warning" element={<Navigate to="/collection/early-warning" replace />} />
-            <Route path="/collection-executive" element={<Navigate to="/collection/executive" replace />} />
-            <Route path="/collection-field" element={<Navigate to="/collection/field" replace />} />
-            <Route path="/collection-officer-performance" element={<Navigate to="/collection/officer-performance" replace />} />
-            <Route path="/collection-sharia-compliance" element={<Navigate to="/collection/sharia-compliance" replace />} />
-            <Route path="/collection-vintage-analysis" element={<Navigate to="/collection/vintage-analysis" replace />} />
-            
-            {/* 404 Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
-        <Toaster />
-      </Router>
-    </div>
-  );
+    })
+  : null;
+
+// Collection database client (using collection schema)
+export const supabaseCollection = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      db: {
+        schema: 'kastle_collection' // Collection schema
+      }
+    })
+  : null;
+
+// Banking database client (alias for consistency)
+export const supabaseBanking = supabase;
+
+// Check configuration status
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabase);
+
+if (!isSupabaseConfigured) {
+  console.warn('⚠️ Supabase is not configured. Running in mock data mode.');
+  console.warn('Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env file');
 }
 
-// Main App Component
-function App() {
-  console.log('App component rendering...');
+// Table names with schema prefixes
+export const TABLES = {
+  // Banking tables (kastle_banking schema)
+  CUSTOMERS: 'customers',
+  ACCOUNTS: 'accounts',
+  TRANSACTIONS: 'transactions',
+  BRANCHES: 'branches',
+  LOAN_ACCOUNTS: 'loan_accounts',
+  LOAN_APPLICATIONS: 'loan_applications',
+  ACCOUNT_TYPES: 'account_types',
+  CUSTOMER_TYPES: 'customer_types',
+  CUSTOMER_ADDRESSES: 'customer_addresses',
+  CUSTOMER_CONTACTS: 'customer_contacts',
+  CUSTOMER_DOCUMENTS: 'customer_documents',
+  CURRENCIES: 'currencies',
+  COUNTRIES: 'countries',
+  PRODUCTS: 'products',
+  PRODUCT_CATEGORIES: 'product_categories',
+  TRANSACTION_TYPES: 'transaction_types',
+  AUDIT_TRAIL: 'audit_trail',
+  AUTH_USER_PROFILES: 'auth_user_profiles',
+  BANK_CONFIG: 'bank_config',
+  REALTIME_NOTIFICATIONS: 'realtime_notifications',
   
-  return (
-    <ErrorBoundary>
-      <SafeApp />
-    </ErrorBoundary>
-  );
+  // Collection tables (kastle_collection schema)
+  COLLECTION_CASES: 'collection_cases', // Note: This is in kastle_banking schema
+  COLLECTION_BUCKETS: 'collection_buckets', // Note: This is in kastle_banking schema
+  COLLECTION_CASE_DETAILS: 'collection_case_details',
+  COLLECTION_INTERACTIONS: 'collection_interactions',
+  COLLECTION_OFFICERS: 'collection_officers',
+  COLLECTION_TEAMS: 'collection_teams',
+  PROMISE_TO_PAY: 'promise_to_pay',
+  FIELD_VISITS: 'field_visits',
+  LEGAL_CASES: 'legal_cases',
+  DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
+  OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
+  COLLECTION_CAMPAIGNS: 'collection_campaigns',
+  COLLECTION_STRATEGIES: 'collection_strategies',
+  COLLECTION_SCORES: 'collection_scores',
+  COLLECTION_SETTLEMENT_OFFERS: 'collection_settlement_offers',
+  COLLECTION_WRITE_OFFS: 'collection_write_offs',
+  LOAN_RESTRUCTURING: 'loan_restructuring',
+  HARDSHIP_APPLICATIONS: 'hardship_applications',
+  REPOSSESSED_ASSETS: 'repossessed_assets',
+  SHARIA_COMPLIANCE_LOG: 'sharia_compliance_log',
+  COLLECTION_AUTOMATION_METRICS: 'collection_automation_metrics',
+  COLLECTION_BENCHMARKS: 'collection_benchmarks',
+  COLLECTION_BUCKET_MOVEMENT: 'collection_bucket_movement',
+  COLLECTION_CALL_RECORDS: 'collection_call_records',
+  COLLECTION_COMPLIANCE_VIOLATIONS: 'collection_compliance_violations',
+  COLLECTION_CONTACT_ATTEMPTS: 'collection_contact_attempts',
+  COLLECTION_CUSTOMER_SEGMENTS: 'collection_customer_segments',
+  COLLECTION_FORECASTS: 'collection_forecasts',
+  COLLECTION_PROVISIONS: 'collection_provisions',
+  COLLECTION_QUEUE_MANAGEMENT: 'collection_queue_management',
+  COLLECTION_RISK_ASSESSMENT: 'collection_risk_assessment',
+  COLLECTION_VINTAGE_ANALYSIS: 'collection_vintage_analysis',
+  COLLECTION_WORKFLOW_TEMPLATES: 'collection_workflow_templates',
+  DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
+  IVR_PAYMENT_ATTEMPTS: 'ivr_payment_attempts',
+  COLLECTION_SYSTEM_PERFORMANCE: 'collection_system_performance',
+  COLLECTION_AUDIT_TRAIL: 'collection_audit_trail',
+  USER_ROLES: 'user_roles',
+  USER_ROLE_ASSIGNMENTS: 'user_role_assignments',
+  ACCESS_LOG: 'access_log',
+  AUDIT_LOG: 'audit_log',
+  DATA_MASKING_RULES: 'data_masking_rules',
+  PERFORMANCE_METRICS: 'performance_metrics'
+};
+
+// Helper function to get the appropriate client for a table
+export function getClientForTable(tableName) {
+  // Tables that are in the banking schema
+  const bankingTables = [
+    'customers', 'accounts', 'transactions', 'branches', 'loan_accounts',
+    'loan_applications', 'account_types', 'customer_types', 'customer_addresses',
+    'customer_contacts', 'customer_documents', 'currencies', 'countries',
+    'products', 'product_categories', 'transaction_types', 'audit_trail',
+    'auth_user_profiles', 'bank_config', 'realtime_notifications',
+    'collection_cases', 'collection_buckets' // These two are in banking schema
+  ];
+  
+  // Check if the table is in banking schema
+  if (bankingTables.includes(tableName)) {
+    return supabaseBanking;
+  }
+  
+  // Otherwise it's in collection schema
+  return supabaseCollection;
 }
 
-export default App;
+// Get full table name with schema
+export function getFullTableName(tableName, schema = null) {
+  if (schema) {
+    return `${schema}.${tableName}`;
+  }
+  
+  // Determine schema based on table name
+  const bankingTables = [
+    'customers', 'accounts', 'transactions', 'branches', 'loan_accounts',
+    'loan_applications', 'account_types', 'customer_types', 'customer_addresses',
+    'customer_contacts', 'customer_documents', 'currencies', 'countries',
+    'products', 'product_categories', 'transaction_types', 'audit_trail',
+    'auth_user_profiles', 'bank_config', 'realtime_notifications',
+    'collection_cases', 'collection_buckets'
+  ];
+  
+  if (bankingTables.includes(tableName)) {
+    return `kastle_banking.${tableName}`;
+  }
+  
+  return `kastle_collection.${tableName}`;
+}
+
+// Error handling wrapper
+export async function handleSupabaseError(error) {
+  console.error('Supabase error:', error);
+  
+  if (error?.message?.includes('JWT')) {
+    console.error('Authentication error. Please check your Supabase keys.');
+  } else if (error?.message?.includes('relation') || error?.message?.includes('does not exist')) {
+    console.error('Table not found. Please check your database schema.');
+  } else if (error?.code === 'PGRST301') {
+    console.error('Database connection error. Please check your Supabase URL.');
+  } else if (error?.message?.includes('permission denied')) {
+    console.error('Permission denied. Please check RLS policies.');
+  }
+  
+  return {
+    success: false,
+    error: error.message || 'An unexpected error occurred',
+    data: null
+  };
+}
+
+// API response formatter
+export function formatApiResponse(data, error = null, pagination = null) {
+  if (error) {
+    return handleSupabaseError(error);
+  }
+  
+  const response = {
+    success: true,
+    data: data || null,
+    error: null
+  };
+  
+  if (pagination) {
+    response.pagination = pagination;
+  }
+  
+  return response;
+}
+
+// Mock data for fallback
+export const MOCK_DATA = {
+  dashboard: {
+    totalCustomers: 12847,
+    totalAccounts: 18293,
+    totalDeposits: 2400000000,
+    totalLoans: 1800000000,
+    dailyTransactions: 8547,
+    monthlyRevenue: 45200000,
+    recentTransactions: [
+      {
+        id: 'TRN001',
+        customer_name: 'Ahmed Al-Rashid',
+        type: 'Transfer',
+        amount: 15000,
+        status: 'Completed',
+        transaction_datetime: new Date().toISOString(),
+        description: 'Fund Transfer'
+      },
+      {
+        id: 'TRN002',
+        customer_name: 'Fatima Al-Zahra',
+        type: 'Deposit',
+        amount: 5500,
+        status: 'Pending',
+        transaction_datetime: new Date(Date.now() - 300000).toISOString(),
+        description: 'Cash Deposit'
+      }
+    ]
+  }
+};
+
+// Test database connection with schema awareness
+export async function testConnection() {
+  if (!supabase || !supabaseCollection) {
+    return { success: false, error: 'Supabase clients not initialized' };
+  }
+  
+  try {
+    // Test banking schema
+    const { data: bankingTest, error: bankingError } = await supabaseBanking
+      .from(TABLES.CUSTOMERS)
+      .select('customer_id')
+      .limit(1);
+    
+    if (bankingError) {
+      console.error('❌ Banking schema connection failed:', bankingError);
+    } else {
+      console.log('✅ Banking schema connection successful');
+    }
+    
+    // Test collection schema
+    const { data: collectionTest, error: collectionError } = await supabaseCollection
+      .from(TABLES.COLLECTION_OFFICERS)
+      .select('officer_id')
+      .limit(1);
+    
+    if (collectionError) {
+      console.error('❌ Collection schema connection failed:', collectionError);
+    } else {
+      console.log('✅ Collection schema connection successful');
+    }
+    
+    const success = !bankingError || !collectionError;
+    return { 
+      success, 
+      banking: !bankingError,
+      collection: !collectionError,
+      error: bankingError?.message || collectionError?.message 
+    };
+  } catch (error) {
+    console.error('❌ Database connection test failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Helper to execute queries with proper schema
+export async function executeQuery(tableName, query, options = {}) {
+  const client = getClientForTable(tableName);
+  
+  if (!client) {
+    return formatApiResponse(null, new Error('Database client not initialized'));
+  }
+  
+  try {
+    const result = await query(client.from(tableName));
+    return formatApiResponse(result.data, result.error);
+  } catch (error) {
+    return formatApiResponse(null, error);
+  }
+}
+
+// Initialize and test connection
+if (isSupabaseConfigured) {
+  testConnection().then(result => {
+    if (!result.success) {
+      console.warn('Database connection test failed:', result.error);
+    } else {
+      console.log('Database schemas connected:', {
+        banking: result.banking ? '✅' : '❌',
+        collection: result.collection ? '✅' : '❌'
+      });
+    }
+  });
+}
