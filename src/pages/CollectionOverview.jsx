@@ -21,9 +21,9 @@ const CollectionOverview = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [filters, setFilters] = useState({
-    branch: '',
-    team: '',
-    status: ''
+    branch: 'all',
+    team: 'all',
+    status: 'all'
   });
 
   useEffect(() => {
@@ -33,9 +33,17 @@ const CollectionOverview = () => {
   const loadCollectionData = async () => {
     setLoading(true);
     try {
+      // Filter out 'all' values
+      const processedFilters = Object.entries(filters).reduce((acc, [key, value]) => {
+        if (value !== 'all') {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      
       const [overviewResponse, performanceResponse] = await Promise.all([
-        CollectionService.getCollectionOverview({ ...filters }),
-        CollectionService.getCollectionPerformance(selectedPeriod, { ...filters })
+        CollectionService.getCollectionOverview(processedFilters),
+        CollectionService.getCollectionPerformance(selectedPeriod, processedFilters)
       ]);
 
       if (overviewResponse.success) {
@@ -57,9 +65,9 @@ const CollectionOverview = () => {
 
   const clearFilters = () => {
     setFilters({
-      branch: '',
-      team: '',
-      status: ''
+      branch: 'all',
+      team: 'all',
+      status: 'all'
     });
   };
 
@@ -159,7 +167,7 @@ const CollectionOverview = () => {
                 <SelectValue placeholder="Branch" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Branches</SelectItem>
+                <SelectItem value="all">All Branches</SelectItem>
                 <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
                 <SelectItem value="JEDDAH">Jeddah</SelectItem>
                 <SelectItem value="DAMMAM">Dammam</SelectItem>
@@ -172,7 +180,7 @@ const CollectionOverview = () => {
                 <SelectValue placeholder="Team" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Teams</SelectItem>
+                <SelectItem value="all">All Teams</SelectItem>
                 <SelectItem value="TEAM_A">Team A</SelectItem>
                 <SelectItem value="TEAM_B">Team B</SelectItem>
                 <SelectItem value="TEAM_C">Team C</SelectItem>
@@ -185,7 +193,7 @@ const CollectionOverview = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="ACTIVE">Active</SelectItem>
                 <SelectItem value="RESOLVED">Resolved</SelectItem>
                 <SelectItem value="LEGAL">Legal</SelectItem>
