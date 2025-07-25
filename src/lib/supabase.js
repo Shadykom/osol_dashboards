@@ -1,197 +1,265 @@
-import { createClient } from '@supabase/supabase-js';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Layout } from './components/layout/Layout';
+import { Dashboard } from './pages/Dashboard';
+import { CustomDashboard } from './pages/CustomDashboard';
+import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
+import { OperationsDashboard } from './pages/OperationsDashboard';
+import { Customers } from './pages/Customers';
+import { Accounts } from './pages/Accounts';
+import { Transactions } from './pages/Transactions';
+import { Loans } from './pages/Loans';
+import { Reports } from './pages/Reports';
+import { Analytics } from './pages/Analytics';
+import { Compliance } from './pages/Compliance';
+import CollectionOverview from './pages/CollectionOverview';
+import CollectionCases from './pages/CollectionCases';
+import CollectionReports from './pages/CollectionReports';
+import DailyCollectionDashboard from './pages/DailyCollectionDashboard';
+import DigitalCollectionDashboard from './pages/DigitalCollectionDashboard';
+import EarlyWarningDashboard from './pages/EarlyWarningDashboard';
+import ExecutiveCollectionDashboard from './pages/ExecutiveCollectionDashboard';
+import FieldCollectionDashboard from './pages/FieldCollectionDashboard';
+import OfficerPerformanceDashboard from './pages/OfficerPerformanceDashboard';
+import ShariaComplianceDashboard from './pages/ShariaComplianceDashboard';
+import VintageAnalysisDashboard from './pages/VintageAnalysisDashboard';
+import DatabaseTest from './pages/DatabaseTest';
+import { Toaster } from './components/ui/sonner';
+import { useTranslation } from 'react-i18next';
+import { testConnection } from './lib/supabase';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import './App.css';
 
-// Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
-
-// Check if Supabase credentials are configured
-const isSupabaseConfigured = supabaseUrl !== 'https://your-project.supabase.co' && 
-                            supabaseAnonKey !== 'your-anon-key' &&
-                            supabaseUrl && supabaseAnonKey;
-
-console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Using mock data mode');
-
-// Create main Supabase client (uses public schema by default)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    }
-  }
-});
-
-// Use the main client for all operations since schema-qualified table names work
-export const supabaseBanking = supabase;
-export const supabaseCollection = supabase;
-
-// Database schema constants - using schema-qualified table names
-export const TABLES = {
-  // kastle_banking schema tables
-  CUSTOMERS: 'kastle_banking.customers',
-  ACCOUNTS: 'kastle_banking.accounts',
-  TRANSACTIONS: 'kastle_banking.transactions',
-  LOAN_ACCOUNTS: 'kastle_banking.loan_accounts',
-  BRANCHES: 'kastle_banking.branches',
-  CURRENCIES: 'kastle_banking.currencies',
-  COUNTRIES: 'kastle_banking.countries',
-  AUDIT_TRAIL: 'kastle_banking.audit_trail',
-  AUTH_USER_PROFILES: 'kastle_banking.auth_user_profiles',
-  REALTIME_NOTIFICATIONS: 'kastle_banking.realtime_notifications',
-  CUSTOMER_ADDRESSES: 'kastle_banking.customer_addresses',
-  CUSTOMER_CONTACTS: 'kastle_banking.customer_contacts',
-  CUSTOMER_DOCUMENTS: 'kastle_banking.customer_documents',
-  CUSTOMER_TYPES: 'kastle_banking.customer_types',
-  LOAN_APPLICATIONS: 'kastle_banking.loan_applications',
-  COLLECTION_BUCKETS: 'kastle_banking.collection_buckets',
-  COLLECTION_CASES: 'kastle_banking.collection_cases',
-  PRODUCTS: 'kastle_banking.products',
-  PRODUCT_CATEGORIES: 'kastle_banking.product_categories',
-  BANK_CONFIG: 'kastle_banking.bank_config',
+// Route Redirect Component
+function RouteRedirect() {
+  const location = useLocation();
   
-  // kastle_collection schema tables
-  COLLECTION_AUDIT_TRAIL: 'kastle_collection.audit_trail',
-  COLLECTION_CALL_RECORDS: 'kastle_collection.call_records',
-  COLLECTION_CAMPAIGNS: 'kastle_collection.campaigns',
-  COLLECTION_CASE_DETAILS: 'kastle_collection.case_details',
-  COLLECTION_INTERACTIONS: 'kastle_collection.interactions',
-  COLLECTION_OFFICERS: 'kastle_collection.officers',
-  COLLECTION_SCORES: 'kastle_collection.scores',
-  COLLECTION_STRATEGIES: 'kastle_collection.strategies',
-  COLLECTION_SYSTEM_PERFORMANCE: 'kastle_collection.system_performance',
-  COLLECTION_TEAMS: 'kastle_collection.teams',
-  DAILY_COLLECTION_SUMMARY: 'kastle_collection.daily_collection_summary',
-  DIGITAL_COLLECTION_ATTEMPTS: 'kastle_collection.digital_collection_attempts',
-  FIELD_VISITS: 'kastle_collection.field_visits',
-  HARDSHIP_APPLICATIONS: 'kastle_collection.hardship_applications',
-  IVR_PAYMENT_ATTEMPTS: 'kastle_collection.ivr_payment_attempts',
-  LEGAL_CASES: 'kastle_collection.legal_cases',
-  LOAN_RESTRUCTURING: 'kastle_collection.loan_restructuring',
-  OFFICER_PERFORMANCE_METRICS: 'kastle_collection.officer_performance_metrics',
-  PROMISE_TO_PAY: 'kastle_collection.promise_to_pay',
-  REPOSSESSED_ASSETS: 'kastle_collection.repossessed_assets',
-  SHARIA_COMPLIANCE_LOG: 'kastle_collection.sharia_compliance_log'
-};
-
-// Helper function to handle Supabase errors
-export function handleSupabaseError(error) {
-  console.error('Supabase error:', error);
-  
-  if (error?.code === 'PGRST116') {
-    return { error: 'No data found', code: 'NOT_FOUND' };
-  }
-  
-  if (error?.code === 'PGRST106') {
-    return { error: 'Schema not accessible. Please check Supabase configuration.', code: 'SCHEMA_ERROR' };
-  }
-  
-  if (error?.code === '23505') {
-    return { error: 'Record already exists', code: 'DUPLICATE' };
-  }
-  
-  if (error?.code === '23503') {
-    return { error: 'Referenced record not found', code: 'FOREIGN_KEY_VIOLATION' };
-  }
-  
-  if (error?.message?.includes('406')) {
-    return { error: 'Table not accessible. Please verify schema configuration.', code: 'ACCESS_DENIED' };
-  }
-  
-  return { 
-    error: error?.message || 'An unexpected error occurred', 
-    code: error?.code || 'UNKNOWN_ERROR' 
-  };
-}
-
-// Helper function to format API response
-export function formatApiResponse(data, error = null, pagination = null) {
-  if (error) {
-    return {
-      success: false,
-      data: null,
-      error: handleSupabaseError(error),
-      pagination: null
+  // Handle legacy URL patterns
+  useEffect(() => {
+    const path = location.pathname;
+    
+    // Map old URLs to new URLs
+    const redirectMap = {
+      '/collection-daily': '/collection/daily',
+      '/collection-overview': '/collection/overview',
+      '/collection-cases': '/collection/cases',
+      '/collection-reports': '/collection/reports',
+      '/collection-digital': '/collection/digital',
+      '/collection-early-warning': '/collection/early-warning',
+      '/collection-executive': '/collection/executive',
+      '/collection-field': '/collection/field',
+      '/collection-officer-performance': '/collection/officer-performance',
+      '/collection-sharia-compliance': '/collection/sharia-compliance',
+      '/collection-vintage-analysis': '/collection/vintage-analysis'
     };
-  }
-  
-  return {
-    success: true,
-    data,
-    error: null,
-    pagination
-  };
-}
-
-// Helper function to get appropriate client for table
-export function getClientForTable(tableName) {
-  // Always use the main client since we're using schema-qualified table names
-  return supabase;
-}
-
-// Helper function to get table name without schema prefix
-export function getTableNameOnly(tableName) {
-  return tableName.includes('.') ? tableName.split('.')[1] : tableName;
-}
-
-// Mock data for fallback when Supabase is not configured or fails
-export const MOCK_DATA = {
-  dashboard: {
-    totalCustomers: 12847,
-    totalAccounts: 18293,
-    totalDeposits: 2400000000,
-    totalLoans: 1800000000,
-    dailyTransactions: 8547,
-    monthlyRevenue: 45200000,
-    recentTransactions: [
-      {
-        id: 1,
-        customer_name: 'أحمد محمد',
-        amount: 15000,
-        type: 'DEPOSIT',
-        status: 'COMPLETED',
-        transaction_datetime: new Date().toISOString()
-      },
-      {
-        id: 2,
-        customer_name: 'فاطمة علي',
-        amount: 8500,
-        type: 'WITHDRAWAL',
-        status: 'COMPLETED',
-        transaction_datetime: new Date(Date.now() - 3600000).toISOString()
-      },
-      {
-        id: 3,
-        customer_name: 'محمد السعيد',
-        amount: 25000,
-        type: 'TRANSFER',
-        status: 'PENDING',
-        transaction_datetime: new Date(Date.now() - 7200000).toISOString()
-      }
-    ]
-  },
-  customers: [
-    {
-      id: 1,
-      customer_name: 'أحمد محمد علي',
-      customer_type: 'INDIVIDUAL',
-      status: 'ACTIVE',
-      total_balance: 125000,
-      created_at: '2024-01-15'
-    },
-    {
-      id: 2,
-      customer_name: 'شركة التجارة الحديثة',
-      customer_type: 'CORPORATE',
-      status: 'ACTIVE',
-      total_balance: 850000,
-      created_at: '2024-02-10'
+    
+    if (redirectMap[path]) {
+      window.location.replace(redirectMap[path]);
     }
-  ]
-};
+  }, [location]);
+  
+  return null;
+}
 
-export { isSupabaseConfigured };
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
 
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('App Error Boundary caught an error:', error, errorInfo);
+    this.setState({
+      error: error,
+      errorInfo: errorInfo
+    });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+          <h1 style={{ color: '#dc2626' }}>Something went wrong</h1>
+          <p>The Osoul Dashboard encountered an error and needs to be refreshed.</p>
+          <details style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '10px', borderRadius: '4px', marginTop: '10px' }}>
+            <summary style={{ cursor: 'pointer' }}>Error Details</summary>
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
+          </details>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ 
+              marginTop: '10px', 
+              padding: '10px 20px', 
+              backgroundColor: '#2563eb', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Refresh Page
+          </button>
+          <button 
+            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })} 
+            style={{ 
+              marginTop: '10px', 
+              marginLeft: '10px',
+              padding: '10px 20px', 
+              backgroundColor: '#16a34a', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// 404 Page Component
+function NotFound() {
+  return (
+    <div style={{ textAlign: 'center', padding: '50px' }}>
+      <h1 style={{ fontSize: '48px', color: '#dc2626' }}>404</h1>
+      <h2>Page Not Found</h2>
+      <p>The page you are looking for doesn't exist.</p>
+      <button 
+        onClick={() => window.location.href = '/dashboard'} 
+        style={{ 
+          marginTop: '20px', 
+          padding: '10px 20px', 
+          backgroundColor: '#2563eb', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '4px', 
+          cursor: 'pointer' 
+        }}
+      >
+        Go to Dashboard
+      </button>
+    </div>
+  );
+}
+
+// Safe App Component
+function SafeApp() {
+  const { i18n } = useTranslation();
+  
+  // Test database connection on mount
+  useEffect(() => {
+    testConnection().then(result => {
+      if (result.success) {
+        console.log('✅ Database connection established');
+      } else {
+        console.warn('⚠️ Running in offline/mock mode:', result.error);
+      }
+    });
+  }, []);
+  
+  return (
+    <div className={`app ${i18n.language === 'ar' ? 'rtl' : 'ltr'}`} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+      <Router>
+        <RouteRedirect />
+        <Layout>
+          <Routes>
+            {/* Main Routes */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            
+            {/* Dashboard Routes */}
+            <Route path="/dashboards/custom" element={<CustomDashboard />} />
+            <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
+            <Route path="/dashboards/operations" element={<OperationsDashboard />} />
+            
+            {/* Customer Routes */}
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/new" element={<Customers />} />
+            <Route path="/customers/kyc-pending" element={<Customers />} />
+            <Route path="/customers/risk" element={<Customers />} />
+            
+            {/* Account Routes */}
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/accounts/new" element={<Accounts />} />
+            
+            {/* Transaction Routes */}
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/transactions/pending" element={<Transactions />} />
+            <Route path="/transactions/failed" element={<Transactions />} />
+            
+            {/* Loan Routes */}
+            <Route path="/loans" element={<Loans />} />
+            <Route path="/loans/applications" element={<Loans />} />
+            <Route path="/loans/disbursed" element={<Loans />} />
+            <Route path="/loans/disbursements" element={<Loans />} />
+            <Route path="/loans/collections" element={<Loans />} />
+            <Route path="/loans/overdue" element={<Loans />} />
+            
+            {/* Other Routes */}
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/compliance" element={<Compliance />} />
+            <Route path="/database-test" element={<DatabaseTest />} />
+            
+            {/* Collection Routes */}
+            <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
+            <Route path="/collection/overview" element={<CollectionOverview />} />
+            <Route path="/collection/cases" element={<CollectionCases />} />
+            <Route path="/collection/reports" element={<CollectionReports />} />
+            <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
+            <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
+            <Route path="/collection/early-warning" element={<EarlyWarningDashboard />} />
+            <Route path="/collection/executive" element={<ExecutiveCollectionDashboard />} />
+            <Route path="/collection/field" element={<FieldCollectionDashboard />} />
+            <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
+            <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
+            <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
+            
+            {/* Legacy URL Redirects (backwards compatibility) */}
+            <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
+            <Route path="/collection-overview" element={<Navigate to="/collection/overview" replace />} />
+            <Route path="/collection-cases" element={<Navigate to="/collection/cases" replace />} />
+            <Route path="/collection-reports" element={<Navigate to="/collection/reports" replace />} />
+            <Route path="/collection-digital" element={<Navigate to="/collection/digital" replace />} />
+            <Route path="/collection-early-warning" element={<Navigate to="/collection/early-warning" replace />} />
+            <Route path="/collection-executive" element={<Navigate to="/collection/executive" replace />} />
+            <Route path="/collection-field" element={<Navigate to="/collection/field" replace />} />
+            <Route path="/collection-officer-performance" element={<Navigate to="/collection/officer-performance" replace />} />
+            <Route path="/collection-sharia-compliance" element={<Navigate to="/collection/sharia-compliance" replace />} />
+            <Route path="/collection-vintage-analysis" element={<Navigate to="/collection/vintage-analysis" replace />} />
+            
+            {/* 404 Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Layout>
+        <Toaster />
+      </Router>
+    </div>
+  );
+}
+
+// Main App Component
+function App() {
+  console.log('App component rendering...');
+  
+  return (
+    <ErrorBoundary>
+      <SafeApp />
+    </ErrorBoundary>
+  );
+}
+
+export default App;

@@ -7,8 +7,7 @@ import {
   handleSupabaseError, 
   isSupabaseConfigured,
   MOCK_DATA,
-  getClientForTable,
-  getTableNameOnly
+  getClientForTable
 } from '@/lib/supabase';
 
 export class DashboardService {
@@ -25,38 +24,38 @@ export class DashboardService {
 
       // Use Promise.allSettled to handle partial failures gracefully
       const results = await Promise.allSettled([
-        // Get total customers
-        supabase
+        // Get total customers from banking schema
+        supabaseBanking
           .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true }),
 
-        // Get total accounts
-        supabase
+        // Get total accounts from banking schema
+        supabaseBanking
           .from(TABLES.ACCOUNTS)
           .select('*', { count: 'exact', head: true }),
 
-        // Get deposits data
-        supabase
+        // Get deposits data from banking schema
+        supabaseBanking
           .from(TABLES.ACCOUNTS)
           .select('current_balance')
           .eq('account_status', 'ACTIVE'),
 
-        // Get loans data
-        supabase
+        // Get loans data from banking schema
+        supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('outstanding_balance')
           .in('loan_status', ['ACTIVE', 'DISBURSED']),
 
-        // Get daily transactions
-        supabase
+        // Get daily transactions from banking schema
+        supabaseBanking
           .from(TABLES.TRANSACTIONS)
           .select('*', { count: 'exact', head: true })
           .gte('transaction_date', new Date().toISOString().split('T')[0]),
 
-        // Get recent transactions
-        supabase
+        // Get recent transactions from banking schema
+        supabaseBanking
           .from(TABLES.TRANSACTIONS)
-          .select('transaction_id, account_number, transaction_amount, transaction_type_id, status, transaction_date, narration')
+          .select('transaction_id, account_number, transaction_amount, transaction_type_id, status, transaction_date, narration, beneficiary_name')
           .order('transaction_date', { ascending: false })
           .limit(5)
       ]);
@@ -143,17 +142,20 @@ export class DashboardService {
         return formatApiResponse(MOCK_DATA.dashboard.recentTransactions.slice(0, limit));
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select(`
           transaction_id,
+          transaction_ref,
           account_number,
           transaction_amount,
           transaction_type_id,
           status,
           transaction_date,
           narration,
-          beneficiary_name
+          beneficiary_name,
+          debit_credit,
+          currency_code
         `)
         .order('transaction_date', { ascending: false })
         .limit(limit);
@@ -164,16 +166,16 @@ export class DashboardService {
       }
 
       const formattedTransactions = data?.map(tx => ({
-        id: tx.transaction_id,
+        id: tx.transaction_ref,
         customer_name: tx.beneficiary_name || `Account ${tx.account_number}`,
-        type: tx.transaction_type_id || 'UNKNOWN',
+        type: tx.debit_credit === 'DEBIT' ? 'Withdrawal' : 'Deposit',
         amount: parseFloat(tx.transaction_amount) || 0,
         status: tx.status || 'UNKNOWN',
         transaction_datetime: tx.transaction_date,
         description: tx.narration,
         formatted_amount: new Intl.NumberFormat('ar-SA', {
           style: 'currency',
-          currency: 'SAR'
+          currency: tx.currency_code || 'SAR'
         }).format(parseFloat(tx.transaction_amount) || 0)
       })) || [];
 
@@ -200,19 +202,19 @@ export class DashboardService {
       }
 
       const results = await Promise.allSettled([
-        // Total customers
-        supabase
+        // Total customers from banking schema
+        supabaseBanking
           .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true }),
 
-        // Active customers
-        supabase
+        // Active customers from banking schema
+        supabaseBanking
           .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true })
           .eq('is_active', true),
 
-        // New customers this month
-        supabase
+        // New customers this month from banking schema
+        supabaseBanking
           .from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true })
           .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
@@ -255,19 +257,19 @@ export class DashboardService {
       }
 
       const results = await Promise.allSettled([
-        // Total accounts
-        supabase
+        // Total accounts from banking schema
+        supabaseBanking
           .from(TABLES.ACCOUNTS)
           .select('*', { count: 'exact', head: true }),
 
-        // Active accounts
-        supabase
+        // Active accounts from banking schema
+        supabaseBanking
           .from(TABLES.ACCOUNTS)
           .select('*', { count: 'exact', head: true })
           .eq('account_status', 'ACTIVE'),
 
-        // Account balances
-        supabase
+        // Account balances from banking schema
+        supabaseBanking
           .from(TABLES.ACCOUNTS)
           .select('current_balance')
           .eq('account_status', 'ACTIVE')
@@ -314,19 +316,19 @@ export class DashboardService {
       }
 
       const results = await Promise.allSettled([
-        // Total loan accounts
-        supabase
+        // Total loan accounts from banking schema
+        supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('*', { count: 'exact', head: true }),
 
-        // Active loans
-        supabase
+        // Active loans from banking schema
+        supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('*', { count: 'exact', head: true })
           .in('loan_status', ['ACTIVE', 'DISBURSED']),
 
-        // Outstanding balances
-        supabase
+        // Outstanding balances from banking schema
+        supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('outstanding_balance')
           .in('loan_status', ['ACTIVE', 'DISBURSED'])
@@ -377,8 +379,8 @@ export class DashboardService {
         });
       }
 
-      // Get transaction analytics from database
-      const { data, error } = await supabase
+      // Get transaction analytics from banking schema
+      const { data, error } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('channel, status')
         .gte('transaction_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
@@ -452,19 +454,19 @@ export class DashboardService {
       }
 
       const results = await Promise.allSettled([
-        // Total disbursed
-        supabase
+        // Total disbursed from banking schema
+        supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('principal_amount'),
 
-        // Outstanding amounts
-        supabase
+        // Outstanding amounts from banking schema
+        supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('outstanding_balance')
           .in('loan_status', ['ACTIVE', 'DISBURSED']),
 
-        // NPA loans
-        supabase
+        // NPA loans from banking schema
+        supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('outstanding_balance')
           .not('npa_date', 'is', null)
@@ -617,4 +619,3 @@ export class DashboardService {
     }
   }
 }
-
