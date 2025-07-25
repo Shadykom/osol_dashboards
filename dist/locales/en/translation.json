@@ -117,6 +117,7 @@
     "digitalCollection": "Digital Collection",
     "earlyWarning": "Early Warning",
     "executiveCollection": "Executive Collection",
+    "delinquencyExecutive": "Executive Delinquency Dashboard",
     "fieldCollection": "Field Collection",
     "officerPerformance": "Officer Performance",
     "shariaCompliance": "Sharia Compliance",
@@ -399,5 +400,76 @@
   "help_support": {
     "title": "Help & Support",
     "description": "Help documentation and support coming soon..."
+  },
+  "delinquencyDashboard": {
+    "title": "Executive Delinquency Dashboard",
+    "subtitle": "Comprehensive overview of collection performance and portfolio health",
+    "selectPeriod": "Select Period",
+    "currentMonth": "Current Month",
+    "currentQuarter": "Current Quarter",
+    "currentYear": "Current Year",
+    "kpi": {
+      "totalPortfolio": "Total Portfolio",
+      "activeLoans": "active loans",
+      "totalDelinquency": "Total Delinquency",
+      "fromTotalPortfolio": "of total portfolio",
+      "monthlyCollectionRate": "Monthly Collection Rate",
+      "delinquentAccounts": "Delinquent Accounts",
+      "fromTotalLoans": "of total loans"
+    },
+    "performanceComparison": {
+      "title": "Performance Comparison with Previous Periods",
+      "comparedToPrevMonth": "Compared to Previous Month",
+      "comparedToPrevQuarter": "Compared to Previous Quarter",
+      "comparedToPrevYear": "Compared to Previous Year"
+    },
+    "charts": {
+      "agingDistribution": "Delinquency Distribution by Aging Buckets",
+      "collectionTrends": "Collection Trends",
+      "topDelinquents": "Top Delinquent Customers",
+      "delinquencyTrend": "Delinquency Rate Trend",
+      "monthlyCollectionTrends": "Monthly Collection Rate Trends",
+      "top10Delinquents": "Top 10 Delinquent Customers",
+      "collectedAmount": "Collected Amount",
+      "collectionRatePercent": "Collection Rate %"
+    },
+    "aging": {
+      "current": "Current",
+      "days1_30": "1-30 Days",
+      "days31_60": "31-60 Days",
+      "days61_90": "61-90 Days",
+      "days91_180": "91-180 Days",
+      "days181_365": "181-365 Days",
+      "over365Days": "Over 365 Days"
+    },
+    "table": {
+      "customerName": "Customer Name",
+      "accountNumber": "Account Number",
+      "outstandingAmount": "Outstanding Amount",
+      "daysOverdue": "Days Overdue",
+      "lastPaymentDate": "Last Payment Date",
+      "riskCategory": "Risk Category",
+      "customerNumber": "Customer Number",
+      "delinquentLoansCount": "Delinquent Loans Count",
+      "totalDelinquency": "Total Delinquency",
+      "maxDaysOverdue": "Max Days Overdue",
+      "collectionStatus": "Collection Status",
+      "days": "days"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "aging": "Aging",
+      "trends": "Trends",
+      "performance": "Performance"
+    },
+    "loading": "Loading data...",
+    "noData": "No data available",
+    "recommendations": {
+      "title": "Strategic Recommendations:",
+      "focus61_90": "Focus on customers in the 61-90 day category to prevent them from moving to higher categories",
+      "reviewPolicies": "Review lending policies for high-risk customers",
+      "strengthenTeams": "Strengthen collection teams in underperforming branches",
+      "developPrograms": "Develop restructuring programs for long-term delinquent loans"
+    }
   }
 }

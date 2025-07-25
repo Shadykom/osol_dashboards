@@ -24,10 +24,10 @@ const CollectionCases = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
-    status: '',
-    priority: '',
-    bucket: '',
-    assignedTo: '',
+    status: 'all',
+    priority: 'all',
+    bucket: 'all',
+    assignedTo: 'all',
     minAmount: '',
     maxAmount: '',
     minDpd: '',
@@ -53,10 +53,10 @@ const CollectionCases = () => {
       const response = await CollectionService.getCollectionCases({ 
         limit: 200,
         search: filters.search || null,
-        status: filters.status || null,
-        priority: filters.priority || null,
-        bucket: filters.bucket || null,
-        assignedTo: filters.assignedTo || null,
+        status: filters.status === 'all' ? null : filters.status || null,
+        priority: filters.priority === 'all' ? null : filters.priority || null,
+        bucket: filters.bucket === 'all' ? null : filters.bucket || null,
+        assignedTo: filters.assignedTo === 'all' ? null : filters.assignedTo || null,
         minAmount: filters.minAmount || null,
         maxAmount: filters.maxAmount || null,
         minDpd: filters.minDpd || null,
@@ -93,10 +93,10 @@ const CollectionCases = () => {
   const clearFilters = () => {
     setFilters({
       search: '',
-      status: '',
-      priority: '',
-      bucket: '',
-      assignedTo: '',
+      status: 'all',
+      priority: 'all',
+      bucket: 'all',
+      assignedTo: 'all',
       minAmount: '',
       maxAmount: '',
       minDpd: '',
@@ -208,7 +208,7 @@ const CollectionCases = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="ACTIVE">Active</SelectItem>
                 <SelectItem value="RESOLVED">Resolved</SelectItem>
                 <SelectItem value="LEGAL">Legal</SelectItem>
@@ -223,7 +223,7 @@ const CollectionCases = () => {
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Priorities</SelectItem>
+                <SelectItem value="all">All Priorities</SelectItem>
                 <SelectItem value="CRITICAL">Critical</SelectItem>
                 <SelectItem value="HIGH">High</SelectItem>
                 <SelectItem value="MEDIUM">Medium</SelectItem>
