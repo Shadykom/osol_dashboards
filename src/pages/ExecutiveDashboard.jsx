@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   LineChart,
@@ -198,7 +199,7 @@ export function ExecutiveDashboard() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => toast.info('Export functionality coming soon')}>
             <Download className="mr-2 h-4 w-4" />
             Export Report
           </Button>

@@ -334,7 +334,7 @@ export function Analytics() {
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => toast.info('Export functionality coming soon')}>
             <Download className="h-4 w-4" />
             Export Report
           </Button>
