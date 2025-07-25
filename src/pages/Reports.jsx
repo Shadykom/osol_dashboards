@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { formatNumber, formatCurrency as formatCurrencyUtil, formatDate, formatDateTime } from '@/utils/formatters';
+import { ClientOnly } from '@/components/ui/ClientOnly';
 import { 
   FileText,
   Download,
@@ -242,7 +244,7 @@ export function Reports() {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
         financialData.push({
-          month: date.toLocaleDateString('en-US', { month: 'short' }),
+          month: formatDate(date, { month: 'short' }),
           revenue: Math.floor(Math.random() * 50000000) + 100000000,
           expenses: Math.floor(Math.random() * 30000000) + 70000000,
           profit: Math.floor(Math.random() * 20000000) + 20000000
@@ -255,7 +257,7 @@ export function Reports() {
         const date = new Date();
         date.setDate(date.getDate() - i);
         customerData.push({
-          date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          date: formatDate(date, { weekday: 'short' }),
           new: Math.floor(Math.random() * 100) + 50,
           churned: Math.floor(Math.random() * 30) + 10,
           total: Math.floor(Math.random() * 1000) + 5000
@@ -545,7 +547,7 @@ export function Reports() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {new Date(report.generated_at).toLocaleString()}
+                                                        <ClientOnly fallback="--/--/----">{formatDateTime(report.generated_at)}</ClientOnly>
                       </TableCell>
                       <TableCell>{report.generated_by}</TableCell>
                       <TableCell>
@@ -624,7 +626,7 @@ export function Reports() {
                       </TableCell>
                       <TableCell>{report.schedule}</TableCell>
                       <TableCell>
-                        {new Date(report.next_run).toLocaleString()}
+                                                        <ClientOnly fallback="--/--/----">{formatDateTime(report.next_run)}</ClientOnly>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">

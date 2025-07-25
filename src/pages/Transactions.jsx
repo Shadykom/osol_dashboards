@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { formatNumber, formatCurrency as formatCurrencyUtil, formatDate, formatTime } from '@/utils/formatters';
+import { ClientOnly } from '@/components/ui/ClientOnly';
 import { 
   ArrowUpDown,
   TrendingUp, 
@@ -280,7 +282,7 @@ export function Transactions() {
         const volume = volumeData?.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0;
 
         trends.push({
-          date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          date: formatDate(date, { weekday: 'short' }),
           transactions: count || 0,
           volume: volume / 1000 // Convert to thousands
         });
@@ -404,7 +406,7 @@ export function Transactions() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Transactions"
-          value={stats.totalTransactions.toLocaleString()}
+                            value={formatNumber(stats.totalTransactions)}
           icon={ArrowUpDown}
           color="text-blue-500"
           trend={8}
@@ -426,7 +428,7 @@ export function Transactions() {
         />
         <StatCard
           title={t('common.pending')}
-          value={stats.pendingTransactions.toLocaleString()}
+                            value={formatNumber(stats.pendingTransactions)}
           icon={Clock}
           color="text-yellow-500"
           subtitle={`Peak hour: ${stats.peakHour}`}
@@ -635,7 +637,7 @@ export function Transactions() {
                                 <TableCell>
                                   <div className={transaction.transaction_type === 'DEPOSIT' ? 'text-green-600' : 'text-red-600'}>
                                     {transaction.transaction_type === 'DEPOSIT' ? '+' : '-'}
-                                    SAR {parseFloat(transaction.amount).toLocaleString()}
+                                    SAR {formatNumber(parseFloat(transaction.amount))}
                                   </div>
                                 </TableCell>
                                 <TableCell>
@@ -645,12 +647,14 @@ export function Transactions() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
-                                  <div>
-                                    <div>{new Date(transaction.transaction_date).toLocaleDateString()}</div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {new Date(transaction.transaction_date).toLocaleTimeString()}
+                                  <ClientOnly fallback={<div>--/--/----</div>}>
+                                    <div>
+                                      <div>{formatDate(transaction.transaction_date)}</div>
+                                      <div className="text-sm text-muted-foreground">
+                                        {formatTime(transaction.transaction_date)}
+                                      </div>
                                     </div>
-                                  </div>
+                                  </ClientOnly>
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Button variant="ghost" size="sm">

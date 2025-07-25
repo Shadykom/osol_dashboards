@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { formatNumber, formatCurrency as formatCurrencyUtil, formatDate } from '@/utils/formatters';
 import { 
   TrendingUp,
   BarChart3,
@@ -152,7 +153,7 @@ export function Analytics() {
       date.setDate(date.getDate() - i);
       
       data.push({
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: formatDate(date, { month: 'short', day: 'numeric' }),
         revenue: Math.floor(Math.random() * 2000000) + 3000000,
         transactions: Math.floor(Math.random() * 5000) + 7000,
         newCustomers: Math.floor(Math.random() * 100) + 50,
@@ -269,7 +270,7 @@ export function Analytics() {
       ? `SAR ${(value / 1000000).toFixed(1)}M`
       : format === 'percent'
       ? `${value}%`
-      : value.toLocaleString();
+                      : formatNumber(value);
 
     return (
       <motion.div variants={itemVariants} whileHover={{ scale: 1.02 }}>
@@ -457,7 +458,7 @@ export function Analytics() {
                       <span className="text-sm">{segment.name}</span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-sm font-medium">{segment.value.toLocaleString()}</span>
+                                                    <span className="text-sm font-medium">{formatNumber(segment.value)}</span>
                       <Badge variant={segment.growth > 0 ? "success" : "destructive"}>
                         {segment.growth > 0 ? '+' : ''}{segment.growth}%
                       </Badge>
@@ -527,7 +528,7 @@ export function Analytics() {
                             ? `SAR ${(insight.predicted / 1000000).toFixed(0)}M`
                             : insight.metric.includes('%') || insight.metric.includes('Risk')
                             ? `${insight.predicted}%`
-                            : insight.predicted.toLocaleString()
+                                                            : formatNumber(insight.predicted)
                           }
                         </span>
                         <span className={`text-sm ${insight.trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
