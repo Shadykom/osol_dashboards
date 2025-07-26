@@ -733,23 +733,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
         </div>
       )}
 
-      {/* Quick Actions */}
-      {!isCollapsed && (
-        <div className="px-3 pb-2">
-          <div className="flex gap-1">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex-1"
-              onClick={() => window.location.href = '/loans/applications/new'}
-            >
-              <Wallet className="h-3 w-3 mr-1 rtl:mr-0 rtl:ml-1" />
-              {t('navigation.newLoan')}
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <ScrollArea className="flex-1 px-2 overflow-y-auto">
         <div className="space-y-4 py-2 pb-20">
