@@ -40,12 +40,12 @@ import {
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ScatterChart, Scatter, ComposedChart, Sankey,
+  ScatterChart, Scatter, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadialBarChart, RadialBar, Treemap, Funnel, FunnelChart
 } from 'recharts';
 import { 
-  User, Phone, Mail, Calendar, DollarSign, AlertTriangle,
+  User, Phone, Mail, Calendar as CalendarIcon, DollarSign, AlertTriangle,
   FileText, Download, RefreshCw, Filter, Search, Target, BarChart3,
   TrendingUp, Clock, MessageSquare, PhoneCall, CheckCircle, Activity,
   XCircle, Loader2, FileDown, Eye, ChevronRight, Settings, Save,
@@ -1510,7 +1510,7 @@ const SpecialistLevelReport = () => {
                       <CardTitle>الجدول الزمني للأنشطة</CardTitle>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm">
-                          <Calendar className="h-4 w-4 mr-2" />
+                          <CalendarIcon className="h-4 w-4 mr-2" />
                           اليوم
                         </Button>
                         <Button variant="ghost" size="sm">الأسبوع</Button>
