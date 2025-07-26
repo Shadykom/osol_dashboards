@@ -96,6 +96,19 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchPortfolioSummary = async () => {
+    if (!supabase) {
+      // Return mock data when Supabase is not configured
+      return {
+        total_portfolio_value: 2500000000,
+        delinquent_amount: 125000000,
+        delinquency_rate: 5.0,
+        collection_amount_mtd: 45000000,
+        recovery_rate: 36.0,
+        active_cases: 1234,
+        snapshot_date: new Date().toISOString()
+      };
+    }
+
     const { data, error } = await supabase
       .from('executive_delinquency_summary')
       .select('*')
@@ -108,6 +121,19 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchAgingDistribution = async () => {
+    if (!supabase) {
+      // Return mock data when Supabase is not configured
+      return [
+        { bucket_name: 'Current', amount: 1875000000, count: 8500, percentage: 75.0 },
+        { bucket_name: '1-30 Days', amount: 250000000, count: 1200, percentage: 10.0 },
+        { bucket_name: '31-60 Days', amount: 150000000, count: 800, percentage: 6.0 },
+        { bucket_name: '61-90 Days', amount: 100000000, count: 500, percentage: 4.0 },
+        { bucket_name: '91-180 Days', amount: 75000000, count: 300, percentage: 3.0 },
+        { bucket_name: '181-365 Days', amount: 35000000, count: 150, percentage: 1.4 },
+        { bucket_name: 'Over 365 Days', amount: 15000000, count: 50, percentage: 0.6 }
+      ];
+    }
+
     const { data, error } = await supabase
       .from('aging_distribution')
       .select('*')
@@ -118,6 +144,18 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchCollectionTrends = async () => {
+    if (!supabase) {
+      // Return mock data when Supabase is not configured
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const currentMonth = new Date().getMonth();
+      return months.slice(0, currentMonth + 1).map((month, index) => ({
+        period_date: new Date(new Date().getFullYear(), index, 1).toISOString(),
+        collection_amount: 40000000 + Math.random() * 10000000,
+        collection_rate: 35 + Math.random() * 10,
+        recovery_rate: 85 + Math.random() * 10
+      }));
+    }
+
     const { data, error } = await supabase
       .from('collection_rates')
       .select('*')
@@ -130,6 +168,17 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchTopDelinquents = async () => {
+    if (!supabase) {
+      // Return mock data when Supabase is not configured
+      return [
+        { customer_name: 'ABC Corporation', customer_id: 'C001', outstanding_amount: 15000000, days_past_due: 120, aging_bucket: '91-180 Days' },
+        { customer_name: 'XYZ Industries', customer_id: 'C002', outstanding_amount: 12000000, days_past_due: 95, aging_bucket: '91-180 Days' },
+        { customer_name: 'Global Trading Co.', customer_id: 'C003', outstanding_amount: 10000000, days_past_due: 65, aging_bucket: '61-90 Days' },
+        { customer_name: 'Tech Solutions Ltd.', customer_id: 'C004', outstanding_amount: 8500000, days_past_due: 45, aging_bucket: '31-60 Days' },
+        { customer_name: 'Prime Retail Group', customer_id: 'C005', outstanding_amount: 7200000, days_past_due: 35, aging_bucket: '31-60 Days' }
+      ];
+    }
+
     const { data, error } = await supabase
       .from('top_delinquent_customers')
       .select('*')
@@ -140,6 +189,23 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchPerformanceComparison = async () => {
+    if (!supabase) {
+      // Return mock data when Supabase is not configured
+      return {
+        total_portfolio_value: 2500000000,
+        delinquent_amount: 125000000,
+        delinquency_rate: 5.0,
+        collection_amount_mtd: 45000000,
+        recovery_rate: 36.0,
+        active_cases: 1234,
+        snapshot_date: new Date().toISOString(),
+        // Previous period data for comparison
+        prev_delinquency_rate: 5.5,
+        prev_recovery_rate: 34.0,
+        prev_collection_amount: 42000000
+      };
+    }
+
     const { data, error } = await supabase
       .from('executive_delinquency_summary')
       .select('*')
