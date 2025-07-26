@@ -12,7 +12,7 @@ import {
   LineChart, Line, BarChart, Bar, RadarChart, Radar, PolarGrid, 
   PolarAngleAxis, PolarRadiusAxis, ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  Cell, ComposedChart, Area
+  Cell, ComposedChart, Area, AreaChart
 } from 'recharts';
 import { 
   AlertTriangle, TrendingUp, Users, Activity, Bell, Shield,
