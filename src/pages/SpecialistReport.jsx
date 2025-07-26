@@ -5,18 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  RadialBarChart, RadialBar
-} from 'recharts';
-import { 
-  User, Phone, MessageSquare, Calendar, DollarSign, Target,
-  Clock, AlertTriangle, CheckCircle, TrendingUp, Download,
-  FileText, Eye, Filter, RefreshCw
-} from 'lucide-react';
-import { CollectionService } from '../services/collectionService';
-
 // Table components implemented inline
 const Table = ({ children, className = "" }) => (
   <table className={`w-full caption-bottom text-sm ${className}`}>
@@ -53,8 +41,19 @@ const TableCell = ({ children, className = "" }) => (
     {children}
   </td>
 );
+import { 
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  RadialBarChart, RadialBar
+} from 'recharts';
+import { 
+  User, Phone, MessageSquare, Calendar, DollarSign, Target,
+  Clock, AlertTriangle, CheckCircle, TrendingUp, Download,
+  FileText, Eye, Filter, RefreshCw
+} from 'lucide-react';
+import { CollectionService } from '../services/collectionService';
 
-const SpecialistLevelReport = () => {
+const SpecialistReport = () => {
   const [specialists, setSpecialists] = useState([]);
   const [selectedSpecialist, setSelectedSpecialist] = useState('');
   const [reportData, setReportData] = useState(null);
@@ -606,4 +605,4 @@ const SpecialistLevelReport = () => {
   );
 };
 
-export default SpecialistLevelReport;
+export default SpecialistReport;
