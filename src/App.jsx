@@ -27,7 +27,6 @@ import DelinquencyExecutiveDashboard from './pages/DelinquencyExecutiveDashboard
 import DatabaseTest from './pages/DatabaseTest';
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
-import { testConnection } from './lib/supabase';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './App.css';
@@ -160,15 +159,12 @@ function NotFound() {
 function SafeApp() {
   const { i18n } = useTranslation();
   
-  // Test database connection on mount
+  // Database connection status logging
   useEffect(() => {
-    testConnection().then(result => {
-      if (result.success) {
-        console.log('✅ Database connection established');
-      } else {
-        console.warn('⚠️ Running in offline/mock mode:', result.error);
-      }
-    });
+    if (import.meta.env.DEV) {
+      console.log('🔗 Checking database connection status...');
+      // Connection status is already logged in supabase.js
+    }
   }, []);
   
   return (

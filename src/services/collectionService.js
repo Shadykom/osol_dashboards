@@ -1,13 +1,10 @@
 import { 
-  supabase,
-  supabaseBanking,
+  supabase, 
   supabaseCollection, 
   TABLES, 
-  formatApiResponse, 
-  handleSupabaseError,
   isSupabaseConfigured,
-  getClientForTable 
-} from '../lib/supabase.js';
+  getClientForTable
+} from '@/lib/supabase';
 
 /**
  * Collection Service with correct schema references

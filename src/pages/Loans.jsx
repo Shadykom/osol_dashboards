@@ -113,13 +113,12 @@ export function Loans() {
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           *,
-          kastle_banking.customers (
+          kastle_banking.customers!customer_id (
             customer_id,
             first_name,
             last_name,
             email,
-            phone_number,
-            credit_score
+            phone_number
           )
         `)
         .order('created_at', { ascending: false });

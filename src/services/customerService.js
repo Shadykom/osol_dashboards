@@ -1,4 +1,4 @@
-import { supabaseBanking, TABLES, formatApiResponse } from '@/lib/supabase';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 
 export class CustomerService {
   /**

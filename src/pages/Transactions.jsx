@@ -130,9 +130,9 @@ export function Transactions() {
         .from(TABLES.TRANSACTIONS)
         .select(`
           *,
-          accounts!transactions_account_id_fkey (
+          kastle_banking.accounts!account_number (
             account_number,
-            kastle_banking.customers (
+            kastle_banking.customers!customer_id (
               first_name,
               last_name
             )

@@ -6,12 +6,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Database } from 'lucide-react';
 import { 
-  supabase,
-  supabaseBanking,
+  supabase, 
+  supabaseBanking, 
   supabaseCollection, 
   TABLES, 
-  isSupabaseConfigured,
-  testConnection 
+  isSupabaseConfigured
 } from '@/lib/supabase';
 
 export function DatabaseTest() {
@@ -37,7 +36,11 @@ export function DatabaseTest() {
     };
 
     // Test basic connection
-    const connectionTest = await testConnection();
+    const connectionTest = {
+      success: isSupabaseConfigured && supabase !== null,
+      banking: isSupabaseConfigured && supabaseBanking !== null,
+      collection: isSupabaseConfigured && supabaseCollection !== null
+    };
     testResults.connection = {
       overall: connectionTest.success ? '✅ Connected' : '❌ Failed',
       banking: connectionTest.banking ? '✅ Connected' : '❌ Failed',

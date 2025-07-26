@@ -3,12 +3,26 @@ import {
   supabase, 
   supabaseBanking, 
   TABLES, 
-  formatApiResponse, 
-  handleSupabaseError, 
   isSupabaseConfigured,
-  MOCK_DATA,
   getClientForTable
 } from '@/lib/supabase';
+
+// Simple API response formatter
+function formatApiResponse(data, error = null) {
+  if (error) {
+    return {
+      success: false,
+      error: error.message || 'An unexpected error occurred',
+      data: null
+    };
+  }
+  
+  return {
+    success: true,
+    data: data || null,
+    error: null
+  };
+}
 
 export class DashboardService {
   /**
