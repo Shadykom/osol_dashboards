@@ -9,20 +9,30 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 console.log('Supabase URL:', supabaseUrl ? 'Configured' : 'Missing');
 console.log('Supabase Anon Key:', supabaseAnonKey ? 'Configured' : 'Missing');
 
-// Create Supabase clients
+// Create Supabase clients for different schemas
 export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    })
+  : null;
+
+// Banking database client (using kastle_banking schema)
+export const supabaseBanking = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
       },
       db: {
-        schema: 'kastle_banking' // Default to banking schema
+        schema: 'kastle_banking'
       }
     })
   : null;
 
-// Collection database client (using collection schema)
+// Collection database client (using kastle_collection schema)
 export const supabaseCollection = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -30,13 +40,10 @@ export const supabaseCollection = supabaseUrl && supabaseAnonKey
         autoRefreshToken: true,
       },
       db: {
-        schema: 'kastle_collection' // Collection schema
+        schema: 'kastle_collection'
       }
     })
   : null;
-
-// Banking database client (alias for consistency)
-export const supabaseBanking = supabase;
 
 // Check configuration status
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabase);
@@ -239,69 +246,84 @@ export async function testConnection() {
   }
   
   try {
-    // Test banking schema
-    const { data: bankingTest, error: bankingError } = await supabaseBanking
-      .from(TABLES.CUSTOMERS)
+    console.log('Testing database connection...');
+    
+    // Test if we can query from kastle_banking schema
+    const bankingTest = await supabaseBanking
+      .from('customers')
       .select('customer_id')
       .limit(1);
     
-    if (bankingError) {
-      console.error('❌ Banking schema connection failed:', bankingError);
-    } else {
-      console.log('✅ Banking schema connection successful');
+    if (bankingTest.error) {
+      // Check if it's a table not found error
+      if (bankingTest.error.message.includes('relation') && bankingTest.error.message.includes('does not exist')) {
+        console.log('⚠️ Banking tables not found. Tables may need to be created.');
+        console.log('The schemas exist but tables are missing.');
+        return { 
+          success: false, 
+          error: 'Tables not found in kastle_banking schema',
+          schemasExist: true,
+          tablesExist: false
+        };
+      } else if (bankingTest.error.code === '42501') {
+        console.log('⚠️ Permission denied. You may need to grant permissions or disable RLS.');
+        return { 
+          success: false, 
+          error: 'Permission denied - check RLS policies or grants',
+          hint: 'Try running: GRANT USAGE ON SCHEMA kastle_banking TO anon;'
+        };
+      } else {
+        throw bankingTest.error;
+      }
     }
     
-    // Test collection schema
-    const { data: collectionTest, error: collectionError } = await supabaseCollection
-      .from(TABLES.COLLECTION_OFFICERS)
+    console.log('✅ Connected to kastle_banking schema');
+    
+    // Test if we can query from kastle_collection schema
+    const collectionTest = await supabaseCollection
+      .from('collection_officers')
       .select('officer_id')
       .limit(1);
     
-    if (collectionError) {
-      console.error('❌ Collection schema connection failed:', collectionError);
-    } else {
-      console.log('✅ Collection schema connection successful');
+    if (collectionTest.error && !collectionTest.error.message.includes('does not exist')) {
+      console.warn('⚠️ Collection schema test failed:', collectionTest.error.message);
+    } else if (!collectionTest.error) {
+      console.log('✅ Connected to kastle_collection schema');
     }
     
-    const success = !bankingError || !collectionError;
     return { 
-      success, 
-      banking: !bankingError,
-      collection: !collectionError,
-      error: bankingError?.message || collectionError?.message 
+      success: !bankingTest.error,
+      banking: !bankingTest.error,
+      collection: !collectionTest.error,
+      message: 'Database connection established'
     };
+    
   } catch (error) {
     console.error('❌ Database connection test failed:', error);
     return { success: false, error: error.message };
   }
 }
 
-// Helper to execute queries with proper schema
-export async function executeQuery(tableName, query, options = {}) {
-  const client = getClientForTable(tableName);
-  
-  if (!client) {
-    return formatApiResponse(null, new Error('Database client not initialized'));
-  }
-  
-  try {
-    const result = await query(client.from(tableName));
-    return formatApiResponse(result.data, result.error);
-  } catch (error) {
-    return formatApiResponse(null, error);
-  }
-}
-
 // Initialize and test connection
+let useMockData = !isSupabaseConfigured;
+
 if (isSupabaseConfigured) {
   testConnection().then(result => {
     if (!result.success) {
-      console.warn('Database connection test failed:', result.error);
+      console.warn('⚠️ Database issue:', result.error);
+      if (result.hint) {
+        console.warn('💡 Hint:', result.hint);
+      }
+      console.warn('📊 Using mock data mode.');
+      useMockData = true;
     } else {
-      console.log('Database schemas connected:', {
-        banking: result.banking ? '✅' : '❌',
-        collection: result.collection ? '✅' : '❌'
-      });
+      console.log('✅ Database connection successful');
+      useMockData = false;
     }
   });
+} else {
+  console.log('📊 Running in mock data mode (no Supabase configuration)');
 }
+
+// Export function to check if we should use mock data
+export const shouldUseMockData = () => useMockData;
