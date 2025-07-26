@@ -16,6 +16,7 @@ import {
   FileText, Eye, Filter, RefreshCw
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Table components implemented inline
 const Table = ({ children, className = "" }) => (
@@ -59,6 +60,7 @@ const SpecialistLevelReport = () => {
   const [selectedSpecialist, setSelectedSpecialist] = useState('');
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     dateRange: 'current_month',
     loanStatus: 'all',
@@ -77,15 +79,19 @@ const SpecialistLevelReport = () => {
 
   const loadSpecialists = async () => {
     try {
+      setError(null);
       const response = await CollectionService.getSpecialists();
       if (response.success) {
         setSpecialists(response.data);
         if (response.data.length > 0) {
           setSelectedSpecialist(response.data[0].officer_id);
         }
+      } else {
+        setError('فشل في تحميل قائمة الأخصائيين');
       }
     } catch (error) {
       console.error('Error loading specialists:', error);
+      setError('حدث خطأ أثناء تحميل البيانات');
     }
   };
 
@@ -93,13 +99,17 @@ const SpecialistLevelReport = () => {
     if (!selectedSpecialist) return;
     
     setLoading(true);
+    setError(null);
     try {
       const response = await CollectionService.getSpecialistReport(selectedSpecialist, filters);
       if (response.success) {
         setReportData(response.data);
+      } else {
+        setError('فشل في تحميل تقرير الأخصائي');
       }
     } catch (error) {
       console.error('Error loading specialist report:', error);
+      setError('حدث خطأ أثناء تحميل التقرير');
     } finally {
       setLoading(false);
     }
@@ -142,6 +152,32 @@ const SpecialistLevelReport = () => {
     console.log(`Exporting report in ${format} format`);
     // Implementation for export functionality
   };
+
+  if (error) {
+    return (
+      <div className="space-y-6" dir="rtl">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>خطأ</AlertTitle>
+          <AlertDescription>
+            {error}
+            <br />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2"
+              onClick={() => {
+                setError(null);
+                loadSpecialists();
+              }}
+            >
+              إعادة المحاولة
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   if (loading || !reportData) {
     return (
