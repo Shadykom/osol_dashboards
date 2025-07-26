@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +9,27 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+  Sheet, 
+  SheetContent, 
+  SheetDescription, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger 
+} from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { 
   Table, 
   TableBody, 
   TableCell, 
@@ -18,41 +38,246 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { 
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ScatterChart, Scatter, ComposedChart, Sankey,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  RadialBarChart, RadialBar, Treemap, Funnel, FunnelChart
 } from 'recharts';
 import { 
   User, Phone, Mail, Calendar, DollarSign, AlertTriangle,
-  FileText, Download, RefreshCw, Filter, Search, Target,
-  TrendingUp, Clock, MessageSquare, PhoneCall, CheckCircle,
-  XCircle, Loader2, FileDown
+  FileText, Download, RefreshCw, Filter, Search, Target, BarChart3,
+  TrendingUp, Clock, MessageSquare, PhoneCall, CheckCircle, Activity,
+  XCircle, Loader2, FileDown, Eye, ChevronRight, Settings, Save,
+  MoreVertical, ChevronDown, ChevronUp, Zap, Shield, Brain,
+  Users, Building2, CreditCard, AlertCircle, TrendingDown,
+  ArrowUp, ArrowDown, Info, Play, Pause, SkipForward, History,
+  Layers, Map, PieChart, LineChart, BarChart
 } from 'lucide-react';
-import { CollectionService } from '@/services/collectionService';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+
+// Mock CollectionService for demo
+const CollectionService = {
+  getSpecialists: async () => ({ 
+    success: true, 
+    data: [
+      { officer_id: 'SP001', officer_name: 'أحمد محمد علي', officer_type: 'أخصائي أول' },
+      { officer_id: 'SP002', officer_name: 'فاطمة أحمد السالم', officer_type: 'أخصائي' },
+      { officer_id: 'SP003', officer_name: 'محمد عبدالله النجار', officer_type: 'رئيس فريق' }
+    ]
+  }),
+  getSpecialistReport: async () => ({
+    success: true,
+    data: generateMockReportData()
+  })
+};
+
+// Mock data generator
+function generateMockReportData() {
+  return {
+    specialist: {
+      officer_id: 'SP001',
+      officer_name: 'أحمد محمد علي',
+      officer_type: 'أخصائي أول',
+      email: 'ahmed.ali@company.com',
+      contact_number: '+966501234567',
+      team_name: 'فريق التحصيل المبكر',
+      years_experience: 5,
+      performance_rating: 4.5,
+      specializations: ['قروض الأفراد', 'قروض الشركات الصغيرة']
+    },
+    kpis: {
+      totalLoans: 127,
+      totalPortfolioValue: 45750000,
+      overdueLoans: 43,
+      totalOverdueAmount: 8920000,
+      collectionRate: 82.5,
+      callsMade: 1847,
+      messagesSent: 923,
+      emailsSent: 156,
+      promisesToPay: 67,
+      promisesFulfilled: 51,
+      averageResponseRate: 73.2,
+      avgCallDuration: 4.3,
+      conversionRate: 42.8,
+      customerSatisfaction: 4.2
+    },
+    loans: generateMockLoans(50),
+    communicationData: generateCommunicationData(),
+    promisesToPay: generatePromisesToPay(),
+    performance: {
+      collectionRate: 82.5,
+      responseRate: 73.2,
+      promiseRate: 52.8,
+      fulfillmentRate: 76.1,
+      efficiency: 88.4,
+      qualityScore: 91.2
+    },
+    trends: generateTrendData(),
+    customerSegments: generateCustomerSegments(),
+    riskAnalysis: generateRiskAnalysis(),
+    timeline: generateTimeline()
+  };
+}
+
+function generateMockLoans(count) {
+  const products = ['قرض تورق', 'قرض كاش', 'تمويل شخصي', 'تمويل عقاري'];
+  const customerTypes = ['فرد', 'مؤسسة', 'شركة صغيرة'];
+  const statuses = ['نشط', 'متأخر', 'متعثر'];
+  const buckets = ['Current', '1-30 Days', '31-60 Days', '61-90 Days', '91-180 Days', '>180 Days'];
+  
+  return Array.from({ length: count }, (_, i) => ({
+    loanNumber: `LN${String(i + 1).padStart(6, '0')}`,
+    customerName: `عميل ${i + 1}`,
+    customerPhone: `+96650${Math.floor(Math.random() * 10000000)}`,
+    customerId: `ID${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`,
+    customerType: customerTypes[Math.floor(Math.random() * customerTypes.length)],
+    productType: products[Math.floor(Math.random() * products.length)],
+    loanAmount: Math.floor(Math.random() * 900000) + 100000,
+    paidAmount: Math.floor(Math.random() * 500000),
+    dueAmount: Math.floor(Math.random() * 100000),
+    notDueAmount: Math.floor(Math.random() * 200000),
+    totalOverdueAmount: Math.floor(Math.random() * 50000),
+    totalOverdueDays: Math.floor(Math.random() * 180),
+    delinquencyBucket: buckets[Math.floor(Math.random() * buckets.length)],
+    loanStatus: statuses[Math.floor(Math.random() * statuses.length)],
+    lastContactDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ar-SA'),
+    callsThisMonth: Math.floor(Math.random() * 15),
+    messagesThisMonth: Math.floor(Math.random() * 10),
+    lastCallResult: ['تم الرد', 'لم يتم الرد', 'مشغول'][Math.floor(Math.random() * 3)],
+    hasPromiseToPay: Math.random() > 0.5,
+    ptpDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ar-SA'),
+    ptpAmount: Math.floor(Math.random() * 30000),
+    ptpStatus: ['نشط', 'محقق', 'منتهي'][Math.floor(Math.random() * 3)],
+    riskScore: Math.floor(Math.random() * 100),
+    behaviorScore: Math.floor(Math.random() * 100),
+    collectionProbability: Math.random() * 100
+  }));
+}
+
+function generateCommunicationData() {
+  const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+  return days.map(day => ({
+    day,
+    calls: Math.floor(Math.random() * 50) + 20,
+    messages: Math.floor(Math.random() * 30) + 10,
+    emails: Math.floor(Math.random() * 10) + 5,
+    answered: Math.floor(Math.random() * 40) + 15,
+    successful: Math.floor(Math.random() * 20) + 5
+  }));
+}
+
+function generatePromisesToPay() {
+  return Array.from({ length: 20 }, (_, i) => ({
+    caseNumber: `CASE${String(i + 1).padStart(6, '0')}`,
+    customerName: `عميل ${i + 1}`,
+    ptpDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000),
+    ptpAmount: Math.floor(Math.random() * 50000) + 10000,
+    status: ['ACTIVE', 'KEPT', 'BROKEN'][Math.floor(Math.random() * 3)],
+    confidenceLevel: Math.random() * 100
+  }));
+}
+
+function generateTrendData() {
+  return Array.from({ length: 30 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (29 - i));
+    return {
+      date: date.toLocaleDateString('ar-SA'),
+      collected: Math.floor(Math.random() * 500000) + 100000,
+      calls: Math.floor(Math.random() * 100) + 50,
+      promises: Math.floor(Math.random() * 20) + 5,
+      responseRate: Math.random() * 30 + 60
+    };
+  });
+}
+
+function generateCustomerSegments() {
+  return [
+    { segment: 'عملاء VIP', count: 15, value: 12500000, risk: 'منخفض' },
+    { segment: 'عملاء ذهبيون', count: 35, value: 18000000, risk: 'متوسط' },
+    { segment: 'عملاء عاديون', count: 60, value: 12000000, risk: 'متوسط' },
+    { segment: 'عملاء عالي المخاطر', count: 17, value: 3250000, risk: 'عالي' }
+  ];
+}
+
+function generateRiskAnalysis() {
+  return {
+    distribution: [
+      { level: 'منخفض جداً', count: 23, percentage: 18 },
+      { level: 'منخفض', count: 41, percentage: 32 },
+      { level: 'متوسط', count: 38, percentage: 30 },
+      { level: 'عالي', count: 19, percentage: 15 },
+      { level: 'عالي جداً', count: 6, percentage: 5 }
+    ],
+    factors: [
+      { factor: 'سجل الدفع', impact: 85 },
+      { factor: 'نسبة الدين', impact: 72 },
+      { factor: 'مدة العلاقة', impact: 68 },
+      { factor: 'نوع المنتج', impact: 54 },
+      { factor: 'القطاع', impact: 45 }
+    ]
+  };
+}
+
+function generateTimeline() {
+  const events = [
+    { time: '09:00', type: 'call', result: 'تم الرد - وعد بالدفع', customer: 'أحمد محمد' },
+    { time: '09:45', type: 'message', result: 'تم الإرسال', customer: 'فاطمة علي' },
+    { time: '10:30', type: 'email', result: 'تم القراءة', customer: 'شركة الرياض' },
+    { time: '11:15', type: 'call', result: 'لم يتم الرد', customer: 'محمد سالم' },
+    { time: '14:00', type: 'payment', result: 'دفعة مستلمة', customer: 'نورا أحمد', amount: 15000 }
+  ];
+  
+  return events;
+}
 
 const SpecialistLevelReport = () => {
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSpecialist, setSelectedSpecialist] = useState('');
   const [specialists, setSpecialists] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [reportData, setReportData] = useState(null);
-  const componentRef = useRef();
-
-  // Filter states
+  const [activeView, setActiveView] = useState('dashboard');
+  const [selectedLoan, setSelectedLoan] = useState(null);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
+  const [showAdvancedAnalytics, setShowAdvancedAnalytics] = useState(false);
+  
+  // Advanced filter states
   const [filters, setFilters] = useState({
     dateRange: 'current_month',
     loanStatus: 'all',
     delinquencyBucket: 'all',
     customerType: 'all',
     productType: 'all',
-    ptpStatus: 'all'
+    ptpStatus: 'all',
+    minAmount: 0,
+    maxAmount: 10000000,
+    minDPD: 0,
+    maxDPD: 360,
+    riskLevel: 'all',
+    lastContactResult: 'all',
+    communicationChannel: 'all'
   });
 
-  // Fetch specialists list
+  // Filter presets
+  const [filterPresets] = useState([
+    { name: 'عالي المخاطر', filters: { riskLevel: 'high', minDPD: 90 } },
+    { name: 'وعود نشطة', filters: { ptpStatus: 'active' } },
+    { name: 'قروض كبيرة', filters: { minAmount: 1000000 } }
+  ]);
+
+  useEffect(() => {
+    fetchSpecialists();
+  }, []);
+
+  useEffect(() => {
+    if (selectedSpecialist) {
+      fetchReportData();
+    }
+  }, [selectedSpecialist, filters]);
+
   const fetchSpecialists = async () => {
     try {
       const result = await CollectionService.getSpecialists();
@@ -67,7 +292,6 @@ const SpecialistLevelReport = () => {
     }
   };
 
-  // Fetch specialist report data
   const fetchReportData = async () => {
     if (!selectedSpecialist) return;
     
@@ -84,131 +308,16 @@ const SpecialistLevelReport = () => {
     }
   };
 
-  // Handle refresh
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchReportData();
     setRefreshing(false);
   };
 
-  // Export functions
-  const exportToExcel = () => {
-    if (!reportData || !reportData.loans) return;
-
-    const ws = XLSX.utils.json_to_sheet(reportData.loans.map(loan => ({
-      'رقم القرض': loan.loanNumber,
-      'اسم العميل': loan.customerName,
-      'رقم الهوية': loan.customerId,
-      'نوع العميل': loan.customerType,
-      'نوع المنتج': loan.productType,
-      'قيمة القرض': loan.loanAmount,
-      'المبلغ المسدد': loan.paidAmount,
-      'المستحق': loan.dueAmount,
-      'غير المستحق': loan.notDueAmount,
-      'المتأخرات': loan.totalOverdueAmount,
-      'أيام التأخير': loan.totalOverdueDays,
-      'فئة التقادم': loan.delinquencyBucket,
-      'حالة القرض': loan.loanStatus,
-      'آخر اتصال': loan.lastContactDate,
-      'المكالمات هذا الشهر': loan.callsThisMonth,
-      'الرسائل هذا الشهر': loan.messagesThisMonth,
-      'نتيجة آخر مكالمة': loan.lastCallResult,
-      'وعد بالدفع': loan.hasPromiseToPay ? 'نعم' : 'لا',
-      'تاريخ الوعد': loan.ptpDate || '-',
-      'مبلغ الوعد': loan.ptpAmount || 0,
-      'حالة الوعد': loan.ptpStatus || '-'
-    })));
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'تقرير الأخصائي');
-    
-    // Add summary sheet
-    const summaryData = [
-      { 'المؤشر': 'إجمالي القروض', 'القيمة': reportData.kpis.totalLoans },
-      { 'المؤشر': 'إجمالي المحفظة', 'القيمة': formatCurrency(reportData.kpis.totalPortfolioValue) },
-      { 'المؤشر': 'القروض المتأخرة', 'القيمة': reportData.kpis.overdueLoans },
-      { 'المؤشر': 'إجمالي المتأخرات', 'القيمة': formatCurrency(reportData.kpis.totalOverdueAmount) },
-      { 'المؤشر': 'معدل التحصيل', 'القيمة': `${reportData.kpis.collectionRate}%` },
-      { 'المؤشر': 'المكالمات', 'القيمة': reportData.kpis.callsMade },
-      { 'المؤشر': 'الرسائل', 'القيمة': reportData.kpis.messagesSent },
-      { 'المؤشر': 'وعود الدفع', 'القيمة': reportData.kpis.promisesToPay },
-      { 'المؤشر': 'الوعود المحققة', 'القيمة': reportData.kpis.promisesFulfilled }
-    ];
-    
-    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'الملخص');
-    
-    XLSX.writeFile(wb, `specialist_report_${selectedSpecialist}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const applyFilterPreset = (preset) => {
+    setFilters({ ...filters, ...preset.filters });
   };
 
-  const exportToPDF = () => {
-    if (!reportData) return;
-
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    // Set Arabic font support (you would need to add an Arabic font)
-    doc.setFontSize(16);
-    doc.text('تقرير مستوى الأخصائي', doc.internal.pageSize.width / 2, 15, { align: 'center' });
-    
-    // Add specialist info
-    doc.setFontSize(12);
-    doc.text(`الأخصائي: ${reportData.specialist?.officer_name || selectedSpecialist}`, 20, 25);
-    doc.text(`التاريخ: ${new Date().toLocaleDateString('ar-SA')}`, 20, 32);
-    
-    // Add KPIs
-    doc.setFontSize(14);
-    doc.text('مؤشرات الأداء الرئيسية', 20, 45);
-    
-    doc.setFontSize(10);
-    const kpiData = [
-      ['المؤشر', 'القيمة'],
-      ['إجمالي القروض', reportData.kpis.totalLoans],
-      ['إجمالي المحفظة', formatCurrency(reportData.kpis.totalPortfolioValue)],
-      ['القروض المتأخرة', reportData.kpis.overdueLoans],
-      ['إجمالي المتأخرات', formatCurrency(reportData.kpis.totalOverdueAmount)],
-      ['معدل التحصيل', `${reportData.kpis.collectionRate}%`]
-    ];
-    
-    doc.autoTable({
-      startY: 50,
-      head: [kpiData[0]],
-      body: kpiData.slice(1),
-      theme: 'grid',
-      styles: { font: 'helvetica', fontSize: 10 },
-      headStyles: { fillColor: [220, 38, 38] }
-    });
-    
-    // Add loans table
-    doc.addPage();
-    doc.setFontSize(14);
-    doc.text('تفاصيل القروض', 20, 15);
-    
-    const loansData = reportData.loans.map(loan => [
-      loan.loanNumber,
-      loan.customerName,
-      formatCurrency(loan.totalOverdueAmount),
-      loan.totalOverdueDays,
-      loan.delinquencyBucket,
-      loan.lastCallResult || '-'
-    ]);
-    
-    doc.autoTable({
-      startY: 20,
-      head: [['رقم القرض', 'العميل', 'المتأخرات', 'أيام التأخير', 'فئة التقادم', 'آخر اتصال']],
-      body: loansData,
-      theme: 'striped',
-      styles: { font: 'helvetica', fontSize: 9 },
-      headStyles: { fillColor: [220, 38, 38] }
-    });
-    
-    doc.save(`specialist_report_${selectedSpecialist}_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  // Helper functions
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('ar-SA', {
       style: 'currency',
@@ -224,52 +333,350 @@ const SpecialistLevelReport = () => {
 
   const getDelinquencyColor = (bucket) => {
     const colors = {
-      'Current': 'text-green-600',
-      '1-30 Days': 'text-yellow-600',
-      '31-60 Days': 'text-orange-600',
-      '61-90 Days': 'text-red-600',
-      '91-180 Days': 'text-red-700',
-      '181-360 Days': 'text-red-800',
-      '>360 Days': 'text-red-900'
+      'Current': 'text-green-600 bg-green-50',
+      '1-30 Days': 'text-yellow-600 bg-yellow-50',
+      '31-60 Days': 'text-orange-600 bg-orange-50',
+      '61-90 Days': 'text-red-600 bg-red-50',
+      '91-180 Days': 'text-red-700 bg-red-100',
+      '181-360 Days': 'text-red-800 bg-red-200',
+      '>360 Days': 'text-red-900 bg-red-300'
     };
-    return colors[bucket] || 'text-gray-600';
+    return colors[bucket] || 'text-gray-600 bg-gray-50';
   };
 
-  const getStatusBadge = (status) => {
-    const variants = {
-      'نشط': 'default',
-      'متأخر': 'warning',
-      'متعثر': 'destructive',
-      'مغلق': 'secondary'
-    };
-    return variants[status] || 'default';
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+  // Filter sidebar component
+  const FilterSidebar = () => (
+    <Sheet open={showFilterSheet} onOpenChange={setShowFilterSheet}>
+      <SheetContent className="w-[400px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>الفلاتر المتقدمة</SheetTitle>
+          <SheetDescription>
+            قم بتخصيص الفلاتر للحصول على النتائج المطلوبة
+          </SheetDescription>
+        </SheetHeader>
+        
+        <div className="space-y-6 py-6">
+          {/* Filter Presets */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">إعدادات سريعة</Label>
+            <div className="space-y-2">
+              {filterPresets.map((preset, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => applyFilterPreset(preset)}
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  {preset.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
+          <Separator />
+          
+          {/* Date Range */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">الفترة الزمنية</Label>
+            <Select value={filters.dateRange} onValueChange={(value) => setFilters({...filters, dateRange: value})}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">اليوم</SelectItem>
+                <SelectItem value="yesterday">أمس</SelectItem>
+                <SelectItem value="last_7_days">آخر 7 أيام</SelectItem>
+                <SelectItem value="current_month">الشهر الحالي</SelectItem>
+                <SelectItem value="last_month">الشهر الماضي</SelectItem>
+                <SelectItem value="current_quarter">الربع الحالي</SelectItem>
+                <SelectItem value="current_year">السنة الحالية</SelectItem>
+                <SelectItem value="custom">مخصص</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Amount Range */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">
+              نطاق المبلغ: {formatCurrency(filters.minAmount)} - {formatCurrency(filters.maxAmount)}
+            </Label>
+            <div className="space-y-3">
+              <Slider
+                value={[filters.minAmount]}
+                onValueChange={([value]) => setFilters({...filters, minAmount: value})}
+                max={10000000}
+                step={100000}
+                className="w-full"
+              />
+              <Slider
+                value={[filters.maxAmount]}
+                onValueChange={([value]) => setFilters({...filters, maxAmount: value})}
+                max={10000000}
+                step={100000}
+                className="w-full"
+              />
+            </div>
+          </div>
+          
+          {/* DPD Range */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">
+              أيام التأخير: {filters.minDPD} - {filters.maxDPD} يوم
+            </Label>
+            <div className="space-y-3">
+              <Slider
+                value={[filters.minDPD]}
+                onValueChange={([value]) => setFilters({...filters, minDPD: value})}
+                max={360}
+                step={1}
+                className="w-full"
+              />
+              <Slider
+                value={[filters.maxDPD]}
+                onValueChange={([value]) => setFilters({...filters, maxDPD: value})}
+                max={360}
+                step={1}
+                className="w-full"
+              />
+            </div>
+          </div>
+          
+          {/* Risk Level */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">مستوى المخاطر</Label>
+            <Select value={filters.riskLevel} onValueChange={(value) => setFilters({...filters, riskLevel: value})}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="very_low">منخفض جداً</SelectItem>
+                <SelectItem value="low">منخفض</SelectItem>
+                <SelectItem value="medium">متوسط</SelectItem>
+                <SelectItem value="high">عالي</SelectItem>
+                <SelectItem value="very_high">عالي جداً</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Communication Channel */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">قناة التواصل</Label>
+            <Select value={filters.communicationChannel} onValueChange={(value) => setFilters({...filters, communicationChannel: value})}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع القنوات</SelectItem>
+                <SelectItem value="phone">المكالمات</SelectItem>
+                <SelectItem value="sms">الرسائل النصية</SelectItem>
+                <SelectItem value="email">البريد الإلكتروني</SelectItem>
+                <SelectItem value="whatsapp">واتساب</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <Separator />
+          
+          <div className="flex gap-2">
+            <Button 
+              className="flex-1" 
+              onClick={() => setShowFilterSheet(false)}
+            >
+              تطبيق الفلاتر
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setFilters({
+                  dateRange: 'current_month',
+                  loanStatus: 'all',
+                  delinquencyBucket: 'all',
+                  customerType: 'all',
+                  productType: 'all',
+                  ptpStatus: 'all',
+                  minAmount: 0,
+                  maxAmount: 10000000,
+                  minDPD: 0,
+                  maxDPD: 360,
+                  riskLevel: 'all',
+                  lastContactResult: 'all',
+                  communicationChannel: 'all'
+                });
+              }}
+            >
+              إعادة تعيين
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
+  // Loan detail modal
+  const LoanDetailModal = ({ loan, isOpen, onClose }) => {
+    if (!loan) return null;
+    
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تفاصيل القرض - {loan.loanNumber}</DialogTitle>
+            <DialogDescription>
+              معلومات شاملة عن القرض والعميل
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Customer Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">معلومات العميل</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">الاسم</span>
+                    <span className="font-medium">{loan.customerName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">رقم الهوية</span>
+                    <span className="font-medium">{loan.customerId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">رقم الجوال</span>
+                    <span className="font-medium">{loan.customerPhone}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">نوع العميل</span>
+                    <Badge variant="outline">{loan.customerType}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">معلومات القرض</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">نوع المنتج</span>
+                    <span className="font-medium">{loan.productType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">قيمة القرض</span>
+                    <span className="font-medium">{formatCurrency(loan.loanAmount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">المسدد</span>
+                    <span className="font-medium text-green-600">{formatCurrency(loan.paidAmount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">المتأخر</span>
+                    <span className="font-medium text-red-600">{formatCurrency(loan.totalOverdueAmount)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Risk Assessment */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  تقييم المخاطر
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">مؤشر المخاطر</span>
+                    <div className="flex items-center gap-2">
+                      <Progress value={loan.riskScore} className="w-24" />
+                      <span className="text-sm font-medium">{loan.riskScore}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">احتمالية التحصيل</span>
+                    <div className="flex items-center gap-2">
+                      <Progress value={loan.collectionProbability} className="w-24" />
+                      <span className="text-sm font-medium">{loan.collectionProbability?.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">سلوك الدفع</span>
+                    <div className="flex items-center gap-2">
+                      <Progress value={loan.behaviorScore} className="w-24" />
+                      <span className="text-sm font-medium">{loan.behaviorScore}/100</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Communication History */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  سجل التواصل
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>آخر اتصال</span>
+                    <span className="font-medium">{loan.lastContactDate}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>النتيجة</span>
+                    <Badge variant="outline">{loan.lastCallResult}</Badge>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2 bg-blue-50 rounded">
+                      <PhoneCall className="h-4 w-4 mx-auto mb-1 text-blue-600" />
+                      <span className="text-sm font-medium">{loan.callsThisMonth}</span>
+                      <p className="text-xs text-muted-foreground">مكالمة</p>
+                    </div>
+                    <div className="p-2 bg-green-50 rounded">
+                      <MessageSquare className="h-4 w-4 mx-auto mb-1 text-green-600" />
+                      <span className="text-sm font-medium">{loan.messagesThisMonth}</span>
+                      <p className="text-xs text-muted-foreground">رسالة</p>
+                    </div>
+                    <div className="p-2 bg-purple-50 rounded">
+                      <Mail className="h-4 w-4 mx-auto mb-1 text-purple-600" />
+                      <span className="text-sm font-medium">3</span>
+                      <p className="text-xs text-muted-foreground">بريد</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1">
+                <PhoneCall className="h-4 w-4 mr-2" />
+                اتصال مباشر
+              </Button>
+              <Button variant="outline" className="flex-1">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                إرسال رسالة
+              </Button>
+              <Button variant="outline" className="flex-1">
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                جدولة موعد
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
-
-  // Effects
-  useEffect(() => {
-    fetchSpecialists();
-  }, []);
-
-  useEffect(() => {
-    if (selectedSpecialist) {
-      fetchReportData();
-    }
-  }, [selectedSpecialist, filters]);
-
-  // Filter loans based on search
-  const filteredLoans = reportData?.loans?.filter(loan =>
-    loan.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    loan.loanNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    loan.customerId.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
-
-  // Chart data preparation
-  const communicationChartData = reportData?.communicationData || [];
-  const promiseChartData = reportData?.promisesToPay ? [
-    { name: 'محقق', value: reportData.promisesToPay.filter(p => p.status === 'KEPT').length, color: '#22c55e' },
-    { name: 'قيد الانتظار', value: reportData.promisesToPay.filter(p => p.status === 'ACTIVE').length, color: '#f59e0b' },
-    { name: 'غير محقق', value: reportData.promisesToPay.filter(p => p.status === 'BROKEN').length, color: '#ef4444' }
-  ] : [];
 
   if (loading && !reportData) {
     return (
@@ -280,591 +687,1053 @@ const SpecialistLevelReport = () => {
   }
 
   return (
-    <div className="space-y-6 p-6" ref={componentRef}>
+    <div className="min-h-screen bg-gray-50">
+      <FilterSidebar />
+      
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">تقرير مستوى الأخصائي</h1>
-          <p className="text-gray-600 mt-1">تقرير تفصيلي لأداء أخصائي التحصيل وحالة القروض المُدارة</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={selectedSpecialist} onValueChange={setSelectedSpecialist}>
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="اختر الأخصائي" />
-            </SelectTrigger>
-            <SelectContent>
-              {specialists.map(specialist => (
-                <SelectItem key={specialist.officer_id} value={specialist.officer_id}>
-                  {specialist.officer_name} - {specialist.officer_type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            تحديث
-          </Button>
-          <Button variant="outline" onClick={exportToExcel}>
-            <FileDown className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
-          <Button variant="outline" onClick={exportToPDF}>
-            <FileDown className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
+      <div className="bg-white border-b sticky top-0 z-40">
+        <div className="px-6 py-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">لوحة تحكم الأخصائي</h1>
+              <p className="text-gray-600 mt-1">تحليل شامل لأداء أخصائي التحصيل</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Select value={selectedSpecialist} onValueChange={setSelectedSpecialist}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="اختر الأخصائي" />
+                </SelectTrigger>
+                <SelectContent>
+                  {specialists.map(specialist => (
+                    <SelectItem key={specialist.officer_id} value={specialist.officer_id}>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        {specialist.officer_name} - {specialist.officer_type}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setShowFilterSheet(true)}
+                >
+                  <Filter className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={handleRefresh} 
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button variant="outline" size="icon">
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {/* View Tabs */}
+          <div className="flex gap-1 mt-4 overflow-x-auto">
+            {['dashboard', 'portfolio', 'analytics', 'timeline', 'reports'].map((view) => (
+              <Button
+                key={view}
+                variant={activeView === view ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveView(view)}
+                className="min-w-fit"
+              >
+                {view === 'dashboard' && <BarChart3 className="h-4 w-4 mr-2" />}
+                {view === 'portfolio' && <Layers className="h-4 w-4 mr-2" />}
+                {view === 'analytics' && <Brain className="h-4 w-4 mr-2" />}
+                {view === 'timeline' && <Clock className="h-4 w-4 mr-2" />}
+                {view === 'reports' && <FileText className="h-4 w-4 mr-2" />}
+                {view === 'dashboard' && 'لوحة المعلومات'}
+                {view === 'portfolio' && 'المحفظة'}
+                {view === 'analytics' && 'التحليلات'}
+                {view === 'timeline' && 'الجدول الزمني'}
+                {view === 'reports' && 'التقارير'}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            الفلاتر
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <Select value={filters.dateRange} onValueChange={(value) => setFilters({...filters, dateRange: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="الفترة الزمنية" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current_month">الشهر الحالي</SelectItem>
-                <SelectItem value="last_month">الشهر الماضي</SelectItem>
-                <SelectItem value="current_quarter">الربع الحالي</SelectItem>
-                <SelectItem value="current_year">السنة الحالية</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.loanStatus} onValueChange={(value) => setFilters({...filters, loanStatus: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="حالة القرض" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">جميع الحالات</SelectItem>
-                <SelectItem value="نشط">نشط</SelectItem>
-                <SelectItem value="متأخر">متأخر</SelectItem>
-                <SelectItem value="متعثر">متعثر</SelectItem>
-                <SelectItem value="مغلق">مغلق</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.delinquencyBucket} onValueChange={(value) => setFilters({...filters, delinquencyBucket: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="فئة التقادم" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">جميع الفئات</SelectItem>
-                <SelectItem value="current">جاري</SelectItem>
-                <SelectItem value="1-30">1-30 يوم</SelectItem>
-                <SelectItem value="31-60">31-60 يوم</SelectItem>
-                <SelectItem value="61-90">61-90 يوم</SelectItem>
-                <SelectItem value="90+">أكثر من 90 يوم</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.customerType} onValueChange={(value) => setFilters({...filters, customerType: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="نوع العميل" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">جميع الأنواع</SelectItem>
-                <SelectItem value="فرد">فرد</SelectItem>
-                <SelectItem value="مؤسسة">مؤسسة</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.productType} onValueChange={(value) => setFilters({...filters, productType: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="نوع المنتج" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">جميع المنتجات</SelectItem>
-                <SelectItem value="قرض تورق">قرض تورق</SelectItem>
-                <SelectItem value="قرض كاش">قرض كاش</SelectItem>
-                <SelectItem value="تمويل شخصي">تمويل شخصي</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.ptpStatus} onValueChange={(value) => setFilters({...filters, ptpStatus: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="وعد الدفع" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="has_ptp">يوجد وعد</SelectItem>
-                <SelectItem value="no_ptp">لا يوجد وعد</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {reportData && (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">إجمالي القروض</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(reportData.kpis.totalLoans)}</div>
-                <Progress value={70} className="mt-2 h-1" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">إجمالي المحفظة</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(reportData.kpis.totalPortfolioValue)}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  متأخر: {formatCurrency(reportData.kpis.totalOverdueAmount)}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">معدل التحصيل</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{reportData.kpis.collectionRate}%</div>
-                <Progress value={reportData.kpis.collectionRate} className="mt-2 h-1" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">نشاط التواصل</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <PhoneCall className="h-4 w-4 text-blue-600" />
-                    <span className="text-lg font-bold">{reportData.kpis.callsMade}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="h-4 w-4 text-green-600" />
-                    <span className="text-lg font-bold">{reportData.kpis.messagesSent}</span>
-                  </div>
+      <div className="p-6">
+        {reportData && (
+          <>
+            {/* Dashboard View */}
+            {activeView === 'dashboard' && (
+              <div className="space-y-6">
+                {/* Enhanced KPIs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                  {[
+                    { 
+                      title: 'إجمالي القروض', 
+                      value: reportData.kpis.totalLoans, 
+                      change: '+12%', 
+                      icon: CreditCard, 
+                      color: 'blue',
+                      subValue: `${reportData.kpis.overdueLoans} متأخر`
+                    },
+                    { 
+                      title: 'قيمة المحفظة', 
+                      value: formatCurrency(reportData.kpis.totalPortfolioValue), 
+                      change: '+8%', 
+                      icon: DollarSign, 
+                      color: 'green',
+                      subValue: formatCurrency(reportData.kpis.totalOverdueAmount) + ' متأخر'
+                    },
+                    { 
+                      title: 'معدل التحصيل', 
+                      value: `${reportData.kpis.collectionRate}%`, 
+                      change: '+5%', 
+                      icon: TrendingUp, 
+                      color: 'emerald',
+                      progress: reportData.kpis.collectionRate
+                    },
+                    { 
+                      title: 'معدل الاستجابة', 
+                      value: `${reportData.kpis.averageResponseRate}%`, 
+                      change: '-2%', 
+                      icon: PhoneCall, 
+                      color: 'purple',
+                      progress: reportData.kpis.averageResponseRate
+                    },
+                    { 
+                      title: 'وعود الدفع', 
+                      value: reportData.kpis.promisesToPay, 
+                      change: '+15%', 
+                      icon: CheckCircle, 
+                      color: 'orange',
+                      subValue: `${reportData.kpis.promisesFulfilled} محقق`
+                    },
+                    { 
+                      title: 'رضا العملاء', 
+                      value: `${reportData.kpis.customerSatisfaction}/5`, 
+                      change: '+0.3', 
+                      icon: Users, 
+                      color: 'pink',
+                      progress: (reportData.kpis.customerSatisfaction / 5) * 100
+                    }
+                  ].map((kpi, index) => (
+                    <Card key={index} className="hover:shadow-lg transition-all cursor-pointer">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm font-medium text-muted-foreground">
+                            {kpi.title}
+                          </CardTitle>
+                          <kpi.icon className={`h-4 w-4 text-${kpi.color}-500`} />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-2xl font-bold">{kpi.value}</span>
+                            <span className={`text-xs font-medium ${
+                              kpi.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {kpi.change}
+                            </span>
+                          </div>
+                          {kpi.progress && (
+                            <Progress value={kpi.progress} className="h-1" />
+                          )}
+                          {kpi.subValue && (
+                            <p className="text-xs text-muted-foreground">{kpi.subValue}</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  معدل الاستجابة: {reportData.kpis.averageResponseRate}%
-                </p>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">وعود الدفع</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <div>
-                    <div className="text-2xl font-bold">{reportData.kpis.promisesToPay}</div>
-                    <p className="text-xs text-muted-foreground">إجمالي</p>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-green-600">{reportData.kpis.promisesFulfilled}</div>
-                    <p className="text-xs text-muted-foreground">محقق</p>
-                  </div>
+                {/* Main Dashboard Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Performance Radar */}
+                  <Card className="lg:col-span-1">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        مؤشرات الأداء
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <RadarChart data={[
+                          { metric: 'التحصيل', value: reportData.performance.collectionRate },
+                          { metric: 'الاستجابة', value: reportData.performance.responseRate },
+                          { metric: 'الوعود', value: reportData.performance.promiseRate },
+                          { metric: 'الإنجاز', value: reportData.performance.fulfillmentRate },
+                          { metric: 'الكفاءة', value: reportData.performance.efficiency },
+                          { metric: 'الجودة', value: reportData.performance.qualityScore }
+                        ]}>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="metric" />
+                          <PolarRadiusAxis domain={[0, 100]} />
+                          <Radar
+                            name="الأداء"
+                            dataKey="value"
+                            stroke="#3b82f6"
+                            fill="#3b82f6"
+                            fillOpacity={0.6}
+                          />
+                          <Tooltip />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Collection Trends */}
+                  <Card className="lg:col-span-2">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5" />
+                          اتجاهات التحصيل
+                        </CardTitle>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm">يومي</Button>
+                          <Button variant="default" size="sm">أسبوعي</Button>
+                          <Button variant="ghost" size="sm">شهري</Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <ComposedChart data={reportData.trends}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis yAxisId="left" />
+                          <YAxis yAxisId="right" orientation="right" />
+                          <Tooltip />
+                          <Legend />
+                          <Area
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="collected"
+                            fill="#3b82f6"
+                            stroke="#3b82f6"
+                            fillOpacity={0.6}
+                            name="المبلغ المحصل"
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="responseRate"
+                            stroke="#10b981"
+                            strokeWidth={2}
+                            name="معدل الاستجابة %"
+                          />
+                          <Bar
+                            yAxisId="right"
+                            dataKey="promises"
+                            fill="#f59e0b"
+                            name="وعود الدفع"
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* Main Content */}
-          <Tabs defaultValue="loans" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="loans">القروض</TabsTrigger>
-              <TabsTrigger value="communication">التواصل</TabsTrigger>
-              <TabsTrigger value="promises">وعود الدفع</TabsTrigger>
-              <TabsTrigger value="performance">الأداء</TabsTrigger>
-            </TabsList>
-
-            {/* Loans Tab */}
-            <TabsContent value="loans">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>تفاصيل القروض المُدارة</span>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="بحث بالاسم أو رقم القرض..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64"
-                      />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[600px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>رقم القرض</TableHead>
-                          <TableHead>العميل</TableHead>
-                          <TableHead>رقم الهوية</TableHead>
-                          <TableHead>نوع العميل</TableHead>
-                          <TableHead>نوع المنتج</TableHead>
-                          <TableHead className="text-right">قيمة القرض</TableHead>
-                          <TableHead className="text-right">المسدد</TableHead>
-                          <TableHead className="text-right">المستحق</TableHead>
-                          <TableHead className="text-right">غير المستحق</TableHead>
-                          <TableHead className="text-right">المتأخرات</TableHead>
-                          <TableHead>أيام التأخير</TableHead>
-                          <TableHead>فئة التقادم</TableHead>
-                          <TableHead>الحالة</TableHead>
-                          <TableHead>آخر اتصال</TableHead>
-                          <TableHead className="text-center">المكالمات</TableHead>
-                          <TableHead className="text-center">الرسائل</TableHead>
-                          <TableHead>نتيجة آخر مكالمة</TableHead>
-                          <TableHead className="text-center">وعد بالدفع</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredLoans.map((loan, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium">{loan.loanNumber}</TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{loan.customerName}</p>
-                                <p className="text-xs text-gray-500">{loan.customerPhone}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>{loan.customerId}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{loan.customerType}</Badge>
-                            </TableCell>
-                            <TableCell>{loan.productType}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(loan.loanAmount)}</TableCell>
-                            <TableCell className="text-right text-green-600">{formatCurrency(loan.paidAmount)}</TableCell>
-                            <TableCell className="text-right text-orange-600">{formatCurrency(loan.dueAmount)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(loan.notDueAmount)}</TableCell>
-                            <TableCell className="text-right text-red-600 font-semibold">
-                              {formatCurrency(loan.totalOverdueAmount)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="destructive">{loan.totalOverdueDays}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <span className={`font-medium ${getDelinquencyColor(loan.delinquencyBucket)}`}>
-                                {loan.delinquencyBucket}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={getStatusBadge(loan.loanStatus)}>
-                                {loan.loanStatus}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{loan.lastContactDate}</TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                <PhoneCall className="h-4 w-4" />
-                                {loan.callsThisMonth}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                <MessageSquare className="h-4 w-4" />
-                                {loan.messagesThisMonth}
-                              </div>
-                            </TableCell>
-                            <TableCell>{loan.lastCallResult}</TableCell>
-                            <TableCell className="text-center">
-                              {loan.hasPromiseToPay ? (
-                                <div className="text-center">
-                                  <CheckCircle className="h-5 w-5 text-green-600 mx-auto" />
-                                  <p className="text-xs mt-1">{loan.ptpDate}</p>
-                                  <p className="text-xs font-semibold">{formatCurrency(loan.ptpAmount)}</p>
-                                  <Badge variant="outline" className="text-xs mt-1">
-                                    {loan.ptpStatus}
-                                  </Badge>
-                                </div>
-                              ) : (
-                                <XCircle className="h-5 w-5 text-gray-400 mx-auto" />
-                              )}
-                            </TableCell>
-                          </TableRow>
+                {/* Secondary Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  {/* Customer Segments */}
+                  <Card className="lg:col-span-1">
+                    <CardHeader>
+                      <CardTitle className="text-base">شرائح العملاء</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <PieChart>
+                          <Pie
+                            data={reportData.customerSegments}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="count"
+                          >
+                            {reportData.customerSegments.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="mt-4 space-y-2">
+                        {reportData.customerSegments.map((segment, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded" 
+                                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                              />
+                              <span>{segment.segment}</span>
+                            </div>
+                            <span className="font-medium">{segment.count}</span>
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-            {/* Communication Tab */}
-            <TabsContent value="communication">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Risk Distribution */}
+                  <Card className="lg:col-span-1">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        توزيع المخاطر
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {reportData.riskAnalysis.distribution.map((risk, index) => (
+                          <div key={index}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm">{risk.level}</span>
+                              <span className="text-sm font-medium">{risk.count} ({risk.percentage}%)</span>
+                            </div>
+                            <Progress 
+                              value={risk.percentage} 
+                              className={`h-2 ${
+                                risk.level.includes('منخفض') ? 'bg-green-100' :
+                                risk.level.includes('متوسط') ? 'bg-yellow-100' :
+                                'bg-red-100'
+                              }`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Communication Effectiveness */}
+                  <Card className="lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="text-base">فعالية قنوات التواصل</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={reportData.communicationData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="day" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="calls" stackId="a" fill="#3b82f6" name="مكالمات" />
+                          <Bar dataKey="messages" stackId="a" fill="#10b981" name="رسائل" />
+                          <Bar dataKey="emails" stackId="a" fill="#f59e0b" name="بريد" />
+                          <Line 
+                            type="monotone" 
+                            dataKey="successful" 
+                            stroke="#ef4444" 
+                            strokeWidth={2}
+                            name="ناجحة"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Activity Timeline */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>نشاط التواصل الأسبوعي</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={communicationChartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="day" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="calls" fill="#3b82f6" name="مكالمات" />
-                        <Bar dataKey="messages" fill="#10b981" name="رسائل" />
-                        <Bar dataKey="answered" fill="#f59e0b" name="تم الرد" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>إحصائيات التواصل</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5" />
+                        النشاط الأخير
+                      </CardTitle>
+                      <Button variant="ghost" size="sm">
+                        عرض الكل
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="text-sm font-medium">معدل الرد على المكالمات</span>
-                          <span className="text-sm font-bold">{reportData.performance.responseRate}%</span>
-                        </div>
-                        <Progress value={reportData.performance.responseRate} />
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="text-sm font-medium">معدل تحويل المكالمات لوعود</span>
-                          <span className="text-sm font-bold">{reportData.performance.promiseRate}%</span>
-                        </div>
-                        <Progress value={reportData.performance.promiseRate} />
-                      </div>
-
-                      <div className="pt-4 border-t">
-                        <h4 className="font-medium mb-3">نتائج المكالمات</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">تم الرد - وعد بالدفع</span>
-                            <Badge className="bg-green-500">{Math.floor(reportData.kpis.callsMade * 0.3)}</Badge>
+                      {reportData.timeline.map((event, index) => (
+                        <div key={index} className="flex items-start gap-4">
+                          <div className="relative">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              event.type === 'call' ? 'bg-blue-100' :
+                              event.type === 'message' ? 'bg-green-100' :
+                              event.type === 'email' ? 'bg-orange-100' :
+                              'bg-purple-100'
+                            }`}>
+                              {event.type === 'call' && <PhoneCall className="h-5 w-5 text-blue-600" />}
+                              {event.type === 'message' && <MessageSquare className="h-5 w-5 text-green-600" />}
+                              {event.type === 'email' && <Mail className="h-5 w-5 text-orange-600" />}
+                              {event.type === 'payment' && <DollarSign className="h-5 w-5 text-purple-600" />}
+                            </div>
+                            {index < reportData.timeline.length - 1 && (
+                              <div className="absolute top-10 left-5 w-0.5 h-12 bg-gray-200" />
+                            )}
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">تم الرد - رفض الدفع</span>
-                            <Badge className="bg-orange-500">{Math.floor(reportData.kpis.callsMade * 0.2)}</Badge>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-medium">{event.customer}</h4>
+                              <span className="text-sm text-muted-foreground">{event.time}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">{event.result}</p>
+                            {event.amount && (
+                              <p className="text-sm font-medium text-green-600 mt-1">
+                                {formatCurrency(event.amount)}
+                              </p>
+                            )}
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">لم يتم الرد</span>
-                            <Badge className="bg-red-500">{Math.floor(reportData.kpis.callsMade * 0.35)}</Badge>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">خطأ بالرقم</span>
-                            <Badge className="bg-gray-500">{Math.floor(reportData.kpis.callsMade * 0.1)}</Badge>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">انشغال الخط</span>
-                            <Badge className="bg-yellow-500">{Math.floor(reportData.kpis.callsMade * 0.05)}</Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* Promises Tab */}
-            <TabsContent value="promises">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle>وعود الدفع النشطة</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>رقم القرض</TableHead>
-                          <TableHead>العميل</TableHead>
-                          <TableHead>تاريخ الوعد</TableHead>
-                          <TableHead className="text-right">مبلغ الوعد</TableHead>
-                          <TableHead>الحالة</TableHead>
-                          <TableHead>الأيام المتبقية</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {reportData.promisesToPay?.filter(ptp => ptp.status === 'ACTIVE').map((ptp, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{ptp.caseNumber}</TableCell>
-                            <TableCell>{ptp.customerName}</TableCell>
-                            <TableCell>{new Date(ptp.ptpDate).toLocaleDateString('ar-SA')}</TableCell>
-                            <TableCell className="text-right font-semibold">
-                              {formatCurrency(ptp.ptpAmount)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="warning">قيد الانتظار</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {Math.ceil((new Date(ptp.ptpDate) - new Date()) / (1000 * 60 * 60 * 24))} يوم
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>توزيع وعود الدفع</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie
-                          data={promiseChartData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {promiseChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    
-                    <div className="mt-4 space-y-2">
-                      {promiseChartData.map((item, index) => (
-                        <div key={index} className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded`} style={{ backgroundColor: item.color }} />
-                            <span className="text-sm">{item.name}</span>
-                          </div>
-                          <Badge variant="outline">{item.value}</Badge>
                         </div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
+            )}
 
-            {/* Performance Tab */}
-            <TabsContent value="performance">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Portfolio View */}
+            {activeView === 'portfolio' && (
+              <div className="space-y-6">
+                {/* Portfolio Summary */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>توزيع المحفظة حسب المنتج</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'قرض تورق', value: 35, amount: 15000000 },
+                              { name: 'قرض كاش', value: 25, amount: 8000000 },
+                              { name: 'تمويل شخصي', value: 40, amount: 12000000 },
+                              { name: 'تمويل عقاري', value: 27, amount: 10750000 }
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {[0,1,2,3].map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value, name, props) => [
+                            `${value} قرض`,
+                            `${formatCurrency(props.payload.amount)}`
+                          ]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>حالة المحفظة</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <Treemap
+                          data={[
+                            { name: 'جاري', size: 55, fill: '#10b981' },
+                            { name: '1-30 يوم', size: 20, fill: '#f59e0b' },
+                            { name: '31-60 يوم', size: 15, fill: '#ef4444' },
+                            { name: '61-90 يوم', size: 7, fill: '#dc2626' },
+                            { name: '+90 يوم', size: 3, fill: '#991b1b' }
+                          ]}
+                          dataKey="size"
+                          stroke="#fff"
+                          strokeWidth={2}
+                        >
+                          <Tooltip formatter={(value) => `${value}%`} />
+                        </Treemap>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>معدل النمو الشهري</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={Array.from({length: 6}, (_, i) => ({
+                          month: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'][i],
+                          portfolio: 35000000 + (i * 2000000) + Math.random() * 5000000,
+                          collected: 5000000 + (i * 500000) + Math.random() * 1000000
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis />
+                          <Tooltip formatter={(value) => formatCurrency(value)} />
+                          <Area 
+                            type="monotone" 
+                            dataKey="portfolio" 
+                            stackId="1"
+                            stroke="#3b82f6" 
+                            fill="#3b82f6"
+                            fillOpacity={0.6}
+                            name="المحفظة"
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="collected" 
+                            stackId="1"
+                            stroke="#10b981" 
+                            fill="#10b981"
+                            fillOpacity={0.6}
+                            name="المحصل"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Detailed Portfolio Table */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>مؤشرات الأداء</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>تفاصيل المحفظة</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            placeholder="بحث..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 w-64"
+                          />
+                        </div>
+                        <Button variant="outline" size="sm">
+                          <FileDown className="h-4 w-4 mr-2" />
+                          تصدير
+                        </Button>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">معدل التحصيل</span>
-                          <span className="text-2xl font-bold text-green-600">
-                            {reportData.performance.collectionRate}%
-                          </span>
-                        </div>
-                        <Progress value={reportData.performance.collectionRate} className="h-3" />
-                      </div>
+                    <ScrollArea className="h-[600px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>رقم القرض</TableHead>
+                            <TableHead>العميل</TableHead>
+                            <TableHead>المنتج</TableHead>
+                            <TableHead>القيمة</TableHead>
+                            <TableHead>المتأخر</TableHead>
+                            <TableHead>أيام التأخير</TableHead>
+                            <TableHead>المخاطر</TableHead>
+                            <TableHead>احتمالية التحصيل</TableHead>
+                            <TableHead>الإجراءات</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reportData.loans
+                            .filter(loan => 
+                              loan.customerName.includes(searchTerm) ||
+                              loan.loanNumber.includes(searchTerm)
+                            )
+                            .slice(0, 20)
+                            .map((loan) => (
+                            <TableRow key={loan.loanNumber} className="hover:bg-gray-50">
+                              <TableCell className="font-medium">{loan.loanNumber}</TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{loan.customerName}</p>
+                                  <p className="text-xs text-gray-500">{loan.customerPhone}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>{loan.productType}</TableCell>
+                              <TableCell>{formatCurrency(loan.loanAmount)}</TableCell>
+                              <TableCell className="text-red-600 font-medium">
+                                {formatCurrency(loan.totalOverdueAmount)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={getDelinquencyColor(loan.delinquencyBucket)}>
+                                  {loan.totalOverdueDays} يوم
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    loan.riskScore < 30 ? 'bg-green-500' :
+                                    loan.riskScore < 60 ? 'bg-yellow-500' :
+                                    'bg-red-500'
+                                  }`} />
+                                  <span className="text-sm">{loan.riskScore}%</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Progress value={loan.collectionProbability} className="w-20" />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost"
+                                    onClick={() => setSelectedLoan(loan)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost">
+                                    <PhoneCall className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost">
+                                    <MessageSquare className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">معدل الاستجابة</span>
-                          <span className="text-2xl font-bold text-blue-600">
-                            {reportData.performance.responseRate}%
-                          </span>
+            {/* Analytics View */}
+            {activeView === 'analytics' && (
+              <div className="space-y-6">
+                {/* Predictive Analytics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Brain className="h-5 w-5" />
+                      التحليلات التنبؤية
+                    </CardTitle>
+                    <CardDescription>
+                      توقعات الأداء للـ 30 يوم القادمة بناءً على البيانات التاريخية
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="space-y-4">
+                        <div className="p-4 bg-blue-50 rounded-lg">
+                          <h3 className="font-medium mb-2">توقع التحصيل</h3>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {formatCurrency(3850000)}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            بناءً على معدل التحصيل الحالي
+                          </p>
                         </div>
-                        <Progress value={reportData.performance.responseRate} className="h-3" />
+                        <div className="p-4 bg-green-50 rounded-lg">
+                          <h3 className="font-medium mb-2">وعود الدفع المتوقعة</h3>
+                          <p className="text-2xl font-bold text-green-600">87</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            بمعدل تحقيق 76%
+                          </p>
+                        </div>
                       </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">معدل الوعود</span>
-                          <span className="text-2xl font-bold text-orange-600">
-                            {reportData.performance.promiseRate}%
-                          </span>
-                        </div>
-                        <Progress value={reportData.performance.promiseRate} className="h-3" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">معدل تحقيق الوعود</span>
-                          <span className="text-2xl font-bold text-purple-600">
-                            {reportData.performance.fulfillmentRate}%
-                          </span>
-                        </div>
-                        <Progress value={reportData.performance.fulfillmentRate} className="h-3" />
+                      
+                      <div className="lg:col-span-2">
+                        <ResponsiveContainer width="100%" height={250}>
+                          <LineChart data={Array.from({length: 30}, (_, i) => ({
+                            day: i + 1,
+                            actual: i <= 15 ? Math.random() * 200000 + 100000 : null,
+                            predicted: i >= 10 ? Math.random() * 200000 + 100000 : null,
+                            confidence_upper: i >= 10 ? (Math.random() * 200000 + 100000) * 1.2 : null,
+                            confidence_lower: i >= 10 ? (Math.random() * 200000 + 100000) * 0.8 : null
+                          }))}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="day" />
+                            <YAxis />
+                            <Tooltip formatter={(value) => formatCurrency(value)} />
+                            <Line 
+                              type="monotone" 
+                              dataKey="actual" 
+                              stroke="#3b82f6" 
+                              strokeWidth={2}
+                              name="فعلي"
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="predicted" 
+                              stroke="#10b981" 
+                              strokeWidth={2}
+                              strokeDasharray="5 5"
+                              name="متوقع"
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="confidence_upper"
+                              stroke="none"
+                              fill="#10b981"
+                              fillOpacity={0.1}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="confidence_lower"
+                              stroke="none"
+                              fill="#10b981"
+                              fillOpacity={0.1}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
+                {/* Customer Behavior Analysis */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>تحليل سلوك العملاء</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <ScatterChart>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="contactAttempts" name="محاولات الاتصال" />
+                          <YAxis dataKey="paymentProbability" name="احتمالية الدفع %" />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                          <Scatter
+                            name="العملاء"
+                            data={Array.from({length: 50}, () => ({
+                              contactAttempts: Math.floor(Math.random() * 20),
+                              paymentProbability: Math.random() * 100,
+                              amount: Math.floor(Math.random() * 50000)
+                            }))}
+                            fill="#3b82f6"
+                          />
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>قمع التحصيل</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <FunnelChart>
+                          <Funnel
+                            dataKey="value"
+                            data={[
+                              { name: 'إجمالي العملاء', value: 127, fill: '#3b82f6' },
+                              { name: 'تم الاتصال', value: 98, fill: '#10b981' },
+                              { name: 'تم الرد', value: 72, fill: '#f59e0b' },
+                              { name: 'وعد بالدفع', value: 45, fill: '#8b5cf6' },
+                              { name: 'تم الدفع', value: 34, fill: '#ef4444' }
+                            ]}
+                            labelLine={false}
+                          >
+                            <Tooltip />
+                          </Funnel>
+                        </FunnelChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Risk Factor Analysis */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>ملخص الأداء</CardTitle>
+                    <CardTitle>تحليل عوامل المخاطر</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <Alert>
-                        <TrendingUp className="h-4 w-4" />
-                        <AlertDescription>
-                          <strong>نقاط القوة:</strong>
-                          <ul className="list-disc list-inside mt-2">
-                            <li>معدل استجابة عالي للمكالمات ({reportData.performance.responseRate}%)</li>
-                            <li>معدل تحصيل جيد ({reportData.performance.collectionRate}%)</li>
-                            <li>نشاط تواصل منتظم مع العملاء</li>
-                          </ul>
-                        </AlertDescription>
-                      </Alert>
-
-                      <Alert>
-                        <Target className="h-4 w-4" />
-                        <AlertDescription>
-                          <strong>مجالات التحسين:</strong>
-                          <ul className="list-disc list-inside mt-2">
-                            <li>زيادة معدل تحويل المكالمات لوعود دفع</li>
-                            <li>تحسين متابعة الوعود لضمان تحقيقها</li>
-                            <li>التركيز على العملاء ذوي المتأخرات العالية</li>
-                          </ul>
-                        </AlertDescription>
-                      </Alert>
-
-                      <div className="pt-4 border-t">
-                        <h4 className="font-medium mb-3">التوصيات</h4>
-                        <ul className="space-y-2 text-sm">
-                          <li className="flex items-start gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                            <span>زيادة معدل الاتصال في الفترة الصباحية</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                            <span>استخدام الرسائل النصية قبل الاتصال للحصول على معدل رد أفضل</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                            <span>التركيز على العملاء في فئة 31-60 يوم لمنع تدهور الحالة</span>
-                          </li>
-                        </ul>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="font-medium mb-4">تأثير العوامل على احتمالية التعثر</h3>
+                        <div className="space-y-3">
+                          {reportData.riskAnalysis.factors.map((factor, index) => (
+                            <div key={index}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm">{factor.factor}</span>
+                                <span className="text-sm font-medium">{factor.impact}%</span>
+                              </div>
+                              <Progress value={factor.impact} className="h-2" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h3 className="font-medium mb-4">مصفوفة المخاطر</h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {['منخفض', 'متوسط', 'عالي'].map((probability) => (
+                            ['منخفض', 'متوسط', 'عالي'].map((impact) => {
+                              const risk = probability === impact ? 'medium' :
+                                         (probability === 'عالي' && impact === 'عالي') ? 'high' :
+                                         (probability === 'منخفض' && impact === 'منخفض') ? 'low' : 'medium';
+                              return (
+                                <div
+                                  key={`${probability}-${impact}`}
+                                  className={`p-3 rounded text-center text-xs font-medium ${
+                                    risk === 'high' ? 'bg-red-100 text-red-700' :
+                                    risk === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-green-100 text-green-700'
+                                  }`}
+                                >
+                                  {Math.floor(Math.random() * 20) + 1}
+                                </div>
+                              );
+                            })
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between mt-2 text-xs text-gray-600">
+                          <span>← الأثر</span>
+                          <span>الاحتمالية ↓</span>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
+            )}
+
+            {/* Timeline View */}
+            {activeView === 'timeline' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>الجدول الزمني للأنشطة</CardTitle>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          اليوم
+                        </Button>
+                        <Button variant="ghost" size="sm">الأسبوع</Button>
+                        <Button variant="ghost" size="sm">الشهر</Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="relative">
+                      {/* Timeline content */}
+                      <div className="space-y-6">
+                        {Array.from({length: 10}, (_, i) => {
+                          const types = ['call', 'message', 'email', 'payment', 'meeting'];
+                          const type = types[Math.floor(Math.random() * types.length)];
+                          const time = new Date();
+                          time.setHours(9 + i);
+                          
+                          return (
+                            <div key={i} className="flex gap-4">
+                              <div className="flex-shrink-0 w-24 text-right">
+                                <span className="text-sm text-muted-foreground">
+                                  {time.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="relative">
+                                <div className={`w-3 h-3 rounded-full ${
+                                  type === 'payment' ? 'bg-green-500' :
+                                  type === 'call' ? 'bg-blue-500' :
+                                  type === 'message' ? 'bg-purple-500' :
+                                  type === 'email' ? 'bg-orange-500' :
+                                  'bg-gray-500'
+                                }`} />
+                                {i < 9 && (
+                                  <div className="absolute top-3 left-1.5 w-0.5 h-20 bg-gray-200" />
+                                )}
+                              </div>
+                              <div className="flex-1 pb-8">
+                                <Card className="hover:shadow-md transition-shadow">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-start justify-between">
+                                      <div className="space-y-1">
+                                        <h4 className="font-medium">
+                                          {type === 'call' && 'مكالمة هاتفية'}
+                                          {type === 'message' && 'رسالة نصية'}
+                                          {type === 'email' && 'بريد إلكتروني'}
+                                          {type === 'payment' && 'دفعة مستلمة'}
+                                          {type === 'meeting' && 'اجتماع'}
+                                        </h4>
+                                        <p className="text-sm text-muted-foreground">
+                                          عميل #{Math.floor(Math.random() * 1000)}
+                                        </p>
+                                        {type === 'payment' && (
+                                          <p className="text-sm font-medium text-green-600">
+                                            {formatCurrency(Math.floor(Math.random() * 50000))}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <Badge variant="outline">
+                                        {type === 'call' && 'تم الرد'}
+                                        {type === 'message' && 'تم الإرسال'}
+                                        {type === 'email' && 'تم القراءة'}
+                                        {type === 'payment' && 'مكتمل'}
+                                        {type === 'meeting' && 'مجدول'}
+                                      </Badge>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Reports View */}
+            {activeView === 'reports' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {[
+                    {
+                      title: 'تقرير الأداء الشهري',
+                      description: 'ملخص شامل لأداء الشهر الحالي',
+                      icon: BarChart,
+                      lastGenerated: 'منذ يومين',
+                      format: 'PDF'
+                    },
+                    {
+                      title: 'تقرير المحفظة التفصيلي',
+                      description: 'تحليل مفصل لجميع القروض في المحفظة',
+                      icon: PieChart,
+                      lastGenerated: 'منذ أسبوع',
+                      format: 'Excel'
+                    },
+                    {
+                      title: 'تقرير الاتجاهات',
+                      description: 'تحليل الاتجاهات والتوقعات المستقبلية',
+                      icon: LineChart,
+                      lastGenerated: 'منذ 3 أيام',
+                      format: 'PDF'
+                    }
+                  ].map((report, index) => (
+                    <Card key={index} className="hover:shadow-lg transition-all">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <report.icon className="h-8 w-8 text-blue-500" />
+                          <Badge variant="outline">{report.format}</Badge>
+                        </div>
+                        <CardTitle className="text-lg mt-4">{report.title}</CardTitle>
+                        <CardDescription>{report.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                          <span>آخر إنشاء</span>
+                          <span>{report.lastGenerated}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button className="flex-1" size="sm">
+                            <Download className="h-4 w-4 mr-2" />
+                            تحميل
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Custom Report Builder */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>إنشاء تقرير مخصص</CardTitle>
+                    <CardDescription>
+                      قم بإنشاء تقرير مخصص حسب احتياجاتك
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>نوع التقرير</Label>
+                          <Select>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر نوع التقرير" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="performance">تقرير الأداء</SelectItem>
+                              <SelectItem value="portfolio">تقرير المحفظة</SelectItem>
+                              <SelectItem value="collection">تقرير التحصيل</SelectItem>
+                              <SelectItem value="risk">تقرير المخاطر</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>الفترة الزمنية</Label>
+                          <Select>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر الفترة" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="daily">يومي</SelectItem>
+                              <SelectItem value="weekly">أسبوعي</SelectItem>
+                              <SelectItem value="monthly">شهري</SelectItem>
+                              <SelectItem value="quarterly">ربع سنوي</SelectItem>
+                              <SelectItem value="yearly">سنوي</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label>المحتويات</Label>
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                          {[
+                            'ملخص تنفيذي',
+                            'مؤشرات الأداء',
+                            'تحليل المحفظة',
+                            'تحليل المخاطر',
+                            'توزيع العملاء',
+                            'اتجاهات التحصيل',
+                            'تحليل قنوات التواصل',
+                            'التوصيات'
+                          ].map((item) => (
+                            <div key={item} className="flex items-center space-x-2">
+                              <Switch id={item} defaultChecked />
+                              <Label htmlFor={item} className="text-sm font-normal mr-2">
+                                {item}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2 pt-4">
+                        <Button className="flex-1">
+                          <FileText className="h-4 w-4 mr-2" />
+                          إنشاء التقرير
+                        </Button>
+                        <Button variant="outline">
+                          <Save className="h-4 w-4 mr-2" />
+                          حفظ كقالب
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Loan Detail Modal */}
+      <LoanDetailModal 
+        loan={selectedLoan} 
+        isOpen={!!selectedLoan} 
+        onClose={() => setSelectedLoan(null)} 
+      />
     </div>
   );
 };
