@@ -235,7 +235,7 @@ export class CollectionService {
         // Need to join with officers table
         query = query.in('assigned_to', 
           supabaseCollection
-            .from('collection_officers')
+            .from(TABLES.COLLECTION_OFFICERS)
             .select('officer_id')
             .eq('team_id', team)
         );
@@ -514,7 +514,7 @@ export class CollectionService {
 
       // Get total officers
       const { count: totalOfficers } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select('officer_id', { count: 'exact', head: true })
         .eq('status', 'ACTIVE');
 
@@ -619,7 +619,7 @@ export class CollectionService {
 
       // Get specialist info
       const { data: specialist, error: specialistError } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select('*')
         .eq('officer_id', specialistId)
         .single();
@@ -737,7 +737,7 @@ export class CollectionService {
   static async getSpecialists() {
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select('officer_id, officer_name, officer_type, team_id')
         .eq('status', 'ACTIVE')
         .order('officer_name');
