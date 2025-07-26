@@ -72,7 +72,10 @@ const SpecialistLevelReport = () => {
         setSpecialists(response.data);
       }
     } catch (error) {
-      console.error('Error loading specialists:', error);
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error loading specialists:', error);
+      }
     }
   };
 
@@ -90,10 +93,14 @@ const SpecialistLevelReport = () => {
       if (response.success) {
         setReportData(response.data);
       } else {
-        console.error('Error fetching report data:', response.error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching report data:', response.error);
+        }
       }
     } catch (error) {
-      console.error('Error fetching report data:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching report data:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -144,14 +151,20 @@ const SpecialistLevelReport = () => {
       const response = await specialistReportService.exportReport(selectedSpecialist, format, filters);
       
       if (response.success) {
-        // Handle successful export
-        console.log(`Report exported successfully in ${format} format`);
+        // Handle successful export - silent in production
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Report exported successfully in ${format} format`);
+        }
         // You can add logic here to download the file or show success message
       } else {
-        console.error('Export failed:', response.error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Export failed:', response.error);
+        }
       }
     } catch (error) {
-      console.error('Export error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Export error:', error);
+      }
     }
   };
 
