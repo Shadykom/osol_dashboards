@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   LineChart, Line, BarChart, Bar, RadarChart, Radar, PolarGrid, 
   PolarAngleAxis, PolarRadiusAxis, ScatterChart, Scatter,
@@ -17,152 +18,137 @@ import {
 import { 
   AlertTriangle, TrendingUp, Users, Activity, Bell, Shield,
   Eye, DollarSign, Calendar, Clock, Zap, Target, AlertCircle,
-  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building
+  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building,
+  Phone, Mail, Loader2
 } from 'lucide-react';
+import { EarlyWarningService } from '@/services/earlyWarningService';
+import { useNavigate } from 'react-router-dom';
 
 const EarlyWarningDashboard = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [selectedRiskLevel, setSelectedRiskLevel] = useState('all');
   const [selectedIndicator, setSelectedIndicator] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [criticalAccountsOpen, setCriticalAccountsOpen] = useState(false);
+  const [criticalAccounts, setCriticalAccounts] = useState([]);
+  const [loadingCritical, setLoadingCritical] = useState(false);
 
-  // Mock early warning data
-  const earlyWarningData = {
-    summary: {
-      totalAlerts: 456,
-      criticalAlerts: 45,
-      highRiskAccounts: 125,
-      mediumRiskAccounts: 286,
-      potentialLoss: 12500000,
-      accountsMonitored: 45320,
-      alertsResolved: 312,
-      falsePositives: 23
-    },
-    riskIndicators: {
-      firstPaymentDefault: {
-        count: 32,
-        amount: 2450000,
-        trend: 'increasing',
-        changePercent: 15.2,
-        accounts: [
-          { id: 'ACC001', customer: 'Al-Rashid Trading', loanAmount: 250000, daysOverdue: 15, riskScore: 85 },
-          { id: 'ACC002', customer: 'Tech Solutions', loanAmount: 180000, daysOverdue: 12, riskScore: 82 },
-          { id: 'ACC003', customer: 'Green Valley', loanAmount: 320000, daysOverdue: 18, riskScore: 88 }
-        ]
-      },
-      irregularPayment: {
-        count: 87,
-        amount: 4250000,
-        trend: 'stable',
-        changePercent: 2.1,
-        patterns: [
-          { pattern: 'Declining payment amounts', count: 35, avgRisk: 72 },
-          { pattern: 'Increasing delays', count: 28, avgRisk: 78 },
-          { pattern: 'Missed alternate payments', count: 24, avgRisk: 68 }
-        ]
-      },
-      multipleLoans: {
-        count: 68,
-        totalExposure: 8900000,
-        avgLoansPerCustomer: 3.2,
-        highestExposure: { customer: 'Falcon Enterprises', amount: 1250000, loans: 5 }
-      },
-      highDTI: {
-        count: 125,
-        avgDTI: 78.5,
-        threshold: 65,
-        distribution: [
-          { range: '65-70%', count: 45 },
-          { range: '70-75%', count: 38 },
-          { range: '75-80%', count: 25 },
-          { range: '80%+', count: 17 }
-        ]
-      },
-      industryRisk: {
-        sectors: [
-          { sector: 'Construction', riskLevel: 'HIGH', accounts: 45, exposure: 3200000 },
-          { sector: 'Retail', riskLevel: 'MEDIUM', accounts: 62, exposure: 2800000 },
-          { sector: 'Tourism', riskLevel: 'HIGH', accounts: 28, exposure: 1900000 },
-          { sector: 'Technology', riskLevel: 'LOW', accounts: 15, exposure: 950000 }
-        ]
-      },
-      behavioralChanges: {
-        totalDetected: 156,
-        types: [
-          { type: 'Channel switch', count: 45, riskIncrease: 15 },
-          { type: 'Contact avoidance', count: 38, riskIncrease: 25 },
-          { type: 'Payment method change', count: 32, riskIncrease: 10 },
-          { type: 'Communication tone', count: 41, riskIncrease: 20 }
-        ]
+  // State for all data
+  const [summary, setSummary] = useState({
+    totalAlerts: 0,
+    criticalAlerts: 0,
+    highRiskAccounts: 0,
+    mediumRiskAccounts: 0,
+    potentialLoss: 0,
+    accountsMonitored: 0,
+    alertsResolved: 0,
+    falsePositives: 0
+  });
+  const [riskIndicators, setRiskIndicators] = useState(null);
+  const [riskScoreTrend, setRiskScoreTrend] = useState([]);
+  const [predictiveAnalytics, setPredictiveAnalytics] = useState(null);
+  const [alertsTimeline, setAlertsTimeline] = useState([]);
+  const [actionableInsights, setActionableInsights] = useState([]);
+
+  // Fetch all data
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch summary
+      const summaryResult = await EarlyWarningService.getSummary();
+      if (summaryResult.success && summaryResult.data) {
+        setSummary(summaryResult.data);
       }
-    },
-    riskScoreTrend: [
-      { date: 'Jan', low: 2500, medium: 1800, high: 450, critical: 85 },
-      { date: 'Feb', low: 2450, medium: 1850, high: 480, critical: 92 },
-      { date: 'Mar', low: 2400, medium: 1900, high: 510, critical: 98 },
-      { date: 'Apr', low: 2350, medium: 1950, high: 535, critical: 105 },
-      { date: 'May', low: 2300, medium: 2000, high: 560, critical: 112 },
-      { date: 'Jun', low: 2250, medium: 2050, high: 580, critical: 125 }
-    ],
-    predictiveAnalytics: {
-      nextMonthDefaults: {
-        predicted: 145,
-        confidence: 87.5,
-        expectedLoss: 4250000,
-        topRiskFactors: [
-          { factor: 'Payment delays increasing', weight: 35 },
-          { factor: 'DTI above threshold', weight: 28 },
-          { factor: 'Industry downturn', weight: 22 },
-          { factor: 'Multiple loan stress', weight: 15 }
-        ]
-      },
-      riskMigration: [
-        { from: 'Low', to: 'Medium', count: 125, percentage: 5.2 },
-        { from: 'Medium', to: 'High', count: 87, percentage: 4.8 },
-        { from: 'High', to: 'Critical', count: 32, percentage: 6.2 }
-      ]
-    },
-    alertsTimeline: [
-      { time: '10:45', type: 'CRITICAL', message: 'Large corporate account showing stress signals', account: 'ACC2456' },
-      { time: '10:30', type: 'HIGH', message: 'Multiple payment failures detected', account: 'ACC1234' },
-      { time: '10:15', type: 'MEDIUM', message: 'DTI threshold exceeded for 5 accounts', account: 'Multiple' },
-      { time: '09:45', type: 'HIGH', message: 'First payment default pattern detected', account: 'ACC3789' },
-      { time: '09:30', type: 'LOW', message: 'Industry risk alert - Construction sector', account: 'Sector Alert' }
-    ],
-    actionableInsights: [
-      {
-        priority: 'CRITICAL',
-        insight: '32 accounts showing first payment default pattern',
-        recommendation: 'Immediate contact required within 24 hours',
-        potentialSaving: 850000
-      },
-      {
-        priority: 'HIGH',
-        insight: '68 customers with multiple loans showing stress',
-        recommendation: 'Consider restructuring options proactively',
-        potentialSaving: 1250000
-      },
-      {
-        priority: 'MEDIUM',
-        insight: 'Construction sector showing 25% increase in delays',
-        recommendation: 'Tighten credit policies for sector',
-        potentialSaving: 620000
+
+      // Fetch risk indicators based on filters
+      const indicatorFilters = {
+        riskLevel: selectedRiskLevel !== 'all' ? selectedRiskLevel : undefined,
+        indicatorType: selectedIndicator !== 'all' ? selectedIndicator : undefined
+      };
+      
+      const indicatorsResult = await EarlyWarningService.getAllRiskIndicators(indicatorFilters);
+      if (indicatorsResult.success && indicatorsResult.data) {
+        setRiskIndicators(indicatorsResult.data);
       }
-    ]
+
+      // Fetch risk score trends
+      const trendsResult = await EarlyWarningService.getRiskScoreTrends();
+      if (trendsResult.success && trendsResult.data) {
+        setRiskScoreTrend(trendsResult.data);
+      }
+
+      // Fetch predictive analytics
+      const predictiveResult = await EarlyWarningService.getPredictiveAnalytics();
+      if (predictiveResult.success && predictiveResult.data) {
+        setPredictiveAnalytics(predictiveResult.data);
+      }
+
+      // Fetch alerts timeline with risk level filter
+      const alertsResult = await EarlyWarningService.getRealTimeAlerts({ 
+        limit: 10,
+        riskLevel: selectedRiskLevel 
+      });
+      if (alertsResult.success && alertsResult.data) {
+        setAlertsTimeline(alertsResult.data);
+      }
+
+      // Fetch actionable insights
+      const insightsResult = await EarlyWarningService.getActionableInsights();
+      if (insightsResult.success && insightsResult.data) {
+        setActionableInsights(insightsResult.data);
+      }
+    } catch (error) {
+      console.error('Error fetching early warning data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Handle refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
+
+  // Handle view critical accounts
+  const handleViewCriticalAccounts = async () => {
+    setCriticalAccountsOpen(true);
+    setLoadingCritical(true);
+    
+    const result = await EarlyWarningService.getCriticalAccounts();
+    if (result.success && result.data) {
+      setCriticalAccounts(result.data);
+    }
+    
+    setLoadingCritical(false);
+  };
+
+  // Handle account click - navigate to customer details
+  const handleAccountClick = (account) => {
+    navigate(`/customers/${account.id}`);
+  };
+
+  // Initial data fetch and refetch when filters change
+  useEffect(() => {
+    fetchData();
+  }, [selectedRiskLevel, selectedIndicator]);
+
+  // Format functions
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
+    }).format(amount || 0);
   };
 
   const formatNumber = (num) => {
-    return new Intl.NumberFormat('en-US').format(num);
+    return new Intl.NumberFormat('en-US').format(num || 0);
   };
 
   const getRiskColor = (level) => {
@@ -194,13 +180,6 @@ const EarlyWarningDashboard = () => {
     return <Activity className="h-4 w-4 text-gray-500" />;
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  };
-
   const COLORS = {
     low: '#22c55e',
     medium: '#eab308',
@@ -208,9 +187,13 @@ const EarlyWarningDashboard = () => {
     critical: '#ef4444'
   };
 
-  useEffect(() => {
-    setLoading(false);
-  }, []);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -253,14 +236,14 @@ const EarlyWarningDashboard = () => {
       </div>
 
       {/* Critical Alerts */}
-      {earlyWarningData.summary.criticalAlerts > 0 && (
+      {summary.criticalAlerts > 0 && (
         <Alert className="border-red-200 bg-red-50">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Critical Risk Alerts</AlertTitle>
           <AlertDescription>
             <div className="flex items-center justify-between mt-2">
-              <span>{earlyWarningData.summary.criticalAlerts} accounts require immediate attention</span>
-              <Button size="sm" variant="destructive">
+              <span>{summary.criticalAlerts} accounts require immediate attention</span>
+              <Button size="sm" variant="destructive" onClick={handleViewCriticalAccounts}>
                 View Critical Accounts
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
@@ -276,13 +259,13 @@ const EarlyWarningDashboard = () => {
             <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(earlyWarningData.summary.totalAlerts)}</div>
+            <div className="text-2xl font-bold">{formatNumber(summary.totalAlerts)}</div>
             <div className="flex items-center gap-2 mt-1">
               <Badge className="bg-red-500 text-white text-xs">
-                {earlyWarningData.summary.criticalAlerts} Critical
+                {summary.criticalAlerts} Critical
               </Badge>
               <Badge variant="outline" className="text-xs">
-                {earlyWarningData.summary.alertsResolved} Resolved
+                {summary.alertsResolved} Resolved
               </Badge>
             </div>
           </CardContent>
@@ -293,9 +276,9 @@ const EarlyWarningDashboard = () => {
             <CardTitle className="text-sm font-medium">High Risk Accounts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(earlyWarningData.summary.highRiskAccounts)}</div>
+            <div className="text-2xl font-bold">{formatNumber(summary.highRiskAccounts)}</div>
             <Progress 
-              value={(earlyWarningData.summary.highRiskAccounts / earlyWarningData.summary.accountsMonitored) * 100} 
+              value={summary.accountsMonitored > 0 ? (summary.highRiskAccounts / summary.accountsMonitored) * 100 : 0} 
               className="mt-2 h-1"
             />
           </CardContent>
@@ -306,7 +289,7 @@ const EarlyWarningDashboard = () => {
             <CardTitle className="text-sm font-medium">Potential Loss</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(earlyWarningData.summary.potentialLoss)}</div>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.potentialLoss)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               If no action taken
             </p>
@@ -318,7 +301,7 @@ const EarlyWarningDashboard = () => {
             <CardTitle className="text-sm font-medium">Monitoring</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(earlyWarningData.summary.accountsMonitored)}</div>
+            <div className="text-2xl font-bold">{formatNumber(summary.accountsMonitored)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Active accounts tracked
             </p>
@@ -337,235 +320,243 @@ const EarlyWarningDashboard = () => {
         </TabsList>
 
         <TabsContent value="indicators" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* First Payment Default */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <FileWarning className="h-5 w-5" />
-                    First Payment Default
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {getTrendIcon(earlyWarningData.riskIndicators.firstPaymentDefault.trend)}
-                    <span className="text-sm font-normal">
-                      {earlyWarningData.riskIndicators.firstPaymentDefault.changePercent}%
+          {riskIndicators && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* First Payment Default */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <FileWarning className="h-5 w-5" />
+                      First Payment Default
                     </span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-red-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Accounts</p>
-                    <p className="text-xl font-bold text-red-600">
-                      {earlyWarningData.riskIndicators.firstPaymentDefault.count}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-red-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Exposure</p>
-                    <p className="text-xl font-bold text-red-600">
-                      {formatCurrency(earlyWarningData.riskIndicators.firstPaymentDefault.amount)}
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {earlyWarningData.riskIndicators.firstPaymentDefault.accounts.slice(0, 3).map((account, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div>
-                        <p className="font-medium text-sm">{account.customer}</p>
-                        <p className="text-xs text-gray-600">{account.id}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold">{formatCurrency(account.loanAmount)}</p>
-                        <Badge variant="destructive" className="text-xs">
-                          Risk: {account.riskScore}
-                        </Badge>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      {getTrendIcon(riskIndicators.firstPaymentDefault?.trend, riskIndicators.firstPaymentDefault?.changePercent)}
+                      <span className="text-sm font-normal">
+                        {riskIndicators.firstPaymentDefault?.changePercent}%
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Accounts</p>
+                      <p className="text-xl font-bold text-red-600">
+                        {riskIndicators.firstPaymentDefault?.count || 0}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Exposure</p>
+                      <p className="text-xl font-bold text-red-600">
+                        {formatCurrency(riskIndicators.firstPaymentDefault?.amount)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {riskIndicators.firstPaymentDefault?.accounts?.slice(0, 3).map((account, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div>
+                          <p className="font-medium text-sm">{account.customer}</p>
+                          <p className="text-xs text-gray-600">{account.id}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold">{formatCurrency(account.loanAmount)}</p>
+                          <Badge variant="destructive" className="text-xs">
+                            Risk: {account.riskScore}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Irregular Payment Patterns */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Irregular Payment Patterns
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {getTrendIcon(earlyWarningData.riskIndicators.irregularPayment.trend)}
-                    <span className="text-sm font-normal">
-                      {earlyWarningData.riskIndicators.irregularPayment.changePercent}%
+              {/* Irregular Payment Patterns */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Irregular Payment Patterns
                     </span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Accounts</p>
-                    <p className="text-xl font-bold text-orange-600">
-                      {earlyWarningData.riskIndicators.irregularPayment.count}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-gray-600">At Risk</p>
-                    <p className="text-xl font-bold text-orange-600">
-                      {formatCurrency(earlyWarningData.riskIndicators.irregularPayment.amount)}
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {earlyWarningData.riskIndicators.irregularPayment.patterns.map((pattern, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm">{pattern.pattern}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{pattern.count} cases</Badge>
-                        <Badge variant="secondary">Avg Risk: {pattern.avgRisk}</Badge>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      {getTrendIcon(riskIndicators.irregularPayment?.trend, riskIndicators.irregularPayment?.changePercent)}
+                      <span className="text-sm font-normal">
+                        {riskIndicators.irregularPayment?.changePercent}%
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Multiple Loans Stress */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Multiple Loan Customers
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Customers</p>
-                    <p className="text-xl font-bold text-yellow-600">
-                      {earlyWarningData.riskIndicators.multipleLoans.count}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Total Exposure</p>
-                    <p className="text-xl font-bold text-yellow-600">
-                      {formatCurrency(earlyWarningData.riskIndicators.multipleLoans.totalExposure)}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                    <p className="text-sm text-gray-600">Avg Loans</p>
-                    <p className="text-xl font-bold text-yellow-600">
-                      {earlyWarningData.riskIndicators.multipleLoans.avgLoansPerCustomer}
-                    </p>
-                  </div>
-                </div>
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Highest Exposure:</strong> {earlyWarningData.riskIndicators.multipleLoans.highestExposure.customer} - 
-                    {formatCurrency(earlyWarningData.riskIndicators.multipleLoans.highestExposure.amount)} 
-                    ({earlyWarningData.riskIndicators.multipleLoans.highestExposure.loans} loans)
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
-
-            {/* High DTI Customers */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  High Debt-to-Income Ratio
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Average DTI</span>
-                    <span className="text-2xl font-bold text-red-600">{earlyWarningData.riskIndicators.highDTI.avgDTI}%</span>
-                  </div>
-                  <Progress value={earlyWarningData.riskIndicators.highDTI.avgDTI} className="h-2" />
-                  <p className="text-xs text-gray-600 mt-1">Threshold: {earlyWarningData.riskIndicators.highDTI.threshold}%</p>
-                </div>
-                <div className="space-y-2">
-                  {earlyWarningData.riskIndicators.highDTI.distribution.map((range, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm">{range.range}</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={(range.count / earlyWarningData.riskIndicators.highDTI.count) * 100} className="w-20" />
-                        <span className="text-sm font-medium">{range.count}</span>
-                      </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Accounts</p>
+                      <p className="text-xl font-bold text-orange-600">
+                        {riskIndicators.irregularPayment?.count || 0}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                    <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <p className="text-sm text-gray-600">At Risk</p>
+                      <p className="text-xl font-bold text-orange-600">
+                        {formatCurrency(riskIndicators.irregularPayment?.amount)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {riskIndicators.irregularPayment?.patterns?.map((pattern, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-sm">{pattern.pattern}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{pattern.count} cases</Badge>
+                          <Badge variant="secondary">Avg Risk: {pattern.avgRisk}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Multiple Loans Stress */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Multiple Loan Customers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Customers</p>
+                      <p className="text-xl font-bold text-yellow-600">
+                        {riskIndicators.multipleLoans?.count || 0}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Total Exposure</p>
+                      <p className="text-xl font-bold text-yellow-600">
+                        {formatCurrency(riskIndicators.multipleLoans?.totalExposure)}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Avg Loans</p>
+                      <p className="text-xl font-bold text-yellow-600">
+                        {riskIndicators.multipleLoans?.avgLoansPerCustomer?.toFixed(1) || 0}
+                      </p>
+                    </div>
+                  </div>
+                  {riskIndicators.multipleLoans?.highestExposure && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Highest Exposure:</strong> {riskIndicators.multipleLoans.highestExposure.customer} - 
+                        {formatCurrency(riskIndicators.multipleLoans.highestExposure.amount)} 
+                        ({riskIndicators.multipleLoans.highestExposure.loans} loans)
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* High DTI Customers */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    High Debt-to-Income Ratio
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-600">Average DTI</span>
+                      <span className="text-2xl font-bold text-red-600">{riskIndicators.highDTI?.avgDTI}%</span>
+                    </div>
+                    <Progress value={riskIndicators.highDTI?.avgDTI || 0} className="h-2" />
+                    <p className="text-xs text-gray-600 mt-1">Threshold: {riskIndicators.highDTI?.threshold}%</p>
+                  </div>
+                  <div className="space-y-2">
+                    {riskIndicators.highDTI?.distribution?.map((range, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span className="text-sm">{range.range}</span>
+                        <div className="flex items-center gap-2">
+                          <Progress value={(range.count / (riskIndicators.highDTI?.count || 1)) * 100} className="w-20" />
+                          <span className="text-sm font-medium">{range.count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Industry Risk Analysis */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                Industry Risk Analysis
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={earlyWarningData.riskIndicators.industryRisk.sectors}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="sector" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="left" dataKey="accounts" fill="#8884d8" name="Accounts" />
-                  <Bar yAxisId="right" dataKey="exposure" fill="#82ca9d" name="Exposure (SAR)" />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                {earlyWarningData.riskIndicators.industryRisk.sectors.map((sector, index) => (
-                  <div key={index} className="text-center p-3 bg-gray-50 rounded-lg">
-                    <Badge className={`${getRiskBadgeColor(sector.riskLevel)} text-white mb-2`}>
-                      {sector.riskLevel}
-                    </Badge>
-                    <p className="text-sm font-medium">{sector.sector}</p>
-                    <p className="text-xs text-gray-600">{sector.accounts} accounts</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {riskIndicators?.industryRisk && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Industry Risk Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={riskIndicators.industryRisk.sectors}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="sector" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="accounts" fill="#8884d8" name="Accounts" />
+                    <Bar yAxisId="right" dataKey="exposure" fill="#82ca9d" name="Exposure (SAR)" />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                  {riskIndicators.industryRisk.sectors?.map((sector, index) => (
+                    <div key={index} className="text-center p-3 bg-gray-50 rounded-lg">
+                      <Badge className={`${getRiskBadgeColor(sector.riskLevel)} text-white mb-2`}>
+                        {sector.riskLevel}
+                      </Badge>
+                      <p className="text-sm font-medium">{sector.sector}</p>
+                      <p className="text-xs text-gray-600">{sector.accounts} accounts</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Behavioral Changes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserX className="h-5 w-5" />
-                Behavioral Change Detection
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 text-center p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600">Total Behavioral Changes Detected</p>
-                <p className="text-3xl font-bold text-blue-600">{earlyWarningData.riskIndicators.behavioralChanges.totalDetected}</p>
-              </div>
-              <ResponsiveContainer width="100%" height={250}>
-                <RadarChart data={earlyWarningData.riskIndicators.behavioralChanges.types}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="type" />
-                  <PolarRadiusAxis />
-                  <Radar name="Count" dataKey="count" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                  <Radar name="Risk Increase %" dataKey="riskIncrease" stroke="#82ca9d" fill="#82ca9d" fillOpacity={0.6} />
-                  <Legend />
-                  <Tooltip />
-                </RadarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          {riskIndicators?.behavioralChanges && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserX className="h-5 w-5" />
+                  Behavioral Change Detection
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 text-center p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Total Behavioral Changes Detected</p>
+                  <p className="text-3xl font-bold text-blue-600">{riskIndicators.behavioralChanges.totalDetected}</p>
+                </div>
+                <ResponsiveContainer width="100%" height={250}>
+                  <RadarChart data={riskIndicators.behavioralChanges.types}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="type" />
+                    <PolarRadiusAxis />
+                    <Radar name="Count" dataKey="count" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+                    <Radar name="Risk Increase %" dataKey="riskIncrease" stroke="#82ca9d" fill="#82ca9d" fillOpacity={0.6} />
+                    <Legend />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="alerts" className="space-y-4">
@@ -585,7 +576,7 @@ const EarlyWarningDashboard = () => {
             <CardContent>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-4">
-                  {earlyWarningData.alertsTimeline.map((alert, index) => (
+                  {alertsTimeline.map((alert, index) => (
                     <div key={index} className="flex items-start gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow">
                       <div className="text-sm text-gray-500 min-w-[60px]">{alert.time}</div>
                       <div className={`p-2 rounded-full ${getRiskBadgeColor(alert.type)}`}>
@@ -619,12 +610,13 @@ const EarlyWarningDashboard = () => {
               <CardContent>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-green-600">
-                    {((earlyWarningData.summary.alertsResolved - earlyWarningData.summary.falsePositives) / 
-                      earlyWarningData.summary.alertsResolved * 100).toFixed(1)}%
+                    {summary.alertsResolved > 0 
+                      ? ((summary.alertsResolved - summary.falsePositives) / summary.alertsResolved * 100).toFixed(1)
+                      : '0'}%
                   </div>
                   <p className="text-sm text-gray-600 mt-1">True positive rate</p>
                   <p className="text-xs text-gray-500 mt-2">
-                    {earlyWarningData.summary.falsePositives} false positives
+                    {summary.falsePositives} false positives
                   </p>
                 </div>
               </CardContent>
@@ -663,85 +655,89 @@ const EarlyWarningDashboard = () => {
 
         <TabsContent value="analytics" className="space-y-4">
           {/* Predictive Analytics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Default Prediction Model</CardTitle>
-              <CardDescription>AI-powered risk forecasting for next 30 days</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-red-600" />
-                  <p className="text-sm text-gray-600">Predicted Defaults</p>
-                  <p className="text-3xl font-bold text-red-600">
-                    {earlyWarningData.predictiveAnalytics.nextMonthDefaults.predicted}
-                  </p>
-                  <Badge variant="outline" className="mt-2">
-                    {earlyWarningData.predictiveAnalytics.nextMonthDefaults.confidence}% confidence
-                  </Badge>
-                </div>
-                <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <DollarSign className="h-8 w-8 mx-auto mb-2 text-orange-600" />
-                  <p className="text-sm text-gray-600">Expected Loss</p>
-                  <p className="text-3xl font-bold text-orange-600">
-                    {formatCurrency(earlyWarningData.predictiveAnalytics.nextMonthDefaults.expectedLoss)}
-                  </p>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <Shield className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                  <p className="text-sm text-gray-600">Preventable Loss</p>
-                  <p className="text-3xl font-bold text-green-600">
-                    {formatCurrency(earlyWarningData.predictiveAnalytics.nextMonthDefaults.expectedLoss * 0.7)}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">With intervention</p>
-                </div>
-              </div>
-
-              {/* Risk Factors */}
-              <div className="mb-6">
-                <h4 className="font-medium mb-3">Top Risk Factors</h4>
-                <div className="space-y-2">
-                  {earlyWarningData.predictiveAnalytics.nextMonthDefaults.topRiskFactors.map((factor, index) => (
-                    <div key={index}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm">{factor.factor}</span>
-                        <span className="text-sm font-medium">{factor.weight}%</span>
-                      </div>
-                      <Progress value={factor.weight} className="h-2" />
+          {predictiveAnalytics && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Default Prediction Model</CardTitle>
+                  <CardDescription>AI-powered risk forecasting for next 30 days</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="text-center p-4 bg-red-50 rounded-lg">
+                      <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-red-600" />
+                      <p className="text-sm text-gray-600">Predicted Defaults</p>
+                      <p className="text-3xl font-bold text-red-600">
+                        {predictiveAnalytics.nextMonthDefaults?.predicted || 0}
+                      </p>
+                      <Badge variant="outline" className="mt-2">
+                        {predictiveAnalytics.nextMonthDefaults?.confidence || 0}% confidence
+                      </Badge>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="text-center p-4 bg-orange-50 rounded-lg">
+                      <DollarSign className="h-8 w-8 mx-auto mb-2 text-orange-600" />
+                      <p className="text-sm text-gray-600">Expected Loss</p>
+                      <p className="text-3xl font-bold text-orange-600">
+                        {formatCurrency(predictiveAnalytics.nextMonthDefaults?.expectedLoss)}
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <Shield className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                      <p className="text-sm text-gray-600">Preventable Loss</p>
+                      <p className="text-3xl font-bold text-green-600">
+                        {formatCurrency((predictiveAnalytics.nextMonthDefaults?.expectedLoss || 0) * 0.7)}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">With intervention</p>
+                    </div>
+                  </div>
 
-          {/* Risk Migration */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Risk Score Migration</CardTitle>
-              <CardDescription>Account movement between risk categories</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={earlyWarningData.predictiveAnalytics.riskMigration}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="from" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="count" fill="#8884d8" name="Accounts" />
-                  <Line type="monotone" dataKey="percentage" stroke="#ff7300" name="Migration %" />
-                </ComposedChart>
-              </ResponsiveContainer>
-              <Alert className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Key Insight:</strong> 6.2% of high-risk accounts are migrating to critical status - 
-                  immediate intervention required for {earlyWarningData.predictiveAnalytics.riskMigration[2].count} accounts
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+                  {/* Risk Factors */}
+                  <div className="mb-6">
+                    <h4 className="font-medium mb-3">Top Risk Factors</h4>
+                    <div className="space-y-2">
+                      {predictiveAnalytics.nextMonthDefaults?.topRiskFactors?.map((factor, index) => (
+                        <div key={index}>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">{factor.factor}</span>
+                            <span className="text-sm font-medium">{factor.weight}%</span>
+                          </div>
+                          <Progress value={factor.weight} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Risk Migration */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Risk Score Migration</CardTitle>
+                  <CardDescription>Account movement between risk categories</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <ComposedChart data={predictiveAnalytics.riskMigration}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="from" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="count" fill="#8884d8" name="Accounts" />
+                      <Line type="monotone" dataKey="percentage" stroke="#ff7300" name="Migration %" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                  <Alert className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Key Insight:</strong> 6.2% of high-risk accounts are migrating to critical status - 
+                      immediate intervention required for {predictiveAnalytics.riskMigration?.[2]?.count || 0} accounts
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-4">
@@ -753,7 +749,7 @@ const EarlyWarningDashboard = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={earlyWarningData.riskScoreTrend}>
+                <AreaChart data={riskScoreTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
@@ -806,7 +802,7 @@ const EarlyWarningDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {earlyWarningData.actionableInsights.map((insight, index) => (
+                {actionableInsights.map((insight, index) => (
                   <div key={index} className="p-4 border rounded-lg">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -876,21 +872,21 @@ const EarlyWarningDashboard = () => {
                   <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Badge className="bg-red-500 text-white">Critical</Badge>
-                      <span className="font-medium">45 accounts</span>
+                      <span className="font-medium">{summary.criticalAlerts} accounts</span>
                     </div>
-                    <Button size="sm" variant="destructive">Process</Button>
+                    <Button size="sm" variant="destructive" onClick={handleViewCriticalAccounts}>Process</Button>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Badge className="bg-orange-500 text-white">High</Badge>
-                      <span className="font-medium">125 accounts</span>
+                      <span className="font-medium">{summary.highRiskAccounts} accounts</span>
                     </div>
                     <Button size="sm" variant="outline">Process</Button>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Badge className="bg-yellow-500 text-white">Medium</Badge>
-                      <span className="font-medium">286 accounts</span>
+                      <span className="font-medium">{summary.mediumRiskAccounts} accounts</span>
                     </div>
                     <Button size="sm" variant="outline">Process</Button>
                   </div>
@@ -900,6 +896,85 @@ const EarlyWarningDashboard = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Critical Accounts Dialog */}
+      <Dialog open={criticalAccountsOpen} onOpenChange={setCriticalAccountsOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Critical Risk Accounts</DialogTitle>
+            <DialogDescription>
+              Accounts requiring immediate intervention to prevent default
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingCritical ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Customer ID</th>
+                    <th className="text-left p-2">Customer Name</th>
+                    <th className="text-left p-2">Contact</th>
+                    <th className="text-right p-2">Outstanding</th>
+                    <th className="text-left p-2">Days Past Due</th>
+                    <th className="text-left p-2">Risk Score</th>
+                    <th className="text-left p-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {criticalAccounts.map((account) => (
+                    <tr key={account.id} className="border-b hover:bg-gray-50">
+                      <td className="p-2 font-medium">{account.id}</td>
+                      <td className="p-2">{account.name}</td>
+                      <td className="p-2">
+                        <div className="space-y-1">
+                          {account.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              <span className="text-sm">{account.phone}</span>
+                            </div>
+                          )}
+                          {account.email && (
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              <span className="text-sm">{account.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2 text-right text-red-600 font-semibold">
+                        {formatCurrency(account.totalOutstanding)}
+                      </td>
+                      <td className="p-2">
+                        <Badge variant="destructive">
+                          {account.daysPastDue} days
+                        </Badge>
+                      </td>
+                      <td className="p-2">
+                        <Badge className={`${getRiskBadgeColor(account.status)} text-white`}>
+                          {account.riskScore}
+                        </Badge>
+                      </td>
+                      <td className="p-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleAccountClick(account)}
+                        >
+                          View Details
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

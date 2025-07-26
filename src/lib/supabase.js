@@ -79,7 +79,10 @@ export const TABLES = {
   DAILY_COLLECTION_SUMMARY: 'kastle_collection.daily_collection_summary',
   DIGITAL_COLLECTION_ATTEMPTS: 'kastle_collection.digital_collection_attempts',
   FIELD_VISITS: 'kastle_collection.field_visits',
-  HARDSHIP_APPLICATIONS: 'kastle_collection.hardship_applications'
+  HARDSHIP_APPLICATIONS: 'kastle_collection.hardship_applications',
+  EARLY_WARNING_ALERTS: 'kastle_collection.early_warning_alerts',
+  LOANS: 'kastle_banking.loans',
+  PAYMENT_HISTORY: 'kastle_banking.payment_history'
 };
 
 // Helper function to get the appropriate client for a table
