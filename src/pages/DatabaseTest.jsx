@@ -9,8 +9,7 @@ import {
   supabase, 
   supabaseBanking, 
   supabaseCollection, 
-  TABLES, 
-  isSupabaseConfigured
+  TABLES
 } from '@/lib/supabase';
 
 export function DatabaseTest() {
@@ -37,9 +36,9 @@ export function DatabaseTest() {
 
     // Test basic connection
     const connectionTest = {
-      success: isSupabaseConfigured && supabase !== null,
-      banking: isSupabaseConfigured && supabaseBanking !== null,
-      collection: isSupabaseConfigured && supabaseCollection !== null
+      success: supabase !== null,
+      banking: supabaseBanking !== null,
+      collection: supabaseCollection !== null
     };
     testResults.connection = {
       overall: connectionTest.success ? '✅ Connected' : '❌ Failed',

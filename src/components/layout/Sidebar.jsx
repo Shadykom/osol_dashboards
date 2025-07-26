@@ -126,7 +126,7 @@ const getNavigationItems = (t) => [
       {
         title: t('navigation.collectionDashboards'),
         icon: LayoutDashboard,
-        badge: '11',
+        badge: '12',
         isExpanded: true,
         items: [
           { title: t('navigation.collectionOverview'), href: '/collection/overview', icon: Eye },
@@ -139,6 +139,7 @@ const getNavigationItems = (t) => [
           { title: t('navigation.officerPerformance'), href: '/collection/officer-performance', icon: Trophy },
           { title: t('navigation.shariaCompliance'), href: '/collection/sharia-compliance', icon: BookOpen },
           { title: t('navigation.vintageAnalysis'), href: '/collection/vintage-analysis', icon: Layers },
+          { title: t('navigation.specialistReport'), href: '/collection/specialist-report', icon: Users, badge: 'جديد' },
           { title: t('navigation.collectionCases'), href: '/collection/cases', icon: FileText, badge: '234' },
           { title: t('navigation.collectionReports'), href: '/collection/reports', icon: BarChart3 },
         ],

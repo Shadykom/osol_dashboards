@@ -1,5 +1,28 @@
 import { supabaseBanking, TABLES } from '@/lib/supabase';
 
+// Simple API response formatter
+function formatApiResponse(data, error = null, pagination = null) {
+  if (error) {
+    return {
+      success: false,
+      error: error.message || 'An unexpected error occurred',
+      data: null
+    };
+  }
+  
+  const response = {
+    success: true,
+    data: data || null,
+    error: null
+  };
+  
+  if (pagination) {
+    response.pagination = pagination;
+  }
+  
+  return response;
+}
+
 export class CustomerService {
   /**
    * Get all customers with pagination and filtering
@@ -15,15 +38,11 @@ export class CustomerService {
         risk_category = ''
       } = params;
 
+      console.log('CustomerService.getCustomers called with params:', params);
+
       let query = supabaseBanking
         .from(TABLES.CUSTOMERS)
-        .select(`
-          *,
-          customer_contacts(
-            contact_type,
-            contact_value
-          )
-        `, { count: 'exact' });
+        .select('*', { count: 'exact' });
 
       // Apply search filter
       if (search) {
@@ -53,7 +72,10 @@ export class CustomerService {
       // Order by creation date
       query = query.order('created_at', { ascending: false });
 
+      console.log('Executing customer query...');
       const { data, error, count } = await query;
+      
+      console.log('Customer query result:', { data: data?.length, error, count });
 
       const pagination = {
         page,
@@ -64,6 +86,7 @@ export class CustomerService {
 
       return formatApiResponse(data, error, pagination);
     } catch (error) {
+      console.error('CustomerService.getCustomers error:', error);
       return formatApiResponse(null, error);
     }
   }

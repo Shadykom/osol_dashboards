@@ -147,7 +147,7 @@ export function Dashboard() {
   const kpiData = [
     {
       title: t('dashboard.totalCustomers'),
-      value: displayKpis.total_customers?.toLocaleString() || '0',
+      value: displayKpis.totalCustomers?.toLocaleString() || '0',
       change: '+12.5%',
       trend: 'up',
       icon: Users,
@@ -155,7 +155,7 @@ export function Dashboard() {
     },
     {
       title: t('dashboard.activeAccounts'),
-      value: displayKpis.total_accounts?.toLocaleString() || '0',
+      value: displayKpis.totalAccounts?.toLocaleString() || '0',
       change: '+8.2%',
       trend: 'up',
       icon: CreditCard,
@@ -163,7 +163,7 @@ export function Dashboard() {
     },
     {
       title: t('dashboard.totalDeposits'),
-      value: formatCurrency(displayKpis.total_deposits || 0),
+      value: formatCurrency(displayKpis.totalDeposits || 0),
       change: '+15.3%',
       trend: 'up',
       icon: DollarSign,
@@ -171,7 +171,7 @@ export function Dashboard() {
     },
     {
       title: t('dashboard.totalLoans'),
-      value: formatCurrency(displayKpis.total_loans || 0),
+      value: formatCurrency(displayKpis.totalLoans || 0),
       change: '+22.1%',
       trend: 'up',
       icon: TrendingUp,
@@ -179,7 +179,7 @@ export function Dashboard() {
     },
     {
       title: 'Daily Transactions',
-      value: displayKpis.daily_transactions?.toLocaleString() || '0',
+      value: displayKpis.dailyTransactions?.toLocaleString() || '0',
       change: '-2.4%',
       trend: 'down',
       icon: Activity,
@@ -187,7 +187,7 @@ export function Dashboard() {
     },
     {
       title: 'Monthly Revenue',
-      value: formatCurrency(displayKpis.monthly_revenue || 0),
+      value: formatCurrency(displayKpis.monthlyRevenue || 0),
       change: '+18.7%',
       trend: 'up',
       icon: DollarSign,

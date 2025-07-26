@@ -17,17 +17,17 @@ const isSupabaseConfigured = supabaseUrl && supabaseAnonKey &&
                             supabaseUrl !== 'https://your-project.supabase.co' && 
                             supabaseAnonKey !== 'your-anon-key';
 
-console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Using mock data mode');
+console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Missing credentials');
 
 if (!isSupabaseConfigured) {
-  console.warn('⚠️ Supabase is not configured. Running in mock data mode.');
-  console.warn('Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env file');
-  console.log('📊 Running in mock data mode (no Supabase configuration)');
+  console.error('❌ Supabase credentials are missing or invalid');
+  console.error('VITE_SUPABASE_URL:', supabaseUrl || 'Missing');
+  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present' : 'Missing');
+  throw new Error('Supabase configuration is required. Please check your environment variables.');
 }
 
 // Create main Supabase client (uses public schema by default)
-export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -38,8 +38,7 @@ export const supabase = isSupabaseConfigured
           eventsPerSecond: 10
         }
       }
-    })
-  : null;
+    });
 
 // Use the main client for all operations since schema-qualified table names work
 export const supabaseBanking = supabase;
@@ -85,10 +84,5 @@ export const TABLES = {
 
 // Helper function to get the appropriate client for a table
 export function getClientForTable(tableName) {
-  // All operations use the main client since we use schema-qualified table names
-  return supabase;
+  return supabase; // Always return the main client since we use schema-qualified names
 }
-
-// Export configuration status
-export { isSupabaseConfigured };
-

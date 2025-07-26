@@ -66,6 +66,10 @@ export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
       }
 
       // Update state with loaded data
+      console.log('Setting dashboard data in hook:');
+      console.log('KPIs response:', kpisResponse);
+      console.log('KPIs data:', kpisResponse.data);
+      
       setData({
         kpis: kpisResponse.data,
         recentTransactions: transactionsResponse.data,
