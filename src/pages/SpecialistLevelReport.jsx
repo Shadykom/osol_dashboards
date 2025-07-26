@@ -590,7 +590,7 @@ const SpecialistLevelReport = () => {
                         <SelectItem value="61-90 Days">61-90 {isRTL ? 'يوم' : 'Days'}</SelectItem>
                         <SelectItem value="91-180 Days">91-180 {isRTL ? 'يوم' : 'Days'}</SelectItem>
                         <SelectItem value="181-360 Days">181-360 {isRTL ? 'يوم' : 'Days'}</SelectItem>
-                        <SelectItem value=">360 Days">>360 {isRTL ? 'يوم' : 'Days'}</SelectItem>
+                        <SelectItem value=">360 Days">&gt;360 {isRTL ? 'يوم' : 'Days'}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

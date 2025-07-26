@@ -66,7 +66,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/useTheme';
-import osoulLogo from '@/assets/osoul-logo.png';
+import osoulLogo from '@/assets/osol-logo.png';
 
 // Navigation items configuration
 const getNavigationItems = (t) => [
