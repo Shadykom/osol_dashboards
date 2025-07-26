@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
-import { supabase } from '@/lib/supabase';
+import { supabaseBanking } from '@/lib/supabase';
 import { useRTL } from '@/hooks/useRTL';
 
 // ألوان فئات التقادم
@@ -96,7 +96,7 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchPortfolioSummary = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseBanking
       .from('executive_delinquency_summary')
       .select('*')
       .order('snapshot_date', { ascending: false })
@@ -108,7 +108,7 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchAgingDistribution = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseBanking
       .from('aging_distribution')
       .select('*')
       .order('display_order');
@@ -118,7 +118,7 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchCollectionTrends = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseBanking
       .from('collection_rates')
       .select('*')
       .eq('period_type', 'MONTHLY')
@@ -130,7 +130,7 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchTopDelinquents = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseBanking
       .from('top_delinquent_customers')
       .select('*')
       .limit(10);
@@ -140,7 +140,7 @@ const DelinquencyExecutiveDashboard = () => {
   };
 
   const fetchPerformanceComparison = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseBanking
       .from('executive_delinquency_summary')
       .select('*')
       .order('snapshot_date', { ascending: false })

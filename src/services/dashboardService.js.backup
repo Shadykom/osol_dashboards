@@ -1,5 +1,5 @@
 // src/services/dashboardService.js
-import { supabase, TABLES, formatApiResponse, isSupabaseConfigured } from '@/lib/supabase';
+import { supabaseBanking, TABLES, formatApiResponse, isSupabaseConfigured } from '@/lib/supabase';
 import { MockDashboardService } from './mockDashboardService';
 
 export class DashboardService {
@@ -15,30 +15,30 @@ export class DashboardService {
 
     try {
       // Get total customers
-      const { count: totalCustomers, error: customersError } = await supabase
+      const { count: totalCustomers, error: customersError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true });
 
       // Get total accounts
-      const { count: totalAccounts, error: accountsError } = await supabase
+      const { count: totalAccounts, error: accountsError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true });
 
       // Get total deposits (sum of current_balance for all accounts)
-      const { data: depositsData, error: depositsError } = await supabase
+      const { data: depositsData, error: depositsError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('current_balance')
         .eq('account_status', 'ACTIVE');
 
       // Get total loans (sum of outstanding_balance for all loan accounts)
-      const { data: loansData, error: loansError } = await supabase
+      const { data: loansData, error: loansError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('outstanding_balance')
         .in('loan_status', ['ACTIVE', 'DISBURSED']);
 
       // Get daily transactions count
       const today = new Date().toISOString().split('T')[0];
-      const { count: dailyTransactions, error: transactionsError } = await supabase
+      const { count: dailyTransactions, error: transactionsError } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('*', { count: 'exact', head: true })
         .gte('transaction_date', today);
@@ -92,25 +92,25 @@ export class DashboardService {
 
       // Get current month metrics
       const [currentCustomers, currentTransactions, currentAccounts] = await Promise.all([
-        supabase.from(TABLES.CUSTOMERS)
+        supabaseBanking.from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true })
           .gte('created_at', currentMonthStart)
           .lte('created_at', currentMonthEnd),
         
-        supabase.from(TABLES.TRANSACTIONS)
+        supabaseBanking.from(TABLES.TRANSACTIONS)
           .select('transaction_amount', { count: 'exact' })
           .gte('transaction_date', currentMonthStart)
           .lte('transaction_date', currentMonthEnd)
           .eq('status', 'COMPLETED'),
         
-        supabase.from(TABLES.ACCOUNTS)
+        supabaseBanking.from(TABLES.ACCOUNTS)
           .select('current_balance')
           .eq('account_status', 'ACTIVE')
       ]);
 
       // Get previous month metrics
       const [previousCustomers, previousTransactions] = await Promise.all([
-        supabase.from(TABLES.CUSTOMERS)
+        supabaseBanking.from(TABLES.CUSTOMERS)
           .select('*', { count: 'exact', head: true })
           .gte('created_at', previousMonthStart)
           .lte('created_at', previousMonthEnd),

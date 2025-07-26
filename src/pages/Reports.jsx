@@ -29,7 +29,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
-import { supabase, TABLES } from '@/lib/supabase';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { toast } from 'sonner';
 import {

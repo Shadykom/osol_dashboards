@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { supabase, TABLES } from '@/lib/supabase';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { toast } from 'sonner';
 import {
@@ -109,7 +109,7 @@ export function Loans() {
   const fetchLoans = async () => {
     try {
       setLoading(true);
-      let query = supabase
+      let query = supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           *,
@@ -147,24 +147,24 @@ export function Loans() {
   const fetchLoanStats = async () => {
     try {
       // Get total loans count
-      const { count: totalLoans } = await supabase
+      const { count: totalLoans } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('*', { count: 'exact', head: true });
 
       // Get active loans
-      const { count: activeLoans } = await supabase
+      const { count: activeLoans } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .in('loan_status', ['ACTIVE', 'DISBURSED']);
 
       // Get overdue loans
-      const { count: overdueLoans } = await supabase
+      const { count: overdueLoans } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .eq('loan_status', 'OVERDUE');
 
       // Get total portfolio value
-      const { data: portfolioData } = await supabase
+      const { data: portfolioData } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('outstanding_balance')
         .in('loan_status', ['ACTIVE', 'DISBURSED', 'OVERDUE']);
@@ -177,7 +177,7 @@ export function Loans() {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { data: disbursedData } = await supabase
+      const { data: disbursedData } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('loan_amount')
         .eq('loan_status', 'DISBURSED')
@@ -187,7 +187,7 @@ export function Loans() {
         sum + parseFloat(loan.loan_amount || 0), 0) || 0;
 
       // Calculate average interest rate
-      const { data: interestData } = await supabase
+      const { data: interestData } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('interest_rate')
         .in('loan_status', ['ACTIVE', 'DISBURSED']);
@@ -197,7 +197,7 @@ export function Loans() {
         : 0;
 
       // Calculate NPL ratio (Non-Performing Loans)
-      const { count: defaultedLoans } = await supabase
+      const { count: defaultedLoans } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .in('loan_status', ['OVERDUE', 'DEFAULTED']);
@@ -210,7 +210,7 @@ export function Loans() {
       const collectionRate = 85 + Math.random() * 10; // Mock 85-95%
 
       // Get loan type distribution
-      const { data: typeData } = await supabase
+      const { data: typeData } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('loan_type, outstanding_balance')
         .in('loan_status', ['ACTIVE', 'DISBURSED']);
@@ -257,7 +257,7 @@ export function Loans() {
         const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
         const nextMonth = new Date(today.getFullYear(), today.getMonth() - i + 1, 1);
         
-        const { data: disbursedData } = await supabase
+        const { data: disbursedData } = await supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('loan_amount')
           .gte('disbursement_date', date.toISOString())
@@ -266,7 +266,7 @@ export function Loans() {
         const disbursed = disbursedData?.reduce((sum, loan) => 
           sum + parseFloat(loan.loan_amount || 0), 0) || 0;
 
-        const { count: applications } = await supabase
+        const { count: applications } = await supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
           .select('*', { count: 'exact', head: true })
           .gte('created_at', date.toISOString())

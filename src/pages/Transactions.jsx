@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase, TABLES } from '@/lib/supabase';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { toast } from 'sonner';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
@@ -91,12 +91,12 @@ export function Transactions() {
     fetchTransactionTrends();
     
     // Set up real-time subscription
-    const subscription = supabase
+    const subscription = supabaseBanking
       .channel('transactions-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'transactions' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'kastle_banking',
+        table: 'transactions'
       }, handleRealtimeUpdate)
       .subscribe();
 
@@ -126,7 +126,7 @@ export function Transactions() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      let query = supabase
+      let query = supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select(`
           *,
@@ -170,24 +170,24 @@ export function Transactions() {
   const fetchTransactionStats = async () => {
     try {
       // Get total transactions count
-      const { count: totalTransactions } = await supabase
+      const { count: totalTransactions } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('*', { count: 'exact', head: true });
 
       // Get completed transactions for success rate
-      const { count: completedTransactions } = await supabase
+      const { count: completedTransactions } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('*', { count: 'exact', head: true })
         .eq('transaction_status', 'COMPLETED');
 
       // Get pending transactions
-      const { count: pendingTransactions } = await supabase
+      const { count: pendingTransactions } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('*', { count: 'exact', head: true })
         .eq('transaction_status', 'PENDING');
 
       // Get total volume
-      const { data: volumeData } = await supabase
+      const { data: volumeData } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('amount')
         .eq('transaction_status', 'COMPLETED');
@@ -200,7 +200,7 @@ export function Transactions() {
         : 0;
 
       // Get hourly distribution for peak hour
-      const { data: hourlyData } = await supabase
+      const { data: hourlyData } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('transaction_date')
         .eq('transaction_status', 'COMPLETED')
@@ -220,7 +220,7 @@ export function Transactions() {
       const dailyAverage = Math.round(totalTransactions / 30);
 
       // Get type distribution
-      const { data: typeData } = await supabase
+      const { data: typeData } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select('transaction_type')
         .eq('transaction_status', 'COMPLETED');
@@ -270,7 +270,7 @@ export function Transactions() {
         const nextDate = new Date(date);
         nextDate.setDate(date.getDate() + 1);
         
-        const { count, data: volumeData } = await supabase
+        const { count, data: volumeData } = await supabaseBanking
           .from(TABLES.TRANSACTIONS)
           .select('amount', { count: 'exact' })
           .gte('transaction_date', date.toISOString())

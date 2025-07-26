@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase, TABLES } from '@/lib/supabase';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { toast } from 'sonner';
 import {
@@ -78,7 +78,7 @@ export function Accounts() {
   const fetchAccounts = async () => {
     try {
       setLoading(true);
-      let query = supabase
+      let query = supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select(`
           *,
@@ -115,30 +115,30 @@ export function Accounts() {
   const fetchAccountStats = async () => {
     try {
       // Get total accounts count
-      const { count: totalAccounts } = await supabase
+      const { count: totalAccounts } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true });
 
       // Get active accounts
-      const { count: activeAccounts } = await supabase
+      const { count: activeAccounts } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .eq('account_status', 'ACTIVE');
 
       // Get blocked accounts
-      const { count: blockedAccounts } = await supabase
+      const { count: blockedAccounts } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .eq('account_status', 'BLOCKED');
 
       // Get dormant accounts
-      const { count: dormantAccounts } = await supabase
+      const { count: dormantAccounts } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .eq('account_status', 'DORMANT');
 
       // Get total balance
-      const { data: balanceData } = await supabase
+      const { data: balanceData } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('current_balance')
         .eq('account_status', 'ACTIVE');
@@ -150,13 +150,13 @@ export function Accounts() {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { count: newAccountsThisMonth } = await supabase
+      const { count: newAccountsThisMonth } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
 
       // Get account type distribution
-      const { data: typeData } = await supabase
+      const { data: typeData } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('account_type')
         .eq('account_status', 'ACTIVE');
@@ -197,7 +197,7 @@ export function Accounts() {
         const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
         const nextMonth = new Date(today.getFullYear(), today.getMonth() - i + 1, 1);
         
-        const { count } = await supabase
+        const { count } = await supabaseBanking
           .from(TABLES.ACCOUNTS)
           .select('*', { count: 'exact', head: true })
           .gte('created_at', date.toISOString())

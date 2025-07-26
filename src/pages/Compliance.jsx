@@ -32,7 +32,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { supabase, TABLES } from '@/lib/supabase';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import {
   Table,
