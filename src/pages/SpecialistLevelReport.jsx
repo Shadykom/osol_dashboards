@@ -52,7 +52,7 @@ import {
   MoreVertical, ChevronDown, ChevronUp, Zap, Shield, Brain,
   Users, Building2, CreditCard, AlertCircle, TrendingDown,
   ArrowUp, ArrowDown, Info, Play, Pause, SkipForward, History,
-  Layers, Map, PieChart, LineChart, BarChart
+  Layers, Map, PieChart as PieChartIcon, LineChart as LineChartIcon, BarChart as BarChartIcon
 } from 'lucide-react';
 
 // Mock CollectionService for demo
@@ -1838,21 +1838,21 @@ const SpecialistLevelReport = () => {
                     {
                       title: 'تقرير الأداء الشهري',
                       description: 'ملخص شامل لأداء الشهر الحالي',
-                      icon: BarChart,
+                      icon: BarChartIcon,
                       lastGenerated: 'منذ يومين',
                       format: 'PDF'
                     },
                     {
                       title: 'تقرير المحفظة التفصيلي',
                       description: 'تحليل مفصل لجميع القروض في المحفظة',
-                      icon: PieChart,
+                      icon: PieChartIcon,
                       lastGenerated: 'منذ أسبوع',
                       format: 'Excel'
                     },
                     {
                       title: 'تقرير الاتجاهات',
                       description: 'تحليل الاتجاهات والتوقعات المستقبلية',
-                      icon: LineChart,
+                      icon: LineChartIcon,
                       lastGenerated: 'منذ 3 أيام',
                       format: 'PDF'
                     }
