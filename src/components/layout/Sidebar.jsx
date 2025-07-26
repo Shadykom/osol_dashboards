@@ -443,8 +443,9 @@ const Clock = ({ className }) => (
 // Navigation item component
 function NavItem({ item, level = 0, isCollapsed }) {
   const location = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const isRTL = i18n.language === 'ar';
   
   const hasChildren = item.items && item.items.length > 0;
   const isActive = item.href === location.pathname || 
@@ -478,7 +479,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
             variant="ghost"
             className={cn(
               "w-full justify-start gap-2 font-normal group hover:bg-accent/50 transition-colors h-9 px-3",
-              level > 0 && "ml-6 w-[calc(100%-1.5rem)]",
+              level > 0 && (isRTL ? "mr-6 w-[calc(100%-1.5rem)]" : "ml-6 w-[calc(100%-1.5rem)]"),
               isActive && "bg-accent text-accent-foreground font-medium"
             )}
           >
@@ -490,8 +491,8 @@ function NavItem({ item, level = 0, isCollapsed }) {
             )}
             {!isCollapsed && (
               <>
-                <span className="flex-1 text-left text-sm">{item.title}</span>
-                <div className="flex items-center gap-1">
+                <span className={cn("flex-1 text-sm", isRTL ? "text-right" : "text-left")}>{item.title}</span>
+                <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
                   {item.badge && (
                     <Badge 
                       variant={item.badgeVariant || "secondary"} 
@@ -502,7 +503,8 @@ function NavItem({ item, level = 0, isCollapsed }) {
                   )}
                   <ChevronRight className={cn(
                     "h-3 w-3 transition-transform duration-200",
-                    isOpen && "rotate-90"
+                    isOpen && "rotate-90",
+                    isRTL && "rotate-180"
                   )} />
                 </div>
               </>
@@ -525,7 +527,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
       variant="ghost"
       className={cn(
         "w-full justify-start gap-2 font-normal group hover:bg-accent/50 transition-colors h-9 px-3",
-        level > 0 && "ml-6 w-[calc(100%-1.5rem)]",
+        level > 0 && (isRTL ? "mr-6 w-[calc(100%-1.5rem)]" : "ml-6 w-[calc(100%-1.5rem)]"),
         isActive && "bg-accent text-accent-foreground font-medium"
       )}
       asChild
@@ -539,7 +541,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
         )}
         {!isCollapsed && (
           <>
-            <span className="flex-1 text-sm">{item.title}</span>
+            <span className={cn("flex-1 text-sm", isRTL ? "text-right" : "text-left")}>{item.title}</span>
             {item.badge && (
               <Badge 
                 variant={item.badgeVariant || "secondary"} 
@@ -587,6 +589,27 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigationItems = getNavigationItems(t);
+  const [isMobile, setIsMobile] = useState(false);
+  const isRTL = i18n.language === 'ar';
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Auto-collapse on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setIsCollapsed(true);
+    }
+  }, [isMobile, setIsCollapsed]);
 
   // Filter navigation items based on search
   const filterNavItems = (items, query) => {
@@ -620,18 +643,19 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
   return (
     <div className={cn(
       "flex h-screen flex-col border-r bg-background transition-all duration-300 overflow-hidden",
-      isCollapsed ? "w-16" : "w-80 md:w-64"
+      isCollapsed ? "w-16" : "w-80 md:w-64",
+      isRTL && "border-r-0 border-l font-arabic"
     )}>
       {/* Header */}
       <div className="flex h-16 items-center justify-between px-3 border-b">
         {!isCollapsed && (
-          <div className="flex items-center gap-3">
+          <div className={cn("flex items-center gap-3", isRTL && "flex-row-reverse")}>
             <img 
               src={osoulLogo} 
               alt="Osoul" 
               className="h-10 w-10 object-contain"
             />
-            <div className="flex flex-col">
+            <div className={cn("flex flex-col", isRTL && "text-right")}>
               <span className="text-sm font-semibold">BankOS Pro</span>
               <span className="text-xs text-muted-foreground">v2.0.0</span>
             </div>
@@ -645,16 +669,19 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
           />
         )}
         {!isCollapsed && (
-          <div className="flex items-center gap-1">
+          <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 relative"
               onClick={() => window.location.href = '/notifications'}
             >
               <Bell className="h-4 w-4" />
               {notificationCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">
+                <Badge className={cn(
+                  "absolute -top-1 h-5 w-5 p-0 flex items-center justify-center",
+                  isRTL ? "-left-1" : "-right-1"
+                )}>
                   {notificationCount}
                 </Badge>
               )}
@@ -665,7 +692,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
               className="h-8 w-8"
               onClick={() => setIsCollapsed(!isCollapsed)}
             >
-              <X className="h-4 w-4" />
+              <Menu className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -675,11 +702,17 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
       {!isCollapsed && (
         <div className="p-3">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className={cn(
+              "absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground",
+              isRTL ? "right-2.5" : "left-2.5"
+            )} />
             <input
               type="text"
               placeholder={t('common.search')}
-              className="w-full rounded-md border bg-background px-8 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+              className={cn(
+                "w-full rounded-md border bg-background py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary",
+                isRTL ? "pr-8 pl-8 text-right" : "pl-8 pr-8"
+              )}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -687,7 +720,10 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                className={cn(
+                  "absolute top-1/2 -translate-y-1/2 h-6 w-6",
+                  isRTL ? "left-1" : "right-1"
+                )}
                 onClick={() => setSearchQuery('')}
               >
                 <X className="h-3 w-3" />
@@ -702,21 +738,12 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
         <div className="px-3 pb-2">
           <div className="flex gap-1">
             <Button 
-              variant="default" 
-              size="sm" 
-              className="flex-1"
-              onClick={() => window.location.href = '/customers/new'}
-            >
-              <UserCheck className="h-3 w-3 mr-1" />
-              {t('navigation.newCustomer')}
-            </Button>
-            <Button 
               variant="outline" 
               size="sm" 
               className="flex-1"
               onClick={() => window.location.href = '/loans/applications/new'}
             >
-              <Wallet className="h-3 w-3 mr-1" />
+              <Wallet className="h-3 w-3 mr-1 rtl:mr-0 rtl:ml-1" />
               {t('navigation.newLoan')}
             </Button>
           </div>
@@ -756,34 +783,35 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
           <DropdownMenuTrigger asChild>
             <div className={cn(
               "flex items-center gap-2 rounded-lg p-2 hover:bg-accent/50 transition-colors cursor-pointer mb-1",
-              isCollapsed && "justify-center"
+              isCollapsed && "justify-center",
+              isRTL && "flex-row-reverse"
             )}>
               <Avatar className="h-7 w-7">
                 <AvatarImage src="/api/placeholder/32/32" />
                 <AvatarFallback className="text-xs">JD</AvatarFallback>
               </Avatar>
               {!isCollapsed && (
-                <div className="flex-1">
+                <div className={cn("flex-1", isRTL && "text-right")}>
                   <p className="text-sm font-medium">John Doe</p>
                   <p className="text-xs text-muted-foreground">john@bankos.com</p>
                 </div>
               )}
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-56">
             <DropdownMenuLabel>{t('common.myAccount')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
-              <User className="mr-2 h-4 w-4" />
+              <User className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
               {t('common.profile')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => window.location.href = '/settings'}>
-              <Settings className="mr-2 h-4 w-4" />
+              <Settings className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
               {t('common.settings')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-red-600" onClick={() => console.log('Logout')}>
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
               {t('common.logout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -811,13 +839,13 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align={isRTL ? "start" : "end"}>
               <DropdownMenuItem onClick={() => i18n.changeLanguage('en')}>
-                <Globe className="mr-2 h-4 w-4" />
+                <Globe className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
                 English
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => i18n.changeLanguage('ar')}>
-                <Globe className="mr-2 h-4 w-4" />
+                <Globe className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
                 العربية
               </DropdownMenuItem>
             </DropdownMenuContent>
