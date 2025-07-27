@@ -1,4 +1,4 @@
-import { supabaseBanking } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 /**
  * خدمة تقرير مستوى الأخصائي
@@ -12,8 +12,8 @@ class SpecialistReportService {
   async getSpecialists() {
     try {
       // جلب البيانات من جدول collection_officers
-      const { data, error } = await supabaseBanking
-        .from('collection_officers')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_officers')
         .select(`
           officer_id,
           officer_name,
@@ -24,6 +24,7 @@ class SpecialistReportService {
           status
         `)
         .eq('status', 'ACTIVE')
+        .eq('officer_type', 'SPECIALIST')
         .order('officer_name');
 
       if (error) {
@@ -134,21 +135,16 @@ class SpecialistReportService {
    */
   async getSpecialistById(specialistId) {
     try {
-      const { data, error } = await supabaseBanking
-        .from('collection_officers')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_officers')
         .select(`
-          officer_id,
-          officer_name,
-          officer_type,
-          team_id,
-          contact_number,
-          email,
-          status,
-          language_skills,
-          collection_limit,
-          commission_rate,
-          joining_date,
-          last_active
+          *,
+          collection_teams!team_id (
+            team_id,
+            team_name,
+            team_type,
+            team_lead_id
+          )
         `)
         .eq('officer_id', specialistId)
         .single();
@@ -204,42 +200,19 @@ class SpecialistReportService {
   async getSpecialistLoans(specialistId, filters = {}) {
     try {
       // جلب الحالات المخصصة للأخصائي من جدول collection_cases
-      let query = supabaseBanking
-        .from('collection_cases')
+      let query = supabaseCollection
+        .from('kastle_collection.collection_cases')
         .select(`
-          case_id,
-          case_number,
-          customer_id,
-          loan_account_number,
-          priority,
-          case_status,
-          assignment_date,
-          total_outstanding,
-          total_overdue,
-          dpd,
-          bucket_id,
-          last_payment_date,
-          last_payment_amount,
-          last_contact_date,
-          next_action_date,
+          *,
           loan_accounts!loan_account_number (
-            loan_amount,
-            outstanding_balance,
-            overdue_amount,
-            overdue_days,
-            loan_status,
-            product_id,
-            loan_start_date,
-            maturity_date,
+            *,
             products!product_id (
               product_name,
               product_type
             )
           ),
           customers!customer_id (
-            full_name,
-            customer_type,
-            national_id,
+            *,
             customer_contacts!customer_id (
               contact_type,
               contact_value
@@ -394,20 +367,16 @@ class SpecialistReportService {
       const dateTo = new Date();
       
       // جلب تفاعلات الأخصائي
-      const { data: interactions, error } = await supabaseBanking
-        .from('collection_interactions')
+      const { data: interactions, error } = await supabaseCollection
+        .from('kastle_collection.collection_interactions')
         .select(`
-          interaction_id,
-          interaction_type,
-          interaction_direction,
-          interaction_datetime,
-          interaction_status,
-          duration_seconds,
-          outcome,
-          promise_to_pay,
-          ptp_amount,
-          ptp_date,
-          notes
+          *,
+          collection_cases!case_id (
+            customer_id,
+            customers!customer_id (
+              full_name
+            )
+          )
         `)
         .eq('officer_id', specialistId)
         .gte('interaction_datetime', dateFrom.toISOString())
@@ -531,17 +500,10 @@ class SpecialistReportService {
     try {
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data, error } = await supabaseBanking
-        .from('promise_to_pay')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.promise_to_pay')
         .select(`
-          ptp_id,
-          case_id,
-          ptp_date,
-          ptp_amount,
-          status,
-          actual_payment_date,
-          actual_payment_amount,
-          created_at,
+          *,
           collection_cases!case_id (
             case_number,
             customer_id,
@@ -598,8 +560,8 @@ class SpecialistReportService {
       // جلب بيانات الأداء من جدول officer_performance_metrics إذا كان موجوداً
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data: performanceData, error } = await supabaseBanking
-        .from('officer_performance_metrics')
+      const { data: performanceData, error } = await supabaseCollection
+        .from('kastle_collection.officer_performance_metrics')
         .select(`
           metric_date,
           calls_made,
@@ -1076,12 +1038,10 @@ class SpecialistReportService {
   async generateTimeline(specialistId, dateRange) {
     try {
       // جلب آخر التفاعلات
-      const { data: recentInteractions } = await supabaseBanking
-        .from('collection_interactions')
+      const { data: recentInteractions } = await supabaseCollection
+        .from('kastle_collection.collection_interactions')
         .select(`
-          interaction_type,
-          interaction_datetime,
-          outcome,
+          *,
           collection_cases!case_id (
             customer_id,
             customers!customer_id (

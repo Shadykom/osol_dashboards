@@ -36,7 +36,7 @@ export class BranchReportService {
   static async getBranches() {
     try {
       const { data, error } = await supabaseBanking
-        .from('branches')
+        .from('kastle_banking.branches')
         .select('branch_id, branch_name, branch_code, city, region, is_active')
         .eq('is_active', true)
         .order('branch_name');
@@ -72,7 +72,7 @@ export class BranchReportService {
 
       // Get branch info
       const { data: branch, error: branchError } = await supabaseBanking
-        .from('branches')
+        .from('kastle_banking.branches')
         .select('*')
         .eq('branch_id', branchId)
         .single();
@@ -87,7 +87,7 @@ export class BranchReportService {
 
       // Get all loan accounts for the branch
       let loansQuery = supabaseBanking
-        .from('loan_accounts')
+        .from('kastle_banking.loan_accounts')
         .select(`
           loan_account_number,
           customer_id,
@@ -233,10 +233,10 @@ export class BranchReportService {
    */
   static async getBranchOfficerPerformance(branchId, dateRange) {
     try {
-      // Get officers for the branch
+      // Get collection officers for the branch
       const { data: officers, error: officersError } = await supabaseCollection
-        .from('collection_officers')
-        .select('*')
+        .from('kastle_collection.collection_officers')
+        .select('officer_id, officer_name, officer_type, status')
         .eq('branch_id', branchId)
         .eq('status', 'ACTIVE');
 
@@ -322,7 +322,7 @@ export class BranchReportService {
     try {
       // Get all branches
       const { data: branches, error: branchesError } = await supabaseBanking
-        .from('branches')
+        .from('kastle_banking.branches')
         .select('branch_id, branch_name, city, region')
         .eq('is_active', true);
 

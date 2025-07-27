@@ -86,43 +86,19 @@ export class ProductReportService {
       }
 
       // Get all loan accounts for the product
-      let loansQuery = supabaseBanking
-        .from('loan_accounts')
+      const { data: loans, error: loansError } = await supabaseBanking
+        .from('kastle_banking.loan_accounts')
         .select(`
           loan_account_number,
-          customer_id,
-          loan_amount,
           outstanding_balance,
+          loan_amount,
           overdue_amount,
           overdue_days,
-          loan_status,
-          disbursement_date,
-          maturity_date,
-          interest_rate,
-          customers!customer_id (
-            full_name,
-            customer_type,
-            branch_id,
-            risk_category,
-            branches!branch_id (
-              branch_name,
-              city,
-              region
-            )
-          )
+          dpd,
+          customer_id,
+          branch_id
         `)
         .eq('product_id', productId);
-
-      // Apply filters
-      if (branch !== 'all') {
-        loansQuery = loansQuery.eq('customers.branch_id', branch);
-      }
-
-      if (customerType !== 'all') {
-        loansQuery = loansQuery.eq('customers.customer_type', customerType);
-      }
-
-      const { data: loans, error: loansError } = await loansQuery;
 
       if (loansError) throw loansError;
 
