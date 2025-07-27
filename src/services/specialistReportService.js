@@ -158,7 +158,7 @@ class SpecialistReportService {
           commission_rate,
           joining_date,
           last_active,
-          collection_teams (
+          collection_teams!collection_officers_team_id_fkey (
             team_name,
             team_type
           )
@@ -185,7 +185,7 @@ class SpecialistReportService {
               commission_rate,
               joining_date,
               last_active,
-              collection_teams (
+              collection_teams!collection_officers_team_id_fkey (
                 team_name,
                 team_type
               )
