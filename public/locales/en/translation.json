@@ -508,6 +508,7 @@
     "subtitle": "Comprehensive product performance analysis",
     "selectProduct": "Select Product",
     "refresh": "Refresh",
+    "noDataAvailable": "No data available for this product yet.",
     "filters": {
       "currentMonth": "Current Month",
       "lastMonth": "Last Month",

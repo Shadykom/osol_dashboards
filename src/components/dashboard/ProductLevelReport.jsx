@@ -47,7 +47,7 @@ import { ProductReportService } from '@/services/productReportService';
 import { BranchReportService } from '@/services/branchReportService';
 
 const ProductLevelReport = () => {
-  const { t } = useTranslation();
+  const { t, ready, i18n } = useTranslation();
   
   // State Management
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -81,6 +81,7 @@ const ProductLevelReport = () => {
   // Load initial data
   const loadInitialData = async () => {
     try {
+      setLoading(true);
       const [productsResult, branchesResult] = await Promise.all([
         ProductReportService.getProducts(),
         BranchReportService.getBranches()
@@ -98,6 +99,8 @@ const ProductLevelReport = () => {
       }
     } catch (error) {
       console.error('Error loading initial data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -151,19 +154,23 @@ const ProductLevelReport = () => {
 
   // Format functions
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
-      style: 'currency',
-      currency: 'SAR',
+    // Always use English numbers
+    const formatted = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount || 0);
+    
+    // Add currency prefix based on language
+    return t('common.currency') === 'ريال' ? `${formatted} ر.س` : `SAR ${formatted}`;
   };
 
   const formatNumber = (num) => {
-    return new Intl.NumberFormat('ar-SA').format(num || 0);
+    // Always use English numbers
+    return new Intl.NumberFormat('en-US').format(num || 0);
   };
 
   const formatPercentage = (value) => {
+    // Always use English numbers
     return `${(value || 0).toFixed(1)}%`;
   };
 
@@ -178,7 +185,7 @@ const ProductLevelReport = () => {
     chart: ['#E6B800', '#4A5568', '#48BB78', '#ED8936', '#F56565', '#4299E1', '#9F7AEA', '#ED64A6']
   };
 
-  if (loading && !reportData) {
+  if (!ready) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -193,7 +200,7 @@ const ProductLevelReport = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Package className="h-8 w-8 text-primary" />
+              <Package className="h-8 w-8 text-yellow-600" />
               {t('productReport.title')}
             </h1>
             <p className="text-gray-600 mt-1">{t('productReport.subtitle')}</p>
@@ -285,7 +292,11 @@ const ProductLevelReport = () => {
         </div>
       </div>
 
-      {reportData && (
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : reportData ? (
         <>
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -962,10 +973,10 @@ const ProductLevelReport = () => {
                             <TableCell className="font-mono text-sm">{defaulter.loanAccountNumber}</TableCell>
                             <TableCell className="font-medium">{defaulter.customerName}</TableCell>
                             <TableCell className="text-center">
-                              <Badge variant="outline">
-                                {defaulter.customerType === 'CORPORATE' ? 'شركة' :
-                                 defaulter.customerType === 'SME' ? 'منشأة صغيرة' : 'فرد'}
-                              </Badge>
+                                                              <Badge variant="outline">
+                                  {defaulter.customerType === 'CORPORATE' ? t('productReport.filters.corporate') :
+                                   defaulter.customerType === 'SME' ? t('productReport.filters.sme') : t('productReport.filters.individual')}
+                                </Badge>
                             </TableCell>
                             <TableCell>{defaulter.branchName}</TableCell>
                             <TableCell className="text-center">{formatCurrency(defaulter.loanAmount)}</TableCell>
@@ -1148,6 +1159,11 @@ const ProductLevelReport = () => {
             </TabsContent>
           </Tabs>
         </>
+      ) : (
+        <div className="flex items-center justify-center py-20">
+          <AlertTriangle className="h-8 w-8 text-gray-500 mr-2" />
+          <p className="text-gray-600">{t('productReport.noDataAvailable')}</p>
+        </div>
       )}
 
       {/* Defaulter Details Dialog */}
