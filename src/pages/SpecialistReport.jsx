@@ -117,7 +117,7 @@ class SpecialistReportService {
    */
   async getSpecialistById(specialistId) {
     try {
-      const { data, error } = await supabaseBanking
+      const { data, error } = await supabaseCollection
         .from('collection_officers')
         .select(`
           officer_id,
@@ -134,8 +134,7 @@ class SpecialistReportService {
           last_active,
           collection_teams (
             team_name,
-            team_type,
-            team_lead_id
+            team_type
           )
         `)
         .eq('officer_id', specialistId)
@@ -498,7 +497,8 @@ class SpecialistReportService {
     try {
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data, error } = await supabaseBanking
+      // First try with all columns
+      let query = supabaseCollection
         .from('promise_to_pay')
         .select(`
           ptp_id,
@@ -508,24 +508,47 @@ class SpecialistReportService {
           status,
           actual_payment_date,
           actual_payment_amount,
-          created_at,
-          collection_cases!case_id (
-            case_number,
-            customer_id,
-            loan_account_number,
-            customers!customer_id (
-              full_name,
-              customer_type
-            )
-          )
+          created_at
         `)
         .eq('officer_id', specialistId)
         .gte('created_at', dateFrom.toISOString())
         .order('ptp_date', { ascending: true });
 
+      let { data, error } = await query;
+
       if (error) {
-        console.error('Error fetching promises to pay:', error);
-        throw error;
+        // If error is about missing columns, retry without them
+        if (error.code === '42703' && (error.message.includes('actual_payment_date') || error.message.includes('actual_payment_amount'))) {
+          console.warn('Some columns not found in promise_to_pay, retrying with basic columns');
+          const { data: retryData, error: retryError } = await supabaseCollection
+            .from('promise_to_pay')
+            .select(`
+              ptp_id,
+              case_id,
+              ptp_date,
+              ptp_amount,
+              status,
+              created_at
+            `)
+            .eq('officer_id', specialistId)
+            .gte('created_at', dateFrom.toISOString())
+            .order('ptp_date', { ascending: true });
+          
+          if (retryError) {
+            console.error('Error fetching promises to pay:', retryError);
+            throw retryError;
+          }
+          
+          // Add null values for missing columns
+          data = retryData?.map(ptp => ({
+            ...ptp,
+            actual_payment_date: null,
+            actual_payment_amount: null
+          }));
+        } else {
+          console.error('Error fetching promises to pay:', error);
+          throw error;
+        }
       }
 
       // تحويل البيانات إلى الشكل المطلوب

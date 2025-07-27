@@ -160,14 +160,46 @@ class SpecialistReportService {
           last_active,
           collection_teams (
             team_name,
-            team_type,
-            team_lead_id
+            team_type
           )
         `)
         .eq('officer_id', specialistId)
         .single();
 
       if (error) {
+        // If the error is about missing column, try without team_lead_id
+        if (error.code === '42703' && error.message.includes('team_lead_id')) {
+          console.warn('team_lead_id column not found in collection_teams, retrying without it');
+          const { data: retryData, error: retryError } = await supabaseCollection
+            .from('collection_officers')
+            .select(`
+              officer_id,
+              officer_name,
+              officer_type,
+              team_id,
+              contact_number,
+              email,
+              status,
+              language_skills,
+              collection_limit,
+              commission_rate,
+              joining_date,
+              last_active,
+              collection_teams (
+                team_name,
+                team_type
+              )
+            `)
+            .eq('officer_id', specialistId)
+            .single();
+          
+          if (retryError) {
+            console.error('Error fetching specialist by ID:', retryError);
+            throw retryError;
+          }
+          
+          return retryData;
+        }
         console.error('Error fetching specialist by ID:', error);
         throw error;
       }
@@ -524,7 +556,8 @@ class SpecialistReportService {
     try {
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data, error } = await supabaseCollection
+      // First try with all columns
+      let query = supabaseCollection
         .from('promise_to_pay')
         .select(`
           ptp_id,
@@ -540,9 +573,41 @@ class SpecialistReportService {
         .gte('created_at', dateFrom.toISOString())
         .order('ptp_date', { ascending: true });
 
+      let { data, error } = await query;
+
       if (error) {
-        console.error('Error fetching promises to pay:', error);
-        throw error;
+        // If error is about missing columns, retry without them
+        if (error.code === '42703' && (error.message.includes('actual_payment_date') || error.message.includes('actual_payment_amount'))) {
+          console.warn('Some columns not found in promise_to_pay, retrying with basic columns');
+          const { data: retryData, error: retryError } = await supabaseCollection
+            .from('promise_to_pay')
+            .select(`
+              ptp_id,
+              case_id,
+              ptp_date,
+              ptp_amount,
+              status,
+              created_at
+            `)
+            .eq('officer_id', specialistId)
+            .gte('created_at', dateFrom.toISOString())
+            .order('ptp_date', { ascending: true });
+          
+          if (retryError) {
+            console.error('Error fetching promises to pay:', retryError);
+            throw retryError;
+          }
+          
+          // Add null values for missing columns
+          data = retryData?.map(ptp => ({
+            ...ptp,
+            actual_payment_date: null,
+            actual_payment_amount: null
+          }));
+        } else {
+          console.error('Error fetching promises to pay:', error);
+          throw error;
+        }
       }
 
       // Get case details separately from kastle_banking schema
