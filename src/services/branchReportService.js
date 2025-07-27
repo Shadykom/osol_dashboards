@@ -37,7 +37,7 @@ export class BranchReportService {
     try {
       const { data, error } = await supabaseBanking
         .from('kastle_banking.branches')
-        .select('branch_id, branch_name, branch_code, city, region, is_active')
+        .select('branch_id, branch_name, branch_type, city, state, is_active')
         .eq('is_active', true)
         .order('branch_name');
 
@@ -48,11 +48,11 @@ export class BranchReportService {
       console.error('Get branches error:', error);
       // Return mock data if table doesn't exist
       return formatApiResponse([
-        { branch_id: 'BR001', branch_name: 'الرياض - الفرع الرئيسي', branch_code: 'RYD001', city: 'الرياض', region: 'الوسطى' },
-        { branch_id: 'BR002', branch_name: 'جدة - فرع التحلية', branch_code: 'JED001', city: 'جدة', region: 'الغربية' },
-        { branch_id: 'BR003', branch_name: 'الدمام - فرع الملك فهد', branch_code: 'DMM001', city: 'الدمام', region: 'الشرقية' },
-        { branch_id: 'BR004', branch_name: 'مكة المكرمة', branch_code: 'MKH001', city: 'مكة', region: 'الغربية' },
-        { branch_id: 'BR005', branch_name: 'المدينة المنورة', branch_code: 'MDN001', city: 'المدينة', region: 'الغربية' }
+        { branch_id: 'BR001', branch_name: 'الرياض - الفرع الرئيسي', branch_type: 'MAIN', city: 'الرياض', state: 'الوسطى' },
+        { branch_id: 'BR002', branch_name: 'جدة - فرع التحلية', branch_type: 'SUB', city: 'جدة', state: 'الغربية' },
+        { branch_id: 'BR003', branch_name: 'الدمام - فرع الملك فهد', branch_type: 'SUB', city: 'الدمام', state: 'الشرقية' },
+        { branch_id: 'BR004', branch_name: 'مكة المكرمة', branch_type: 'SUB', city: 'مكة', state: 'الغربية' },
+        { branch_id: 'BR005', branch_name: 'المدينة المنورة', branch_type: 'SUB', city: 'المدينة', state: 'الغربية' }
       ]);
     }
   }
@@ -128,7 +128,7 @@ export class BranchReportService {
       const loanNumbers = loans?.map(l => l.loan_account_number) || [];
       
       let casesQuery = supabaseCollection
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select(`
           *,
           collection_officers!assigned_to (
@@ -246,7 +246,7 @@ export class BranchReportService {
       const performanceData = await Promise.all((officers || []).map(async (officer) => {
         // Get cases assigned to officer
         const { data: officerCases, error: casesError } = await supabaseCollection
-          .from('collection_cases')
+          .from(TABLES.COLLECTION_CASES)
           .select(`
             case_id,
             total_outstanding,
@@ -323,7 +323,7 @@ export class BranchReportService {
       // Get all branches
       const { data: branches, error: branchesError } = await supabaseBanking
         .from('kastle_banking.branches')
-        .select('branch_id, branch_name, city, region')
+        .select('branch_id, branch_name, city, state')
         .eq('is_active', true);
 
       if (branchesError) throw branchesError;
@@ -333,7 +333,7 @@ export class BranchReportService {
         branchId: branch.branch_id,
         branchName: branch.branch_name,
         city: branch.city,
-        region: branch.region,
+        state: branch.state,
         delinquencyRate: branch.branch_id === branchId ? 
           branchMetrics.delinquencyRate : 
           Math.random() * 10 + 5,
@@ -394,7 +394,7 @@ export class BranchReportService {
       const caseIds = cases?.map(c => c.case_id) || [];
       
       const { data: interactions, error } = await supabaseCollection
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select('*')
         .in('case_id', caseIds)
         .gte('interaction_datetime', startDate);

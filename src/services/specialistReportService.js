@@ -33,8 +33,8 @@ class SpecialistReportService {
       }
 
       // جلب بيانات الفرق
-      const { data: teamsData, error: teamsError } = await supabaseBanking
-        .from('collection_teams')
+      const { data: teamsData, error: teamsError } = await supabaseCollection
+        .from(TABLES.COLLECTION_TEAMS)
         .select('team_id, team_name, team_type');
 
       if (teamsError) {
@@ -156,8 +156,8 @@ class SpecialistReportService {
 
       // جلب بيانات الفريق
       if (data && data.team_id) {
-        const { data: teamData, error: teamError } = await supabaseBanking
-          .from('collection_teams')
+        const { data: teamData, error: teamError } = await supabaseCollection
+          .from(TABLES.COLLECTION_TEAMS)
           .select('team_id, team_name, team_type, team_lead_id')
           .eq('team_id', data.team_id)
           .single();

@@ -275,7 +275,7 @@ export class CollectionService {
 
       // Get payment history
       const { data: payments, error: paymentsError } = await supabaseBanking
-        .from('transactions')
+        .from(TABLES.TRANSACTIONS)
         .select('*')
         .eq('account_number', caseData?.account_number)
         .eq('transaction_type_id', 'LOAN_REPAYMENT')

@@ -567,7 +567,7 @@ const ProductLevelReport = () => {
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className="text-center">{branch.region}</TableCell>
+                            <TableCell className="text-center">{branch.state}</TableCell>
                             <TableCell className="text-center">{formatNumber(branch.totalLoans)}</TableCell>
                             <TableCell className="text-center">{formatCurrency(branch.totalAmount)}</TableCell>
                             <TableCell className="text-center">

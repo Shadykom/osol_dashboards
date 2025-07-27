@@ -36,8 +36,8 @@ export class ProductReportService {
   static async getProducts() {
     try {
       const { data, error } = await supabaseBanking
-        .from('products')
-        .select('product_id, product_name, product_type, product_category, is_active')
+        .from('kastle_banking.products')
+        .select('product_id, product_name, product_type, category_id, is_active')
         .eq('is_active', true)
         .order('product_name');
 
@@ -48,11 +48,11 @@ export class ProductReportService {
       console.error('Get products error:', error);
       // Return mock data if table doesn't exist
       return formatApiResponse([
-        { product_id: 'PROD001', product_name: 'قرض تورق', product_type: 'Tawarruq', product_category: 'Islamic Finance' },
-        { product_id: 'PROD002', product_name: 'قرض كاش', product_type: 'Cash', product_category: 'Personal Loans' },
-        { product_id: 'PROD003', product_name: 'تمويل سيارات', product_type: 'Auto', product_category: 'Asset Finance' },
-        { product_id: 'PROD004', product_name: 'تمويل عقاري', product_type: 'Real Estate', product_category: 'Mortgage' },
-        { product_id: 'PROD005', product_name: 'بطاقة ائتمان', product_type: 'Credit Card', product_category: 'Cards' }
+        { product_id: 1, product_name: 'قرض تورق', product_type: 'Tawarruq', category_id: 1 },
+        { product_id: 2, product_name: 'قرض كاش', product_type: 'Cash', category_id: 2 },
+        { product_id: 3, product_name: 'تمويل سيارات', product_type: 'Auto', category_id: 3 },
+        { product_id: 4, product_name: 'تمويل عقاري', product_type: 'Real Estate', category_id: 4 },
+        { product_id: 5, product_name: 'بطاقة ائتمان', product_type: 'Credit Card', category_id: 5 }
       ]);
     }
   }
@@ -72,7 +72,7 @@ export class ProductReportService {
 
       // Get product info
       const { data: product, error: productError } = await supabaseBanking
-        .from('products')
+        .from('kastle_banking.products')
         .select('*')
         .eq('product_id', productId)
         .single();
@@ -106,7 +106,7 @@ export class ProductReportService {
       const loanNumbers = loans?.map(l => l.loan_account_number) || [];
       
       let casesQuery = supabaseCollection
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select(`
           *,
           collection_interactions!case_id (
@@ -320,7 +320,7 @@ export class ProductReportService {
     try {
       // Get all products
       const { data: products, error: productsError } = await supabaseBanking
-        .from('products')
+        .from('kastle_banking.products')
         .select('product_id, product_name, product_type')
         .eq('is_active', true);
 
@@ -392,7 +392,7 @@ export class ProductReportService {
       const caseIds = cases?.map(c => c.case_id) || [];
       
       const { data: interactions, error } = await supabaseCollection
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select('*')
         .in('case_id', caseIds)
         .gte('interaction_datetime', startDate);

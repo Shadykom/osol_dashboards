@@ -69,14 +69,14 @@ export const TABLES = {
   COLLECTION_AUDIT_TRAIL: 'kastle_collection.audit_trail',
   COLLECTION_CALL_RECORDS: 'kastle_collection.call_records',
   COLLECTION_CAMPAIGNS: 'kastle_collection.collection_campaigns',
-  COLLECTION_CASES: 'kastle_collection.collection_cases',
+  COLLECTION_CASES: 'kastle_banking.collection_cases', // This table is in kastle_banking schema
   COLLECTION_INTERACTIONS: 'kastle_collection.collection_interactions',
   COLLECTION_OFFICERS: 'kastle_collection.collection_officers',
   COLLECTION_SCORES: 'kastle_collection.collection_scores',
   COLLECTION_STRATEGIES: 'kastle_collection.collection_strategies',
   COLLECTION_SYSTEM_PERFORMANCE: 'kastle_collection.system_performance',
   COLLECTION_TEAMS: 'kastle_collection.collection_teams',
-  COLLECTION_BUCKETS: 'kastle_collection.collection_buckets',
+  COLLECTION_BUCKETS: 'kastle_banking.collection_buckets', // This table is in kastle_banking schema
   PROMISE_TO_PAY: 'kastle_collection.promise_to_pay',
   LEGAL_CASES: 'kastle_collection.legal_cases',
   DAILY_COLLECTION_SUMMARY: 'kastle_collection.daily_collection_summary',
