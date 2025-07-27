@@ -54,9 +54,11 @@ import {
   MoreVertical, ChevronDown, ChevronUp, Zap, Shield, Brain,
   Users, Building2, CreditCard, AlertCircle, TrendingDown,
   ArrowUp, ArrowDown, Info, Play, Pause, SkipForward, History,
-  Layers, Map, PieChart as PieChartIcon, LineChart as LineChartIcon, BarChart as BarChartIcon
+  Layers, Map, PieChart as PieChartIcon, LineChart as LineChartIcon, BarChart as BarChartIcon,
+  Loader2
 } from 'lucide-react';
 import specialistReportService from '@/services/specialistReportService';
+import reportService from '@/services/reportService';
 
 // Use the existing service instance
 const specialistService = specialistReportService;
@@ -75,6 +77,13 @@ const SpecialistLevelReport = () => {
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [showAdvancedAnalytics, setShowAdvancedAnalytics] = useState(false);
   const [error, setError] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [customReportConfig, setCustomReportConfig] = useState({
+    reportType: '',
+    period: '',
+    contents: []
+  });
   
   // Advanced filter states
   const [filters, setFilters] = useState({
@@ -110,6 +119,12 @@ const SpecialistLevelReport = () => {
     }
   }, [selectedSpecialist, filters]);
 
+  useEffect(() => {
+    if (activeView === 'reports' && selectedSpecialist) {
+      fetchReports();
+    }
+  }, [activeView, selectedSpecialist]);
+
   const fetchSpecialists = async () => {
     try {
       const result = await specialistService.getSpecialists();
@@ -144,6 +159,93 @@ const SpecialistLevelReport = () => {
               setError('An error occurred while fetching report data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReports = async () => {
+    if (!selectedSpecialist) return;
+    
+    try {
+      setLoadingReports(true);
+      
+      // Fetch all three report types in parallel
+      const [monthlyReport, portfolioReport, trendsReport] = await Promise.all([
+        reportService.getMonthlyPerformanceReport({ specialistId: selectedSpecialist }),
+        reportService.getDetailedPortfolioReport({ specialistId: selectedSpecialist }),
+        reportService.getTrendsReport({ specialistId: selectedSpecialist })
+      ]);
+      
+      const reportsData = [
+        {
+          title: 'تقرير الأداء الشهري',
+          description: 'ملخص شامل لأداء الشهر الحالي',
+          icon: BarChartIcon,
+          lastGenerated: monthlyReport.data?.generatedAt ? new Date(monthlyReport.data.generatedAt).toLocaleDateString('ar') : 'غير متوفر',
+          format: 'PDF',
+          data: monthlyReport.data,
+          type: 'monthly'
+        },
+        {
+          title: 'تقرير المحفظة التفصيلي',
+          description: 'تحليل مفصل لجميع القروض في المحفظة',
+          icon: PieChartIcon,
+          lastGenerated: portfolioReport.data?.generatedAt ? new Date(portfolioReport.data.generatedAt).toLocaleDateString('ar') : 'غير متوفر',
+          format: 'Excel',
+          data: portfolioReport.data,
+          type: 'portfolio'
+        },
+        {
+          title: 'تقرير الاتجاهات',
+          description: 'تحليل الاتجاهات والتوقعات المستقبلية',
+          icon: LineChartIcon,
+          lastGenerated: trendsReport.data?.generatedAt ? new Date(trendsReport.data.generatedAt).toLocaleDateString('ar') : 'غير متوفر',
+          format: 'PDF',
+          data: trendsReport.data,
+          type: 'trends'
+        }
+      ];
+      
+      setReports(reportsData);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      setError('Failed to fetch reports');
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
+  const handleDownloadReport = async (report) => {
+    try {
+      const result = await reportService.exportReport(report.data, report.format.toLowerCase());
+      if (result.success) {
+        // Here you would implement actual file download logic
+        console.log('Report exported:', result.data);
+        // For now, just show a success message
+        alert(`تم تحميل ${report.title} بنجاح`);
+      }
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      alert('فشل تحميل التقرير');
+    }
+  };
+
+  const handleGenerateCustomReport = async () => {
+    try {
+      setLoadingReports(true);
+      const result = await reportService.generateCustomReport({
+        ...customReportConfig,
+        filters: { specialistId: selectedSpecialist, ...filters }
+      });
+      
+      if (result.success) {
+        alert('تم إنشاء التقرير المخصص بنجاح');
+        // You can add the custom report to the reports list or handle it differently
+      }
+    } catch (error) {
+      console.error('Error generating custom report:', error);
+      alert('فشل إنشاء التقرير المخصص');
+    } finally {
+      setLoadingReports(false);
     }
   };
 
@@ -1527,56 +1629,90 @@ const SpecialistLevelReport = () => {
             {/* Reports View */}
             {activeView === 'reports' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {[
-                    {
-                      title: 'تقرير الأداء الشهري',
-                      description: 'ملخص شامل لأداء الشهر الحالي',
-                      icon: BarChartIcon,
-                      lastGenerated: 'منذ يومين',
-                      format: 'PDF'
-                    },
-                    {
-                      title: 'تقرير المحفظة التفصيلي',
-                      description: 'تحليل مفصل لجميع القروض في المحفظة',
-                      icon: PieChartIcon,
-                      lastGenerated: 'منذ أسبوع',
-                      format: 'Excel'
-                    },
-                    {
-                      title: 'تقرير الاتجاهات',
-                      description: 'تحليل الاتجاهات والتوقعات المستقبلية',
-                      icon: LineChartIcon,
-                      lastGenerated: 'منذ 3 أيام',
-                      format: 'PDF'
-                    }
-                  ].map((report, index) => (
-                    <Card key={index} className="hover:shadow-lg transition-all">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <report.icon className="h-8 w-8 text-blue-500" />
-                          <Badge variant="outline">{report.format}</Badge>
-                        </div>
-                        <CardTitle className="text-lg mt-4">{report.title}</CardTitle>
-                        <CardDescription>{report.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                          <span>آخر إنشاء</span>
-                          <span>{report.lastGenerated}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button className="flex-1" size="sm">
-                            <Download className="h-4 w-4 mr-2" />
-                            تحميل
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                {loadingReports ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {reports.map((report, index) => (
+                      <Card key={index} className="hover:shadow-lg transition-all">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <report.icon className="h-8 w-8 text-blue-500" />
+                            <Badge variant="outline">{report.format}</Badge>
+                          </div>
+                          <CardTitle className="text-lg mt-4">{report.title}</CardTitle>
+                          <CardDescription>{report.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                            <span>آخر إنشاء</span>
+                            <span>{report.lastGenerated}</span>
+                          </div>
+                          {report.data && (
+                            <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                              {report.type === 'monthly' && report.data.summary && (
+                                <div className="space-y-1 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>إجمالي المكالمات:</span>
+                                    <span className="font-medium">{report.data.summary.totalCalls || 0}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>إجمالي التحصيل:</span>
+                                    <span className="font-medium">{report.data.summary.totalCollected || 0}</span>
+                                  </div>
+                                </div>
+                              )}
+                              {report.type === 'portfolio' && report.data.analysis && (
+                                <div className="space-y-1 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>عدد الحسابات:</span>
+                                    <span className="font-medium">{report.data.analysis.totalAccounts || 0}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>متوسط DPD:</span>
+                                    <span className="font-medium">{report.data.analysis.averageDPD || 0}</span>
+                                  </div>
+                                </div>
+                              )}
+                              {report.type === 'trends' && report.data.analysis && (
+                                <div className="space-y-1 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>اتجاه التحصيل:</span>
+                                    <span className="font-medium">
+                                      {report.data.analysis.collectionTrend === 'increasing' ? 'تصاعدي' :
+                                       report.data.analysis.collectionTrend === 'decreasing' ? 'تنازلي' : 'مستقر'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>نقاط البيانات:</span>
+                                    <span className="font-medium">{report.data.analysis.dataPoints || 0}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button 
+                              className="flex-1" 
+                              size="sm"
+                              onClick={() => handleDownloadReport(report)}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              تحميل
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={fetchReports}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
 
                 {/* Custom Report Builder */}
@@ -1592,7 +1728,10 @@ const SpecialistLevelReport = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label>نوع التقرير</Label>
-                          <Select>
+                          <Select
+                            value={customReportConfig.reportType}
+                            onValueChange={(value) => setCustomReportConfig(prev => ({ ...prev, reportType: value }))}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="اختر نوع التقرير" />
                             </SelectTrigger>
@@ -1606,7 +1745,10 @@ const SpecialistLevelReport = () => {
                         </div>
                         <div>
                           <Label>الفترة الزمنية</Label>
-                          <Select>
+                          <Select
+                            value={customReportConfig.period}
+                            onValueChange={(value) => setCustomReportConfig(prev => ({ ...prev, period: value }))}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="اختر الفترة" />
                             </SelectTrigger>
@@ -1635,7 +1777,18 @@ const SpecialistLevelReport = () => {
                             'التوصيات'
                           ].map((item) => (
                             <div key={item} className="flex items-center space-x-2">
-                              <Switch id={item} defaultChecked />
+                              <Switch 
+                                id={item} 
+                                checked={customReportConfig.contents.includes(item)}
+                                onCheckedChange={(checked) => {
+                                  setCustomReportConfig(prev => ({
+                                    ...prev,
+                                    contents: checked 
+                                      ? [...prev.contents, item]
+                                      : prev.contents.filter(c => c !== item)
+                                  }));
+                                }}
+                              />
                               <Label htmlFor={item} className="text-sm font-normal mr-2">
                                 {item}
                               </Label>
@@ -1645,8 +1798,16 @@ const SpecialistLevelReport = () => {
                       </div>
                       
                       <div className="flex gap-2 pt-4">
-                        <Button className="flex-1">
-                          <FileText className="h-4 w-4 mr-2" />
+                        <Button 
+                          className="flex-1"
+                          onClick={handleGenerateCustomReport}
+                          disabled={!customReportConfig.reportType || !customReportConfig.period || customReportConfig.contents.length === 0 || loadingReports}
+                        >
+                          {loadingReports ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <FileText className="h-4 w-4 mr-2" />
+                          )}
                           إنشاء التقرير
                         </Button>
                         <Button variant="outline">
