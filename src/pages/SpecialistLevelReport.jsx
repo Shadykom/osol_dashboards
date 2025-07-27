@@ -54,182 +54,10 @@ import {
   ArrowUp, ArrowDown, Info, Play, Pause, SkipForward, History,
   Layers, Map, PieChart as PieChartIcon, LineChart as LineChartIcon, BarChart as BarChartIcon
 } from 'lucide-react';
+import SpecialistReportService from '@/services/specialistReportService';
 
-// Mock CollectionService for demo
-const CollectionService = {
-  getSpecialists: async () => ({ 
-    success: true, 
-    data: [
-      { officer_id: 'SP001', officer_name: 'أحمد محمد علي', officer_type: 'أخصائي أول' },
-      { officer_id: 'SP002', officer_name: 'فاطمة أحمد السالم', officer_type: 'أخصائي' },
-      { officer_id: 'SP003', officer_name: 'محمد عبدالله النجار', officer_type: 'رئيس فريق' }
-    ]
-  }),
-  getSpecialistReport: async () => ({
-    success: true,
-    data: generateMockReportData()
-  })
-};
-
-// Mock data generator
-function generateMockReportData() {
-  return {
-    specialist: {
-      officer_id: 'SP001',
-      officer_name: 'أحمد محمد علي',
-      officer_type: 'أخصائي أول',
-      email: 'ahmed.ali@company.com',
-      contact_number: '+966501234567',
-      team_name: 'فريق التحصيل المبكر',
-      years_experience: 5,
-      performance_rating: 4.5,
-      specializations: ['قروض الأفراد', 'قروض الشركات الصغيرة']
-    },
-    kpis: {
-      totalLoans: 127,
-      totalPortfolioValue: 45750000,
-      overdueLoans: 43,
-      totalOverdueAmount: 8920000,
-      collectionRate: 82.5,
-      callsMade: 1847,
-      messagesSent: 923,
-      emailsSent: 156,
-      promisesToPay: 67,
-      promisesFulfilled: 51,
-      averageResponseRate: 73.2,
-      avgCallDuration: 4.3,
-      conversionRate: 42.8,
-      customerSatisfaction: 4.2
-    },
-    loans: generateMockLoans(50),
-    communicationData: generateCommunicationData(),
-    promisesToPay: generatePromisesToPay(),
-    performance: {
-      collectionRate: 82.5,
-      responseRate: 73.2,
-      promiseRate: 52.8,
-      fulfillmentRate: 76.1,
-      efficiency: 88.4,
-      qualityScore: 91.2
-    },
-    trends: generateTrendData(),
-    customerSegments: generateCustomerSegments(),
-    riskAnalysis: generateRiskAnalysis(),
-    timeline: generateTimeline()
-  };
-}
-
-function generateMockLoans(count) {
-  const products = ['قرض تورق', 'قرض كاش', 'تمويل شخصي', 'تمويل عقاري'];
-  const customerTypes = ['فرد', 'مؤسسة', 'شركة صغيرة'];
-  const statuses = ['نشط', 'متأخر', 'متعثر'];
-  const buckets = ['Current', '1-30 Days', '31-60 Days', '61-90 Days', '91-180 Days', '>180 Days'];
-  
-  return Array.from({ length: count }, (_, i) => ({
-    loanNumber: `LN${String(i + 1).padStart(6, '0')}`,
-    customerName: `عميل ${i + 1}`,
-    customerPhone: `+96650${Math.floor(Math.random() * 10000000)}`,
-    customerId: `ID${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`,
-    customerType: customerTypes[Math.floor(Math.random() * customerTypes.length)],
-    productType: products[Math.floor(Math.random() * products.length)],
-    loanAmount: Math.floor(Math.random() * 900000) + 100000,
-    paidAmount: Math.floor(Math.random() * 500000),
-    dueAmount: Math.floor(Math.random() * 100000),
-    notDueAmount: Math.floor(Math.random() * 200000),
-    totalOverdueAmount: Math.floor(Math.random() * 50000),
-    totalOverdueDays: Math.floor(Math.random() * 180),
-    delinquencyBucket: buckets[Math.floor(Math.random() * buckets.length)],
-    loanStatus: statuses[Math.floor(Math.random() * statuses.length)],
-    lastContactDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ar-SA'),
-    callsThisMonth: Math.floor(Math.random() * 15),
-    messagesThisMonth: Math.floor(Math.random() * 10),
-    lastCallResult: ['تم الرد', 'لم يتم الرد', 'مشغول'][Math.floor(Math.random() * 3)],
-    hasPromiseToPay: Math.random() > 0.5,
-    ptpDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ar-SA'),
-    ptpAmount: Math.floor(Math.random() * 30000),
-    ptpStatus: ['نشط', 'محقق', 'منتهي'][Math.floor(Math.random() * 3)],
-    riskScore: Math.floor(Math.random() * 100),
-    behaviorScore: Math.floor(Math.random() * 100),
-    collectionProbability: Math.random() * 100
-  }));
-}
-
-function generateCommunicationData() {
-  const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
-  return days.map(day => ({
-    day,
-    calls: Math.floor(Math.random() * 50) + 20,
-    messages: Math.floor(Math.random() * 30) + 10,
-    emails: Math.floor(Math.random() * 10) + 5,
-    answered: Math.floor(Math.random() * 40) + 15,
-    successful: Math.floor(Math.random() * 20) + 5
-  }));
-}
-
-function generatePromisesToPay() {
-  return Array.from({ length: 20 }, (_, i) => ({
-    caseNumber: `CASE${String(i + 1).padStart(6, '0')}`,
-    customerName: `عميل ${i + 1}`,
-    ptpDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000),
-    ptpAmount: Math.floor(Math.random() * 50000) + 10000,
-    status: ['ACTIVE', 'KEPT', 'BROKEN'][Math.floor(Math.random() * 3)],
-    confidenceLevel: Math.random() * 100
-  }));
-}
-
-function generateTrendData() {
-  return Array.from({ length: 30 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (29 - i));
-    return {
-      date: date.toLocaleDateString('ar-SA'),
-      collected: Math.floor(Math.random() * 500000) + 100000,
-      calls: Math.floor(Math.random() * 100) + 50,
-      promises: Math.floor(Math.random() * 20) + 5,
-      responseRate: Math.random() * 30 + 60
-    };
-  });
-}
-
-function generateCustomerSegments() {
-  return [
-    { segment: 'عملاء VIP', count: 15, value: 12500000, risk: 'منخفض' },
-    { segment: 'عملاء ذهبيون', count: 35, value: 18000000, risk: 'متوسط' },
-    { segment: 'عملاء عاديون', count: 60, value: 12000000, risk: 'متوسط' },
-    { segment: 'عملاء عالي المخاطر', count: 17, value: 3250000, risk: 'عالي' }
-  ];
-}
-
-function generateRiskAnalysis() {
-  return {
-    distribution: [
-      { level: 'منخفض جداً', count: 23, percentage: 18 },
-      { level: 'منخفض', count: 41, percentage: 32 },
-      { level: 'متوسط', count: 38, percentage: 30 },
-      { level: 'عالي', count: 19, percentage: 15 },
-      { level: 'عالي جداً', count: 6, percentage: 5 }
-    ],
-    factors: [
-      { factor: 'سجل الدفع', impact: 85 },
-      { factor: 'نسبة الدين', impact: 72 },
-      { factor: 'مدة العلاقة', impact: 68 },
-      { factor: 'نوع المنتج', impact: 54 },
-      { factor: 'القطاع', impact: 45 }
-    ]
-  };
-}
-
-function generateTimeline() {
-  const events = [
-    { time: '09:00', type: 'call', result: 'تم الرد - وعد بالدفع', customer: 'أحمد محمد' },
-    { time: '09:45', type: 'message', result: 'تم الإرسال', customer: 'فاطمة علي' },
-    { time: '10:30', type: 'email', result: 'تم القراءة', customer: 'شركة الرياض' },
-    { time: '11:15', type: 'call', result: 'لم يتم الرد', customer: 'محمد سالم' },
-    { time: '14:00', type: 'payment', result: 'دفعة مستلمة', customer: 'نورا أحمد', amount: 15000 }
-  ];
-  
-  return events;
-}
+// Create instance of the service
+const specialistService = new SpecialistReportService();
 
 const SpecialistLevelReport = () => {
   const [loading, setLoading] = useState(true);
@@ -281,7 +109,7 @@ const SpecialistLevelReport = () => {
 
   const fetchSpecialists = async () => {
     try {
-      const result = await CollectionService.getSpecialists();
+      const result = await specialistService.getSpecialists();
       if (result.success && result.data) {
         setSpecialists(result.data);
         if (result.data.length > 0 && !selectedSpecialist) {
@@ -302,17 +130,9 @@ const SpecialistLevelReport = () => {
     try {
       setLoading(true);
       setError(null);
-      const result = await CollectionService.getSpecialistReport(selectedSpecialist, filters);
+      const result = await specialistService.getSpecialistReport(selectedSpecialist, filters);
       if (result.success && result.data) {
-        // Process the data to add computed fields
-        const processedData = {
-          ...result.data,
-          // Add additional computed fields if needed
-          customerSegments: processCustomerSegments(result.data.loans),
-          riskAnalysis: processRiskAnalysis(result.data.loans),
-          timeline: processTimeline(result.data.loans, result.data.communicationData)
-        };
-        setReportData(processedData);
+        setReportData(result.data);
       } else {
         setError('فشل في جلب بيانات التقرير');
       }
@@ -322,130 +142,6 @@ const SpecialistLevelReport = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Helper functions to process data
-  const processCustomerSegments = (loans) => {
-    if (!loans || loans.length === 0) return [];
-    
-    const segments = {};
-    loans.forEach(loan => {
-      const segment = getCustomerSegment(loan);
-      if (!segments[segment]) {
-        segments[segment] = { 
-          segment, 
-          count: 0, 
-          value: 0,
-          risk: getSegmentRisk(segment)
-        };
-      }
-      segments[segment].count++;
-      segments[segment].value += loan.loanAmount || 0;
-    });
-    
-    return Object.values(segments);
-  };
-
-  const getCustomerSegment = (loan) => {
-    const amount = loan.loanAmount || 0;
-    if (amount >= 5000000) return 'عملاء VIP';
-    if (amount >= 1000000) return 'عملاء ذهبيون';
-    if (amount >= 500000) return 'عملاء فضيون';
-    return 'عملاء عاديون';
-  };
-
-  const getSegmentRisk = (segment) => {
-    const riskMap = {
-      'عملاء VIP': 'منخفض',
-      'عملاء ذهبيون': 'متوسط',
-      'عملاء فضيون': 'متوسط',
-      'عملاء عاديون': 'عالي'
-    };
-    return riskMap[segment] || 'متوسط';
-  };
-
-  const processRiskAnalysis = (loans) => {
-    if (!loans || loans.length === 0) {
-      return { distribution: [], factors: [] };
-    }
-
-    // Calculate risk distribution
-    const riskLevels = {
-      'منخفض جداً': 0,
-      'منخفض': 0,
-      'متوسط': 0,
-      'عالي': 0,
-      'عالي جداً': 0
-    };
-
-    loans.forEach(loan => {
-      const risk = calculateRiskLevel(loan);
-      riskLevels[risk]++;
-    });
-
-    const totalLoans = loans.length;
-    const distribution = Object.entries(riskLevels).map(([level, count]) => ({
-      level,
-      count,
-      percentage: totalLoans > 0 ? Math.round((count / totalLoans) * 100) : 0
-    }));
-
-    // Risk factors (could be calculated from actual data)
-    const factors = [
-      { factor: 'سجل الدفع', impact: 85 },
-      { factor: 'نسبة الدين', impact: 72 },
-      { factor: 'مدة العلاقة', impact: 68 },
-      { factor: 'نوع المنتج', impact: 54 },
-      { factor: 'القطاع', impact: 45 }
-    ];
-
-    return { distribution, factors };
-  };
-
-  const calculateRiskLevel = (loan) => {
-    const dpd = loan.totalOverdueDays || 0;
-    const overdueRatio = loan.loanAmount > 0 ? (loan.totalOverdueAmount / loan.loanAmount) : 0;
-    
-    if (dpd === 0 && overdueRatio === 0) return 'منخفض جداً';
-    if (dpd <= 30 && overdueRatio < 0.1) return 'منخفض';
-    if (dpd <= 60 && overdueRatio < 0.2) return 'متوسط';
-    if (dpd <= 90 && overdueRatio < 0.3) return 'عالي';
-    return 'عالي جداً';
-  };
-
-  const processTimeline = (loans, communicationData) => {
-    const events = [];
-    
-    // Add recent communications
-    if (communicationData && Array.isArray(communicationData)) {
-      communicationData.slice(-5).forEach(comm => {
-        events.push({
-          time: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
-          type: 'call',
-          result: 'تم الاتصال',
-          customer: 'عميل',
-          amount: null
-        });
-      });
-    }
-    
-    // Add recent payments from loans
-    if (loans && Array.isArray(loans)) {
-      loans
-        .filter(loan => loan.hasPromiseToPay && loan.ptpStatus === 'محقق')
-        .slice(-3)
-        .forEach(loan => {
-          events.push({
-            time: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
-            type: 'payment',
-            result: 'دفعة مستلمة',
-            customer: loan.customerName,
-            amount: loan.ptpAmount
-          });
-        });
-    }
-    
-    return events.sort((a, b) => b.time.localeCompare(a.time));
   };
 
   const handleRefresh = async () => {
