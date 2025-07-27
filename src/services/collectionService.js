@@ -1149,7 +1149,8 @@ export class CollectionService {
    */
   static async getSpecialists() {
     try {
-      const { data, error } = await supabaseCollection
+      // First get the officers
+      const { data: officers, error: officersError } = await supabaseCollection
         .from('kastle_collection.collection_officers')
         .select(`
           officer_id, 
@@ -1157,19 +1158,45 @@ export class CollectionService {
           officer_type, 
           team_id, 
           email, 
-          contact_number,
-          collection_teams!team_id (
-            team_name,
-            team_type
-          )
+          contact_number
         `)
         .eq('status', 'ACTIVE')
         .in('officer_type', ['CALL_AGENT', 'FIELD_AGENT', 'SENIOR_COLLECTOR', 'TEAM_LEAD'])
         .order('officer_name');
 
-      if (error) throw error;
+      if (officersError) throw officersError;
 
-      return formatApiResponse(data || []);
+      // If we have officers, get the teams separately
+      if (officers && officers.length > 0) {
+        const teamIds = [...new Set(officers.map(o => o.team_id).filter(id => id))];
+        
+        if (teamIds.length > 0) {
+          const { data: teams, error: teamsError } = await supabaseCollection
+            .from('kastle_collection.collection_teams')
+            .select('team_id, team_name, team_type')
+            .in('team_id', teamIds);
+
+          if (teamsError) {
+            console.error('Error fetching teams:', teamsError);
+            // Continue without teams data
+          } else if (teams) {
+            // Create a map for quick lookup
+            const teamsMap = teams.reduce((acc, team) => {
+              acc[team.team_id] = team;
+              return acc;
+            }, {});
+
+            // Merge team data with officers
+            officers.forEach(officer => {
+              if (officer.team_id && teamsMap[officer.team_id]) {
+                officer.collection_teams = teamsMap[officer.team_id];
+              }
+            });
+          }
+        }
+      }
+
+      return formatApiResponse(officers || []);
     } catch (error) {
       console.error('Get specialists error:', error);
       return formatApiResponse(null, error);

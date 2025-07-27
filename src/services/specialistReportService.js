@@ -12,7 +12,7 @@ class SpecialistReportService {
   async getSpecialists() {
     try {
       // جلب البيانات من جدول collection_officers
-      const { data, error } = await supabaseBanking
+      const { data: officers, error: officersError } = await supabaseBanking
         .from('kastle_collection.collection_officers')
         .select(`
           officer_id,
@@ -21,23 +21,49 @@ class SpecialistReportService {
           team_id,
           contact_number,
           email,
-          status,
-          collection_teams!team_id (
-            team_name,
-            team_type
-          )
+          status
         `)
         .eq('status', 'ACTIVE')
         .order('officer_name');
 
-      if (error) {
-        console.error('Error fetching specialists:', error);
-        throw error;
+      if (officersError) {
+        console.error('Error fetching specialists:', officersError);
+        throw officersError;
+      }
+
+      // If we have officers, get the teams separately
+      if (officers && officers.length > 0) {
+        const teamIds = [...new Set(officers.map(o => o.team_id).filter(id => id))];
+        
+        if (teamIds.length > 0) {
+          const { data: teams, error: teamsError } = await supabaseBanking
+            .from('kastle_collection.collection_teams')
+            .select('team_id, team_name, team_type')
+            .in('team_id', teamIds);
+
+          if (teamsError) {
+            console.error('Error fetching teams:', teamsError);
+            // Continue without teams data
+          } else if (teams) {
+            // Create a map for quick lookup
+            const teamsMap = teams.reduce((acc, team) => {
+              acc[team.team_id] = team;
+              return acc;
+            }, {});
+
+            // Merge team data with officers
+            officers.forEach(officer => {
+              if (officer.team_id && teamsMap[officer.team_id]) {
+                officer.collection_teams = teamsMap[officer.team_id];
+              }
+            });
+          }
+        }
       }
 
       return {
         success: true,
-        data: data || [],
+        data: officers || [],
         error: null
       };
     } catch (error) {
