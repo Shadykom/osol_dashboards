@@ -277,7 +277,7 @@ const OfficerPerformanceDashboard = () => {
       </div>
 
       {/* Key Performance Indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
@@ -400,7 +400,7 @@ const OfficerPerformanceDashboard = () => {
           </Card>
 
           {/* Performance Trend */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Collection Performance Trend</CardTitle>
@@ -641,7 +641,7 @@ const OfficerPerformanceDashboard = () => {
           </Card>
 
           {/* Team Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             {performanceMetrics.teamComparison.map((team, index) => (
               <Card key={index}>
                 <CardHeader>

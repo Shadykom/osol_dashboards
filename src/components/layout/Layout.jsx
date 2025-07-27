@@ -34,10 +34,11 @@ export function Layout({ children }) {
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={() => isMobile ? setIsMobileSidebarOpen(true) : setIsSidebarCollapsed(!isSidebarCollapsed)} />
         <main className={cn(
-          "flex-1 overflow-auto bg-gray-50/50 p-6",
-          "transition-all duration-300"
+          "flex-1 overflow-auto bg-gray-50/50 p-4 lg:p-6",
+          "transition-all duration-300",
+          "w-full"
         )}>
-          <div className="h-full">
+          <div className="h-full w-full max-w-none">
             {children}
           </div>
         </main>

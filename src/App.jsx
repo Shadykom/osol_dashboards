@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
@@ -61,74 +62,6 @@ function RouteRedirect() {
   }, [location]);
   
   return null;
-}
-
-// Error Boundary Component
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('App Error Boundary caught an error:', error, errorInfo);
-    this.setState({
-      error: error,
-      errorInfo: errorInfo
-    });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-          <h1 style={{ color: '#dc2626' }}>Something went wrong</h1>
-          <p>The Osoul Dashboard encountered an error and needs to be refreshed.</p>
-          <details style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: '10px', borderRadius: '4px', marginTop: '10px' }}>
-            <summary style={{ cursor: 'pointer' }}>Error Details</summary>
-            {this.state.error && this.state.error.toString()}
-            <br />
-            {this.state.errorInfo && this.state.errorInfo.componentStack}
-          </details>
-          <button 
-            onClick={() => window.location.reload()} 
-            style={{ 
-              marginTop: '10px', 
-              padding: '10px 20px', 
-              backgroundColor: '#2563eb', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
-            }}
-          >
-            Refresh Page
-          </button>
-          <button 
-            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })} 
-            style={{ 
-              marginTop: '10px', 
-              marginLeft: '10px',
-              padding: '10px 20px', 
-              backgroundColor: '#16a34a', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
 }
 
 // 404 Page Component

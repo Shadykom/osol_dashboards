@@ -181,7 +181,7 @@ export function ExecutiveDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -209,7 +209,7 @@ export function ExecutiveDashboard() {
       {/* Key Financial Metrics */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Financial Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           <KPICard
             title="Total Assets"
             value={executiveKPIs.totalAssets}
@@ -252,7 +252,7 @@ export function ExecutiveDashboard() {
       {/* Customer Metrics */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Customer Metrics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           <KPICard
             title="Total Customers"
             value={executiveKPIs.totalCustomers}
@@ -298,7 +298,7 @@ export function ExecutiveDashboard() {
         </TabsList>
 
         <TabsContent value="monthly" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {/* Revenue and Profit Trend */}
             <Card>
               <CardHeader>
@@ -410,7 +410,7 @@ export function ExecutiveDashboard() {
       {/* Risk Management Overview */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Risk Management</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           {riskMetrics.map((risk, index) => (
             <RiskScoreCard key={index} {...risk} />
           ))}
@@ -424,7 +424,7 @@ export function ExecutiveDashboard() {
           <CardDescription>Important financial and operational ratios</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
             <div className="text-center">
               <p className="text-2xl font-bold text-green-600">{executiveKPIs.nim}%</p>
               <p className="text-sm text-muted-foreground">Net Interest Margin</p>

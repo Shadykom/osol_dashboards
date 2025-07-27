@@ -87,7 +87,7 @@ const CollectionReports = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -105,7 +105,7 @@ const CollectionReports = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <Select value={selectedReportType} onValueChange={setSelectedReportType}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Report Type" />
@@ -160,7 +160,7 @@ const CollectionReports = () => {
 
         <TabsContent value="overview" className="space-y-4">
           {/* Summary KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
             <Card className="border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
@@ -252,7 +252,7 @@ const CollectionReports = () => {
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {/* Top Performing Officers */}
             <Card>
               <CardHeader>
@@ -335,7 +335,7 @@ const CollectionReports = () => {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {/* Bucket Analysis */}
             <Card>
               <CardHeader>
@@ -395,7 +395,7 @@ const CollectionReports = () => {
               <CardDescription>PTP effectiveness and fulfillment rates</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
                     {formatNumber(analytics?.ptpAnalysis?.totalPtps || 0)}
@@ -511,7 +511,7 @@ const CollectionReports = () => {
           </Card>
 
           {/* Seasonal Analysis */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Seasonal Performance</CardTitle>

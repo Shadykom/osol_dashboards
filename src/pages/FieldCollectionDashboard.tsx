@@ -317,7 +317,7 @@ const FieldCollectionDashboard = () => {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Visits Today</CardTitle>
@@ -396,7 +396,7 @@ const FieldCollectionDashboard = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {/* Visit Status Distribution */}
             <Card>
               <CardHeader>
@@ -685,7 +685,7 @@ const FieldCollectionDashboard = () => {
               <CardDescription>Daily route efficiency improvements</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <Route className="h-8 w-8 mx-auto mb-2 text-blue-600" />
                   <p className="text-sm text-gray-600">Original Distance</p>
@@ -742,7 +742,7 @@ const FieldCollectionDashboard = () => {
 
         <TabsContent value="safety" className="space-y-4">
           {/* Safety Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">

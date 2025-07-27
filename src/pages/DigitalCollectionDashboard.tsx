@@ -187,7 +187,7 @@ const DigitalCollectionDashboard = () => {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Digital Payments</CardTitle>
@@ -323,7 +323,7 @@ const DigitalCollectionDashboard = () => {
 
         <TabsContent value="automation" className="space-y-4">
           {/* Automation Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -442,7 +442,7 @@ const DigitalCollectionDashboard = () => {
 
         <TabsContent value="payments" className="space-y-4">
           {/* Payment Methods Distribution */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Payment Methods Distribution</CardTitle>

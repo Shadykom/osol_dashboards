@@ -302,7 +302,7 @@ export function Analytics() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6"
+      className="space-y-6 w-full"
     >
       {/* Header */}
       <div className="flex justify-between items-center">

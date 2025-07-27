@@ -1,8 +1,4 @@
-// src/components/ErrorBoundary.jsx
 import React from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -16,71 +12,75 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log the error details
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+    // Log error details
     this.setState({
       error: error,
       errorInfo: errorInfo
     });
-  }
 
-  handleRetry = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
-  };
+    // Log to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('ErrorBoundary caught an error:', error, errorInfo);
+    }
+
+    // In production, you might want to log to an error reporting service
+    if (process.env.NODE_ENV === 'production') {
+      // Example: logErrorToService(error, errorInfo);
+    }
+  }
 
   render() {
     if (this.state.hasError) {
+      // Fallback UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-              <CardTitle className="text-xl font-semibold text-gray-900">
-                Something went wrong
-              </CardTitle>
-              <CardDescription className="text-gray-600">
-                The application encountered an unexpected error. This might be due to a configuration issue or network problem.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <div className="rounded-md bg-red-50 p-3">
-                  <h4 className="text-sm font-medium text-red-800 mb-2">Error Details:</h4>
-                  <pre className="text-xs text-red-700 whitespace-pre-wrap">
-                    {this.state.error.toString()}
-                  </pre>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Button 
-                  onClick={this.handleRetry}
-                  className="w-full"
-                  variant="default"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Try Again
-                </Button>
-                
-                <Button 
-                  onClick={() => window.location.reload()}
-                  className="w-full"
-                  variant="outline"
-                >
-                  Reload Page
-                </Button>
-              </div>
-              
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
               <div className="text-center">
-                <p className="text-sm text-gray-500">
-                  If the problem persists, please check your internet connection and Supabase configuration.
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                  <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                  حدث خطأ غير متوقع
+                </h2>
+                <p className="mt-2 text-center text-sm text-gray-600">
+                  نعتذر، حدث خطأ في التطبيق. يرجى المحاولة مرة أخرى.
                 </p>
+                
+                {process.env.NODE_ENV === 'development' && this.state.error && (
+                  <details className="mt-4 text-left">
+                    <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                      تفاصيل الخطأ (للمطورين)
+                    </summary>
+                    <div className="mt-2 p-3 bg-gray-100 rounded text-xs text-gray-800 overflow-auto max-h-40">
+                      <strong>Error:</strong> {this.state.error && this.state.error.toString()}
+                      <br />
+                      <strong>Stack Trace:</strong>
+                      <pre className="whitespace-pre-wrap">{this.state.errorInfo.componentStack}</pre>
+                    </div>
+                  </details>
+                )}
+
+                <div className="mt-6 space-y-3">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    إعادة تحميل الصفحة
+                  </button>
+                  
+                  <button
+                    onClick={() => window.location.href = '/dashboard'}
+                    className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    العودة للصفحة الرئيسية
+                  </button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       );
     }

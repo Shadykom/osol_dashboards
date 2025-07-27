@@ -117,7 +117,7 @@ const CollectionOverview = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -161,7 +161,7 @@ const CollectionOverview = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <Select value={filters.branch} onValueChange={(value) => handleFilterChange('branch', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Branch" />
@@ -211,7 +211,7 @@ const CollectionOverview = () => {
       </Card>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 xl:grid-cols-4 2xl:grid-cols-6 gap-6 w-full">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
@@ -273,8 +273,8 @@ const CollectionOverview = () => {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="overview" className="space-y-4 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
             {/* Cases by Status */}
             <Card>
               <CardHeader>
@@ -326,7 +326,7 @@ const CollectionOverview = () => {
           </div>
 
           {/* Collection Trends */}
-          <Card>
+          <Card className="w-full">
             <CardHeader>
               <CardTitle>Collection Trends</CardTitle>
               <CardDescription>Daily collection performance over time</CardDescription>
@@ -354,8 +354,8 @@ const CollectionOverview = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="performance" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="performance" className="space-y-4 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
             {/* Top Performing Officers */}
             <Card>
               <CardHeader>
@@ -443,7 +443,7 @@ const CollectionOverview = () => {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {/* Recovery Rate Trends */}
             <Card>
               <CardHeader>

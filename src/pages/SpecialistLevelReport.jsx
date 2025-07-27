@@ -249,7 +249,7 @@ const SpecialistLevelReport = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="p-4 lg:p-6 space-y-6 bg-gray-50 min-h-screen w-full" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -460,8 +460,8 @@ const SpecialistLevelReport = () => {
               <TabsTrigger value="promises">وعود الدفع</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TabsContent value="overview" className="space-y-6 w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {/* Delinquency Distribution */}
                 <Card>
                   <CardHeader>
@@ -607,7 +607,7 @@ const SpecialistLevelReport = () => {
             </TabsContent>
 
             <TabsContent value="communications">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>إحصائيات التواصل</CardTitle>
