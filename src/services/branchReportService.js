@@ -344,7 +344,7 @@ export class BranchReportService {
     try {
       // Get all branches
       const { data: branches, error: branchesError } = await supabaseBanking
-        .from('kastle_banking.branches')
+        .from(TABLES.BRANCHES)
         .select('branch_id, branch_name, city, region')
         .eq('is_active', true);
 
