@@ -36,7 +36,7 @@ export class ProductReportService {
   static async getProducts() {
     try {
       const { data, error } = await supabaseBanking
-        .from('products')
+        .from(TABLES.PRODUCTS)
         .select('product_id, product_name, product_type, product_category, is_active')
         .eq('is_active', true)
         .order('product_name');
@@ -72,7 +72,7 @@ export class ProductReportService {
 
       // Get product info
       const { data: product, error: productError } = await supabaseBanking
-        .from('products')
+        .from(TABLES.PRODUCTS)
         .select('*')
         .eq('product_id', productId)
         .single();
@@ -320,7 +320,7 @@ export class ProductReportService {
     try {
       // Get all products
       const { data: products, error: productsError } = await supabaseBanking
-        .from('products')
+        .from(TABLES.PRODUCTS)
         .select('product_id, product_name, product_type')
         .eq('is_active', true);
 

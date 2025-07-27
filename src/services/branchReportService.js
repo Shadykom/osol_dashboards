@@ -36,7 +36,7 @@ export class BranchReportService {
   static async getBranches() {
     try {
       const { data, error } = await supabaseBanking
-        .from('kastle_banking.branches')
+        .from(TABLES.BRANCHES)
         .select('branch_id, branch_name, branch_code, city, region, is_active')
         .eq('is_active', true)
         .order('branch_name');
@@ -72,7 +72,7 @@ export class BranchReportService {
 
       // Get branch info
       const { data: branch, error: branchError } = await supabaseBanking
-        .from('kastle_banking.branches')
+        .from(TABLES.BRANCHES)
         .select('*')
         .eq('branch_id', branchId)
         .single();
@@ -85,9 +85,19 @@ export class BranchReportService {
         return this.getMockBranchReport(branchId, mockBranch, filters);
       }
 
-      // Get all loan accounts for the branch
+      // First, get customers for the branch
+      const { data: customers, error: customersError } = await supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('customer_id')
+        .eq('branch_id', branchId);
+
+      if (customersError) throw customersError;
+
+      const customerIds = customers?.map(c => c.customer_id) || [];
+
+      // Get all loan accounts for the branch customers
       let loansQuery = supabaseBanking
-        .from('kastle_banking.loan_accounts')
+        .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           loan_account_number,
           customer_id,
@@ -98,34 +108,46 @@ export class BranchReportService {
           loan_status,
           product_id,
           disbursement_date,
-          maturity_date,
-          products!product_id (
-            product_name,
-            product_type
-          ),
-          customers!customer_id (
-            full_name,
-            customer_type,
-            branch_id
-          )
+          maturity_date
         `)
-        .eq('customers.branch_id', branchId);
-
-      // Apply filters
-      if (productType !== 'all') {
-        loansQuery = loansQuery.eq('products.product_type', productType);
-      }
-
-      if (customerType !== 'all') {
-        loansQuery = loansQuery.eq('customers.customer_type', customerType);
-      }
+        .in('customer_id', customerIds);
 
       const { data: loans, error: loansError } = await loansQuery;
 
       if (loansError) throw loansError;
 
+      // Get products and customers data separately
+      const productIds = [...new Set(loans?.map(l => l.product_id).filter(Boolean))];
+      const { data: products } = await supabaseBanking
+        .from(TABLES.PRODUCTS)
+        .select('product_id, product_name, product_type')
+        .in('product_id', productIds);
+
+      const { data: customersData } = await supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('customer_id, full_name, customer_type, branch_id')
+        .in('customer_id', customerIds);
+
+      // Merge the data
+      const loansWithDetails = loans?.map(loan => ({
+        ...loan,
+        products: products?.find(p => p.product_id === loan.product_id),
+        customers: customersData?.find(c => c.customer_id === loan.customer_id)
+      }));
+
+      // Apply filters on merged data
+      let filteredLoans = loansWithDetails;
+      
+      if (productType !== 'all') {
+        filteredLoans = filteredLoans?.filter(l => l.products?.product_type === productType);
+      }
+
+      if (customerType !== 'all') {
+        filteredLoans = filteredLoans?.filter(l => l.customers?.customer_type === customerType);
+      }
+
       // Get collection cases for the branch
-      const loanNumbers = loans?.map(l => l.loan_account_number) || [];
+      const loanNumbers = filteredLoans?.map(l => l.loan_account_number) || [];
       
       let casesQuery = supabaseCollection
         .from('collection_cases')
@@ -154,7 +176,7 @@ export class BranchReportService {
       if (casesError) throw casesError;
 
       // Calculate branch metrics
-      const metrics = this.calculateBranchMetrics(loans, cases, dateRange);
+      const metrics = this.calculateBranchMetrics(filteredLoans, cases, dateRange);
 
       // Get officer performance for the branch
       const officerPerformance = await this.getBranchOfficerPerformance(branchId, dateRange);
@@ -169,10 +191,10 @@ export class BranchReportService {
       const communicationStats = await this.getBranchCommunicationStats(branchId, cases, dateRange);
 
       // Get product performance
-      const productPerformance = this.calculateProductPerformance(loans, cases);
+      const productPerformance = this.calculateProductPerformance(filteredLoans, cases);
 
       // Get delinquency distribution
-      const delinquencyDistribution = this.calculateDelinquencyDistribution(loans);
+      const delinquencyDistribution = this.calculateDelinquencyDistribution(filteredLoans);
 
       return formatApiResponse({
         branch,
@@ -235,7 +257,7 @@ export class BranchReportService {
     try {
       // Get collection officers for the branch
       const { data: officers, error: officersError } = await supabaseCollection
-        .from('kastle_collection.collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select('officer_id, officer_name, officer_type, status')
         .eq('branch_id', branchId)
         .eq('status', 'ACTIVE');
