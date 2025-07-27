@@ -36,7 +36,7 @@ export class BranchReportService {
   static async getBranches() {
     try {
       const { data, error } = await supabaseBanking
-        .from('kastle_banking.branches')
+        .from('branches')
         .select('branch_id, branch_name, branch_code, city, region, is_active')
         .eq('is_active', true)
         .order('branch_name');
@@ -72,7 +72,7 @@ export class BranchReportService {
 
       // Get branch info
       const { data: branch, error: branchError } = await supabaseBanking
-        .from('kastle_banking.branches')
+        .from('branches')
         .select('*')
         .eq('branch_id', branchId)
         .single();
@@ -87,7 +87,7 @@ export class BranchReportService {
 
       // Get all loan accounts for the branch
       let loansQuery = supabaseBanking
-        .from('kastle_banking.loan_accounts')
+        .from('loan_accounts')
         .select(`
           loan_account_number,
           customer_id,
@@ -99,25 +99,25 @@ export class BranchReportService {
           product_id,
           disbursement_date,
           maturity_date,
-          kastle_banking.products!product_id (
+          products!product_id (
             product_name,
             product_type
           ),
-          kastle_banking.customers!customer_id (
+          customers!customer_id (
             full_name,
             customer_type,
             branch_id
           )
         `)
-        .eq('kastle_banking.customers.branch_id', branchId);
+        .eq('customers.branch_id', branchId);
 
       // Apply filters
       if (productType !== 'all') {
-        loansQuery = loansQuery.eq('kastle_banking.products.product_type', productType);
+        loansQuery = loansQuery.eq('products.product_type', productType);
       }
 
       if (customerType !== 'all') {
-        loansQuery = loansQuery.eq('kastle_banking.customers.customer_type', customerType);
+        loansQuery = loansQuery.eq('customers.customer_type', customerType);
       }
 
       const { data: loans, error: loansError } = await loansQuery;
@@ -128,20 +128,20 @@ export class BranchReportService {
       const loanNumbers = loans?.map(l => l.loan_account_number) || [];
       
       let casesQuery = supabaseCollection
-        .from('kastle_collection.collection_cases')
+        .from('collection_cases')
         .select(`
           *,
-          kastle_collection.collection_officers!assigned_to (
+          collection_officers!assigned_to (
             officer_id,
             officer_name,
             branch_id
           ),
-          kastle_collection.collection_interactions!case_id (
+          collection_interactions!case_id (
             interaction_type,
             outcome,
             interaction_datetime
           ),
-          kastle_collection.promise_to_pay!case_id (
+          promise_to_pay!case_id (
             ptp_amount,
             ptp_date,
             status
@@ -235,7 +235,7 @@ export class BranchReportService {
     try {
       // Get officers for the branch
       const { data: officers, error: officersError } = await supabaseCollection
-        .from('kastle_collection.collection_officers')
+        .from('collection_officers')
         .select('*')
         .eq('branch_id', branchId)
         .eq('status', 'ACTIVE');
@@ -246,16 +246,16 @@ export class BranchReportService {
       const performanceData = await Promise.all((officers || []).map(async (officer) => {
         // Get cases assigned to officer
         const { data: officerCases, error: casesError } = await supabaseCollection
-          .from('kastle_collection.collection_cases')
+          .from('collection_cases')
           .select(`
             case_id,
             total_outstanding,
             days_past_due,
-            kastle_collection.collection_interactions!case_id (
+            collection_interactions!case_id (
               interaction_type,
               outcome
             ),
-            kastle_collection.promise_to_pay!case_id (
+            promise_to_pay!case_id (
               ptp_amount,
               status
             )
@@ -322,7 +322,7 @@ export class BranchReportService {
     try {
       // Get all branches
       const { data: branches, error: branchesError } = await supabaseBanking
-        .from('kastle_banking.branches')
+        .from('branches')
         .select('branch_id, branch_name, city, region')
         .eq('is_active', true);
 
@@ -394,7 +394,7 @@ export class BranchReportService {
       const caseIds = cases?.map(c => c.case_id) || [];
       
       const { data: interactions, error } = await supabaseCollection
-        .from('kastle_collection.collection_interactions')
+        .from('collection_interactions')
         .select('*')
         .in('case_id', caseIds)
         .gte('interaction_datetime', startDate);

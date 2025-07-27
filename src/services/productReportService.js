@@ -36,7 +36,7 @@ export class ProductReportService {
   static async getProducts() {
     try {
       const { data, error } = await supabaseBanking
-        .from('kastle_banking.products')
+        .from('products')
         .select('product_id, product_name, product_type, product_category, is_active')
         .eq('is_active', true)
         .order('product_name');
@@ -72,7 +72,7 @@ export class ProductReportService {
 
       // Get product info
       const { data: product, error: productError } = await supabaseBanking
-        .from('kastle_banking.products')
+        .from('products')
         .select('*')
         .eq('product_id', productId)
         .single();
@@ -87,7 +87,7 @@ export class ProductReportService {
 
       // Get all loan accounts for the product
       let loansQuery = supabaseBanking
-        .from('kastle_banking.loan_accounts')
+        .from('loan_accounts')
         .select(`
           loan_account_number,
           customer_id,
@@ -99,12 +99,12 @@ export class ProductReportService {
           disbursement_date,
           maturity_date,
           interest_rate,
-          kastle_banking.customers!customer_id (
+          customers!customer_id (
             full_name,
             customer_type,
             branch_id,
             risk_category,
-            kastle_banking.branches!branch_id (
+            branches!branch_id (
               branch_name,
               city,
               region
@@ -115,11 +115,11 @@ export class ProductReportService {
 
       // Apply filters
       if (branch !== 'all') {
-        loansQuery = loansQuery.eq('kastle_banking.customers.branch_id', branch);
+        loansQuery = loansQuery.eq('customers.branch_id', branch);
       }
 
       if (customerType !== 'all') {
-        loansQuery = loansQuery.eq('kastle_banking.customers.customer_type', customerType);
+        loansQuery = loansQuery.eq('customers.customer_type', customerType);
       }
 
       const { data: loans, error: loansError } = await loansQuery;
@@ -130,15 +130,15 @@ export class ProductReportService {
       const loanNumbers = loans?.map(l => l.loan_account_number) || [];
       
       let casesQuery = supabaseCollection
-        .from('kastle_collection.collection_cases')
+        .from('collection_cases')
         .select(`
           *,
-          kastle_collection.collection_interactions!case_id (
+          collection_interactions!case_id (
             interaction_type,
             outcome,
             interaction_datetime
           ),
-          kastle_collection.promise_to_pay!case_id (
+          promise_to_pay!case_id (
             ptp_amount,
             ptp_date,
             status
@@ -344,7 +344,7 @@ export class ProductReportService {
     try {
       // Get all products
       const { data: products, error: productsError } = await supabaseBanking
-        .from('kastle_banking.products')
+        .from('products')
         .select('product_id, product_name, product_type')
         .eq('is_active', true);
 
@@ -416,7 +416,7 @@ export class ProductReportService {
       const caseIds = cases?.map(c => c.case_id) || [];
       
       const { data: interactions, error } = await supabaseCollection
-        .from('kastle_collection.collection_interactions')
+        .from('collection_interactions')
         .select('*')
         .in('case_id', caseIds)
         .gte('interaction_datetime', startDate);
