@@ -15,15 +15,6 @@ export function Layout({ children }) {
     setIsMobileSidebarOpen(false);
   }, [children]);
 
-  // Handle menu click - toggle sidebar state
-  const handleMenuClick = () => {
-    if (isMobile) {
-      setIsMobileSidebarOpen(true);
-    } else {
-      setIsSidebarCollapsed(!isSidebarCollapsed);
-    }
-  };
-
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Desktop Sidebar */}
@@ -41,7 +32,7 @@ export function Layout({ children }) {
       )}
       
       <div className="flex-1 flex flex-col min-w-0">
-        <Header onMenuClick={handleMenuClick} />
+        <Header onMenuClick={() => isMobile ? setIsMobileSidebarOpen(true) : setIsSidebarCollapsed(!isSidebarCollapsed)} />
         <main className={cn(
           "flex-1 overflow-auto bg-gray-50/50 p-6",
           "transition-all duration-300"

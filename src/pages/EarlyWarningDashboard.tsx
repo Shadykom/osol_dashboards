@@ -17,7 +17,7 @@ import {
 import { 
   AlertTriangle, TrendingUp, Users, Activity, Bell, Shield,
   Eye, DollarSign, Calendar, Clock, Zap, Target, AlertCircle,
-  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building2
+  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building
 } from 'lucide-react';
 
 const EarlyWarningDashboard = () => {
@@ -509,7 +509,7 @@ const EarlyWarningDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
+                <Building className="h-5 w-5" />
                 Industry Risk Analysis
               </CardTitle>
             </CardHeader>

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from '../components/ui/table';
 import { 
   Search, Filter, Eye, Phone, Mail, MapPin, Calendar,
   AlertTriangle, CheckCircle, Clock, DollarSign, User,
@@ -13,55 +16,12 @@ import {
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
 
-// Table components
-const Table = ({ children, className = "" }) => (
-  <table className={`w-full caption-bottom text-sm ${className}`}>
-    {children}
-  </table>
-);
-
-const TableHeader = ({ children, className = "" }) => (
-  <thead className={`[&_tr]:border-b ${className}`}>
-    {children}
-  </thead>
-);
-
-const TableBody = ({ children, className = "" }) => (
-  <tbody className={`[&_tr:last-child]:border-0 ${className}`}>
-    {children}
-  </tbody>
-);
-
-const TableRow = ({ children, className = "" }) => (
-  <tr className={`border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted ${className}`}>
-    {children}
-  </tr>
-);
-
-const TableHead = ({ children, className = "" }) => (
-  <th className={`h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 ${className}`}>
-    {children}
-  </th>
-);
-
-const TableCell = ({ children, className = "" }) => (
-  <td className={`p-4 align-middle [&:has([role=checkbox])]:pr-0 ${className}`}>
-    {children}
-  </td>
-);
-
 const CollectionCases = () => {
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDetails, setCaseDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 50,
-    total: 0,
-    totalPages: 0
-  });
   const [filters, setFilters] = useState({
     search: '',
     status: 'all',
@@ -76,14 +36,13 @@ const CollectionCases = () => {
 
   useEffect(() => {
     loadCollectionCases();
-  }, [pagination.page]);
+  }, []);
 
   useEffect(() => {
-    // Reset to first page when filters change
-    setPagination(prev => ({ ...prev, page: 1 }));
+    // Reload data when filters change
     const debounceTimer = setTimeout(() => {
       loadCollectionCases();
-    }, 500);
+    }, 500); // Debounce to avoid too many API calls
     
     return () => clearTimeout(debounceTimer);
   }, [filters]);
@@ -91,26 +50,20 @@ const CollectionCases = () => {
   const loadCollectionCases = async () => {
     setLoading(true);
     try {
-      const params = {
-        page: pagination.page,
-        limit: pagination.limit,
+      const response = await CollectionService.getCollectionCases({ 
+        limit: 200,
         search: filters.search || null,
-        status: filters.status === 'all' ? null : filters.status,
-        priority: filters.priority === 'all' ? null : filters.priority,
-        bucket: filters.bucket === 'all' ? null : filters.bucket,
-        assignedTo: filters.assignedTo === 'all' ? null : filters.assignedTo,
+        status: filters.status === 'all' ? null : filters.status || null,
+        priority: filters.priority === 'all' ? null : filters.priority || null,
+        bucket: filters.bucket === 'all' ? null : filters.bucket || null,
+        assignedTo: filters.assignedTo === 'all' ? null : filters.assignedTo || null,
         minAmount: filters.minAmount || null,
         maxAmount: filters.maxAmount || null,
         minDpd: filters.minDpd || null,
         maxDpd: filters.maxDpd || null
-      };
-
-      const response = await CollectionService.getCollectionCases(params);
+      });
       if (response.success) {
         setCases(response.data);
-        if (response.pagination) {
-          setPagination(response.pagination);
-        }
       }
     } catch (error) {
       console.error('Error loading collection cases:', error);
@@ -197,29 +150,9 @@ const CollectionCases = () => {
     );
   };
 
-  const getDelinquencyBadge = (bucket) => {
-    const bucketConfig = {
-      'Current': { color: 'bg-green-100 text-green-800' },
-      '1-30 Days': { color: 'bg-yellow-100 text-yellow-800' },
-      '31-60 Days': { color: 'bg-orange-100 text-orange-800' },
-      '61-90 Days': { color: 'bg-red-100 text-red-800' },
-      '90+ Days': { color: 'bg-red-200 text-red-900' }
-    };
-    const config = bucketConfig[bucket] || { color: 'bg-gray-100 text-gray-800' };
-    return (
-      <Badge className={config.color}>
-        {bucket}
-      </Badge>
-    );
-  };
-
   const handleViewCase = (caseItem) => {
     setSelectedCase(caseItem);
     loadCaseDetails(caseItem.caseId);
-  };
-
-  const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
   };
 
   if (loading) {
@@ -298,22 +231,12 @@ const CollectionCases = () => {
               </SelectContent>
             </Select>
 
-            <Select value={filters.bucket} onValueChange={(value) => handleFilterChange('bucket', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Delinquency Bucket" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Buckets</SelectItem>
-                <SelectItem value="Current">Current</SelectItem>
-                <SelectItem value="1-30 Days">1-30 Days</SelectItem>
-                <SelectItem value="31-60 Days">31-60 Days</SelectItem>
-                <SelectItem value="61-90 Days">61-90 Days</SelectItem>
-                <SelectItem value="90+ Days">90+ Days</SelectItem>
-              </SelectContent>
-            </Select>
+            <Button variant="outline" onClick={clearFilters}>
+              Clear Filters
+            </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
             <Input
               placeholder="Min Amount"
               type="number"
@@ -338,9 +261,6 @@ const CollectionCases = () => {
               value={filters.maxDpd}
               onChange={(e) => handleFilterChange('maxDpd', e.target.value)}
             />
-            <Button variant="outline" onClick={clearFilters}>
-              Clear Filters
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -348,9 +268,9 @@ const CollectionCases = () => {
       {/* Cases Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Collection Cases ({pagination.total})</CardTitle>
+          <CardTitle>Collection Cases ({cases.length})</CardTitle>
           <CardDescription>
-            Showing {cases.length} of {pagination.total} total cases
+            Showing {cases.length} of {cases.length} total cases
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -363,12 +283,9 @@ const CollectionCases = () => {
                   <TableHead>Account</TableHead>
                   <TableHead>Outstanding</TableHead>
                   <TableHead>DPD</TableHead>
-                  <TableHead>Bucket</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Assigned To</TableHead>
-                  <TableHead>Last Contact</TableHead>
-                  <TableHead>Communication</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -391,26 +308,9 @@ const CollectionCases = () => {
                         {caseItem.daysPastDue} days
                       </Badge>
                     </TableCell>
-                    <TableCell>{getDelinquencyBadge(caseItem.delinquencyBucket)}</TableCell>
                     <TableCell>{getPriorityBadge(caseItem.priority)}</TableCell>
                     <TableCell>{getStatusBadge(caseItem.status)}</TableCell>
                     <TableCell>{caseItem.assignedTo || 'Unassigned'}</TableCell>
-                    <TableCell>{formatDate(caseItem.lastContactDate)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          <span>{caseItem.callsThisMonth}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MessageSquare className="h-3 w-3" />
-                          <span>{caseItem.messagesThisMonth}</span>
-                        </div>
-                        {caseItem.hasPromiseToPay && (
-                          <Badge variant="outline" className="text-xs">PTP</Badge>
-                        )}
-                      </div>
-                    </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Dialog>
@@ -665,47 +565,6 @@ const CollectionCases = () => {
               </TableBody>
             </Table>
           </div>
-
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-700">
-                Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} cases
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                >
-                  Previous
-                </Button>
-                {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={pageNum === pagination.page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handlePageChange(pageNum)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                {pagination.totalPages > 5 && <span className="px-2">...</span>}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
@@ -713,3 +572,4 @@ const CollectionCases = () => {
 };
 
 export default CollectionCases;
+

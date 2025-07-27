@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
-import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
+import { supabaseBanking } from '@/lib/supabase';
 import { useRTL } from '@/hooks/useRTL';
 
 // ألوان فئات التقادم
@@ -99,7 +99,7 @@ const DelinquencyExecutiveDashboard = () => {
     try {
       // Calculate directly from loan_accounts table
       const { data: loanData, error: loanError } = await supabaseBanking
-        .from('loan_accounts')
+        .from('kastle_banking.loan_accounts')
         .select('outstanding_balance, loan_status, overdue_amount, overdue_days');
 
       if (loanError) {
@@ -196,7 +196,7 @@ const DelinquencyExecutiveDashboard = () => {
     try {
       // Try to get real delinquent customers from database
       const { data, error } = await supabaseBanking
-        .from('loan_accounts')
+        .from('kastle_banking.loan_accounts')
         .select(`
           loan_account_number,
           customer_id,
