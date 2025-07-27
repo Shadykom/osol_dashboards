@@ -42,11 +42,6 @@
     "VITE_DEV_MODE": "false",
     "VITE_LOG_LEVEL": "error",
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "app/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
   }
 }
 
