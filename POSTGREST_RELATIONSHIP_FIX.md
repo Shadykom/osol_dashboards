@@ -9,6 +9,14 @@ Could not find a relationship between 'collection_cases' and 'loan_accounts' in 
 
 This error occurs because PostgREST cannot automatically detect a relationship between these two tables without an explicit foreign key constraint.
 
+Additionally, when trying to create the foreign key, you may encounter:
+```
+ERROR: 23503: insert or update on table "collection_cases" violates foreign key constraint "fk_collection_cases_loan_accounts"
+DETAIL: Key (loan_account_number)=(LOAN1000000003) is not present in table "loan_accounts".
+```
+
+This indicates data integrity issues where `collection_cases` references loan accounts that don't exist in the `loan_accounts` table.
+
 ## Root Cause
 
 The `kastle_banking.collection_cases` table has a column `loan_account_number` that should reference `kastle_banking.loan_accounts.loan_account_number`, but no foreign key constraint was defined in the database schema.
