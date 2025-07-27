@@ -87,7 +87,7 @@ export class ProductReportService {
 
       // Get all loan accounts for the product
       const { data: loans, error: loansError } = await supabaseBanking
-        .from('kastle_banking.loan_accounts')
+        .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           loan_account_number,
           outstanding_balance,
