@@ -54,8 +54,7 @@ import {
   MoreVertical, ChevronDown, ChevronUp, Zap, Shield, Brain,
   Users, Building2, CreditCard, AlertCircle, TrendingDown,
   ArrowUp, ArrowDown, Info, Play, Pause, SkipForward, History,
-  Layers, Map, PieChart as PieChartIcon, LineChart as LineChartIcon, BarChart as BarChartIcon,
-  Loader2
+  Layers, Map, PieChart as PieChartIcon, LineChart as LineChartIcon, BarChart as BarChartIcon
 } from 'lucide-react';
 import specialistReportService from '@/services/specialistReportService';
 import reportService from '@/services/reportService';
@@ -1713,7 +1712,8 @@ const SpecialistLevelReport = () => {
                         </CardContent>
                       </Card>
                     ))}
-                </div>
+                  </div>
+                )}
 
                 {/* Custom Report Builder */}
                 <Card>
