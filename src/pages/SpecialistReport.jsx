@@ -51,10 +51,10 @@ import {
   Clock, AlertTriangle, CheckCircle, TrendingUp, Download,
   FileText, Eye, Filter, RefreshCw
 } from 'lucide-react';
-import SpecialistReportService from '@/services/specialistReportService';
+import specialistReportService from '@/services/specialistReportService';
 
-// Create instance of the service
-const specialistService = new SpecialistReportService();
+// Use the existing service instance
+const specialistService = specialistReportService;
 
 const SpecialistReport = () => {
   const [specialists, setSpecialists] = useState([]);
