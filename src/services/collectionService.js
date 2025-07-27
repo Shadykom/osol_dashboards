@@ -1151,7 +1151,7 @@ export class CollectionService {
     try {
       // First get the officers
       const { data: officers, error: officersError } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select(`
           officer_id, 
           officer_name, 
@@ -1172,7 +1172,7 @@ export class CollectionService {
         
         if (teamIds.length > 0) {
           const { data: teams, error: teamsError } = await supabaseCollection
-            .from('collection_teams')
+            .from(TABLES.COLLECTION_TEAMS)
             .select('team_id, team_name, team_type')
             .in('team_id', teamIds);
 
