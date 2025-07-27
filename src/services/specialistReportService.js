@@ -22,7 +22,7 @@ class SpecialistReportService {
           contact_number,
           email,
           status,
-          kastle_collection.collection_teams!team_id (
+          collection_teams!team_id (
             team_name,
             team_type
           )
@@ -132,7 +132,7 @@ class SpecialistReportService {
           commission_rate,
           joining_date,
           last_active,
-          kastle_collection.collection_teams!team_id (
+          kastle_collection.collection_teams (
             team_name,
             team_type,
             team_lead_id
