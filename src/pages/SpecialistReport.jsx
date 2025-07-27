@@ -13,7 +13,7 @@ class SpecialistReportService {
     try {
       // جلب البيانات من جدول collection_officers
       const { data, error } = await supabaseBanking
-        .from('kastle_collection.collection_officers')
+        .from('collection_officers')
         .select(`
           officer_id,
           officer_name,
@@ -118,7 +118,7 @@ class SpecialistReportService {
   async getSpecialistById(specialistId) {
     try {
       const { data, error } = await supabaseBanking
-        .from('kastle_collection.collection_officers')
+        .from('collection_officers')
         .select(`
           officer_id,
           officer_name,
@@ -172,7 +172,7 @@ class SpecialistReportService {
     try {
       // جلب الحالات المخصصة للأخصائي من جدول collection_cases
       let query = supabaseBanking
-        .from('kastle_collection.collection_cases')
+        .from('collection_cases')
         .select(`
           case_id,
           case_number,
@@ -362,7 +362,7 @@ class SpecialistReportService {
       
       // جلب تفاعلات الأخصائي
       const { data: interactions, error } = await supabaseBanking
-        .from('kastle_collection.collection_interactions')
+        .from('collection_interactions')
         .select(`
           interaction_id,
           interaction_type,
@@ -499,7 +499,7 @@ class SpecialistReportService {
       const dateFrom = this.getDateRangeStart(dateRange);
       
       const { data, error } = await supabaseBanking
-        .from('kastle_collection.promise_to_pay')
+        .from('promise_to_pay')
         .select(`
           ptp_id,
           case_id,
@@ -566,7 +566,7 @@ class SpecialistReportService {
       const dateFrom = this.getDateRangeStart(dateRange);
       
       const { data: performanceData, error } = await supabaseBanking
-        .from('kastle_collection.officer_performance_metrics')
+        .from('officer_performance_metrics')
         .select(`
           metric_date,
           calls_made,
@@ -1044,7 +1044,7 @@ class SpecialistReportService {
     try {
       // جلب آخر التفاعلات
       const { data: recentInteractions } = await supabaseBanking
-        .from('kastle_collection.collection_interactions')
+        .from('collection_interactions')
         .select(`
           interaction_type,
           interaction_datetime,
