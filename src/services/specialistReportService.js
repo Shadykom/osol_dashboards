@@ -21,11 +21,7 @@ class SpecialistReportService {
           team_id,
           contact_number,
           email,
-          status,
-          kastle_collection.collection_teams!team_id (
-            team_name,
-            team_type
-          )
+          status
         `)
         .eq('status', 'ACTIVE')
         .order('officer_name');
@@ -35,9 +31,30 @@ class SpecialistReportService {
         throw error;
       }
 
+      // جلب بيانات الفرق
+      const { data: teamsData, error: teamsError } = await supabaseBanking
+        .from('kastle_collection.collection_teams')
+        .select('team_id, team_name, team_type');
+
+      if (teamsError) {
+        console.error('Error fetching teams:', teamsError);
+      }
+
+      // دمج بيانات الفرق مع بيانات الأخصائيين
+      const specialistsWithTeams = (data || []).map(specialist => {
+        const team = teamsData?.find(t => t.team_id === specialist.team_id);
+        return {
+          ...specialist,
+          collection_teams: team ? {
+            team_name: team.team_name,
+            team_type: team.team_type
+          } : null
+        };
+      });
+
       return {
         success: true,
-        data: data || [],
+        data: specialistsWithTeams,
         error: null
       };
     } catch (error) {
@@ -131,12 +148,7 @@ class SpecialistReportService {
           collection_limit,
           commission_rate,
           joining_date,
-          last_active,
-          kastle_collection.collection_teams!team_id (
-            team_name,
-            team_type,
-            team_lead_id
-          )
+          last_active
         `)
         .eq('officer_id', specialistId)
         .single();
@@ -144,6 +156,27 @@ class SpecialistReportService {
       if (error) {
         console.error('Error fetching specialist by ID:', error);
         throw error;
+      }
+
+      // جلب بيانات الفريق
+      if (data && data.team_id) {
+        const { data: teamData, error: teamError } = await supabaseBanking
+          .from('kastle_collection.collection_teams')
+          .select('team_id, team_name, team_type, team_lead_id')
+          .eq('team_id', data.team_id)
+          .single();
+
+        if (teamError) {
+          console.error('Error fetching team:', teamError);
+        }
+
+        if (teamData) {
+          data.collection_teams = {
+            team_name: teamData.team_name,
+            team_type: teamData.team_type,
+            team_lead_id: teamData.team_lead_id
+          };
+        }
       }
 
       return {

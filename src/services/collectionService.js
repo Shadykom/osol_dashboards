@@ -526,20 +526,67 @@ export class CollectionService {
       // Get top officers performance
       const { data: officerPerformance, error: officersError } = await supabaseCollection
         .from('kastle_collection.officer_performance_summary')
-        .select(`
-          *,
-          kastle_collection.collection_officers!officer_id (
-            officer_name,
-            officer_type,
-            team_id,
-            kastle_collection.collection_teams!team_id (
-              team_name
-            )
-          )
-        `)
+        .select('*')
         .eq('summary_date', endDate.toISOString().split('T')[0])
         .order('total_collected', { ascending: false })
         .limit(10);
+
+      // Enrich officer performance data with officer and team information
+      let enrichedOfficerPerformance = officerPerformance || [];
+      if (officerPerformance && officerPerformance.length > 0) {
+        // Get officer IDs
+        const officerIds = officerPerformance.map(op => op.officer_id).filter(Boolean);
+        
+        // Fetch officer data
+        const { data: officers, error: officersDataError } = await supabaseCollection
+          .from('kastle_collection.collection_officers')
+          .select('officer_id, officer_name, officer_type, team_id')
+          .in('officer_id', officerIds);
+        
+        if (officersDataError) {
+          console.error('Error fetching officers data:', officersDataError);
+        }
+        
+        // Get unique team IDs
+        const teamIds = [...new Set((officers || []).map(o => o.team_id).filter(Boolean))];
+        
+        // Fetch team data
+        let teamsData = [];
+        if (teamIds.length > 0) {
+          const { data: teamInfo, error: teamInfoError } = await supabaseCollection
+            .from('kastle_collection.collection_teams')
+            .select('team_id, team_name')
+            .in('team_id', teamIds);
+          
+          if (teamInfoError) {
+            console.error('Error fetching team info:', teamInfoError);
+          } else {
+            teamsData = teamInfo || [];
+          }
+        }
+        
+        // Enrich the data
+        enrichedOfficerPerformance = officerPerformance.map(perf => {
+          const officer = (officers || []).find(o => o.officer_id === perf.officer_id);
+          const team = officer ? teamsData.find(t => t.team_id === officer.team_id) : null;
+          
+          return {
+            ...perf,
+            kastle_collection: {
+              collection_officers: officer ? {
+                officer_name: officer.officer_name,
+                officer_type: officer.officer_type,
+                team_id: officer.team_id,
+                kastle_collection: {
+                  collection_teams: team ? {
+                    team_name: team.team_name
+                  } : null
+                }
+              } : null
+            }
+          };
+        });
+      }
 
       // Get team comparison
       const { data: teams, error: teamsError } = await supabaseCollection
@@ -619,7 +666,7 @@ export class CollectionService {
         ptpKept: d.ptps_kept || 0
       })) || [];
 
-      const topOfficers = officerPerformance?.map(o => ({
+      const topOfficers = enrichedOfficerPerformance?.map(o => ({
         officerId: o.officer_id,
         officerName: o.kastle_collection?.collection_officers?.officer_name || 'Unknown',
         officerType: o.kastle_collection?.collection_officers?.officer_type || 'Unknown',
@@ -822,13 +869,7 @@ export class CollectionService {
 
       let query = supabaseCollection
         .from('kastle_collection.collection_officers')
-        .select(`
-          *,
-          kastle_collection.collection_teams!team_id (
-            team_name,
-            team_lead
-          )
-        `);
+        .select('*');
 
       if (teamId) {
         query = query.eq('team_id', teamId);
@@ -846,7 +887,38 @@ export class CollectionService {
 
       if (error) throw error;
 
-      return formatApiResponse(data || []);
+      // Fetch team data
+      const teamIds = [...new Set((data || []).map(officer => officer.team_id).filter(Boolean))];
+      let teamsData = [];
+      
+      if (teamIds.length > 0) {
+        const { data: teams, error: teamsError } = await supabaseCollection
+          .from('kastle_collection.collection_teams')
+          .select('team_id, team_name, team_lead')
+          .in('team_id', teamIds);
+        
+        if (teamsError) {
+          console.error('Error fetching teams:', teamsError);
+        } else {
+          teamsData = teams || [];
+        }
+      }
+
+      // Join team data with officers
+      const officersWithTeams = (data || []).map(officer => {
+        const team = teamsData.find(t => t.team_id === officer.team_id);
+        return {
+          ...officer,
+          kastle_collection: {
+            collection_teams: team ? {
+              team_name: team.team_name,
+              team_lead: team.team_lead
+            } : null
+          }
+        };
+      });
+
+      return formatApiResponse(officersWithTeams);
     } catch (error) {
       console.error('Get officers error:', error);
       return formatApiResponse(null, error);
