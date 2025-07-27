@@ -767,5 +767,61 @@
       "quarterTarget": "Quarter Target",
       "annualGoal": "Annual Goal"
     }
+  },
+  "specialistLevelReport": {
+    "title": "Specialist Dashboard",
+    "subtitle": "Comprehensive analysis of collection specialist performance",
+    "selectSpecialist": "Select Specialist",
+    "advancedFilters": "Advanced Filters",
+    "filters": {
+      "title": "Advanced Filters",
+      "description": "Customize filters to refine data",
+      "dateRange": "Date Range",
+      "selectDateRange": "Select date range",
+      "productType": "Product Type",
+      "allProducts": "All Products",
+      "bucketRange": "Bucket Range",
+      "allBuckets": "All Buckets",
+      "customerSegment": "Customer Segment",
+      "allSegments": "All Segments",
+      "collectionMethod": "Collection Method",
+      "allMethods": "All Methods",
+      "applyFilters": "Apply Filters",
+      "resetFilters": "Reset Filters",
+      "quickSettings": "Quick Settings",
+      "amountRange": "Amount Range",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 days",
+      "currentMonth": "Current Month",
+      "lastMonth": "Last Month",
+      "currentQuarter": "Current Quarter",
+      "currentYear": "Current Year",
+      "custom": "Custom"
+    },
+    "tabs": {
+      "portfolio": "Portfolio Information",
+      "activities": "Activities",
+      "collections": "Collections",
+      "reports": "Reports"
+    },
+    "metrics": {
+      "loansMissed": "Loans Missed",
+      "loansCount": "loans",
+      "collectionValue": "Collection Value",
+      "collectionRate": "Collection Rate",
+      "recoveryRate": "Recovery Rate",
+      "achieved": "achieved",
+      "promisesToPay": "Promises to Pay",
+      "promises": "promises",
+      "followUps": "Follow-ups",
+      "tasks": "tasks"
+    },
+    "charts": {
+      "performanceIndicators": "Performance Indicators",
+      "collectionTrends": "Collection Trends",
+      "collection": "Collection",
+      "recovery": "Recovery"
+    }
   }
 }
