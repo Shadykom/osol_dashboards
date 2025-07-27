@@ -257,7 +257,7 @@ export function OperationsDashboard() {
   };
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -285,7 +285,7 @@ export function OperationsDashboard() {
       {/* Real-time KPIs */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Real-time Operations</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <OperationalKPICard
             title="Daily Transactions"
             value={operationalKPIs.dailyTransactions}
@@ -330,7 +330,7 @@ export function OperationsDashboard() {
       {/* Performance Metrics */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Performance Metrics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <OperationalKPICard
             title="Avg Processing Time"
             value={operationalKPIs.avgProcessingTime}
@@ -381,7 +381,7 @@ export function OperationsDashboard() {
         </TabsList>
 
         <TabsContent value="realtime" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Hourly Transaction Pattern */}
             <Card>
               <CardHeader>

@@ -40,49 +40,99 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       }
     });
 
-// Use the main client for all operations since schema-qualified table names work
-export const supabaseBanking = supabase;
-export const supabaseCollection = supabase;
+// Create a client specifically for kastle_banking schema
+export const supabaseBanking = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  db: {
+    schema: 'kastle_banking'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});
+
+// Create a client specifically for kastle_collection schema
+export const supabaseCollection = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  db: {
+    schema: 'kastle_collection'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});
 
 // Database schema constants - using schema-qualified table names
 export const TABLES = {
   // kastle_banking schema tables
-  CUSTOMERS: 'kastle_banking.customers',
-  ACCOUNTS: 'kastle_banking.accounts',
-  TRANSACTIONS: 'kastle_banking.transactions',
-  LOAN_ACCOUNTS: 'kastle_banking.loan_accounts',
-  BRANCHES: 'kastle_banking.branches',
-  CURRENCIES: 'kastle_banking.currencies',
-  COUNTRIES: 'kastle_banking.countries',
-  AUDIT_TRAIL: 'kastle_banking.audit_trail',
-  AUTH_USER_PROFILES: 'kastle_banking.auth_user_profiles',
-  REALTIME_NOTIFICATIONS: 'kastle_banking.realtime_notifications',
-  CUSTOMER_ADDRESSES: 'kastle_banking.customer_addresses',
-  CUSTOMER_CONTACTS: 'kastle_banking.customer_contacts',
-  CUSTOMER_DOCUMENTS: 'kastle_banking.customer_documents',
-  CUSTOMER_TYPES: 'kastle_banking.customer_types',
-  PRODUCTS: 'kastle_banking.products',
-  PRODUCT_CATEGORIES: 'kastle_banking.product_categories',
-  BANK_CONFIG: 'kastle_banking.bank_config',
+  CUSTOMERS: 'customers',
+  ACCOUNTS: 'accounts',
+  TRANSACTIONS: 'transactions',
+  LOAN_ACCOUNTS: 'loan_accounts',
+  BRANCHES: 'branches',
+  CURRENCIES: 'currencies',
+  COUNTRIES: 'countries',
+  AUDIT_TRAIL: 'audit_trail',
+  AUTH_USER_PROFILES: 'auth_user_profiles',
+  REALTIME_NOTIFICATIONS: 'realtime_notifications',
+  CUSTOMER_ADDRESSES: 'customer_addresses',
+  CUSTOMER_CONTACTS: 'customer_contacts',
+  CUSTOMER_DOCUMENTS: 'customer_documents',
+  CUSTOMER_TYPES: 'customer_types',
+  PRODUCTS: 'products',
+  PRODUCT_CATEGORIES: 'product_categories',
+  BANK_CONFIG: 'bank_config',
+  COLLECTION_CASES: 'collection_cases',
+  COLLECTION_BUCKETS: 'collection_buckets',
+  COLLECTION_RATES: 'collection_rates',
   
   // kastle_collection schema tables
-  COLLECTION_AUDIT_TRAIL: 'kastle_collection.audit_trail',
-  COLLECTION_CALL_RECORDS: 'kastle_collection.call_records',
-  COLLECTION_CAMPAIGNS: 'kastle_collection.campaigns',
-  COLLECTION_CASE_DETAILS: 'kastle_collection.case_details',
-  COLLECTION_INTERACTIONS: 'kastle_collection.interactions',
-  COLLECTION_OFFICERS: 'kastle_collection.officers',
-  COLLECTION_SCORES: 'kastle_collection.scores',
-  COLLECTION_STRATEGIES: 'kastle_collection.strategies',
-  COLLECTION_SYSTEM_PERFORMANCE: 'kastle_collection.system_performance',
-  COLLECTION_TEAMS: 'kastle_collection.teams',
-  DAILY_COLLECTION_SUMMARY: 'kastle_collection.daily_collection_summary',
-  DIGITAL_COLLECTION_ATTEMPTS: 'kastle_collection.digital_collection_attempts',
-  FIELD_VISITS: 'kastle_collection.field_visits',
-  HARDSHIP_APPLICATIONS: 'kastle_collection.hardship_applications'
+  COLLECTION_AUDIT_TRAIL: 'audit_trail',
+  COLLECTION_CALL_RECORDS: 'call_records',
+  COLLECTION_CAMPAIGNS: 'collection_campaigns',
+  COLLECTION_INTERACTIONS: 'collection_interactions',
+  COLLECTION_OFFICERS: 'collection_officers',
+  COLLECTION_SCORES: 'collection_scores',
+  COLLECTION_STRATEGIES: 'collection_strategies',
+  COLLECTION_SYSTEM_PERFORMANCE: 'system_performance',
+  COLLECTION_TEAMS: 'collection_teams',
+  PROMISE_TO_PAY: 'promise_to_pay',
+  LEGAL_CASES: 'legal_cases',
+  DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
+  DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
+  FIELD_VISITS: 'field_visits',
+  HARDSHIP_APPLICATIONS: 'hardship_applications',
+  OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
+  OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
+  CASE_BUCKET_HISTORY: 'case_bucket_history'
 };
 
 // Helper function to get the appropriate client for a table
 export function getClientForTable(tableName) {
-  return supabase; // Always return the main client since we use schema-qualified names
+  // Determine which client to use based on the table name
+  if (tableName.startsWith('kastle_banking.') || 
+      ['customers', 'accounts', 'transactions', 'loan_accounts', 'branches', 
+       'products', 'collection_cases', 'collection_buckets'].includes(tableName)) {
+    return supabaseBanking;
+  } else if (tableName.startsWith('kastle_collection.') || 
+             ['collection_officers', 'collection_teams', 'collection_interactions',
+              'promise_to_pay', 'officer_performance_metrics'].includes(tableName)) {
+    return supabaseCollection;
+  } else if (tableName.startsWith('auth.')) {
+    return supabase;
+  }
+  // Default to the main client
+  return supabase;
 }

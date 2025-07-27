@@ -1,7 +1,7 @@
-@import './styles/rtl.css';
-@import './styles/responsive-dashboard.css';
-
 /* src/index.css */
+/* Import RTL styles */
+@import './styles/rtl.css';
+
 /* Import grid layout styles */
 @import './styles/grid-layout-styles.css';
 

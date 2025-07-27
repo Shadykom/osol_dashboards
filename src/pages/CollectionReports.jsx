@@ -15,8 +15,10 @@ import {
   Users, DollarSign, Phone, Target, Award, AlertTriangle
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
+import { useTranslation } from 'react-i18next';
 
 const CollectionReports = () => {
+  const { t } = useTranslation();
   const [reportData, setReportData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [officersPerformance, setOfficersPerformance] = useState([]);
@@ -87,12 +89,12 @@ const CollectionReports = () => {
   }
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Collection Reports & Analytics</h1>
-          <p className="text-gray-600 mt-1">Comprehensive collection performance analysis</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('collectionReports.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('collectionReports.subtitle')}</p>
         </div>
       </div>
 
@@ -101,21 +103,21 @@ const CollectionReports = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Report Configuration
+            {t('collectionReports.reportConfig')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Select value={selectedReportType} onValueChange={setSelectedReportType}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Report Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Daily Collection Report</SelectItem>
-                <SelectItem value="weekly">Weekly Performance Summary</SelectItem>
-                <SelectItem value="monthly">Monthly Collection Analysis</SelectItem>
-                <SelectItem value="officer_performance">Officer Performance Report</SelectItem>
-                <SelectItem value="campaign_effectiveness">Campaign Effectiveness Report</SelectItem>
+                <SelectItem value="daily">{t('collectionReports.reportTypes.daily')}</SelectItem>
+                <SelectItem value="weekly">{t('collectionReports.reportTypes.weekly')}</SelectItem>
+                <SelectItem value="monthly">{t('collectionReports.reportTypes.monthly')}</SelectItem>
+                <SelectItem value="officer_performance">{t('collectionReports.reportTypes.officerPerformance')}</SelectItem>
+                <SelectItem value="campaign_effectiveness">{t('collectionReports.reportTypes.campaignEffectiveness')}</SelectItem>
               </SelectContent>
             </Select>
             
@@ -160,7 +162,7 @@ const CollectionReports = () => {
 
         <TabsContent value="overview" className="space-y-4">
           {/* Summary KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
@@ -252,7 +254,7 @@ const CollectionReports = () => {
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Performing Officers */}
             <Card>
               <CardHeader>
@@ -335,7 +337,7 @@ const CollectionReports = () => {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Bucket Analysis */}
             <Card>
               <CardHeader>
@@ -395,7 +397,7 @@ const CollectionReports = () => {
               <CardDescription>PTP effectiveness and fulfillment rates</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
                     {formatNumber(analytics?.ptpAnalysis?.totalPtps || 0)}
@@ -511,7 +513,7 @@ const CollectionReports = () => {
           </Card>
 
           {/* Seasonal Analysis */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Seasonal Performance</CardTitle>

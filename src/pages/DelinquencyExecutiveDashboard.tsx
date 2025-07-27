@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
-import { supabaseBanking } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
 import { useRTL } from '@/hooks/useRTL';
 
 // ألوان فئات التقادم
@@ -99,7 +99,7 @@ const DelinquencyExecutiveDashboard = () => {
     try {
       // Calculate directly from loan_accounts table
       const { data: loanData, error: loanError } = await supabaseBanking
-        .from('kastle_banking.loan_accounts')
+        .from('loan_accounts')
         .select('outstanding_balance, loan_status, overdue_amount, overdue_days');
 
       if (loanError) {
@@ -196,7 +196,7 @@ const DelinquencyExecutiveDashboard = () => {
     try {
       // Try to get real delinquent customers from database
       const { data, error } = await supabaseBanking
-        .from('kastle_banking.loan_accounts')
+        .from('loan_accounts')
         .select(`
           loan_account_number,
           customer_id,
@@ -317,7 +317,7 @@ const DelinquencyExecutiveDashboard = () => {
       </div>
 
       {/* مؤشرات الأداء الرئيسية */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* إجمالي المحفظة */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -452,7 +452,7 @@ const DelinquencyExecutiveDashboard = () => {
       )}
 
       {/* الرسوم البيانية */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* توزيع المتأخرات حسب فئات التقادم */}
         <Card>
           <CardHeader>

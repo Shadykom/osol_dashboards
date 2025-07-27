@@ -17,7 +17,7 @@ import {
 import { 
   AlertTriangle, TrendingUp, Users, Activity, Bell, Shield,
   Eye, DollarSign, Calendar, Clock, Zap, Target, AlertCircle,
-  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building
+  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building2
 } from 'lucide-react';
 
 const EarlyWarningDashboard = () => {
@@ -270,7 +270,7 @@ const EarlyWarningDashboard = () => {
       )}
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-red-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
@@ -337,7 +337,7 @@ const EarlyWarningDashboard = () => {
         </TabsList>
 
         <TabsContent value="indicators" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* First Payment Default */}
             <Card>
               <CardHeader>
@@ -509,7 +509,7 @@ const EarlyWarningDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
+                <Building2 className="h-5 w-5" />
                 Industry Risk Analysis
               </CardTitle>
             </CardHeader>

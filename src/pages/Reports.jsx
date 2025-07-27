@@ -331,7 +331,7 @@ export function Reports() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6 w-full"
+      className="space-y-6"
     >
       {/* Header */}
       <div className="flex justify-between items-center">

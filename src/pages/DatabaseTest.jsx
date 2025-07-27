@@ -181,7 +181,7 @@ export function DatabaseTest() {
             </Alert>
           )}
 
-          <div className="space-y-6 w-full">
+          <div className="space-y-6">
             {/* Environment Variables */}
             <div>
               <h3 className="text-lg font-semibold mb-2">Environment Configuration</h3>
@@ -227,7 +227,7 @@ export function DatabaseTest() {
             )}
 
             {/* Schema Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Banking Schema Tables */}
               {Object.keys(results.bankingTables || {}).length > 0 && (
                 <div>

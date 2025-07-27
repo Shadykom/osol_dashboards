@@ -196,7 +196,7 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="h-full flex flex-col w-full">
+    <div className="h-full flex flex-col">
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -223,18 +223,18 @@ export function Dashboard() {
       )}
 
       {/* Main Content - Scrollable Area */}
-      <div className="flex-1 overflow-auto w-full">
+      <div className="flex-1 overflow-auto">
         {/* KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 mb-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-6">
           {kpiData.map((kpi, index) => (
             <KPICard key={index} {...kpi} isLoading={loading} />
           ))}
         </div>
 
         {/* Recent Activity */}
-        <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {/* Recent Transactions */}
-          <Card className="lg:col-span-2 xl:col-span-3 2xl:col-span-4">
+          <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>{t('dashboard.recentTransactions')}</CardTitle>
               <CardDescription>
