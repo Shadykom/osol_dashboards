@@ -51,7 +51,10 @@ import {
   Clock, AlertTriangle, CheckCircle, TrendingUp, Download,
   FileText, Eye, Filter, RefreshCw
 } from 'lucide-react';
-import { CollectionService } from '../services/collectionService';
+import SpecialistReportService from '@/services/specialistReportService';
+
+// Create instance of the service
+const specialistService = new SpecialistReportService();
 
 const SpecialistReport = () => {
   const [specialists, setSpecialists] = useState([]);
@@ -76,7 +79,7 @@ const SpecialistReport = () => {
 
   const loadSpecialists = async () => {
     try {
-      const response = await CollectionService.getSpecialists();
+      const response = await specialistService.getSpecialists();
       if (response.success) {
         setSpecialists(response.data);
         if (response.data.length > 0) {
@@ -93,7 +96,7 @@ const SpecialistReport = () => {
     
     setLoading(true);
     try {
-      const response = await CollectionService.getSpecialistReport(selectedSpecialist, filters);
+      const response = await specialistService.getSpecialistReport(selectedSpecialist, filters);
       if (response.success) {
         setReportData(response.data);
       }
@@ -359,25 +362,25 @@ const SpecialistReport = () => {
                   </TableHeader>
                   <TableBody>
                     {reportData.loans.map((loan) => (
-                      <TableRow key={loan.loan_account_number}>
-                        <TableCell className="font-medium">{loan.loan_account_number}</TableCell>
-                        <TableCell>{loan.customer_name}</TableCell>
-                        <TableCell>{loan.product_type}</TableCell>
-                        <TableCell>{formatCurrency(loan.loan_amount)}</TableCell>
+                      <TableRow key={loan.loanNumber}>
+                        <TableCell className="font-medium">{loan.loanNumber}</TableCell>
+                        <TableCell>{loan.customerName}</TableCell>
+                        <TableCell>{loan.productType}</TableCell>
+                        <TableCell>{formatCurrency(loan.loanAmount)}</TableCell>
                         <TableCell className="text-green-600">
-                          {formatCurrency(loan.paid_amount)}
+                          {formatCurrency(loan.paidAmount)}
                         </TableCell>
-                        <TableCell>{formatCurrency(loan.due_amount)}</TableCell>
+                        <TableCell>{formatCurrency(loan.dueAmount)}</TableCell>
                         <TableCell className="text-red-600">
-                          {formatCurrency(loan.due_amount)}
+                          {formatCurrency(loan.totalOverdueAmount)}
                         </TableCell>
-                        <TableCell>{loan.overdue_days}</TableCell>
+                        <TableCell>{loan.totalOverdueDays}</TableCell>
                         <TableCell>
-                          <Badge className={getDelinquencyColor(loan.delinquency_bucket)}>
-                            {loan.delinquency_bucket}
+                          <Badge className={getDelinquencyColor(loan.delinquencyBucket)}>
+                            {loan.delinquencyBucket}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDate(loan.last_contact_date)}</TableCell>
+                        <TableCell>{formatDate(loan.lastContactDate)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline">
@@ -477,17 +480,15 @@ const SpecialistReport = () => {
                   </TableHeader>
                   <TableBody>
                     {reportData.promisesToPay.map((ptp, index) => {
-                      const daysRemaining = Math.ceil(
-                        (new Date(ptp.ptp_date) - new Date()) / (1000 * 60 * 60 * 24)
-                      );
+                      const daysRemaining = ptp.daysRemaining || 0;
                       return (
-                        <TableRow key={index}>
-                          <TableCell>{ptp.kastle_banking?.kastle_banking?.full_name || 'غير معروف'}</TableCell>
-                          <TableCell>{formatDate(ptp.ptp_date)}</TableCell>
-                          <TableCell className="font-bold">{formatCurrency(ptp.ptp_amount)}</TableCell>
+                        <TableRow key={ptp.ptpId || index}>
+                          <TableCell>{ptp.customerName}</TableCell>
+                          <TableCell>{formatDate(ptp.ptpDate)}</TableCell>
+                          <TableCell className="font-bold">{formatCurrency(ptp.ptpAmount)}</TableCell>
                           <TableCell>
                             <Badge variant={ptp.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                              {ptp.status === 'ACTIVE' ? 'نشط' : 'منتظر'}
+                              {ptp.status === 'ACTIVE' ? 'نشط' : ptp.status === 'KEPT' ? 'محقق' : 'منتهي'}
                             </Badge>
                           </TableCell>
                           <TableCell>
