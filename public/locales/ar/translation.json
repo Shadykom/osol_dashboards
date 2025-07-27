@@ -125,6 +125,8 @@
     "vintageAnalysis": "تحليل العمر",
     "specialistReport": "تقرير المختص",
     "collectionOperations": "عمليات التحصيل",
+    "branchLevelReport": "تقرير مستوى الفرع",
+    "productLevelReport": "تقرير مستوى المنتج",
     "allLoans": "جميع القروض",
     "overdueLoans": "القروض المتأخرة",
     "executiveDashboardDesc": "نظرة عامة عالية المستوى للمدراء التنفيذيين",
@@ -498,6 +500,7 @@
     "subtitle": "تحليل شامل لأداء المنتج",
     "selectProduct": "اختر المنتج",
     "refresh": "تحديث",
+    "noDataAvailable": "لا توجد بيانات متاحة لهذا المنتج حتى الآن.",
     "filters": {
       "currentMonth": "الشهر الحالي",
       "lastMonth": "الشهر الماضي",

@@ -38,7 +38,7 @@ import {
 import { BranchReportService } from '@/services/branchReportService';
 
 const BranchLevelReport = () => {
-  const { t } = useTranslation();
+  const { t, ready } = useTranslation();
   
   // State Management
   const [selectedBranch, setSelectedBranch] = useState('');
@@ -133,19 +133,23 @@ const BranchLevelReport = () => {
 
   // Format functions
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
-      style: 'currency',
-      currency: 'SAR',
+    // Always use English numbers
+    const formatted = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount || 0);
+    
+    // Add currency prefix based on language
+    return t('common.currency') === 'ريال' ? `${formatted} ر.س` : `SAR ${formatted}`;
   };
 
   const formatNumber = (num) => {
-    return new Intl.NumberFormat('ar-SA').format(num || 0);
+    // Always use English numbers
+    return new Intl.NumberFormat('en-US').format(num || 0);
   };
 
   const formatPercentage = (value) => {
+    // Always use English numbers
     return `${(value || 0).toFixed(1)}%`;
   };
 
@@ -159,6 +163,14 @@ const BranchLevelReport = () => {
     info: '#4299E1',
     chart: ['#E6B800', '#4A5568', '#48BB78', '#ED8936', '#F56565', '#4299E1', '#9F7AEA']
   };
+
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   if (loading && !reportData) {
     return (
