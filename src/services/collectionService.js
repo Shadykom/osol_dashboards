@@ -526,67 +526,20 @@ export class CollectionService {
       // Get top officers performance
       const { data: officerPerformance, error: officersError } = await supabaseCollection
         .from('kastle_collection.officer_performance_summary')
-        .select('*')
+        .select(`
+          *,
+          kastle_collection.collection_officers!officer_id (
+            officer_name,
+            officer_type,
+            team_id,
+            collection_teams (
+              team_name
+            )
+          )
+        `)
         .eq('summary_date', endDate.toISOString().split('T')[0])
         .order('total_collected', { ascending: false })
         .limit(10);
-
-      // Enrich officer performance data with officer and team information
-      let enrichedOfficerPerformance = officerPerformance || [];
-      if (officerPerformance && officerPerformance.length > 0) {
-        // Get officer IDs
-        const officerIds = officerPerformance.map(op => op.officer_id).filter(Boolean);
-        
-        // Fetch officer data
-        const { data: officers, error: officersDataError } = await supabaseCollection
-          .from('kastle_collection.collection_officers')
-          .select('officer_id, officer_name, officer_type, team_id')
-          .in('officer_id', officerIds);
-        
-        if (officersDataError) {
-          console.error('Error fetching officers data:', officersDataError);
-        }
-        
-        // Get unique team IDs
-        const teamIds = [...new Set((officers || []).map(o => o.team_id).filter(Boolean))];
-        
-        // Fetch team data
-        let teamsData = [];
-        if (teamIds.length > 0) {
-          const { data: teamInfo, error: teamInfoError } = await supabaseCollection
-            .from('kastle_collection.collection_teams')
-            .select('team_id, team_name')
-            .in('team_id', teamIds);
-          
-          if (teamInfoError) {
-            console.error('Error fetching team info:', teamInfoError);
-          } else {
-            teamsData = teamInfo || [];
-          }
-        }
-        
-        // Enrich the data
-        enrichedOfficerPerformance = officerPerformance.map(perf => {
-          const officer = (officers || []).find(o => o.officer_id === perf.officer_id);
-          const team = officer ? teamsData.find(t => t.team_id === officer.team_id) : null;
-          
-          return {
-            ...perf,
-            kastle_collection: {
-              collection_officers: officer ? {
-                officer_name: officer.officer_name,
-                officer_type: officer.officer_type,
-                team_id: officer.team_id,
-                kastle_collection: {
-                  collection_teams: team ? {
-                    team_name: team.team_name
-                  } : null
-                }
-              } : null
-            }
-          };
-        });
-      }
 
       // Get team comparison
       const { data: teams, error: teamsError } = await supabaseCollection
@@ -666,7 +619,7 @@ export class CollectionService {
         ptpKept: d.ptps_kept || 0
       })) || [];
 
-      const topOfficers = enrichedOfficerPerformance?.map(o => ({
+      const topOfficers = officerPerformance?.map(o => ({
         officerId: o.officer_id,
         officerName: o.kastle_collection?.collection_officers?.officer_name || 'Unknown',
         officerType: o.kastle_collection?.collection_officers?.officer_type || 'Unknown',
@@ -861,6 +814,297 @@ export class CollectionService {
   }
 
   /**
+   * Generate collection report
+   */
+  static async generateCollectionReport(reportType = 'summary') {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1); // Default to last month
+
+      let reportData = {};
+
+      switch (reportType) {
+        case 'summary':
+          // Get overall collection summary
+          const { data: summary } = await supabaseCollection
+            .from('kastle_collection.daily_collection_summary')
+            .select('*')
+            .gte('summary_date', startDate.toISOString().split('T')[0])
+            .lte('summary_date', endDate.toISOString().split('T')[0])
+            .order('summary_date', { ascending: false });
+
+          const totalCollected = summary?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
+          const avgCollectionRate = summary?.length > 0 ?
+            summary.reduce((sum, d) => sum + (d.collection_rate || 0), 0) / summary.length : 0;
+
+          reportData = {
+            reportType: 'summary',
+            period: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
+            totalCollected,
+            avgCollectionRate,
+            totalAccounts: summary?.[0]?.accounts_due || 0,
+            accountsCollected: summary?.reduce((sum, d) => sum + (d.accounts_collected || 0), 0) || 0,
+            dailySummaries: summary || []
+          };
+          break;
+
+        case 'detailed':
+          // Get detailed collection data by officer
+          const { data: officerData } = await supabaseCollection
+            .from('kastle_collection.officer_performance_summary')
+            .select(`
+              *,
+              collection_officers (
+                officer_name,
+                officer_type,
+                team_id
+              )
+            `)
+            .gte('summary_date', startDate.toISOString().split('T')[0])
+            .lte('summary_date', endDate.toISOString().split('T')[0])
+            .order('total_collected', { ascending: false });
+
+          reportData = {
+            reportType: 'detailed',
+            period: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
+            officerPerformance: officerData || [],
+            totalOfficers: new Set(officerData?.map(d => d.officer_id)).size || 0
+          };
+          break;
+
+        case 'bucket':
+          // Get collection by bucket
+          const { data: bucketData } = await supabaseCollection
+            .from('kastle_collection.collection_cases')
+            .select(`
+              bucket_id,
+              total_outstanding,
+              days_past_due,
+              case_status,
+              collection_buckets (
+                bucket_name,
+                min_days,
+                max_days
+              )
+            `)
+            .eq('case_status', 'ACTIVE');
+
+          const bucketSummary = bucketData?.reduce((acc, caseItem) => {
+            const bucketName = caseItem.kastle_collection?.collection_buckets?.bucket_name || 'Unknown';
+            if (!acc[bucketName]) {
+              acc[bucketName] = {
+                bucketName,
+                count: 0,
+                totalOutstanding: 0,
+                avgDPD: 0
+              };
+            }
+            acc[bucketName].count++;
+            acc[bucketName].totalOutstanding += caseItem.total_outstanding || 0;
+            acc[bucketName].avgDPD += caseItem.days_past_due || 0;
+            return acc;
+          }, {}) || {};
+
+          // Calculate averages
+          Object.values(bucketSummary).forEach(bucket => {
+            bucket.avgDPD = bucket.count > 0 ? bucket.avgDPD / bucket.count : 0;
+          });
+
+          reportData = {
+            reportType: 'bucket',
+            period: `As of ${endDate.toLocaleDateString()}`,
+            bucketAnalysis: Object.values(bucketSummary),
+            totalCases: bucketData?.length || 0,
+            totalOutstanding: bucketData?.reduce((sum, c) => sum + (c.total_outstanding || 0), 0) || 0
+          };
+          break;
+
+        case 'team':
+          // Get collection by team
+          const { data: teams } = await supabaseCollection
+            .from('kastle_collection.collection_teams')
+            .select(`
+              *,
+              collection_officers (
+                officer_id,
+                officer_name
+              )
+            `);
+
+          const teamPerformance = await Promise.all((teams || []).map(async (team) => {
+            const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
+            
+            const { data: teamData } = await supabaseCollection
+              .from('kastle_collection.officer_performance_summary')
+              .select('total_collected, total_cases, contact_rate')
+              .in('officer_id', officerIds)
+              .gte('summary_date', startDate.toISOString().split('T')[0])
+              .lte('summary_date', endDate.toISOString().split('T')[0]);
+
+            const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
+            const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
+            const avgContactRate = teamData?.length > 0 ?
+              teamData.reduce((sum, d) => sum + (d.contact_rate || 0), 0) / teamData.length : 0;
+
+            return {
+              teamId: team.team_id,
+              teamName: team.team_name,
+              teamType: team.team_type,
+              officerCount: officerIds.length,
+              totalCollected,
+              totalCases,
+              avgContactRate
+            };
+          }));
+
+          reportData = {
+            reportType: 'team',
+            period: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
+            teamPerformance: teamPerformance.sort((a, b) => b.totalCollected - a.totalCollected),
+            totalTeams: teams?.length || 0
+          };
+          break;
+
+        default:
+          throw new Error(`Unknown report type: ${reportType}`);
+      }
+
+      return formatApiResponse(reportData);
+    } catch (error) {
+      console.error('Generate collection report error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Get officers performance
+   */
+  static async getOfficersPerformance(period = 'monthly') {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      
+      switch (period) {
+        case 'daily':
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case 'weekly':
+          startDate.setDate(startDate.getDate() - 28);
+          break;
+        case 'monthly':
+          startDate.setMonth(startDate.getMonth() - 6);
+          break;
+        case 'yearly':
+          startDate.setFullYear(startDate.getFullYear() - 3);
+          break;
+      }
+
+      const { data: officerPerformance, error: officersError } = await supabaseCollection
+        .from('kastle_collection.officer_performance_summary')
+        .select(`
+          *,
+          collection_officers (
+            officer_name,
+            officer_type,
+            team_id
+          )
+        `)
+        .gte('summary_date', startDate.toISOString().split('T')[0])
+        .lte('summary_date', endDate.toISOString().split('T')[0])
+        .order('total_collected', { ascending: false });
+
+      if (officersError) throw officersError;
+
+      const totalOfficers = new Set(officerPerformance?.map(d => d.officer_id)).size || 0;
+
+      return formatApiResponse({
+        officerPerformance: officerPerformance || [],
+        totalOfficers
+      });
+    } catch (error) {
+      console.error('Get officers performance error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Get teams performance
+   */
+  static async getTeamsPerformance(period = 'monthly') {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      
+      switch (period) {
+        case 'daily':
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case 'weekly':
+          startDate.setDate(startDate.getDate() - 28);
+          break;
+        case 'monthly':
+          startDate.setMonth(startDate.getMonth() - 6);
+          break;
+        case 'yearly':
+          startDate.setFullYear(startDate.getFullYear() - 3);
+          break;
+      }
+
+      const { data: teams, error: teamsError } = await supabaseCollection
+        .from('kastle_collection.collection_teams')
+        .select(`
+          *,
+          collection_officers (
+            officer_id,
+            officer_name
+          )
+        `);
+
+      if (teamsError) throw teamsError;
+
+      const teamPerformance = await Promise.all((teams || []).map(async (team) => {
+        const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
+        
+        const { data: teamData } = await supabaseCollection
+          .from('kastle_collection.officer_performance_summary')
+          .select('total_collected, total_cases, contact_rate, ptp_rate')
+          .in('officer_id', officerIds)
+          .gte('summary_date', startDate.toISOString().split('T')[0])
+          .lte('summary_date', endDate.toISOString().split('T')[0]);
+
+        const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
+        const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
+        const avgContactRate = teamData?.length > 0 ?
+          teamData.reduce((sum, d) => sum + (d.contact_rate || 0), 0) / teamData.length : 0;
+        const avgPtpRate = teamData?.length > 0 ?
+          teamData.reduce((sum, d) => sum + (d.ptp_rate || 0), 0) / teamData.length : 0;
+
+        return {
+          teamId: team.team_id,
+          teamName: team.team_name,
+          teamType: team.team_type,
+          teamLead: team.manager_id,
+          officerCount: officerIds.length,
+          totalCollected,
+          totalCases,
+          avgContactRate,
+          avgPtpRate,
+          collectionRate: totalCases > 0 ? (totalCollected / totalCases) * 100 : 0
+        };
+      }));
+
+      return formatApiResponse({
+        teamPerformance: teamPerformance.sort((a, b) => b.totalCollected - a.totalCollected),
+        totalTeams: teams?.length || 0
+      });
+    } catch (error) {
+      console.error('Get teams performance error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
    * Get officers list
    */
   static async getOfficers(filters = {}) {
@@ -869,7 +1113,13 @@ export class CollectionService {
 
       let query = supabaseCollection
         .from('kastle_collection.collection_officers')
-        .select('*');
+        .select(`
+          *,
+          collection_teams (
+            team_name,
+            team_lead
+          )
+        `);
 
       if (teamId) {
         query = query.eq('team_id', teamId);
@@ -887,38 +1137,7 @@ export class CollectionService {
 
       if (error) throw error;
 
-      // Fetch team data
-      const teamIds = [...new Set((data || []).map(officer => officer.team_id).filter(Boolean))];
-      let teamsData = [];
-      
-      if (teamIds.length > 0) {
-        const { data: teams, error: teamsError } = await supabaseCollection
-          .from('kastle_collection.collection_teams')
-          .select('team_id, team_name, team_lead')
-          .in('team_id', teamIds);
-        
-        if (teamsError) {
-          console.error('Error fetching teams:', teamsError);
-        } else {
-          teamsData = teams || [];
-        }
-      }
-
-      // Join team data with officers
-      const officersWithTeams = (data || []).map(officer => {
-        const team = teamsData.find(t => t.team_id === officer.team_id);
-        return {
-          ...officer,
-          kastle_collection: {
-            collection_teams: team ? {
-              team_name: team.team_name,
-              team_lead: team.team_lead
-            } : null
-          }
-        };
-      });
-
-      return formatApiResponse(officersWithTeams);
+      return formatApiResponse(data || []);
     } catch (error) {
       console.error('Get officers error:', error);
       return formatApiResponse(null, error);
@@ -932,9 +1151,20 @@ export class CollectionService {
     try {
       const { data, error } = await supabaseCollection
         .from('kastle_collection.collection_officers')
-        .select('officer_id, officer_name, officer_type, team_id, email, contact_number')
+        .select(`
+          officer_id, 
+          officer_name, 
+          officer_type, 
+          team_id, 
+          email, 
+          contact_number,
+          collection_teams!team_id (
+            team_name,
+            team_type
+          )
+        `)
         .eq('status', 'ACTIVE')
-        .in('officer_type', ['SPECIALIST', 'SENIOR_SPECIALIST', 'TEAM_LEAD'])
+        .in('officer_type', ['CALL_AGENT', 'FIELD_AGENT', 'SENIOR_COLLECTOR', 'TEAM_LEAD'])
         .order('officer_name');
 
       if (error) throw error;
