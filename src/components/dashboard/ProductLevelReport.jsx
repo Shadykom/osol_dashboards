@@ -326,7 +326,7 @@ const ProductLevelReport = () => {
 
             <Card className="bg-white hover:shadow-lg transition-shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">معدل التحصيل</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('productReport.metrics.collectionRate')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
@@ -341,7 +341,7 @@ const ProductLevelReport = () => {
 
             <Card className="bg-white hover:shadow-lg transition-shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">متوسط حجم القرض</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('productReport.metrics.avgLoanSize')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-900">
@@ -349,14 +349,14 @@ const ProductLevelReport = () => {
                 </div>
                 <div className="flex items-center mt-2 text-xs text-gray-600">
                   <CreditCard className="h-3 w-3 ml-1" />
-                  معدل الفائدة {reportData.summary?.avgInterestRate?.toFixed(1)}%
+                  {t('productReport.metrics.interestRate')} {reportData.summary?.avgInterestRate?.toFixed(1)}%
                 </div>
               </CardContent>
             </Card>
 
             <Card className="bg-white hover:shadow-lg transition-shadow border-t-4 border-t-blue-500">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">الترتيب</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('productReport.metrics.ranking')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-around">
@@ -364,13 +364,13 @@ const ProductLevelReport = () => {
                     <div className="text-2xl font-bold text-blue-600">
                       #{reportData.productComparison?.rankings?.collectionRank}
                     </div>
-                    <p className="text-xs text-gray-600">التحصيل</p>
+                    <p className="text-xs text-gray-600">{t('productReport.metrics.collection')}</p>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-orange-600">
                       #{reportData.productComparison?.rankings?.delinquencyRank}
                     </div>
-                    <p className="text-xs text-gray-600">التعثر</p>
+                    <p className="text-xs text-gray-600">{t('productReport.metrics.delinquencyRank')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -393,8 +393,8 @@ const ProductLevelReport = () => {
               {/* Trends Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>اتجاهات أداء المنتج</CardTitle>
-                  <CardDescription>تطور مؤشرات الأداء الرئيسية خلال الأشهر الماضية</CardDescription>
+                  <CardTitle>{t('productReport.charts.performanceTrends')}</CardTitle>
+                  <CardDescription>{t('productReport.charts.performanceDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={350}>
@@ -412,7 +412,7 @@ const ProductLevelReport = () => {
                         fill={COLORS.danger}
                         stroke={COLORS.danger}
                         fillOpacity={0.3}
-                        name="معدل التعثر %"
+                        name={t('productReport.charts.delinquencyRate')}
                       />
                       <Line
                         yAxisId="left"
@@ -420,13 +420,13 @@ const ProductLevelReport = () => {
                         dataKey="collectionRate"
                         stroke={COLORS.success}
                         strokeWidth={3}
-                        name="معدل التحصيل %"
+                        name={t('productReport.charts.collectionRate')}
                       />
                       <Bar
                         yAxisId="right"
                         dataKey="newLoans"
                         fill={COLORS.primary}
-                        name="قروض جديدة"
+                        name={t('productReport.charts.newLoans')}
                       />
                       <Line
                         yAxisId="right"
@@ -435,7 +435,7 @@ const ProductLevelReport = () => {
                         stroke={COLORS.info}
                         strokeWidth={2}
                         strokeDasharray="5 5"
-                        name="متوسط حجم القرض"
+                        name={t('productReport.charts.avgLoanSize')}
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
@@ -472,11 +472,11 @@ const ProductLevelReport = () => {
                       
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">متوسط المكالمات/حالة</span>
+                          <span className="text-sm text-gray-600">{t('productReport.charts.avgCallsPerCase')}</span>
                           <span className="font-bold">{reportData.communicationStats?.summary?.avgCallsPerCase?.toFixed(1)}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">معدل الاستجابة</span>
+                          <span className="text-sm text-gray-600">{t('productReport.charts.responseRate')}</span>
                           <Badge variant="outline" className="font-bold">
                             {formatPercentage(reportData.communicationStats?.effectiveness?.contactRate)}
                           </Badge>
@@ -533,15 +533,15 @@ const ProductLevelReport = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>الفرع</TableHead>
-                          <TableHead className="text-center">المنطقة</TableHead>
-                          <TableHead className="text-center">عدد القروض</TableHead>
-                          <TableHead className="text-center">حجم المحفظة</TableHead>
-                          <TableHead className="text-center">قروض متعثرة</TableHead>
-                          <TableHead className="text-center">مبلغ التعثر</TableHead>
-                          <TableHead className="text-center">معدل التعثر</TableHead>
-                          <TableHead className="text-center">متوسط DPD</TableHead>
-                          <TableHead className="text-center">حصة المحفظة</TableHead>
+                          <TableHead>{t('productReport.table.branch')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.region')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.loanCount')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.portfolioSize')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.delinquentLoans')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.delinquencyAmount')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.delinquencyRate')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.avgDPD')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.portfolioShare')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -590,7 +590,7 @@ const ProductLevelReport = () => {
               {/* Branch Performance Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>مقارنة معدلات التعثر بين الفروع</CardTitle>
+                  <CardTitle>{t('productReport.charts.branchDelinquencyComparison')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={400}>
@@ -600,8 +600,8 @@ const ProductLevelReport = () => {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="delinquencyRate" fill={COLORS.danger} name="معدل التعثر %" />
-                      <Bar dataKey="portfolioShare" fill={COLORS.primary} name="حصة المحفظة %" />
+                                              <Bar dataKey="delinquencyRate" fill={COLORS.danger} name={t('productReport.charts.delinquencyRate')} />
+                                              <Bar dataKey="portfolioShare" fill={COLORS.primary} name={t('productReport.table.portfolioShare') + ' %'} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -660,7 +660,7 @@ const ProductLevelReport = () => {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>توزيع العملاء حسب فئة المخاطر</CardTitle>
+                    <CardTitle>{t('productReport.metrics.customerDistributionByRisk')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
@@ -670,20 +670,20 @@ const ProductLevelReport = () => {
                         <YAxis />
                         <Tooltip formatter={(value) => formatCurrency(value)} />
                         <Legend />
-                        <Bar dataKey="amount" fill={COLORS.primary} name="حجم المحفظة" />
-                        <Bar dataKey="overdueAmount" fill={COLORS.danger} name="المتأخرات" />
+                        <Bar dataKey="amount" fill={COLORS.primary} name={t('productReport.metrics.portfolioVolume')} />
+                        <Bar dataKey="overdueAmount" fill={COLORS.danger} name={t('productReport.metrics.overdues')} />
                       </BarChart>
                     </ResponsiveContainer>
                     
                     <Alert className="mt-4">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        <strong>تنبيه:</strong> العملاء ذوي المخاطر العالية يمثلون 
-                        {' '}{((reportData.customerAnalysis?.byRiskCategory?.find(r => r.category === 'High')?.count || 0) / 
-                        reportData.summary?.totalLoans * 100).toFixed(1)}% من العملاء
-                        لكن يساهمون بـ
-                        {' '}{((reportData.customerAnalysis?.byRiskCategory?.find(r => r.category === 'High')?.overdueAmount || 0) / 
-                        reportData.summary?.totalOverdue * 100).toFixed(1)}% من المتأخرات
+                        <strong>{t('productReport.metrics.alert')}:</strong> {t('productReport.metrics.highRiskCustomers')} 
+                                                  {' '}{((reportData.customerAnalysis?.byRiskCategory?.find(r => r.category === 'High')?.count || 0) / 
+                                                   reportData.summary?.totalLoans * 100).toFixed(1)}% {t('productReport.metrics.ofCustomers')}
+                          {' '}{t('productReport.metrics.butContribute')}{' '}
+                          {((reportData.customerAnalysis?.byRiskCategory?.find(r => r.category === 'High')?.overdueAmount || 0) / 
+                                                    reportData.summary?.totalOverdue * 100).toFixed(1)}% {t('productReport.metrics.ofOverdues')}
                       </AlertDescription>
                     </Alert>
                   </CardContent>
@@ -710,21 +710,21 @@ const ProductLevelReport = () => {
                             variant={segment.delinquencyRate > 15 ? 'destructive' : 'secondary'}
                             className="text-lg px-3 py-1"
                           >
-                            معدل التعثر: {formatPercentage(segment.delinquencyRate)}
+                            {t('productReport.charts.delinquencyRate')}: {formatPercentage(segment.delinquencyRate)}
                           </Badge>
                         </div>
                         
                         <div className="grid grid-cols-4 gap-4 text-center">
                           <div>
-                            <p className="text-sm text-gray-600">عدد المتعثرين</p>
+                            <p className="text-sm text-gray-600">{t('productReport.table.overdueCount')}</p>
                             <p className="text-xl font-bold">{formatNumber(segment.overdueCount)}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">مبلغ التعثر</p>
+                            <p className="text-sm text-gray-600">{t('productReport.table.overdueAmount')}</p>
                             <p className="text-xl font-bold text-red-600">{formatCurrency(segment.overdueAmount)}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">متوسط القرض</p>
+                            <p className="text-sm text-gray-600">{t('productReport.table.avgLoan')}</p>
                             <p className="text-xl font-bold">{formatCurrency(segment.amount / segment.count)}</p>
                           </div>
                           <div>
@@ -745,8 +745,8 @@ const ProductLevelReport = () => {
               {/* Risk Distribution */}
               <Card>
                 <CardHeader>
-                  <CardTitle>توزيع المخاطر حسب فئات التقادم</CardTitle>
-                  <CardDescription>تحليل المحفظة حسب عدد أيام التأخير</CardDescription>
+                                      <CardTitle>{t('productReport.metrics.riskDistributionByAging')}</CardTitle>
+                  <CardDescription>{t('productReport.metrics.portfolioAnalysisByDPD')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={400}>
@@ -756,11 +756,11 @@ const ProductLevelReport = () => {
                       <YAxis yAxisId="left" />
                       <YAxis yAxisId="right" orientation="right" />
                       <Tooltip formatter={(value, name) => 
-                        name === 'المبلغ' ? formatCurrency(value) : formatNumber(value)
+                                                  name === t('productReport.metrics.amount') ? formatCurrency(value) : formatNumber(value)
                       } />
                       <Legend />
-                      <Bar yAxisId="left" dataKey="count" fill={COLORS.primary} name="عدد القروض" />
-                      <Line yAxisId="right" type="monotone" dataKey="amount" stroke={COLORS.danger} strokeWidth={3} name="المبلغ" />
+                                              <Bar yAxisId="left" dataKey="count" fill={COLORS.primary} name={t('productReport.table.loanCount')} />
+                                              <Line yAxisId="right" type="monotone" dataKey="amount" stroke={COLORS.danger} strokeWidth={3} name={t('productReport.metrics.amount')} />
                     </ComposedChart>
                   </ResponsiveContainer>
                   
@@ -804,18 +804,18 @@ const ProductLevelReport = () => {
               {/* Risk Heatmap */}
               <Card>
                 <CardHeader>
-                  <CardTitle>خريطة حرارية للمخاطر</CardTitle>
-                  <CardDescription>توزيع المخاطر حسب الفرع ونوع العميل</CardDescription>
+                                      <CardTitle>{t('productReport.metrics.riskHeatmap')}</CardTitle>
+                  <CardDescription>{t('productReport.metrics.riskDistributionByBranch')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
-                          <th className="border p-2 text-right">الفرع / نوع العميل</th>
-                          <th className="border p-2 text-center">أفراد</th>
-                          <th className="border p-2 text-center">شركات</th>
-                          <th className="border p-2 text-center">منشآت صغيرة</th>
+                          <th className="border p-2 text-right">{t('productReport.metrics.branchCustomerType')}</th>
+                                                      <th className="border p-2 text-center">{t('productReport.metrics.individual')}</th>
+                            <th className="border p-2 text-center">{t('productReport.metrics.corporate')}</th>
+                            <th className="border p-2 text-center">{t('productReport.metrics.sme')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -853,8 +853,8 @@ const ProductLevelReport = () => {
               {/* Vintage Analysis Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>تحليل القدم (Vintage Analysis)</CardTitle>
-                  <CardDescription>تطور معدلات التعثر حسب شهر الصرف</CardDescription>
+                  <CardTitle>{t('productReport.metrics.vintageAnalysis')}</CardTitle>
+                  <CardDescription>{t('productReport.charts.vintageDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={400}>
@@ -863,22 +863,21 @@ const ProductLevelReport = () => {
                       <XAxis dataKey="month" />
                       <YAxis yAxisId="left" />
                       <YAxis yAxisId="right" orientation="right" />
-                      <Tooltip formatter={(value, name) => 
-                        name === 'حجم المحفظة' || name === 'المتأخرات' ? formatCurrency(value) : 
-                        name === 'معدل التعثر' ? formatPercentage(value) : formatNumber(value)
-                      } />
+                                              <Tooltip formatter={(value, name) => 
+                          name === t('productReport.metrics.portfolioVolume') || name === t('productReport.metrics.overdues') ? formatCurrency(value) : 
+                                                     name === t('productReport.charts.delinquencyRate') ? formatPercentage(value) : formatNumber(value)
+                        } />
                       <Legend />
-                      <Bar yAxisId="left" dataKey="totalLoans" fill={COLORS.primary} name="عدد القروض" />
-                      <Line yAxisId="right" type="monotone" dataKey="totalAmount" stroke={COLORS.info} strokeWidth={2} name="حجم المحفظة" />
-                      <Line yAxisId="left" type="monotone" dataKey="delinquencyRate" stroke={COLORS.danger} strokeWidth={3} name="معدل التعثر" />
+                                              <Bar yAxisId="left" dataKey="totalLoans" fill={COLORS.primary} name={t('productReport.table.loanCount')} />
+                        <Line yAxisId="right" type="monotone" dataKey="totalAmount" stroke={COLORS.info} strokeWidth={2} name={t('productReport.metrics.portfolioVolume')} />
+                                              <Line yAxisId="left" type="monotone" dataKey="delinquencyRate" stroke={COLORS.danger} strokeWidth={3} name={t('productReport.charts.delinquencyRate')} />
                     </ComposedChart>
                   </ResponsiveContainer>
                   
                   <Alert className="mt-4">
                     <TrendingUp className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>ملاحظة:</strong> القروض الممنوحة في الأشهر الأولى من السنة تظهر معدلات تعثر أعلى،
-                      مما يشير إلى ضرورة مراجعة معايير الائتمان في تلك الفترة.
+                      <strong>{t('productReport.charts.note')}:</strong> {t('productReport.charts.vintageNote')}
                     </AlertDescription>
                   </Alert>
                 </CardContent>
@@ -887,20 +886,20 @@ const ProductLevelReport = () => {
               {/* Vintage Cohort Table */}
               <Card>
                 <CardHeader>
-                  <CardTitle>جدول تحليل القدم التفصيلي</CardTitle>
+                  <CardTitle>{t('productReport.metrics.detailedVintageTable')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[400px]">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>شهر الصرف</TableHead>
-                          <TableHead className="text-center">عدد القروض</TableHead>
-                          <TableHead className="text-center">إجمالي المبلغ</TableHead>
-                          <TableHead className="text-center">قروض متعثرة</TableHead>
-                          <TableHead className="text-center">مبلغ التعثر</TableHead>
-                          <TableHead className="text-center">معدل التعثر</TableHead>
-                          <TableHead className="text-center">متوسط القرض</TableHead>
+                          <TableHead>{t('productReport.table.disbursementMonth')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.loanCount')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.totalAmount')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.delinquentLoans')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.overdueAmount')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.delinquencyRate')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.table.avgLoan')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -946,15 +945,15 @@ const ProductLevelReport = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>رقم القرض</TableHead>
-                          <TableHead>اسم العميل</TableHead>
-                          <TableHead className="text-center">نوع العميل</TableHead>
-                          <TableHead>الفرع</TableHead>
-                          <TableHead className="text-center">مبلغ القرض</TableHead>
-                          <TableHead className="text-center">المبلغ المتأخر</TableHead>
-                          <TableHead className="text-center">أيام التأخير</TableHead>
-                          <TableHead className="text-center">فئة المخاطر</TableHead>
-                          <TableHead className="text-center">إجراء</TableHead>
+                                                      <TableHead>{t('productReport.metrics.loanNumber')}</TableHead>
+                            <TableHead>{t('productReport.metrics.customerName')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.metrics.customerType')}</TableHead>
+                          <TableHead>{t('productReport.table.branch')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.metrics.loanAmount')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.metrics.overdueAmount')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.metrics.overdueDaysLabel')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.metrics.riskCategory')}</TableHead>
+                          <TableHead className="text-center">{t('productReport.metrics.action')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1017,18 +1016,18 @@ const ProductLevelReport = () => {
                     <div className="grid grid-cols-3 gap-4">
                       <div className="text-center p-4 bg-blue-50 rounded-lg">
                         <Trophy className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                        <p className="text-sm text-gray-600">الترتيب العام</p>
+                        <p className="text-sm text-gray-600">{t('productReport.charts.overallRank')}</p>
                         <p className="text-3xl font-bold text-blue-600">
                           #{Math.round((reportData.productComparison?.rankings?.collectionRank + 
                                        reportData.productComparison?.rankings?.delinquencyRank) / 2)}
                         </p>
                         <p className="text-xs text-gray-600 mt-1">
-                          من {reportData.productComparison?.rankings?.totalProducts} منتج
+                          {t('common.of')} {reportData.productComparison?.rankings?.totalProducts} {t('common.products')}
                         </p>
                       </div>
                       <div className="text-center p-4 bg-green-50 rounded-lg">
                         <TrendingUp className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                        <p className="text-sm text-gray-600">ترتيب التحصيل</p>
+                        <p className="text-sm text-gray-600">{t('productReport.charts.collectionRank')}</p>
                         <p className="text-3xl font-bold text-green-600">
                           #{reportData.productComparison?.rankings?.collectionRank}
                         </p>
@@ -1039,7 +1038,7 @@ const ProductLevelReport = () => {
                       </div>
                       <div className="text-center p-4 bg-orange-50 rounded-lg">
                         <BarChart3 className="h-8 w-8 mx-auto mb-2 text-orange-600" />
-                        <p className="text-sm text-gray-600">ترتيب التعثر</p>
+                        <p className="text-sm text-gray-600">{t('productReport.charts.delinquencyRankLabel')}</p>
                         <p className="text-3xl font-bold text-orange-600">
                           #{reportData.productComparison?.rankings?.delinquencyRank}
                         </p>
@@ -1054,17 +1053,17 @@ const ProductLevelReport = () => {
                     <ResponsiveContainer width="100%" height={400}>
                       <RadarChart data={[
                         {
-                          metric: 'معدل التعثر',
+                          metric: t('productReport.charts.delinquencyRate'),
                           product: reportData.summary?.delinquencyRate,
                           average: reportData.productComparison?.companyAverage?.delinquencyRate
                         },
                         {
-                          metric: 'معدل التحصيل',
+                          metric: t('productReport.charts.collectionRate'),
                           product: reportData.summary?.collectionRate,
                           average: reportData.productComparison?.companyAverage?.collectionRate
                         },
                         {
-                          metric: 'متوسط التأخير',
+                          metric: t('productReport.charts.avgDelay'),
                           product: reportData.summary?.avgDPD,
                           average: reportData.productComparison?.companyAverage?.avgDPD
                         },
@@ -1085,7 +1084,7 @@ const ProductLevelReport = () => {
                           fillOpacity={0.6}
                         />
                         <Radar
-                          name="متوسط الشركة"
+                          name={t('productReport.charts.companyAverage')}
                           dataKey="average"
                           stroke={COLORS.secondary}
                           fill={COLORS.secondary}
@@ -1102,11 +1101,11 @@ const ProductLevelReport = () => {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>المنتج</TableHead>
-                              <TableHead className="text-center">معدل التعثر</TableHead>
-                              <TableHead className="text-center">معدل التحصيل</TableHead>
-                              <TableHead className="text-center">حجم المحفظة</TableHead>
-                              <TableHead className="text-center">متوسط DPD</TableHead>
+                              <TableHead>{t('common.product')}</TableHead>
+                              <TableHead className="text-center">{t('productReport.table.delinquencyRate')}</TableHead>
+                              <TableHead className="text-center">{t('productReport.charts.collectionRate')}</TableHead>
+                              <TableHead className="text-center">{t('productReport.table.portfolioSize')}</TableHead>
+                              <TableHead className="text-center">{t('productReport.table.avgDPD')}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1165,14 +1164,14 @@ const ProductLevelReport = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">اسم العميل</p>
+                  <p className="text-sm text-gray-600">{t('productReport.metrics.customerName')}</p>
                   <p className="font-medium">{selectedDefaulter.customerName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">نوع العميل</p>
+                                      <p className="text-sm text-gray-600">{t('productReport.metrics.customerType')}</p>
                   <p className="font-medium">
-                    {selectedDefaulter.customerType === 'CORPORATE' ? 'شركة' :
-                     selectedDefaulter.customerType === 'SME' ? 'منشأة صغيرة' : 'فرد'}
+                                          {selectedDefaulter.customerType === 'CORPORATE' ? t('productReport.metrics.corporate') :
+                       selectedDefaulter.customerType === 'SME' ? t('productReport.metrics.sme') : t('productReport.metrics.individual')}
                   </p>
                 </div>
                 <div>
@@ -1180,7 +1179,7 @@ const ProductLevelReport = () => {
                   <p className="font-medium">{selectedDefaulter.branchName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">فئة المخاطر</p>
+                                      <p className="text-sm text-gray-600">{t('productReport.metrics.riskCategory')}</p>
                   <Badge variant={selectedDefaulter.riskCategory === 'High' ? 'destructive' : 'secondary'}>
                     {selectedDefaulter.riskCategory}
                   </Badge>
@@ -1190,22 +1189,22 @@ const ProductLevelReport = () => {
               <Separator />
 
               <div className="space-y-3">
-                <h4 className="font-medium">تفاصيل مالية</h4>
+                <h4 className="font-medium">{t('productReport.metrics.financialDetails')}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-600">مبلغ القرض الأصلي</p>
+                    <p className="text-sm text-gray-600">{t('productReport.metrics.originalLoanAmount')}</p>
                     <p className="text-xl font-bold">{formatCurrency(selectedDefaulter.loanAmount)}</p>
                   </div>
                   <div className="p-3 bg-red-50 rounded">
-                    <p className="text-sm text-gray-600">المبلغ المتأخر</p>
+                    <p className="text-sm text-gray-600">{t('productReport.metrics.overdueAmount')}</p>
                     <p className="text-xl font-bold text-red-600">{formatCurrency(selectedDefaulter.overdueAmount)}</p>
                   </div>
                   <div className="p-3 bg-orange-50 rounded">
-                    <p className="text-sm text-gray-600">أيام التأخير</p>
-                    <p className="text-xl font-bold text-orange-600">{selectedDefaulter.overdueDays} يوم</p>
+                    <p className="text-sm text-gray-600">{t('productReport.table.overdueDays')}</p>
+                    <p className="text-xl font-bold text-orange-600">{selectedDefaulter.overdueDays} {t('productReport.table.days')}</p>
                   </div>
                   <div className="p-3 bg-yellow-50 rounded">
-                    <p className="text-sm text-gray-600">نسبة التعثر</p>
+                    <p className="text-sm text-gray-600">{t('productReport.table.delinquencyPercentage')}</p>
                     <p className="text-xl font-bold text-yellow-600">
                       {formatPercentage((selectedDefaulter.overdueAmount / selectedDefaulter.loanAmount) * 100)}
                     </p>
@@ -1215,10 +1214,10 @@ const ProductLevelReport = () => {
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setShowDefaulterDetails(false)}>
-                  إغلاق
+                  {t('productReport.actions.close')}
                 </Button>
                 <Button onClick={() => window.location.href = `/collection/cases?loan=${selectedDefaulter.loanAccountNumber}`}>
-                  عرض حالة التحصيل
+                  {t('productReport.actions.viewCollectionStatus')}
                   <ChevronRight className="h-4 w-4 mr-2" />
                 </Button>
               </div>
