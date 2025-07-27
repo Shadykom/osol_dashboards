@@ -54,10 +54,10 @@ import {
   ArrowUp, ArrowDown, Info, Play, Pause, SkipForward, History,
   Layers, Map, PieChart as PieChartIcon, LineChart as LineChartIcon, BarChart as BarChartIcon
 } from 'lucide-react';
-import SpecialistReportService from '@/services/specialistReportService';
+import specialistReportService from '@/services/specialistReportService';
 
-// Create instance of the service
-const specialistService = new SpecialistReportService();
+// Use the existing service instance
+const specialistService = specialistReportService;
 
 const SpecialistLevelReport = () => {
   const [loading, setLoading] = useState(true);
