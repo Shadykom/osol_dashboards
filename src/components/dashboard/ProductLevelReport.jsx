@@ -41,7 +41,7 @@ import {
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
   ArrowDownRight, Loader2, BarChart3, Shield, Zap, CreditCard,
-  Phone, MessageSquare, Trophy, Zap, Shield, BarChart3
+  Phone, MessageSquare, Trophy
 } from 'lucide-react';
 import { ProductReportService } from '@/services/productReportService';
 import { BranchReportService } from '@/services/branchReportService';
