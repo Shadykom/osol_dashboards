@@ -333,7 +333,7 @@ const getNavigationItems = (t) => [
     {
       title: 'تقرير مستوى الفرع',
       href: '/collection/branch-report',
-      icon: Building,
+      icon: Building2,
       badge: 'جديد',
       badgeVariant: 'default'
     },

@@ -29,7 +29,7 @@ import {
   AreaChart, Treemap
 } from 'recharts';
 import { 
-  Building, TrendingUp, Users, DollarSign, Phone, MessageSquare,
+  Building2, TrendingUp, Users, DollarSign, Phone, MessageSquare,
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
   ArrowDownRight, Loader2, MapPin, BarChart3, Trophy
@@ -172,7 +172,7 @@ const BranchLevelReport = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Building className="h-8 w-8 text-primary" />
+                              <Building2 className="h-8 w-8 text-primary" />
               تقرير مستوى الفرع
             </h1>
             <p className="text-gray-600 mt-1">تحليل شامل لأداء التحصيل على مستوى الفرع</p>

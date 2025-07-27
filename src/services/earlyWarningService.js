@@ -18,7 +18,7 @@ import {
 import { 
   AlertTriangle, TrendingUp, Users, Activity, Bell, Shield,
   Eye, DollarSign, Calendar, Clock, Zap, Target, AlertCircle,
-  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building,
+  ChevronRight, Filter, RefreshCw, FileWarning, UserX, Building2,
   Phone, Mail, Loader2
 } from 'lucide-react';
 import { EarlyWarningService } from '@/services/earlyWarningService';
@@ -495,7 +495,7 @@ const EarlyWarningDashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5" />
+                  <Building2 className="h-5 w-5" />
                   Industry Risk Analysis
                 </CardTitle>
               </CardHeader>
