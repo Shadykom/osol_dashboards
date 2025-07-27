@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useTranslation } from 'react-i18next';
 // Simple table components
 const Table = ({ children, className = "" }) => (
   <table className={`w-full border-collapse ${className}`}>{children}</table>
@@ -40,12 +41,14 @@ import {
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
   ArrowDownRight, Loader2, BarChart3, Shield, Zap, CreditCard,
-  Phone, MessageSquare
+  Phone, MessageSquare, Trophy, Zap, Shield, BarChart3
 } from 'lucide-react';
 import { ProductReportService } from '@/services/productReportService';
 import { BranchReportService } from '@/services/branchReportService';
 
 const ProductLevelReport = () => {
+  const { t } = useTranslation();
+  
   // State Management
   const [selectedProduct, setSelectedProduct] = useState('');
   const [products, setProducts] = useState([]);
@@ -184,22 +187,22 @@ const ProductLevelReport = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen" dir="rtl">
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Package className="h-8 w-8 text-primary" />
-              تقرير مستوى المنتج
+              {t('productReport.title')}
             </h1>
-            <p className="text-gray-600 mt-1">تحليل شامل لأداء المنتجات التمويلية</p>
+            <p className="text-gray-600 mt-1">{t('productReport.subtitle')}</p>
           </div>
           
           <div className="flex flex-wrap gap-2">
             <Select value={selectedProduct} onValueChange={setSelectedProduct}>
               <SelectTrigger className="w-64">
-                <SelectValue placeholder="اختر المنتج" />
+                <SelectValue placeholder={t('productReport.selectProduct')} />
               </SelectTrigger>
               <SelectContent>
                 {products.map(product => (
@@ -212,7 +215,7 @@ const ProductLevelReport = () => {
             
             <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
               <RefreshCw className={`h-4 w-4 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
-              تحديث
+              {t('productReport.refresh')}
             </Button>
             
             <div className="flex gap-1">
@@ -233,10 +236,10 @@ const ProductLevelReport = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="current_month">الشهر الحالي</SelectItem>
-              <SelectItem value="last_month">الشهر الماضي</SelectItem>
-              <SelectItem value="current_quarter">الربع الحالي</SelectItem>
-              <SelectItem value="current_year">السنة الحالية</SelectItem>
+              <SelectItem value="current_month">{t('productReport.filters.currentMonth')}</SelectItem>
+              <SelectItem value="last_month">{t('productReport.filters.lastMonth')}</SelectItem>
+              <SelectItem value="current_quarter">{t('productReport.filters.currentQuarter')}</SelectItem>
+              <SelectItem value="current_year">{t('productReport.filters.currentYear')}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -245,7 +248,7 @@ const ProductLevelReport = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">جميع الفروع</SelectItem>
+              <SelectItem value="all">{t('productReport.filters.allBranches')}</SelectItem>
               {branches.map(br => (
                 <SelectItem key={br.branch_id} value={br.branch_id}>
                   {br.branch_name}
@@ -259,12 +262,12 @@ const ProductLevelReport = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">جميع الفئات</SelectItem>
-              <SelectItem value="current">جاري</SelectItem>
-              <SelectItem value="1-30">1-30 يوم</SelectItem>
-              <SelectItem value="31-60">31-60 يوم</SelectItem>
-              <SelectItem value="61-90">61-90 يوم</SelectItem>
-              <SelectItem value="90+">أكثر من 90 يوم</SelectItem>
+              <SelectItem value="all">{t('productReport.filters.allCategories')}</SelectItem>
+              <SelectItem value="current">{t('productReport.filters.current')}</SelectItem>
+              <SelectItem value="1-30">{t('productReport.filters.days1_30')}</SelectItem>
+              <SelectItem value="31-60">{t('productReport.filters.days31_60')}</SelectItem>
+              <SelectItem value="61-90">{t('productReport.filters.days61_90')}</SelectItem>
+              <SelectItem value="90+">{t('productReport.filters.days90Plus')}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -273,10 +276,10 @@ const ProductLevelReport = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">جميع العملاء</SelectItem>
-              <SelectItem value="INDIVIDUAL">أفراد</SelectItem>
-              <SelectItem value="CORPORATE">شركات</SelectItem>
-              <SelectItem value="SME">منشآت صغيرة</SelectItem>
+              <SelectItem value="all">{t('productReport.filters.allCustomers')}</SelectItem>
+              <SelectItem value="INDIVIDUAL">{t('productReport.filters.individual')}</SelectItem>
+              <SelectItem value="CORPORATE">{t('productReport.filters.corporate')}</SelectItem>
+              <SelectItem value="SME">{t('productReport.filters.sme')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -288,7 +291,7 @@ const ProductLevelReport = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card className="bg-white hover:shadow-lg transition-shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">إجمالي المحفظة</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('productReport.metrics.totalPortfolio')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-900">
@@ -296,7 +299,7 @@ const ProductLevelReport = () => {
                 </div>
                 <div className="flex items-center mt-2">
                   <Badge variant="outline" className="text-xs">
-                    {formatNumber(reportData.summary?.totalLoans)} قرض
+                    {formatNumber(reportData.summary?.totalLoans)} {t('productReport.metrics.loans')}
                   </Badge>
                 </div>
               </CardContent>
@@ -304,14 +307,14 @@ const ProductLevelReport = () => {
 
             <Card className="bg-white hover:shadow-lg transition-shadow border-t-4 border-t-red-500">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">المتأخرات</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('productReport.metrics.delinquency')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
                   {formatCurrency(reportData.summary?.totalOverdue)}
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-600">نسبة التعثر</span>
+                  <span className="text-xs text-gray-600">{t('productReport.metrics.delinquencyRate')}</span>
                   <span className={`text-sm font-bold ${
                     reportData.summary?.delinquencyRate > 15 ? 'text-red-600' : 'text-green-600'
                   }`}>
@@ -377,13 +380,13 @@ const ProductLevelReport = () => {
           {/* Main Content Tabs */}
           <Tabs defaultValue="overview" className="space-y-4">
             <TabsList className="grid w-full grid-cols-7 bg-white">
-              <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
-              <TabsTrigger value="branches">أداء الفروع</TabsTrigger>
-              <TabsTrigger value="customers">تحليل العملاء</TabsTrigger>
-              <TabsTrigger value="risk">تحليل المخاطر</TabsTrigger>
-              <TabsTrigger value="vintage">تحليل القدم</TabsTrigger>
-              <TabsTrigger value="defaulters">أكبر المتعثرين</TabsTrigger>
-              <TabsTrigger value="comparison">المقارنات</TabsTrigger>
+              <TabsTrigger value="overview">{t('productReport.tabs.overview')}</TabsTrigger>
+              <TabsTrigger value="branches">{t('productReport.tabs.branches')}</TabsTrigger>
+              <TabsTrigger value="customers">{t('productReport.tabs.customers')}</TabsTrigger>
+              <TabsTrigger value="risk">{t('productReport.tabs.risk')}</TabsTrigger>
+              <TabsTrigger value="vintage">{t('productReport.tabs.vintage')}</TabsTrigger>
+              <TabsTrigger value="defaulters">{t('productReport.tabs.defaulters')}</TabsTrigger>
+              <TabsTrigger value="comparison">{t('productReport.tabs.comparison')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">

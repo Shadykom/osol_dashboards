@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useTranslation } from 'react-i18next';
 import { 
   LineChart, Line, BarChart, Bar, ComposedChart, Area, PieChart, Pie,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -37,6 +38,8 @@ import {
 import { BranchReportService } from '@/services/branchReportService';
 
 const BranchLevelReport = () => {
+  const { t } = useTranslation();
+  
   // State Management
   const [selectedBranch, setSelectedBranch] = useState('');
   const [branches, setBranches] = useState([]);
