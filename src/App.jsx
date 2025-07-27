@@ -26,7 +26,6 @@ import VintageAnalysisDashboard from './pages/VintageAnalysisDashboard';
 import DelinquencyExecutiveDashboard from './pages/DelinquencyExecutiveDashboard';
 import SpecialistLevelReport from './pages/SpecialistLevelReport';
 import DatabaseTest from './pages/DatabaseTest';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { Toaster } from './components/ui/sonner';
