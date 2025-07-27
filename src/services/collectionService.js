@@ -402,14 +402,14 @@ export class CollectionService {
         .select(`
           team_id,
           team_name,
-          collection_officers!team_id (
+          collection_officers!collection_officers_team_id_fkey (
             officer_id,
             officer_name
           )
         `);
 
       const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-        const teamOfficerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
+        const teamOfficerIds = team.collection_officers?.map(o => o.officer_id) || [];
         const teamCases = filteredCases.filter(c => teamOfficerIds.includes(c.assigned_to));
         
         // Get team recovery
@@ -595,9 +595,9 @@ export class CollectionService {
 
       const topOfficers = officerPerformance?.map(o => ({
         officerId: o.officer_id,
-        officerName: o.kastle_collection?.collection_officers?.officer_name || 'Unknown',
-        officerType: o.kastle_collection?.collection_officers?.officer_type || 'Unknown',
-        teamName: o.kastle_collection?.collection_officers?.kastle_collection?.collection_teams?.team_name || 'Unknown',
+        officerName: o.collection_officers?.officer_name || 'Unknown',
+        officerType: o.collection_officers?.officer_type || 'Unknown',
+        teamName: o.collection_officers?.collection_teams?.team_name || 'Unknown',
         totalCollected: o.total_collected || 0,
         totalCases: o.total_cases || 0,
         totalCalls: o.total_calls || 0,
@@ -900,14 +900,14 @@ export class CollectionService {
             .from('collection_teams')
             .select(`
               *,
-              collection_officers (
+              collection_officers!collection_officers_team_id_fkey (
                 officer_id,
                 officer_name
               )
             `);
 
           const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-            const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
+            const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
             
             const { data: teamData } = await supabaseCollection
               .from('officer_performance_summary')
@@ -1029,7 +1029,7 @@ export class CollectionService {
         .from('collection_teams')
         .select(`
           *,
-          collection_officers (
+          collection_officers!collection_officers_team_id_fkey (
             officer_id,
             officer_name
           )
@@ -1038,7 +1038,7 @@ export class CollectionService {
       if (teamsError) throw teamsError;
 
       const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-        const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
+        const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
         
         const { data: teamData } = await supabaseCollection
           .from('officer_performance_summary')
@@ -1089,7 +1089,7 @@ export class CollectionService {
         .from('collection_officers')
         .select(`
           *,
-          collection_teams (
+          collection_teams!collection_officers_team_id_fkey (
             team_name,
             team_lead
           )
