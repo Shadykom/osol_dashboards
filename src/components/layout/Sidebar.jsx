@@ -332,17 +332,17 @@ const getNavigationItems = (t) => [
   icon: FileText,
   items: [
     {
-      title: 'تقرير مستوى الفرع',
+      title: t('navigation.branchLevelReport'),
       href: '/collection/branch-report',
       icon: Building2,
-      badge: 'جديد',
+      badge: t('common.new'),
       badgeVariant: 'default'
     },
     {
-      title: 'تقرير مستوى المنتج',
+      title: t('navigation.productLevelReport'),
       href: '/collection/product-report',
       icon: Package,
-      badge: 'جديد',
+      badge: t('common.new'),
       badgeVariant: 'default'
     }
   ]

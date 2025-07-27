@@ -169,22 +169,22 @@ const BranchLevelReport = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen" dir="rtl">
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
                               <Building2 className="h-8 w-8 text-primary" />
-              تقرير مستوى الفرع
+              {t('branchReport.title')}
             </h1>
-            <p className="text-gray-600 mt-1">تحليل شامل لأداء التحصيل على مستوى الفرع</p>
+            <p className="text-gray-600 mt-1">{t('branchReport.subtitle')}</p>
           </div>
           
           <div className="flex flex-wrap gap-2">
             <Select value={selectedBranch} onValueChange={setSelectedBranch}>
               <SelectTrigger className="w-64">
-                <SelectValue placeholder="اختر الفرع" />
+                <SelectValue placeholder={t('branchReport.selectBranch')} />
               </SelectTrigger>
               <SelectContent>
                 {branches.map(branch => (
@@ -295,7 +295,7 @@ const BranchLevelReport = () => {
                   {formatCurrency(reportData.summary?.totalOverdue)}
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-600">نسبة التعثر</span>
+                  <span className="text-xs text-gray-600">{t('branchReport.metrics.delinquencyRate')}</span>
                   <span className={`text-sm font-bold ${
                     reportData.summary?.delinquencyRate > 10 ? 'text-red-600' : 'text-green-600'
                   }`}>
@@ -307,7 +307,7 @@ const BranchLevelReport = () => {
 
             <Card className="bg-white hover:shadow-lg transition-shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">معدل التحصيل</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('branchReport.metrics.collectionRate')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
@@ -330,14 +330,14 @@ const BranchLevelReport = () => {
                 </div>
                 <div className="flex items-center mt-2 text-xs text-gray-600">
                   <Clock className="h-3 w-3 ml-1" />
-                  متوسط {reportData.summary?.avgDPD?.toFixed(1)} يوم تأخير
+                                      {t('branchReport.metrics.avgProductivity')} {reportData.summary?.avgDPD?.toFixed(1)} {t('common.days')} {t('common.delay')}
                 </div>
               </CardContent>
             </Card>
 
             <Card className="bg-white hover:shadow-lg transition-shadow border-t-4 border-t-blue-500">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">الترتيب</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{t('branchReport.metrics.ranking')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-around">
@@ -345,13 +345,13 @@ const BranchLevelReport = () => {
                     <div className="text-2xl font-bold text-blue-600">
                       #{reportData.branchComparison?.rankings?.collectionRank}
                     </div>
-                    <p className="text-xs text-gray-600">التحصيل</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      #{reportData.branchComparison?.rankings?.delinquencyRank}
+                                          <p className="text-xs text-gray-600">{t('common.collection')}</p>
                     </div>
-                    <p className="text-xs text-gray-600">التعثر</p>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        #{reportData.branchComparison?.rankings?.delinquencyRank}
+                      </div>
+                      <p className="text-xs text-gray-600">{t('common.delinquency')}</p>
                   </div>
                 </div>
               </CardContent>
