@@ -13,7 +13,7 @@ class SpecialistReportService {
     try {
       // جلب البيانات من جدول collection_officers
       const { data, error } = await supabaseCollection
-        .from('kastle_collection.collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select(`
           officer_id,
           officer_name,
@@ -24,7 +24,7 @@ class SpecialistReportService {
           status
         `)
         .eq('status', 'ACTIVE')
-        .eq('officer_type', 'SPECIALIST')
+        .in('officer_type', ['CALL_AGENT', 'FIELD_AGENT', 'SENIOR_COLLECTOR', 'TEAM_LEAD'])
         .order('officer_name');
 
       if (error) {
@@ -136,7 +136,7 @@ class SpecialistReportService {
   async getSpecialistById(specialistId) {
     try {
       const { data, error } = await supabaseCollection
-        .from('kastle_collection.collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select(`
           *,
           collection_teams!team_id (
