@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
-import { supabaseBanking } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
 import { useRTL } from '@/hooks/useRTL';
 
 // ألوان فئات التقادم

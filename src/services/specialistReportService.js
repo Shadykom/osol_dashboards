@@ -1,4 +1,4 @@
-import { supabaseBanking } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
 
 /**
  * خدمة تقرير مستوى الأخصائي
@@ -12,8 +12,8 @@ class SpecialistReportService {
   async getSpecialists() {
     try {
       // جلب البيانات من جدول collection_officers
-      const { data: officers, error: officersError } = await supabaseBanking
-        .from('kastle_collection.collection_officers')
+      const { data: officers, error: officersError } = await supabaseCollection
+        .from('collection_officers')
         .select(`
           officer_id,
           officer_name,
@@ -36,8 +36,8 @@ class SpecialistReportService {
         const teamIds = [...new Set(officers.map(o => o.team_id).filter(id => id))];
         
         if (teamIds.length > 0) {
-          const { data: teams, error: teamsError } = await supabaseBanking
-            .from('kastle_collection.collection_teams')
+          const { data: teams, error: teamsError } = await supabaseCollection
+            .from('collection_teams')
             .select('team_id, team_name, team_type')
             .in('team_id', teamIds);
 
@@ -143,8 +143,8 @@ class SpecialistReportService {
    */
   async getSpecialistById(specialistId) {
     try {
-      const { data, error } = await supabaseBanking
-        .from('kastle_collection.collection_officers')
+      const { data, error } = await supabaseCollection
+        .from('collection_officers')
         .select(`
           officer_id,
           officer_name,
@@ -158,7 +158,7 @@ class SpecialistReportService {
           commission_rate,
           joining_date,
           last_active,
-          kastle_collection.collection_teams (
+          collection_teams (
             team_name,
             team_type,
             team_lead_id
@@ -198,7 +198,7 @@ class SpecialistReportService {
     try {
       // جلب الحالات المخصصة للأخصائي من جدول collection_cases
       let query = supabaseBanking
-        .from('kastle_collection.collection_cases')
+        .from('collection_cases')
         .select(`
           case_id,
           case_number,
@@ -215,7 +215,7 @@ class SpecialistReportService {
           last_payment_amount,
           last_contact_date,
           next_action_date,
-          kastle_banking.loan_accounts!loan_account_number (
+          loan_accounts!loan_account_number (
             loan_amount,
             outstanding_balance,
             overdue_amount,
@@ -224,21 +224,21 @@ class SpecialistReportService {
             product_id,
             loan_start_date,
             maturity_date,
-            kastle_banking.products!product_id (
+            products!product_id (
               product_name,
               product_type
             )
           ),
-          kastle_banking.customers!customer_id (
+          customers!customer_id (
             full_name,
             customer_type,
             national_id,
-            kastle_banking.customer_contacts!customer_id (
+            customer_contacts!customer_id (
               contact_type,
               contact_value
             )
           ),
-          kastle_collection.collection_buckets!bucket_id (
+          collection_buckets!bucket_id (
             bucket_name,
             min_days,
             max_days
@@ -280,17 +280,17 @@ class SpecialistReportService {
       const transformedLoans = (data || []).map(caseData => ({
         loanNumber: caseData.loan_account_number,
         caseNumber: caseData.case_number,
-        customerName: caseData.kastle_banking?.customers?.full_name || 'غير معروف',
-        customerPhone: caseData.kastle_banking?.customers?.customer_contacts?.[0]?.contact_value || '',
-        customerId: caseData.kastle_banking?.customers?.national_id || caseData.customer_id,
-        customerType: caseData.kastle_banking?.customers?.customer_type || 'فرد',
-        productType: caseData.kastle_banking?.loan_accounts?.kastle_banking?.products?.product_name || 'غير محدد',
-        loanAmount: caseData.kastle_banking?.loan_accounts?.loan_amount || 0,
-        paidAmount: (caseData.kastle_banking?.loan_accounts?.loan_amount || 0) - (caseData.kastle_banking?.loan_accounts?.outstanding_balance || 0),
-        dueAmount: caseData.kastle_banking?.loan_accounts?.outstanding_balance || 0,
-        totalOverdueAmount: caseData.kastle_banking?.loan_accounts?.overdue_amount || caseData.total_overdue || 0,
-        totalOverdueDays: caseData.kastle_banking?.loan_accounts?.overdue_days || caseData.dpd || 0,
-        delinquencyBucket: caseData.kastle_collection?.collection_buckets?.bucket_name || this.getDPDBucket(caseData.dpd),
+        customerName: caseData.customers?.full_name || 'غير معروف',
+        customerPhone: caseData.customers?.customer_contacts?.[0]?.contact_value || '',
+        customerId: caseData.customers?.national_id || caseData.customer_id,
+        customerType: caseData.customers?.customer_type || 'فرد',
+        productType: caseData.loan_accounts?.products?.product_name || 'غير محدد',
+        loanAmount: caseData.loan_accounts?.loan_amount || 0,
+        paidAmount: (caseData.loan_accounts?.loan_amount || 0) - (caseData.loan_accounts?.outstanding_balance || 0),
+        dueAmount: caseData.loan_accounts?.outstanding_balance || 0,
+        totalOverdueAmount: caseData.loan_accounts?.overdue_amount || caseData.total_overdue || 0,
+        totalOverdueDays: caseData.loan_accounts?.overdue_days || caseData.dpd || 0,
+        delinquencyBucket: caseData.collection_buckets?.bucket_name || this.getDPDBucket(caseData.dpd),
         loanStatus: caseData.case_status,
         lastContactDate: caseData.last_contact_date,
         lastPaymentDate: caseData.last_payment_date,
@@ -387,8 +387,8 @@ class SpecialistReportService {
       const dateTo = new Date();
       
       // جلب تفاعلات الأخصائي
-      const { data: interactions, error } = await supabaseBanking
-        .from('kastle_collection.collection_interactions')
+      const { data: interactions, error } = await supabaseCollection
+        .from('collection_interactions')
         .select(`
           interaction_id,
           interaction_type,
@@ -524,8 +524,8 @@ class SpecialistReportService {
     try {
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data, error } = await supabaseBanking
-        .from('kastle_collection.promise_to_pay')
+      const { data, error } = await supabaseCollection
+        .from('promise_to_pay')
         .select(`
           ptp_id,
           case_id,
@@ -534,16 +534,7 @@ class SpecialistReportService {
           status,
           actual_payment_date,
           actual_payment_amount,
-          created_at,
-          kastle_collection.collection_cases!case_id (
-            case_number,
-            customer_id,
-            loan_account_number,
-            kastle_banking.customers!customer_id (
-              full_name,
-              customer_type
-            )
-          )
+          created_at
         `)
         .eq('officer_id', specialistId)
         .gte('created_at', dateFrom.toISOString())
@@ -554,19 +545,51 @@ class SpecialistReportService {
         throw error;
       }
 
-      // تحويل البيانات إلى الشكل المطلوب
-      const transformedPTPs = (data || []).map(ptp => ({
-        ptpId: ptp.ptp_id,
-        caseNumber: ptp.kastle_collection?.collection_cases?.case_number,
-        customerName: ptp.kastle_collection?.collection_cases?.kastle_banking?.customers?.full_name || 'غير معروف',
-        ptpDate: ptp.ptp_date,
-        ptpAmount: ptp.ptp_amount,
-        status: this.mapPTPStatus(ptp.status),
-        actualPaymentDate: ptp.actual_payment_date,
-        actualPaymentAmount: ptp.actual_payment_amount,
-        daysRemaining: this.calculateDaysRemaining(ptp.ptp_date),
-        confidenceLevel: this.calculatePTPConfidence(ptp)
-      }));
+      // Get case details separately from kastle_banking schema
+      let transformedPTPs = [];
+      if (data && data.length > 0) {
+        const caseIds = [...new Set(data.map(ptp => ptp.case_id))];
+        
+        const { data: cases, error: casesError } = await supabaseBanking
+          .from('collection_cases')
+          .select(`
+            case_id,
+            case_number,
+            customer_id,
+            loan_account_number,
+            customers!customer_id (
+              full_name,
+              customer_type
+            )
+          `)
+          .in('case_id', caseIds);
+
+        if (casesError) {
+          console.error('Error fetching cases:', casesError);
+        }
+
+        const casesMap = (cases || []).reduce((acc, caseData) => {
+          acc[caseData.case_id] = caseData;
+          return acc;
+        }, {});
+
+        // تحويل البيانات إلى الشكل المطلوب
+        transformedPTPs = data.map(ptp => {
+          const caseData = casesMap[ptp.case_id] || {};
+          return {
+            ptpId: ptp.ptp_id,
+            caseNumber: caseData.case_number,
+            customerName: caseData.customers?.full_name || 'غير معروف',
+            ptpDate: ptp.ptp_date,
+            ptpAmount: ptp.ptp_amount,
+            status: this.mapPTPStatus(ptp.status),
+            actualPaymentDate: ptp.actual_payment_date,
+            actualPaymentAmount: ptp.actual_payment_amount,
+            daysRemaining: this.calculateDaysRemaining(ptp.ptp_date),
+            confidenceLevel: this.calculatePTPConfidence(ptp)
+          };
+        });
+      }
 
       return {
         success: true,
@@ -591,8 +614,8 @@ class SpecialistReportService {
       // جلب بيانات الأداء من جدول officer_performance_metrics إذا كان موجوداً
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data: performanceData, error } = await supabaseBanking
-        .from('kastle_collection.officer_performance_metrics')
+      const { data: performanceData, error } = await supabaseCollection
+        .from('officer_performance_metrics')
         .select(`
           metric_date,
           calls_made,
@@ -829,16 +852,16 @@ class SpecialistReportService {
     const now = new Date();
     switch (dateRange) {
       case 'current_month':
-        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        return new Date(now.getFullYear(), now.getMonth(), 1);
       case 'last_month':
-        return new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+        return new Date(now.getFullYear(), now.getMonth() - 1, 1);
       case 'current_quarter':
         const quarterStart = Math.floor(now.getMonth() / 3) * 3;
-        return new Date(now.getFullYear(), quarterStart, 1).toISOString();
+        return new Date(now.getFullYear(), quarterStart, 1);
       case 'current_year':
-        return new Date(now.getFullYear(), 0, 1).toISOString();
+        return new Date(now.getFullYear(), 0, 1);
       default:
-        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        return new Date(now.getFullYear(), now.getMonth(), 1);
     }
   }
 
@@ -1069,33 +1092,57 @@ class SpecialistReportService {
   async generateTimeline(specialistId, dateRange) {
     try {
       // جلب آخر التفاعلات
-      const { data: recentInteractions } = await supabaseBanking
-        .from('kastle_collection.collection_interactions')
+      const { data: recentInteractions } = await supabaseCollection
+        .from('collection_interactions')
         .select(`
           interaction_type,
           interaction_datetime,
           outcome,
-          kastle_collection.collection_cases!case_id (
-            customer_id,
-            kastle_banking.customers!customer_id (
-              full_name
-            )
-          )
+          case_id
         `)
         .eq('officer_id', specialistId)
         .order('interaction_datetime', { ascending: false })
         .limit(10);
 
-      const timeline = (recentInteractions || []).map(interaction => ({
-        time: new Date(interaction.interaction_datetime).toLocaleTimeString('ar-SA', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }),
-        type: this.mapInteractionType(interaction.interaction_type),
-        result: interaction.outcome || 'تم',
-        customer: interaction.kastle_collection?.collection_cases?.kastle_banking?.customers?.full_name || 'عميل',
-        amount: null
-      }));
+      if (!recentInteractions || recentInteractions.length === 0) {
+        return [];
+      }
+
+      // Get case details with customer names
+      const caseIds = [...new Set(recentInteractions.map(i => i.case_id).filter(id => id))];
+      let casesMap = {};
+      
+      if (caseIds.length > 0) {
+        const { data: cases } = await supabaseBanking
+          .from('collection_cases')
+          .select(`
+            case_id,
+            customer_id,
+            customers!customer_id (
+              full_name
+            )
+          `)
+          .in('case_id', caseIds);
+
+        casesMap = (cases || []).reduce((acc, caseData) => {
+          acc[caseData.case_id] = caseData;
+          return acc;
+        }, {});
+      }
+
+      const timeline = recentInteractions.map(interaction => {
+        const caseData = casesMap[interaction.case_id] || {};
+        return {
+          time: new Date(interaction.interaction_datetime).toLocaleTimeString('ar-SA', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }),
+          type: this.mapInteractionType(interaction.interaction_type),
+          result: interaction.outcome || 'تم',
+          customer: caseData.customers?.full_name || 'عميل',
+          amount: null
+        };
+      });
 
       return timeline;
     } catch (error) {
