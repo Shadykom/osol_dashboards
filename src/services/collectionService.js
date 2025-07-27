@@ -654,7 +654,7 @@ export class CollectionService {
 
       const { data: trends, error: trendsError } = await supabaseCollection
         .from('daily_collection_summary')
-        .select('summary_date, total_collected, collection_rate, calls_made, ptps_created, ptps_kept')
+        .select('summary_date, total_collected, collection_rate, calls_made')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
         .order('summary_date', { ascending: true });
@@ -689,8 +689,8 @@ export class CollectionService {
         totalCollected: t.total_collected || 0,
         collectionRate: t.collection_rate || 0,
         callsPerCollection: t.total_collected > 0 ? (t.calls_made / t.total_collected) : 0,
-        ptpConversionRate: t.calls_made > 0 ? (t.ptps_created / t.calls_made) * 100 : 0,
-        ptpFulfillmentRate: t.ptps_created > 0 ? (t.ptps_kept / t.ptps_created) * 100 : 0
+        ptpConversionRate: 0, // Placeholder since ptps_created column doesn't exist
+        ptpFulfillmentRate: 0 // Placeholder since ptps_kept column doesn't exist
       })) || [];
 
       // Channel effectiveness from digital attempts
@@ -978,7 +978,7 @@ export class CollectionService {
         .from('officer_performance_summary')
         .select(`
           *,
-          collection_officers (
+          collection_officers!officer_id (
             officer_name,
             officer_type,
             team_id
@@ -992,8 +992,21 @@ export class CollectionService {
 
       const totalOfficers = new Set(officerPerformance?.map(d => d.officer_id)).size || 0;
 
+      // Format the data for the component
+      const formattedPerformance = (officerPerformance || []).map(officer => ({
+        officerId: officer.officer_id,
+        officerName: officer.collection_officers?.officer_name || 'Unknown',
+        officerType: officer.collection_officers?.officer_type || 'Unknown',
+        teamId: officer.collection_officers?.team_id,
+        totalCollected: officer.total_collected || 0,
+        totalCases: officer.total_cases || 0,
+        contactRate: officer.contact_rate || 0,
+        ptpRate: officer.ptp_rate || 0,
+        summaryDate: officer.summary_date
+      }));
+
       return formatApiResponse({
-        officerPerformance: officerPerformance || [],
+        officerPerformance: formattedPerformance,
         totalOfficers
       });
     } catch (error) {
@@ -1029,7 +1042,7 @@ export class CollectionService {
         .from('collection_teams')
         .select(`
           *,
-          collection_officers (
+          collection_officers!team_id (
             officer_id,
             officer_name
           )

@@ -24,7 +24,7 @@ const CollectionReports = () => {
   const [officersPerformance, setOfficersPerformance] = useState([]);
   const [teamsPerformance, setTeamsPerformance] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReportType, setSelectedReportType] = useState('monthly');
+  const [selectedReportType, setSelectedReportType] = useState('summary');
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -47,8 +47,8 @@ const CollectionReports = () => {
 
       if (reportResponse.success) setReportData(reportResponse.data);
       if (analyticsResponse.success) setAnalytics(analyticsResponse.data);
-      if (officersResponse.success) setOfficersPerformance(officersResponse.data);
-      if (teamsResponse.success) setTeamsPerformance(teamsResponse.data);
+      if (officersResponse.success) setOfficersPerformance(officersResponse.data?.officerPerformance || []);
+      if (teamsResponse.success) setTeamsPerformance(teamsResponse.data?.teamPerformance || []);
     } catch (error) {
       console.error('Error loading report data:', error);
     } finally {
