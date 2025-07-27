@@ -39,7 +39,8 @@ import {
   Package, TrendingUp, Users, DollarSign, AlertTriangle, MapPin,
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
-  ArrowDownRight, Loader2, BarChart3, Shield, Zap, CreditCard
+  ArrowDownRight, Loader2, BarChart3, Shield, Zap, CreditCard,
+  Phone, MessageSquare
 } from 'lucide-react';
 import { ProductReportService } from '@/services/productReportService';
 import { BranchReportService } from '@/services/branchReportService';
