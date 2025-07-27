@@ -326,6 +326,26 @@ const getNavigationItems = (t) => [
             badgeVariant: 'default',
             description: t('navigation.specialistReportDesc')
           },
+          {
+  title: t('navigation.collectionReports'),
+  icon: FileText,
+  items: [
+    {
+      title: 'تقرير مستوى الفرع',
+      href: '/collection/branch-report',
+      icon: Building,
+      badge: 'جديد',
+      badgeVariant: 'default'
+    },
+    {
+      title: 'تقرير مستوى المنتج',
+      href: '/collection/product-report',
+      icon: Package,
+      badge: 'جديد',
+      badgeVariant: 'default'
+    }
+  ]
+},
         ],
       },
       {
