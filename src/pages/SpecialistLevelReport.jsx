@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatNumber as formatNumberUtil, formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +62,7 @@ import specialistReportService from '@/services/specialistReportService';
 const specialistService = specialistReportService;
 
 const SpecialistLevelReport = () => {
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSpecialist, setSelectedSpecialist] = useState('');
@@ -92,9 +95,9 @@ const SpecialistLevelReport = () => {
 
   // Filter presets
   const [filterPresets] = useState([
-    { name: 'عالي المخاطر', filters: { riskLevel: 'high', minDPD: 90 } },
-    { name: 'وعود نشطة', filters: { ptpStatus: 'active' } },
-    { name: 'قروض كبيرة', filters: { minAmount: 1000000 } }
+    { name: 'High Risk', filters: { riskLevel: 'high', minDPD: 90 } },
+    { name: 'Active Promises', filters: { ptpStatus: 'active' } },
+    { name: 'Large Loans', filters: { minAmount: 1000000 } }
   ]);
 
   useEffect(() => {
@@ -116,11 +119,11 @@ const SpecialistLevelReport = () => {
           setSelectedSpecialist(result.data[0].officer_id);
         }
       } else {
-        setError('فشل في جلب قائمة الأخصائيين');
+        setError('Failed to fetch specialists list');
       }
     } catch (error) {
       console.error('Error fetching specialists:', error);
-      setError('حدث خطأ أثناء جلب البيانات');
+              setError('An error occurred while fetching data');
     }
   };
 
@@ -134,11 +137,11 @@ const SpecialistLevelReport = () => {
       if (result.success && result.data) {
         setReportData(result.data);
       } else {
-        setError('فشل في جلب بيانات التقرير');
+        setError('Failed to fetch report data');
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
-      setError('حدث خطأ أثناء جلب بيانات التقرير');
+              setError('An error occurred while fetching report data');
     } finally {
       setLoading(false);
     }
@@ -155,22 +158,17 @@ const SpecialistLevelReport = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-SA', {
-      style: 'currency',
-      currency: 'SAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
+    return formatCurrencyUtil(amount || 0);
   };
 
   const formatNumber = (num) => {
-    return new Intl.NumberFormat('ar-SA').format(num || 0);
+    return formatNumberUtil(num || 0);
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'غير متوفر';
+    if (!dateString) return '-';
     try {
-      return new Date(dateString).toLocaleDateString('ar-SA');
+      return new Date(dateString).toLocaleDateString(i18n.language === 'ar' ? 'ar-SA' : 'en-US');
     } catch {
       return dateString;
     }
@@ -196,16 +194,16 @@ const SpecialistLevelReport = () => {
     <Sheet open={showFilterSheet} onOpenChange={setShowFilterSheet}>
       <SheetContent className="w-[400px] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>الفلاتر المتقدمة</SheetTitle>
+          <SheetTitle>{t('specialistLevelReport.filters.title')}</SheetTitle>
           <SheetDescription>
-            قم بتخصيص الفلاتر للحصول على النتائج المطلوبة
+            {t('specialistLevelReport.filters.description')}
           </SheetDescription>
         </SheetHeader>
         
         <div className="space-y-6 py-6">
           {/* Filter Presets */}
           <div>
-            <Label className="text-sm font-medium mb-3 block">إعدادات سريعة</Label>
+            <Label className="text-sm font-medium mb-3 block">{t('specialistLevelReport.filters.quickSettings')}</Label>
             <div className="space-y-2">
               {filterPresets.map((preset, index) => (
                 <Button
@@ -225,20 +223,20 @@ const SpecialistLevelReport = () => {
           
           {/* Date Range */}
           <div>
-            <Label className="text-sm font-medium mb-3 block">الفترة الزمنية</Label>
+            <Label className="text-sm font-medium mb-3 block">{t('specialistLevelReport.filters.dateRange')}</Label>
             <Select value={filters.dateRange} onValueChange={(value) => setFilters({...filters, dateRange: value})}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="today">اليوم</SelectItem>
-                <SelectItem value="yesterday">أمس</SelectItem>
-                <SelectItem value="last_7_days">آخر 7 أيام</SelectItem>
-                <SelectItem value="current_month">الشهر الحالي</SelectItem>
-                <SelectItem value="last_month">الشهر الماضي</SelectItem>
-                <SelectItem value="current_quarter">الربع الحالي</SelectItem>
-                <SelectItem value="current_year">السنة الحالية</SelectItem>
-                <SelectItem value="custom">مخصص</SelectItem>
+                <SelectItem value="today">{t('specialistLevelReport.filters.today')}</SelectItem>
+                <SelectItem value="yesterday">{t('specialistLevelReport.filters.yesterday')}</SelectItem>
+                <SelectItem value="last_7_days">{t('specialistLevelReport.filters.last7Days')}</SelectItem>
+                <SelectItem value="current_month">{t('specialistLevelReport.filters.currentMonth')}</SelectItem>
+                <SelectItem value="last_month">{t('specialistLevelReport.filters.lastMonth')}</SelectItem>
+                <SelectItem value="current_quarter">{t('specialistLevelReport.filters.currentQuarter')}</SelectItem>
+                <SelectItem value="current_year">{t('specialistLevelReport.filters.currentYear')}</SelectItem>
+                <SelectItem value="custom">{t('specialistLevelReport.filters.custom')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -246,7 +244,7 @@ const SpecialistLevelReport = () => {
           {/* Amount Range */}
           <div>
             <Label className="text-sm font-medium mb-3 block">
-              نطاق المبلغ: {formatCurrency(filters.minAmount)} - {formatCurrency(filters.maxAmount)}
+              {t('specialistLevelReport.filters.amountRange')}: {formatCurrency(filters.minAmount)} - {formatCurrency(filters.maxAmount)}
             </Label>
             <div className="space-y-3">
               <Slider
@@ -626,13 +624,13 @@ const SpecialistLevelReport = () => {
         <div className="px-6 py-4">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">لوحة تحكم الأخصائي</h1>
-              <p className="text-gray-600 mt-1">تحليل شامل لأداء أخصائي التحصيل</p>
+              <h1 className="text-3xl font-bold text-gray-900">{t('specialistLevelReport.title')}</h1>
+              <p className="text-gray-600 mt-1">{t('specialistLevelReport.subtitle')}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
                 <Select value={selectedSpecialist} onValueChange={setSelectedSpecialist}>
                   <SelectTrigger className="w-64">
-                    <SelectValue placeholder="اختر الأخصائي" />
+                    <SelectValue placeholder={t('specialistLevelReport.selectSpecialist')} />
                   </SelectTrigger>
                   <SelectContent>
                     {specialists.map(specialist => (
@@ -687,11 +685,11 @@ const SpecialistLevelReport = () => {
                 {view === 'analytics' && <Brain className="h-4 w-4 mr-2" />}
                 {view === 'timeline' && <Clock className="h-4 w-4 mr-2" />}
                 {view === 'reports' && <FileText className="h-4 w-4 mr-2" />}
-                {view === 'dashboard' && 'لوحة المعلومات'}
-                {view === 'portfolio' && 'المحفظة'}
-                {view === 'analytics' && 'التحليلات'}
-                {view === 'timeline' && 'الجدول الزمني'}
-                {view === 'reports' && 'التقارير'}
+                {view === 'dashboard' && t('specialistLevelReport.tabs.portfolio')}
+                {view === 'portfolio' && t('specialistLevelReport.tabs.portfolio')}
+                {view === 'analytics' && t('specialistLevelReport.tabs.activities')}
+                {view === 'timeline' && t('specialistLevelReport.tabs.collections')}
+                {view === 'reports' && t('specialistLevelReport.tabs.reports')}
               </Button>
             ))}
           </div>
@@ -708,23 +706,23 @@ const SpecialistLevelReport = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                   {[
                     { 
-                      title: 'إجمالي القروض', 
+                      title: t('specialistLevelReport.metrics.loansMissed'), 
                       value: reportData.kpis?.totalLoans || 0, 
                       change: '+12%', 
                       icon: CreditCard, 
                       color: 'blue',
-                      subValue: `${reportData.kpis?.overdueLoans || 0} متأخر`
+                      subValue: `${reportData.kpis?.overdueLoans || 0} ${t('specialistLevelReport.metrics.loansCount')}`
                     },
                     { 
-                      title: 'قيمة المحفظة', 
+                      title: t('specialistLevelReport.metrics.collectionValue'), 
                       value: formatCurrency(reportData.kpis?.totalPortfolioValue || 0), 
                       change: '+8%', 
                       icon: DollarSign, 
                       color: 'green',
-                      subValue: formatCurrency(reportData.kpis?.totalOverdueAmount || 0) + ' متأخر'
+                      subValue: formatCurrency(reportData.kpis?.totalOverdueAmount || 0)
                     },
                     { 
-                      title: 'معدل التحصيل', 
+                      title: t('specialistLevelReport.metrics.collectionRate'), 
                       value: `${reportData.kpis?.collectionRate || 0}%`, 
                       change: '+5%', 
                       icon: TrendingUp, 
@@ -732,7 +730,7 @@ const SpecialistLevelReport = () => {
                       progress: reportData.kpis?.collectionRate || 0
                     },
                     { 
-                      title: 'معدل الاستجابة', 
+                      title: t('specialistLevelReport.metrics.recoveryRate'), 
                       value: `${reportData.kpis?.averageResponseRate || 0}%`, 
                       change: '-2%', 
                       icon: PhoneCall, 
@@ -740,20 +738,20 @@ const SpecialistLevelReport = () => {
                       progress: reportData.kpis?.averageResponseRate || 0
                     },
                     { 
-                      title: 'وعود الدفع', 
+                      title: t('specialistLevelReport.metrics.promisesToPay'), 
                       value: reportData.kpis?.promisesToPay || 0, 
                       change: '+15%', 
                       icon: CheckCircle, 
                       color: 'orange',
-                      subValue: `${reportData.kpis?.promisesFulfilled || 0} محقق`
+                      subValue: `${reportData.kpis?.promisesFulfilled || 0} ${t('specialistLevelReport.metrics.achieved')}`
                     },
                     { 
-                      title: 'نشاط التواصل', 
+                      title: t('specialistLevelReport.metrics.followUps'), 
                       value: `${reportData.kpis?.callsMade || 0}`, 
                       change: '+0.3', 
                       icon: Users, 
                       color: 'pink',
-                      subValue: `${reportData.kpis?.messagesSent || 0} رسالة`
+                      subValue: `${reportData.kpis?.messagesSent || 0} ${t('specialistLevelReport.metrics.tasks')}`
                     }
                   ].map((kpi, index) => (
                     <Card key={index} className="hover:shadow-lg transition-all cursor-pointer">
@@ -794,7 +792,7 @@ const SpecialistLevelReport = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Activity className="h-5 w-5" />
-                        مؤشرات الأداء
+                        {t('specialistLevelReport.charts.performanceIndicators')}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -829,7 +827,7 @@ const SpecialistLevelReport = () => {
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                           <TrendingUp className="h-5 w-5" />
-                          اتجاهات التحصيل
+                          {t('specialistLevelReport.charts.collectionTrends')}
                         </CardTitle>
                         <div className="flex gap-2">
                           <Button variant="ghost" size="sm">يومي</Button>

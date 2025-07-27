@@ -681,5 +681,61 @@
       "quarterTarget": "هدف الربع",
       "annualGoal": "الهدف السنوي"
     }
+  },
+  "specialistLevelReport": {
+    "title": "لوحة تحكم الأخصائي",
+    "subtitle": "تحليل شامل لأداء أخصائي التحصيل",
+    "selectSpecialist": "اختر الأخصائي",
+    "advancedFilters": "الفلاتر المتقدمة",
+    "filters": {
+      "title": "الفلاتر المتقدمة",
+      "description": "خصص الفلاتر لتحسين البيانات",
+      "dateRange": "نطاق التاريخ",
+      "selectDateRange": "اختر نطاق التاريخ",
+      "productType": "نوع المنتج",
+      "allProducts": "جميع المنتجات",
+      "bucketRange": "نطاق الفئة",
+      "allBuckets": "جميع الفئات",
+      "customerSegment": "شريحة العملاء",
+      "allSegments": "جميع الشرائح",
+      "collectionMethod": "طريقة التحصيل",
+      "allMethods": "جميع الطرق",
+      "applyFilters": "تطبيق الفلاتر",
+      "resetFilters": "إعادة تعيين الفلاتر",
+      "quickSettings": "إعدادات سريعة",
+      "amountRange": "نطاق المبلغ",
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "last7Days": "آخر 7 أيام",
+      "currentMonth": "الشهر الحالي",
+      "lastMonth": "الشهر الماضي",
+      "currentQuarter": "الربع الحالي",
+      "currentYear": "السنة الحالية",
+      "custom": "مخصص"
+    },
+    "tabs": {
+      "portfolio": "معلومات المحفظة",
+      "activities": "الأنشطة",
+      "collections": "التحصيلات",
+      "reports": "التقارير"
+    },
+    "metrics": {
+      "loansMissed": "إجمالي القروض",
+      "loansCount": "قرض",
+      "collectionValue": "قيمة المحفظة",
+      "collectionRate": "معدل التحصيل",
+      "recoveryRate": "معدل الاستجابة",
+      "achieved": "محقق",
+      "promisesToPay": "وعود الدفع",
+      "promises": "وعد",
+      "followUps": "نشاط التواصل",
+      "tasks": "مهمة"
+    },
+    "charts": {
+      "performanceIndicators": "مؤشرات الأداء",
+      "collectionTrends": "اتجاهات التحصيل",
+      "collection": "التحصيل",
+      "recovery": "الاستجابة"
+    }
   }
 }
