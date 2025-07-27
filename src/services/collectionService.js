@@ -52,35 +52,35 @@ export class CollectionService {
 
       // Build query
       let query = supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+        .from('kastle_collection.collection_cases')
         .select(`
           *,
-          loan_accounts!loan_account_number (
+          kastle_banking.loan_accounts!loan_account_number (
             loan_amount,
             outstanding_balance,
             overdue_amount,
             overdue_days,
             product_id,
-            products!product_id (
+            kastle_banking.products!product_id (
               product_name,
               product_type
             )
           ),
-          customers!customer_id (
+          kastle_banking.customers!customer_id (
             full_name,
             customer_type,
-            customer_contacts!customer_id (
+            kastle_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
           ),
-          collection_officers!assigned_to (
+          kastle_collection.collection_officers!assigned_to (
             officer_name,
             officer_type,
             team_id,
             contact_number
           ),
-          collection_buckets!bucket_id (
+          kastle_collection.collection_buckets!bucket_id (
             bucket_name,
             min_days,
             max_days
@@ -89,7 +89,7 @@ export class CollectionService {
 
       // Apply filters
       if (search) {
-        query = query.or(`case_number.ilike.%${search}%,customers.full_name.ilike.%${search}%,loan_account_number.ilike.%${search}%`);
+        query = query.or(`case_number.ilike.%${search}%,kastle_banking.customers.full_name.ilike.%${search}%,loan_account_number.ilike.%${search}%`);
       }
 
       if (status && status !== 'all') {
@@ -149,13 +149,13 @@ export class CollectionService {
       const enrichedData = await Promise.all((data || []).map(async (caseItem) => {
         // Get interaction count for this case
         const { count: interactionCount } = await supabaseCollection
-          .from(TABLES.COLLECTION_INTERACTIONS)
+          .from('kastle_collection.collection_interactions')
           .select('interaction_id', { count: 'exact', head: true })
           .eq('case_id', caseItem.case_id);
 
         // Get promise to pay status
         const { data: activePTP } = await supabaseCollection
-          .from(TABLES.PROMISE_TO_PAY)
+          .from('kastle_collection.promise_to_pay')
           .select('ptp_id, ptp_date, ptp_amount')
           .eq('case_id', caseItem.case_id)
           .eq('status', 'ACTIVE')
@@ -208,21 +208,21 @@ export class CollectionService {
     try {
       // Get case info with all related data
       const { data: caseData, error: caseError } = await supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+        .from('kastle_collection.collection_cases')
         .select(`
           *,
-          loan_accounts!loan_account_number (
+          kastle_banking.loan_accounts!loan_account_number (
             *,
-            products!product_id (*)
+            kastle_banking.products!product_id (*)
           ),
-          customers!customer_id (
+          kastle_banking.customers!customer_id (
             *,
-            customer_contacts!customer_id (*),
-            customer_addresses!customer_id (*)
+            kastle_banking.customer_contacts!customer_id (*),
+            kastle_banking.customer_addresses!customer_id (*)
           ),
-          collection_officers!assigned_to (*),
-          collection_strategies!strategy_id (*),
-          collection_buckets!bucket_id (*)
+          kastle_collection.collection_officers!assigned_to (*),
+          kastle_collection.collection_strategies!strategy_id (*),
+          kastle_collection.collection_buckets!bucket_id (*)
         `)
         .eq('case_id', caseId)
         .single();
@@ -231,10 +231,10 @@ export class CollectionService {
 
       // Get interactions
       const { data: interactions, error: interactionsError } = await supabaseCollection
-        .from(TABLES.COLLECTION_INTERACTIONS)
+        .from('kastle_collection.collection_interactions')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name,
             officer_type
           )
@@ -244,10 +244,10 @@ export class CollectionService {
 
       // Get promises to pay
       const { data: promisesToPay, error: ptpError } = await supabaseCollection
-        .from(TABLES.PROMISE_TO_PAY)
+        .from('kastle_collection.promise_to_pay')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name
           )
         `)
@@ -256,10 +256,10 @@ export class CollectionService {
 
       // Get field visits
       const { data: fieldVisits, error: visitsError } = await supabaseCollection
-        .from(TABLES.FIELD_VISITS)
+        .from('kastle_collection.field_visits')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name
           )
         `)
@@ -268,14 +268,14 @@ export class CollectionService {
 
       // Get legal case if exists
       const { data: legalCase, error: legalError } = await supabaseCollection
-        .from(TABLES.LEGAL_CASES)
+        .from('kastle_collection.legal_cases')
         .select('*')
         .eq('case_id', caseId)
         .single();
 
       // Get payment history
       const { data: payments, error: paymentsError } = await supabaseBanking
-        .from('transactions')
+        .from('kastle_banking.transactions')
         .select('*')
         .eq('account_number', caseData?.account_number)
         .eq('transaction_type_id', 'LOAN_REPAYMENT')
@@ -284,7 +284,7 @@ export class CollectionService {
 
       // Get collection score history
       const { data: scoreHistory, error: scoreError } = await supabaseCollection
-        .from(TABLES.COLLECTION_SCORES)
+        .from('kastle_collection.collection_scores')
         .select('*')
         .eq('case_id', caseId)
         .order('score_date', { ascending: false })
@@ -323,7 +323,7 @@ export class CollectionService {
 
       // Build base query for cases
       let casesQuery = supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+        .from('kastle_collection.collection_cases')
         .select('case_id, total_outstanding, days_past_due, case_status, priority, bucket_id, assigned_to');
 
       // Apply filters
@@ -347,7 +347,7 @@ export class CollectionService {
       let filteredCases = cases || [];
       if (team && team !== 'all') {
         const { data: teamOfficers } = await supabaseCollection
-          .from(TABLES.COLLECTION_OFFICERS)
+          .from('kastle_collection.collection_officers')
           .select('officer_id')
           .eq('team_id', team);
         
@@ -366,7 +366,7 @@ export class CollectionService {
       startOfMonth.setHours(0, 0, 0, 0);
 
       const { data: monthlyRecovery } = await supabaseCollection
-        .from(TABLES.DAILY_COLLECTION_SUMMARY)
+        .from('kastle_collection.daily_collection_summary')
         .select('total_collected')
         .gte('summary_date', startOfMonth.toISOString().split('T')[0]);
 
@@ -375,7 +375,7 @@ export class CollectionService {
 
       // Get bucket distribution
       const { data: buckets } = await supabaseCollection
-        .from(TABLES.COLLECTION_BUCKETS)
+        .from('kastle_collection.collection_buckets')
         .select('bucket_id, bucket_name, min_days, max_days');
 
       const bucketDistribution = buckets?.map(bucket => {
@@ -424,11 +424,11 @@ export class CollectionService {
 
       // Get team performance
       const { data: teams } = await supabaseCollection
-        .from(TABLES.COLLECTION_TEAMS)
+        .from('kastle_collection.collection_teams')
         .select(`
           team_id,
           team_name,
-          collection_officers!team_id (
+          kastle_collection.collection_officers!team_id (
             officer_id,
             officer_name
           )
@@ -440,7 +440,7 @@ export class CollectionService {
         
         // Get team recovery
         const { data: teamRecovery } = await supabaseCollection
-          .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
+          .from('kastle_collection.officer_performance_summary')
           .select('total_collected')
           .in('officer_id', teamOfficerIds)
           .gte('summary_date', startOfMonth.toISOString().split('T')[0]);
@@ -515,7 +515,7 @@ export class CollectionService {
 
       // Get daily summaries
       const { data: dailySummaries, error: summaryError } = await supabaseCollection
-        .from(TABLES.DAILY_COLLECTION_SUMMARY)
+        .from('kastle_collection.daily_collection_summary')
         .select('*')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -525,10 +525,10 @@ export class CollectionService {
 
       // Get top officers performance
       const { data: officerPerformance, error: officersError } = await supabaseCollection
-        .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
+        .from('kastle_collection.officer_performance_summary')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name,
             officer_type,
             team_id,
@@ -543,17 +543,17 @@ export class CollectionService {
 
       // Get team comparison
       const { data: teams, error: teamsError } = await supabaseCollection
-        .from(TABLES.COLLECTION_TEAMS)
+        .from('kastle_collection.collection_teams')
         .select('*');
 
       const teamComparison = await Promise.all((teams || []).map(async (team) => {
         const { data: teamData } = await supabaseCollection
-          .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
+          .from('kastle_collection.officer_performance_summary')
           .select('total_collected, total_cases, contact_rate')
           .eq('summary_date', endDate.toISOString().split('T')[0])
           .in('officer_id', 
             supabaseCollection
-              .from(TABLES.COLLECTION_OFFICERS)
+              .from('kastle_collection.collection_officers')
               .select('officer_id')
               .eq('team_id', team.team_id)
           );
@@ -576,7 +576,7 @@ export class CollectionService {
 
       // Get campaign effectiveness
       const { data: campaigns, error: campaignsError } = await supabaseCollection
-        .from(TABLES.COLLECTION_CAMPAIGNS)
+        .from('kastle_collection.collection_campaigns')
         .select('*')
         .in('status', ['ACTIVE', 'COMPLETED'])
         .order('created_at', { ascending: false })
@@ -584,7 +584,7 @@ export class CollectionService {
 
       // Get channel performance
       const { data: channelPerformance } = await supabaseCollection
-        .from(TABLES.DIGITAL_COLLECTION_ATTEMPTS)
+        .from('kastle_collection.digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -679,7 +679,7 @@ export class CollectionService {
       startDate.setMonth(startDate.getMonth() - (period === 'daily' ? 1 : period === 'weekly' ? 3 : 12));
 
       const { data: trends, error: trendsError } = await supabaseCollection
-        .from(TABLES.DAILY_COLLECTION_SUMMARY)
+        .from('kastle_collection.daily_collection_summary')
         .select('summary_date, total_collected, collection_rate, calls_made, ptps_created, ptps_kept')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -689,14 +689,14 @@ export class CollectionService {
 
       // Get bucket movement analysis
       const { data: bucketMovements, error: bucketError } = await supabaseCollection
-        .from(TABLES.CASE_BUCKET_HISTORY)
+        .from('kastle_collection.case_bucket_history')
         .select(`
           from_bucket_id,
           to_bucket_id,
           movement_date,
           case_count,
           total_amount,
-          collection_buckets!from_bucket_id (
+          kastle_collection.collection_buckets!from_bucket_id (
             bucket_name
           )
         `)
@@ -705,7 +705,7 @@ export class CollectionService {
 
       // Get PTP analysis
       const { data: ptpData, error: ptpError } = await supabaseCollection
-        .from(TABLES.PROMISE_TO_PAY)
+        .from('kastle_collection.promise_to_pay')
         .select('status, ptp_amount, created_at, kept_date, broken_date')
         .gte('created_at', startDate.toISOString());
 
@@ -721,7 +721,7 @@ export class CollectionService {
 
       // Channel effectiveness from digital attempts
       const { data: digitalAttempts } = await supabaseCollection
-        .from(TABLES.DIGITAL_COLLECTION_ATTEMPTS)
+        .from('kastle_collection.digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount, response_received')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -828,7 +828,7 @@ export class CollectionService {
         case 'summary':
           // Get overall collection summary
           const { data: summary } = await supabaseCollection
-            .from(TABLES.DAILY_COLLECTION_SUMMARY)
+            .from('kastle_collection.daily_collection_summary')
             .select('*')
             .gte('summary_date', startDate.toISOString().split('T')[0])
             .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -852,7 +852,7 @@ export class CollectionService {
         case 'detailed':
           // Get detailed collection data by officer
           const { data: officerData } = await supabaseCollection
-            .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
+            .from('kastle_collection.officer_performance_summary')
             .select(`
               *,
               collection_officers (
@@ -876,7 +876,7 @@ export class CollectionService {
         case 'bucket':
           // Get collection by bucket
           const { data: bucketData } = await supabaseCollection
-            .from(TABLES.COLLECTION_CASES)
+            .from('kastle_collection.collection_cases')
             .select(`
               bucket_id,
               total_outstanding,
@@ -923,7 +923,7 @@ export class CollectionService {
         case 'team':
           // Get collection by team
           const { data: teams } = await supabaseCollection
-            .from(TABLES.COLLECTION_TEAMS)
+            .from('kastle_collection.collection_teams')
             .select(`
               *,
               collection_officers (
@@ -936,7 +936,7 @@ export class CollectionService {
             const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
             
             const { data: teamData } = await supabaseCollection
-              .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
+              .from('kastle_collection.officer_performance_summary')
               .select('total_collected, total_cases, contact_rate')
               .in('officer_id', officerIds)
               .gte('summary_date', startDate.toISOString().split('T')[0])
@@ -1001,7 +1001,7 @@ export class CollectionService {
       }
 
       const { data: officerPerformance, error: officersError } = await supabaseCollection
-        .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
+        .from('kastle_collection.officer_performance_summary')
         .select(`
           *,
           collection_officers (
@@ -1052,7 +1052,7 @@ export class CollectionService {
       }
 
       const { data: teams, error: teamsError } = await supabaseCollection
-        .from(TABLES.COLLECTION_TEAMS)
+        .from('kastle_collection.collection_teams')
         .select(`
           *,
           collection_officers (
@@ -1067,7 +1067,7 @@ export class CollectionService {
         const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
         
         const { data: teamData } = await supabaseCollection
-          .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
+          .from('kastle_collection.officer_performance_summary')
           .select('total_collected, total_cases, contact_rate, ptp_rate')
           .in('officer_id', officerIds)
           .gte('summary_date', startDate.toISOString().split('T')[0])
@@ -1112,7 +1112,7 @@ export class CollectionService {
       const { teamId, officerType, status = 'ACTIVE' } = filters;
 
       let query = supabaseCollection
-        .from(TABLES.COLLECTION_OFFICERS)
+        .from('kastle_collection.collection_officers')
         .select(`
           *,
           collection_teams (
@@ -1150,7 +1150,7 @@ export class CollectionService {
   static async getSpecialists() {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_OFFICERS)
+        .from('kastle_collection.collection_officers')
         .select(`
           officer_id, 
           officer_name, 
@@ -1192,7 +1192,7 @@ export class CollectionService {
 
       // Get specialist info
       const { data: specialist, error: specialistError } = await supabaseCollection
-        .from(TABLES.COLLECTION_OFFICERS)
+        .from('kastle_collection.collection_officers')
         .select('*')
         .eq('officer_id', specialistId)
         .single();
@@ -1201,16 +1201,16 @@ export class CollectionService {
 
       // Get cases assigned to specialist with all loan details
       let casesQuery = supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+        .from('kastle_collection.collection_cases')
         .select(`
           *,
-          loan_accounts!loan_account_number (
+          kastle_banking.loan_accounts!loan_account_number (
             *,
-            products!product_id (
+            kastle_banking.products!product_id (
               product_name,
               product_type
             ),
-            loan_schedules!loan_account_number (
+            kastle_banking.loan_schedules!loan_account_number (
               installment_number,
               due_date,
               principal_amount,
@@ -1220,11 +1220,11 @@ export class CollectionService {
               status
             )
           ),
-          customers!customer_id (
+          kastle_banking.customers!customer_id (
             full_name,
             customer_type,
             national_id,
-            customer_contacts!customer_id (
+            kastle_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
@@ -1245,10 +1245,10 @@ export class CollectionService {
 
       // Get communication logs for the specialist
       const { data: communicationLogs, error: commError } = await supabaseCollection
-        .from(TABLES.COLLECTION_INTERACTIONS)
+        .from('kastle_collection.collection_interactions')
         .select(`
           *,
-          collection_cases!case_id (
+          kastle_collection.collection_cases!case_id (
             loan_account_number,
             customer_id
           )
@@ -1259,13 +1259,13 @@ export class CollectionService {
 
       // Get promises to pay
       const { data: promisesToPay, error: ptpError } = await supabaseCollection
-        .from(TABLES.PROMISE_TO_PAY)
+        .from('kastle_collection.promise_to_pay')
         .select(`
           *,
-          collection_cases!case_id (
+          kastle_collection.collection_cases!case_id (
             loan_account_number,
             customer_id,
-            customers!customer_id (
+            kastle_banking.customers!customer_id (
               full_name
             )
           )
@@ -1441,7 +1441,7 @@ export class CollectionService {
   static async createCollectionCase(caseData) {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+        .from('kastle_collection.collection_cases')
         .insert([{
           ...caseData,
           case_number: `CASE-${Date.now()}`,
@@ -1455,7 +1455,7 @@ export class CollectionService {
 
       // Create initial collection score
       await supabaseCollection
-        .from(TABLES.COLLECTION_SCORES)
+        .from('kastle_collection.collection_scores')
         .insert([{
           case_id: data.case_id,
           score_date: new Date().toISOString(),
@@ -1477,7 +1477,7 @@ export class CollectionService {
   static async updateCollectionCase(caseId, updates) {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+        .from('kastle_collection.collection_cases')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -1501,7 +1501,7 @@ export class CollectionService {
   static async logInteraction(interactionData) {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_INTERACTIONS)
+        .from('kastle_collection.collection_interactions')
         .insert([{
           ...interactionData,
           interaction_datetime: new Date().toISOString()
@@ -1529,7 +1529,7 @@ export class CollectionService {
   static async createPromiseToPay(ptpData) {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.PROMISE_TO_PAY)
+        .from('kastle_collection.promise_to_pay')
         .insert([{
           ...ptpData,
           status: 'ACTIVE',
@@ -1564,7 +1564,7 @@ export class CollectionService {
       }
 
       const { data, error } = await supabaseCollection
-        .from(TABLES.PROMISE_TO_PAY)
+        .from('kastle_collection.promise_to_pay')
         .update(updateData)
         .eq('ptp_id', ptpId)
         .select()
@@ -1585,7 +1585,7 @@ export class CollectionService {
   static async scheduleFieldVisit(visitData) {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.FIELD_VISITS)
+        .from('kastle_collection.field_visits')
         .insert([{
           ...visitData,
           status: 'SCHEDULED',
@@ -1761,7 +1761,7 @@ export class CollectionService {
   static async getTeams() {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_TEAMS)
+        .from('kastle_collection.collection_teams')
         .select('*')
         .order('team_name');
 
@@ -1780,7 +1780,7 @@ export class CollectionService {
   static async getStrategies() {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_STRATEGIES)
+        .from('kastle_collection.collection_strategies')
         .select('*')
         .eq('is_active', true)
         .order('strategy_name');
@@ -1800,7 +1800,7 @@ export class CollectionService {
   static async getBuckets() {
     try {
       const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_BUCKETS)
+        .from('kastle_collection.collection_buckets')
         .select('*')
         .order('min_days');
 

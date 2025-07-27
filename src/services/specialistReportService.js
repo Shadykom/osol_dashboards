@@ -1,4 +1,4 @@
-import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
+import { supabaseBanking } from '@/lib/supabase';
 
 /**
  * خدمة تقرير مستوى الأخصائي
@@ -12,8 +12,8 @@ class SpecialistReportService {
   async getSpecialists() {
     try {
       // جلب البيانات من جدول collection_officers
-      const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_OFFICERS)
+      const { data, error } = await supabaseBanking
+        .from('kastle_collection.collection_officers')
         .select(`
           officer_id,
           officer_name,
@@ -21,10 +21,13 @@ class SpecialistReportService {
           team_id,
           contact_number,
           email,
-          status
+          status,
+          collection_teams!team_id (
+            team_name,
+            team_type
+          )
         `)
         .eq('status', 'ACTIVE')
-        .in('officer_type', ['CALL_AGENT', 'FIELD_AGENT', 'SENIOR_COLLECTOR', 'TEAM_LEAD'])
         .order('officer_name');
 
       if (error) {
@@ -32,30 +35,9 @@ class SpecialistReportService {
         throw error;
       }
 
-      // جلب بيانات الفرق
-      const { data: teamsData, error: teamsError } = await supabaseBanking
-        .from('collection_teams')
-        .select('team_id, team_name, team_type');
-
-      if (teamsError) {
-        console.error('Error fetching teams:', teamsError);
-      }
-
-      // دمج بيانات الفرق مع بيانات الأخصائيين
-      const specialistsWithTeams = (data || []).map(specialist => {
-        const team = teamsData?.find(t => t.team_id === specialist.team_id);
-        return {
-          ...specialist,
-          collection_teams: team ? {
-            team_name: team.team_name,
-            team_type: team.team_type
-          } : null
-        };
-      });
-
       return {
         success: true,
-        data: specialistsWithTeams,
+        data: data || [],
         error: null
       };
     } catch (error) {
@@ -135,12 +117,22 @@ class SpecialistReportService {
    */
   async getSpecialistById(specialistId) {
     try {
-      const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_OFFICERS)
+      const { data, error } = await supabaseBanking
+        .from('kastle_collection.collection_officers')
         .select(`
-          *,
-          collection_teams!team_id (
-            team_id,
+          officer_id,
+          officer_name,
+          officer_type,
+          team_id,
+          contact_number,
+          email,
+          status,
+          language_skills,
+          collection_limit,
+          commission_rate,
+          joining_date,
+          last_active,
+          kastle_collection.collection_teams (
             team_name,
             team_type,
             team_lead_id
@@ -152,27 +144,6 @@ class SpecialistReportService {
       if (error) {
         console.error('Error fetching specialist by ID:', error);
         throw error;
-      }
-
-      // جلب بيانات الفريق
-      if (data && data.team_id) {
-        const { data: teamData, error: teamError } = await supabaseBanking
-          .from('collection_teams')
-          .select('team_id, team_name, team_type, team_lead_id')
-          .eq('team_id', data.team_id)
-          .single();
-
-        if (teamError) {
-          console.error('Error fetching team:', teamError);
-        }
-
-        if (teamData) {
-          data.collection_teams = {
-            team_name: teamData.team_name,
-            team_type: teamData.team_type,
-            team_lead_id: teamData.team_lead_id
-          };
-        }
       }
 
       return {
@@ -200,25 +171,48 @@ class SpecialistReportService {
   async getSpecialistLoans(specialistId, filters = {}) {
     try {
       // جلب الحالات المخصصة للأخصائي من جدول collection_cases
-      let query = supabaseCollection
+      let query = supabaseBanking
         .from('kastle_collection.collection_cases')
         .select(`
-          *,
-          loan_accounts!loan_account_number (
-            *,
-            products!product_id (
+          case_id,
+          case_number,
+          customer_id,
+          loan_account_number,
+          priority,
+          case_status,
+          assignment_date,
+          total_outstanding,
+          total_overdue,
+          dpd,
+          bucket_id,
+          last_payment_date,
+          last_payment_amount,
+          last_contact_date,
+          next_action_date,
+          kastle_banking.loan_accounts!loan_account_number (
+            loan_amount,
+            outstanding_balance,
+            overdue_amount,
+            overdue_days,
+            loan_status,
+            product_id,
+            loan_start_date,
+            maturity_date,
+            kastle_banking.products!product_id (
               product_name,
               product_type
             )
           ),
-          customers!customer_id (
-            *,
-            customer_contacts!customer_id (
+          kastle_banking.customers!customer_id (
+            full_name,
+            customer_type,
+            national_id,
+            kastle_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
           ),
-          collection_buckets!bucket_id (
+          kastle_collection.collection_buckets!bucket_id (
             bucket_name,
             min_days,
             max_days
@@ -367,16 +361,20 @@ class SpecialistReportService {
       const dateTo = new Date();
       
       // جلب تفاعلات الأخصائي
-      const { data: interactions, error } = await supabaseCollection
+      const { data: interactions, error } = await supabaseBanking
         .from('kastle_collection.collection_interactions')
         .select(`
-          *,
-          collection_cases!case_id (
-            customer_id,
-            customers!customer_id (
-              full_name
-            )
-          )
+          interaction_id,
+          interaction_type,
+          interaction_direction,
+          interaction_datetime,
+          interaction_status,
+          duration_seconds,
+          outcome,
+          promise_to_pay,
+          ptp_amount,
+          ptp_date,
+          notes
         `)
         .eq('officer_id', specialistId)
         .gte('interaction_datetime', dateFrom.toISOString())
@@ -500,15 +498,22 @@ class SpecialistReportService {
     try {
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data, error } = await supabaseCollection
+      const { data, error } = await supabaseBanking
         .from('kastle_collection.promise_to_pay')
         .select(`
-          *,
-          collection_cases!case_id (
+          ptp_id,
+          case_id,
+          ptp_date,
+          ptp_amount,
+          status,
+          actual_payment_date,
+          actual_payment_amount,
+          created_at,
+          kastle_collection.collection_cases!case_id (
             case_number,
             customer_id,
             loan_account_number,
-            customers!customer_id (
+            kastle_banking.customers!customer_id (
               full_name,
               customer_type
             )
@@ -560,7 +565,7 @@ class SpecialistReportService {
       // جلب بيانات الأداء من جدول officer_performance_metrics إذا كان موجوداً
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data: performanceData, error } = await supabaseCollection
+      const { data: performanceData, error } = await supabaseBanking
         .from('kastle_collection.officer_performance_metrics')
         .select(`
           metric_date,
@@ -1038,13 +1043,15 @@ class SpecialistReportService {
   async generateTimeline(specialistId, dateRange) {
     try {
       // جلب آخر التفاعلات
-      const { data: recentInteractions } = await supabaseCollection
+      const { data: recentInteractions } = await supabaseBanking
         .from('kastle_collection.collection_interactions')
         .select(`
-          *,
-          collection_cases!case_id (
+          interaction_type,
+          interaction_datetime,
+          outcome,
+          kastle_collection.collection_cases!case_id (
             customer_id,
-            customers!customer_id (
+            kastle_banking.customers!customer_id (
               full_name
             )
           )
@@ -1300,4 +1307,3 @@ class SpecialistReportService {
 const specialistReportService = new SpecialistReportService();
 
 export default specialistReportService;
-
