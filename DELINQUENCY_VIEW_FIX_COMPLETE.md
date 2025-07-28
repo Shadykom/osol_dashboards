@@ -26,8 +26,12 @@ Modified `src/pages/DelinquencyExecutiveDashboard.tsx`:
 Execute this in your Supabase SQL Editor:
 
 ```sql
--- Execute the contents of fix_delinquency_view_data.sql
+-- Execute the contents of fix_delinquency_view_data_corrected.sql
 ```
+
+**Important**: The script has been corrected to match the actual table structures:
+- `portfolio_summary` only has `created_at` (no `updated_at`)
+- `collection_rates` has different columns than initially expected
 
 This will:
 1. Insert current month's portfolio summary

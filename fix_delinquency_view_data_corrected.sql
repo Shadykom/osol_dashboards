@@ -1,5 +1,12 @@
 -- Fix for executive_delinquency_summary view data
 -- This view depends on portfolio_summary and collection_rates tables
+-- 
+-- Table structures:
+-- portfolio_summary: id, snapshot_date, total_portfolio_value, total_delinquent_value, 
+--                   delinquency_rate, total_loans, delinquent_loans, created_at
+-- collection_rates: id, period_type, period_date, total_delinquent_amount, 
+--                  total_collected_amount, collection_rate, number_of_accounts, 
+--                  number_of_accounts_collected, created_at
 
 -- First, ensure portfolio_summary table has recent data
 INSERT INTO kastle_banking.portfolio_summary (
@@ -9,8 +16,7 @@ INSERT INTO kastle_banking.portfolio_summary (
     delinquency_rate,
     total_loans,
     delinquent_loans,
-    created_at,
-    updated_at
+    created_at
 )
 SELECT 
     CURRENT_DATE,
@@ -19,7 +25,6 @@ SELECT
     5.0,           -- 5% delinquency rate
     1250,          -- Total loans
     63,            -- Delinquent loans
-    NOW(),
     NOW()
 WHERE NOT EXISTS (
     SELECT 1 FROM kastle_banking.portfolio_summary 
@@ -34,8 +39,7 @@ INSERT INTO kastle_banking.portfolio_summary (
     delinquency_rate,
     total_loans,
     delinquent_loans,
-    created_at,
-    updated_at
+    created_at
 )
 SELECT 
     date_trunc('month', CURRENT_DATE - INTERVAL '1 month' * n)::date AS snapshot_date,
@@ -44,8 +48,7 @@ SELECT
     5.2 - (n * 0.1) AS delinquency_rate,  -- Improving delinquency rate
     1250 - (n * 10) AS total_loans,
     63 - n AS delinquent_loans,
-    NOW() AS created_at,
-    NOW() AS updated_at
+    NOW() AS created_at
 FROM generate_series(1, 12) AS n
 WHERE NOT EXISTS (
     SELECT 1 FROM kastle_banking.portfolio_summary 
@@ -56,22 +59,22 @@ WHERE NOT EXISTS (
 INSERT INTO kastle_banking.collection_rates (
     period_date,
     period_type,
+    total_delinquent_amount,
+    total_collected_amount,
     collection_rate,
-    target_rate,
-    amount_collected,
-    amount_due,
-    created_at,
-    updated_at
+    number_of_accounts,
+    number_of_accounts_collected,
+    created_at
 )
 SELECT 
     date_trunc('month', CURRENT_DATE - INTERVAL '1 month' * n)::date AS period_date,
     'MONTHLY' AS period_type,
+    85000000 + (random() * 5000000) AS total_delinquent_amount,  -- Amount that was delinquent
+    65000000 + (random() * 10000000) AS total_collected_amount,  -- Amount collected
     75 + (random() * 10) AS collection_rate,  -- 75-85% collection rate
-    80 AS target_rate,
-    65000000 + (random() * 10000000) AS amount_collected,
-    85000000 + (random() * 5000000) AS amount_due,
-    NOW() AS created_at,
-    NOW() AS updated_at
+    63 - n AS number_of_accounts,  -- Number of delinquent accounts
+    50 - n AS number_of_accounts_collected,  -- Number of accounts that paid
+    NOW() AS created_at
 FROM generate_series(0, 12) AS n
 WHERE NOT EXISTS (
     SELECT 1 FROM kastle_banking.collection_rates 
