@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useDataRefresh } from '@/hooks/useDataRefresh';
 // Table components will be implemented inline
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -17,7 +18,7 @@ import {
 import { 
   MapPin, Navigation, Users, DollarSign, Clock, AlertTriangle,
   CheckCircle, Calendar, Route, Phone, Car, Shield, TrendingUp,
-  Activity, Target, Home, Timer, Camera, FileText, UserCheck, Star
+  Activity, Target, Home, Timer, Camera, FileText, UserCheck, Star, RefreshCw
 } from 'lucide-react';
 
 const FieldCollectionDashboard = () => {
@@ -27,8 +28,8 @@ const FieldCollectionDashboard = () => {
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [mapView, setMapView] = useState('heat');
   
-  // Mock data for field collection
-  const fieldMetrics = {
+  // Initialize field metrics state
+  const [fieldMetrics, setFieldMetrics] = useState({
     summary: {
       totalVisitsScheduled: 145,
       visitsCompleted: 98,
@@ -143,7 +144,38 @@ const FieldCollectionDashboard = () => {
       totalExpenses: 8920,
       costPerCollection: 145
     }
+  });
+
+  // Simulate data fetching
+  const fetchFieldData = async () => {
+    // In a real app, this would be an API call
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Simulate real-time updates to agent locations and visit status
+        setFieldMetrics(prev => ({
+          ...prev,
+          summary: {
+            ...prev.summary,
+            visitsCompleted: prev.summary.visitsCompleted + Math.floor(Math.random() * 2),
+            visitsInProgress: Math.max(0, prev.summary.visitsInProgress + Math.floor(Math.random() * 3) - 1),
+            totalAmountCollected: prev.summary.totalAmountCollected + Math.floor(Math.random() * 50000)
+          }
+        }));
+        resolve();
+      }, 800);
+    });
   };
+
+  // Use the data refresh hook
+  const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
+    fetchFieldData,
+    [selectedDate, selectedAgent, selectedRegion], // Refresh when filters change
+    {
+      refreshOnMount: true,
+      refreshInterval: 30000, // Auto-refresh every 30 seconds for real-time tracking
+      showNotification: false // Don't show notification for auto-refresh
+    }
+  );
 
   const upcomingVisits = [
     {
@@ -282,7 +314,19 @@ const FieldCollectionDashboard = () => {
           <h1 className="text-3xl font-bold text-gray-900">Field Collection Dashboard</h1>
           <p className="text-gray-600 mt-1">Monitor and manage field collection activities</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Badge variant="outline" className="text-xs">
+            Last updated: {lastRefreshed ? lastRefreshed.toLocaleTimeString() : 'Loading...'}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Select value={selectedRegion} onValueChange={setSelectedRegion}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Select Region" />

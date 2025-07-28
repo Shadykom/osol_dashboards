@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDataRefresh } from '@/hooks/useDataRefresh';
 import { 
   LayoutGrid, Save, RefreshCw, Settings, Plus, X, Eye, Filter,
   TrendingUp, Users, DollarSign, CreditCard, PiggyBank, Activity,
@@ -901,7 +902,6 @@ export default function EnhancedDashboard() {
   
   // State Management
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [widgets, setWidgets] = useState([]);
   const [widgetData, setWidgetData] = useState({});
   const [selectedSection, setSelectedSection] = useState('overview');
@@ -922,85 +922,6 @@ export default function EnhancedDashboard() {
   
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const refreshInterval = useRef(null);
-
-  // Initialize dashboard with default data
-  useEffect(() => {
-    const initializeDashboard = async () => {
-      // Fix authentication and seed data if needed
-      try {
-        await fixDashboard();
-      } catch (error) {
-        console.error('Error fixing dashboard:', error);
-      }
-      
-      await loadDashboardConfig();
-      await fetchDashboardData();
-    };
-    
-    initializeDashboard();
-  }, []);
-
-  // Auto-refresh logic
-  useEffect(() => {
-    if (autoRefresh) {
-      refreshInterval.current = setInterval(() => {
-        fetchDashboardData();
-      }, 30000); // 30 seconds
-    }
-    
-    return () => {
-      if (refreshInterval.current) {
-        clearInterval(refreshInterval.current);
-      }
-    };
-  }, [autoRefresh]);
-
-  // Load saved dashboard configuration
-  const loadDashboardConfig = async () => {
-    const savedConfig = localStorage.getItem('kastle_dashboard_config');
-    if (savedConfig) {
-      try {
-        const config = JSON.parse(savedConfig);
-        setWidgets(config.widgets || []);
-        setSelectedTemplate(config.template);
-      } catch (error) {
-        console.error('Error loading saved config:', error);
-        await loadTemplate('executive');
-      }
-    } else {
-      // Load default template
-      await loadTemplate('executive');
-    }
-  };
-
-  // Save dashboard configuration
-  const saveDashboardConfig = () => {
-    const config = {
-      widgets,
-      template: selectedTemplate,
-      savedAt: new Date().toISOString()
-    };
-    localStorage.setItem('kastle_dashboard_config', JSON.stringify(config));
-    toast.success('Dashboard saved successfully');
-  };
-
-  // Load template
-  const loadTemplate = async (templateId) => {
-    const template = DASHBOARD_TEMPLATES[templateId];
-    if (!template) return;
-    
-    setWidgets(template.widgets);
-    setSelectedTemplate(templateId);
-    setShowTemplates(false);
-    
-    // Fetch data for new widgets
-    setTimeout(() => {
-      fetchDashboardData();
-    }, 100);
-    
-    toast.success(`${template.nameEn} loaded`);
-  };
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
@@ -1048,11 +969,84 @@ export default function EnhancedDashboard() {
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error('Error loading dashboard data');
+      toast.error('Failed to fetch dashboard data');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
+  };
+
+  // Use the data refresh hook
+  const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
+    fetchDashboardData,
+    [filters], // Refresh when filters change
+    {
+      refreshOnMount: false, // We'll handle initial load separately
+      refreshInterval: autoRefresh ? 30000 : null, // Auto-refresh every 30 seconds if enabled
+      showNotification: false
+    }
+  );
+
+  // Initialize dashboard with default data
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      // Fix authentication and seed data if needed
+      try {
+        await fixDashboard();
+      } catch (error) {
+        console.error('Error fixing dashboard:', error);
+      }
+      
+      await loadDashboardConfig();
+      await fetchDashboardData();
+    };
+    
+    initializeDashboard();
+  }, []);
+
+  // Load saved dashboard configuration
+  const loadDashboardConfig = async () => {
+    const savedConfig = localStorage.getItem('kastle_dashboard_config');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        setWidgets(config.widgets || []);
+        setSelectedTemplate(config.template);
+      } catch (error) {
+        console.error('Error loading saved config:', error);
+        await loadTemplate('executive');
+      }
+    } else {
+      // Load default template
+      await loadTemplate('executive');
+    }
+  };
+
+  // Save dashboard configuration
+  const saveDashboardConfig = () => {
+    const config = {
+      widgets,
+      template: selectedTemplate,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('kastle_dashboard_config', JSON.stringify(config));
+    toast.success('Dashboard saved successfully');
+  };
+
+  // Load template
+  const loadTemplate = async (templateId) => {
+    const template = DASHBOARD_TEMPLATES[templateId];
+    if (!template) return;
+    
+    setWidgets(template.widgets);
+    setSelectedTemplate(templateId);
+    setShowTemplates(false);
+    
+    // Fetch data for new widgets
+    setTimeout(() => {
+      fetchDashboardData();
+    }, 100);
+    
+    toast.success(`${template.nameEn} loaded`);
   };
 
   // Fetch monthly comparison data
@@ -1437,12 +1431,11 @@ export default function EnhancedDashboard() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                setRefreshing(true);
-                fetchDashboardData();
+                refresh(); // Use the refresh function from useDataRefresh
               }}
-              disabled={refreshing}
+              disabled={isRefreshing}
             >
-              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
               Refresh
             </Button>
             
@@ -1597,7 +1590,7 @@ export default function EnhancedDashboard() {
                       productType: 'all',
                       customerSegment: 'all'
                     });
-                    fetchDashboardData();
+                    refresh(); // Use the refresh function from useDataRefresh
                   }}
                 >
                   Reset
@@ -1605,7 +1598,7 @@ export default function EnhancedDashboard() {
                 <Button
                   size="sm"
                   onClick={() => {
-                    fetchDashboardData();
+                    refresh(); // Use the refresh function from useDataRefresh
                     setShowFilters(false);
                   }}
                 >

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDataRefresh } from '@/hooks/useDataRefresh';
 import {
   LineChart,
   Line,
@@ -173,11 +174,52 @@ function RiskScoreCard({ category, score, status, trend }) {
 
 export function ExecutiveDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [dashboardData, setDashboardData] = useState({
+    kpis: executiveKPIs,
+    monthlyPerformance: monthlyPerformance,
+    customerSegments: customerSegments,
+    productPerformance: productPerformance,
+    riskMetrics: riskMetrics
+  });
+
+  // Simulate data fetching
+  const fetchDashboardData = async () => {
+    // In a real app, this would be an API call
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Simulate data update with slight variations
+        const updatedKPIs = {
+          ...executiveKPIs,
+          totalCustomers: executiveKPIs.totalCustomers + Math.floor(Math.random() * 10),
+          activeCustomers: executiveKPIs.activeCustomers + Math.floor(Math.random() * 5)
+        };
+        
+        setDashboardData({
+          kpis: updatedKPIs,
+          monthlyPerformance: monthlyPerformance,
+          customerSegments: customerSegments,
+          productPerformance: productPerformance,
+          riskMetrics: riskMetrics
+        });
+        
+        resolve();
+      }, 1000);
+    });
+  };
+
+  // Use the data refresh hook
+  const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
+    fetchDashboardData,
+    [], // No dependencies
+    {
+      refreshOnMount: true,
+      showNotification: true,
+      notificationMessage: 'Executive Dashboard loaded'
+    }
+  );
 
   const handleRefresh = () => {
-    setLastUpdated(new Date());
-    // In a real app, this would trigger data refresh
+    refresh();
   };
 
   return (
@@ -193,7 +235,7 @@ export function ExecutiveDashboard() {
         
         <div className="flex items-center space-x-2">
           <Badge variant="outline" className="text-xs">
-            Last updated: {lastUpdated.toLocaleTimeString()}
+            Last updated: {lastRefreshed ? lastRefreshed.toLocaleTimeString() : 'N/A'}
           </Badge>
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />

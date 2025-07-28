@@ -570,7 +570,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Force re-render on mobile to ensure items are visible
+      if (mobile) {
+        setSearchQuery(''); // Reset search on mobile
+      }
     };
     
     checkMobile();
@@ -578,6 +583,22 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    if (isMobile && typeof setIsCollapsed === 'function') {
+      // This will close the mobile sheet when navigating
+      const handleNavigation = () => {
+        if (window.innerWidth < 768) {
+          setIsCollapsed(true);
+        }
+      };
+      
+      // Add slight delay to allow navigation to complete
+      const timer = setTimeout(handleNavigation, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname, isMobile, setIsCollapsed]);
 
   // Filter navigation items based on search
   const filterNavItems = (items, query) => {
