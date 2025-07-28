@@ -181,6 +181,7 @@ export class BranchReportService {
         let officers = [];
         if (officerIds.length > 0) {
           const { data } = await supabaseCollection
+            .schema('kastle_collection')
             .from('collection_officers')
             .select('officer_id, officer_name')
             .in('officer_id', officerIds);
