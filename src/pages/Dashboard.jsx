@@ -79,9 +79,6 @@ import {
   Treemap,
   Sankey
 } from 'recharts';
-import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { formatCurrency, formatNumber } from '@/utils/formatters';
 import { fixDashboard } from '@/utils/fixDashboardAuth';
 
 // Mock Supabase clients for demonstration
@@ -112,6 +109,9 @@ const mockSupabaseCollection = mockSupabaseBanking;
 
 // Import with fallback
 let supabaseBanking, supabaseCollection, TABLES;
+let formatCurrency, formatNumber;
+let DragDropContext, Droppable, Draggable;
+
 try {
   const supabaseModule = await import('@/lib/supabase');
   supabaseBanking = supabaseModule.supabaseBanking;
@@ -129,6 +129,28 @@ try {
     COLLECTION_CASES: 'collection_cases',
     PRODUCTS: 'products'
   };
+}
+
+try {
+  const formattersModule = await import('@/utils/formatters');
+  formatCurrency = formattersModule.formatCurrency;
+  formatNumber = formattersModule.formatNumber;
+} catch (error) {
+  console.warn('Formatters not found, using fallback');
+  // Fallback formatters will be defined later
+}
+
+try {
+  const dndModule = await import('@hello-pangea/dnd');
+  DragDropContext = dndModule.DragDropContext;
+  Droppable = dndModule.Droppable;
+  Draggable = dndModule.Draggable;
+} catch (error) {
+  console.warn('Drag and drop library not loaded');
+  // Mock implementations
+  DragDropContext = ({ children }) => children;
+  Droppable = ({ children }) => children({ droppableProps: {}, innerRef: () => {} });
+  Draggable = ({ children }) => children({ draggableProps: {}, dragHandleProps: {}, innerRef: () => {} });
 }
 
 const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181', '#F6AD55'];
@@ -854,19 +876,23 @@ const DASHBOARD_TEMPLATES = {
   }
 };
 
-// Utility functions
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'SAR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
-};
+// Utility functions - Define fallback if not imported
+if (!formatCurrency) {
+  formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'SAR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+}
 
-const formatNumber = (value) => {
-  return new Intl.NumberFormat('en-US').format(value);
-};
+if (!formatNumber) {
+  formatNumber = (value) => {
+    return new Intl.NumberFormat('en-US').format(value);
+  };
+}
 
 // Main Dashboard Component
 export default function EnhancedDashboard() {
