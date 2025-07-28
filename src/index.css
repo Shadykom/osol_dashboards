@@ -1,6 +1,7 @@
 /* src/index.css */
 /* Import RTL styles */
 @import './styles/rtl.css';
+@import './styles/rtl-global.css';
 
 /* Import grid layout styles */
 @import './styles/grid-layout-styles.css';

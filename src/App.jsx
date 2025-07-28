@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
+import { useRTL } from './hooks/useRTL';
 import { Dashboard } from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
 import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
@@ -28,6 +29,7 @@ import SpecialistLevelReport from './pages/SpecialistLevelReport';
 import DatabaseTest from './pages/DatabaseTest';
 import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
+import { RTLTest } from './components/RTLTest';
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
 import { RTLDebug } from './components/RTLDebug';
@@ -162,6 +164,7 @@ function NotFound() {
 // Safe App Component
 function SafeApp() {
   const { i18n } = useTranslation();
+  const isRTL = useRTL();
   
   // Database connection status logging and RTL setup
   useEffect(() => {
@@ -170,10 +173,12 @@ function SafeApp() {
       // Connection status is already logged in supabase.js
     }
     
-    // Ensure document direction is set on mount
+    // Ensure document direction is set on mount and language changes
     const currentLang = i18n.language || 'en';
     document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = currentLang;
+    document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    console.log('App.jsx: Setting dir to', currentLang === 'ar' ? 'rtl' : 'ltr', 'for language', currentLang);
   }, [i18n.language]);
   
   return (
@@ -234,6 +239,7 @@ function SafeApp() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/compliance" element={<Compliance />} />
             <Route path="/database-test" element={<DatabaseTest />} />
+            <Route path="/rtl-test" element={<RTLTest />} />
             
             {/* Collection Routes */}
             <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
