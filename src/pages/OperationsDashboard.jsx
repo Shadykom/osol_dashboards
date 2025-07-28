@@ -34,12 +34,12 @@ import {
   Shield,
   Server,
   Wifi,
-  Database,
   ArrowUpRight,
   ArrowDownRight,
   Download,
   Filter
 } from 'lucide-react';
+import { DatabaseIcon } from '@/utils/icons';
 
 // Mock data for operations dashboard
 const operationalKPIs = {
@@ -493,7 +493,7 @@ export function OperationsDashboard() {
               Security Center
             </Button>
             <Button variant="outline" className="h-20 flex-col">
-              <Database className="h-6 w-6 mb-2" />
+                                    <DatabaseIcon className="h-6 w-6 mb-2" />
               System Maintenance
             </Button>
             <Button variant="outline" className="h-20 flex-col">

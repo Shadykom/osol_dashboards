@@ -51,6 +51,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DataSeeder } from '@/components/dashboard/DataSeeder';
+import { DatabaseIcon } from '@/utils/icons';
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -1200,7 +1201,7 @@ export default function EnhancedDashboard() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowDataSeeder(true)}>
-                    <Database className="h-4 w-4 mr-2" />
+                    <DatabaseIcon className="h-4 w-4 mr-2" />
                     {isRTL ? 'بيانات تجريبية' : 'Seed Sample Data'}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
