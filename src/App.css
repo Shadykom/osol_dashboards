@@ -67,349 +67,30 @@
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
-}
-
-/* LTR Support (Default) */
-[dir="ltr"] {
-  text-align: left;
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* RTL Support for Arabic */
 [dir="rtl"] {
   text-align: right;
-  font-family: 'Noto Sans Arabic', 'Tajawal', 'Cairo', 'Amiri', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* Ensure proper flex direction for RTL */
-[dir="rtl"] .flex-row {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .flex {
-  direction: rtl;
-}
-
-/* Fix text alignment for RTL */
-[dir="rtl"] h1,
-[dir="rtl"] h2,
-[dir="rtl"] h3,
-[dir="rtl"] h4,
-[dir="rtl"] h5,
-[dir="rtl"] h6,
-[dir="rtl"] p,
-[dir="rtl"] span,
-[dir="rtl"] div {
-  text-align: right;
-}
-
-/* Fix margin and padding for RTL */
-[dir="rtl"] .ml-auto {
-  margin-left: 0;
-  margin-right: auto;
-}
-
-[dir="rtl"] .mr-auto {
-  margin-right: 0;
-  margin-left: auto;
-}
-
-[dir="rtl"] .pl-4 {
-  padding-left: 0;
-  padding-right: 1rem;
-}
-
-[dir="rtl"] .pr-4 {
-  padding-right: 0;
-  padding-left: 1rem;
-}
-
-[dir="rtl"] .ml-2 {
-  margin-left: 0;
-  margin-right: 0.5rem;
-}
-
-[dir="rtl"] .mr-2 {
-  margin-right: 0;
-  margin-left: 0.5rem;
-}
-
-[dir="rtl"] .ml-3 {
-  margin-left: 0;
-  margin-right: 0.75rem;
-}
-
-[dir="rtl"] .mr-3 {
-  margin-right: 0;
-  margin-left: 0.75rem;
-}
-
-[dir="rtl"] .ml-4 {
-  margin-left: 0;
-  margin-right: 1rem;
-}
-
-[dir="rtl"] .mr-4 {
-  margin-right: 0;
-  margin-left: 1rem;
-}
-
-/* Fix space-x utilities for RTL */
-[dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
-  margin-right: calc(0.5rem * var(--tw-space-x-reverse));
-  margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
-}
-
-[dir="rtl"] .space-x-3 > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
-  margin-right: calc(0.75rem * var(--tw-space-x-reverse));
-  margin-left: calc(0.75rem * calc(1 - var(--tw-space-x-reverse)));
-}
-
-[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 1;
-  margin-right: calc(1rem * var(--tw-space-x-reverse));
-  margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
-}
-
-/* Fix icons and buttons alignment in RTL */
-[dir="rtl"] .flex.items-center > svg:first-child {
-  margin-left: 0.5rem;
-  margin-right: 0;
-}
-
-[dir="rtl"] .flex.items-center > svg:last-child {
-  margin-right: 0.5rem;
-  margin-left: 0;
-}
-
-/* Fix sidebar labels */
-[dir="rtl"] .sidebar-label {
-  text-align: right;
-  width: 100%;
-}
-
-/* Fix grid layouts for RTL */
-[dir="rtl"] .grid {
-  direction: rtl;
-}
-
-/* Fix justify utilities for RTL */
-[dir="rtl"] .justify-start {
-  justify-content: flex-end;
-}
-
-[dir="rtl"] .justify-end {
-  justify-content: flex-start;
-}
-
-/* Fix text alignment utilities for RTL */
-[dir="rtl"] .text-left {
-  text-align: right;
-}
-
-[dir="rtl"] .text-right {
-  text-align: left;
-}
-
-/* Fix border utilities for RTL */
-[dir="rtl"] .border-l {
-  border-left: 0;
-  border-right-width: 1px;
-}
-
-[dir="rtl"] .border-r {
-  border-right: 0;
-  border-left-width: 1px;
-}
-
-/* Fix rounded corners for RTL */
-[dir="rtl"] .rounded-l-lg {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  border-top-right-radius: 0.5rem;
-  border-bottom-right-radius: 0.5rem;
-}
-
-[dir="rtl"] .rounded-r-lg {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-top-left-radius: 0.5rem;
-  border-bottom-left-radius: 0.5rem;
-}
-
-/* Fix left/right positioning for RTL */
-[dir="rtl"] .left-0 {
-  left: auto;
+[dir="rtl"] .sidebar {
   right: 0;
-}
-
-[dir="rtl"] .right-0 {
-  right: auto;
-  left: 0;
-}
-
-[dir="rtl"] .left-3 {
   left: auto;
-  right: 0.75rem;
 }
 
-[dir="rtl"] .right-3 {
-  right: auto;
-  left: 0.75rem;
-}
-
-/* Fix transforms for RTL */
-[dir="rtl"] .translate-x-full {
-  transform: translateX(-100%);
-}
-
-[dir="rtl"] .-translate-x-full {
-  transform: translateX(100%);
-}
-
-/* Ensure all headings and paragraphs align properly in RTL */
-[dir="rtl"] h1,
-[dir="rtl"] h2,
-[dir="rtl"] h3,
-[dir="rtl"] h4,
-[dir="rtl"] h5,
-[dir="rtl"] h6,
-[dir="rtl"] p,
-[dir="rtl"] .text-xs,
-[dir="rtl"] .text-sm,
-[dir="rtl"] .text-base,
-[dir="rtl"] .text-lg,
-[dir="rtl"] .text-xl,
-[dir="rtl"] .text-2xl,
-[dir="rtl"] .text-3xl {
-  text-align: right;
-}
-
-/* Fix card content alignment in RTL */
-[dir="rtl"] .card-content,
-[dir="rtl"] [class*="card"] {
-  text-align: right;
-}
-
-/* Ensure sidebar content doesn't overflow */
-.sidebar-item {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Fix sidebar navigation items in RTL */
-[dir="rtl"] nav a,
-[dir="rtl"] nav button {
-  text-align: right;
-}
-
-/* Ensure proper padding for RTL sidebar items */
-[dir="rtl"] .px-3 {
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-}
-
-/* Fix uppercase text in RTL */
-[dir="rtl"] .uppercase {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Ensure section headers in sidebar align properly */
-[dir="rtl"] h4.uppercase {
-  text-align: right;
-  width: 100%;
-}
-
-/* Fix main content area for RTL */
-[dir="rtl"] main {
-  text-align: right;
-}
-
-/* Ensure flex containers respect RTL */
-[dir="rtl"] .flex-1 {
-  text-align: inherit;
-}
-
-/* Fix button groups in RTL */
-[dir="rtl"] .inline-flex {
-  flex-direction: row-reverse;
-}
-
-/* Fix gap utilities for RTL */
-[dir="rtl"] .gap-x-2 > * {
-  margin-left: 0.5rem;
-  margin-right: 0;
-}
-
-[dir="rtl"] .gap-x-2 > *:first-child {
+[dir="rtl"] .main-content {
+  margin-right: 16rem;
   margin-left: 0;
-}
-
-[dir="rtl"] .gap-x-3 > * {
-  margin-left: 0.75rem;
-  margin-right: 0;
-}
-
-[dir="rtl"] .gap-x-3 > *:first-child {
-  margin-left: 0;
-}
-
-/* Fix dashboard cards in RTL */
-[dir="rtl"] .dashboard-card {
-  text-align: right;
-}
-
-/* Ensure all text elements in RTL mode align right */
-[dir="rtl"] * {
-  text-align: inherit;
-}
-
-/* Override specific elements that should maintain LTR */
-[dir="rtl"] code,
-[dir="rtl"] pre {
-  direction: ltr;
-  text-align: left;
 }
 
 /* Arabic Font Support */
-.arabic-text,
-.font-arabic {
-  font-family: 'Noto Sans Arabic', 'Tajawal', 'Cairo', 'Amiri', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+.arabic-text {
+  font-family: 'Noto Sans Arabic', 'Amiri', 'Scheherazade', sans-serif;
   font-weight: 400;
   line-height: 1.8;
-  letter-spacing: 0.02em;
-}
-
-/* Improved Arabic text rendering */
-[dir="rtl"] * {
-  text-align: inherit;
-}
-
-[dir="rtl"] .text-left {
-  text-align: right !important;
-}
-
-[dir="rtl"] .text-right {
-  text-align: left !important;
-}
-
-/* Ensure proper icon spacing in RTL */
-[dir="rtl"] .rtl\:mr-0 {
-  margin-right: 0;
-}
-
-[dir="rtl"] .rtl\:ml-1 {
-  margin-left: 0.25rem;
-}
-
-[dir="rtl"] .rtl\:ml-2 {
-  margin-left: 0.5rem;
 }
 
 /* Osol Brand Components */
@@ -525,16 +206,9 @@ body {
     position: fixed;
     z-index: 50;
     transition: transform 0.3s ease-in-out;
-    width: 16rem !important; /* Fixed width on mobile when open */
   }
   
   .sidebar.open {
-    transform: translateX(0);
-  }
-  
-  /* Collapsed sidebar on mobile */
-  .sidebar.collapsed {
-    width: 4rem !important;
     transform: translateX(0);
   }
   
@@ -543,36 +217,16 @@ body {
     padding: 1rem;
   }
   
-  /* RTL mobile adjustments */
   [dir="rtl"] .sidebar {
     transform: translateX(100%);
-    right: 0;
-    left: auto;
   }
   
   [dir="rtl"] .sidebar.open {
     transform: translateX(0);
   }
   
-  [dir="rtl"] .sidebar.collapsed {
-    transform: translateX(0);
-  }
-  
   [dir="rtl"] .main-content {
     margin-right: 0;
-  }
-  
-  /* Mobile sidebar overlay */
-  .sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 40;
-    display: none;
-  }
-  
-  .sidebar-overlay.active {
-    display: block;
   }
   
   .kpi-grid {
@@ -730,7 +384,7 @@ body {
   height: 20px;
   bottom: 0;
   right: 0;
-  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgNiA2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZG90cyBmaWxsPSIjODg4IiBkPSJtMTUgMTJjMCAuNTUyLS40NDggMS0xIDFzLTEtLjQ0OC0xLTEgLjQ0OC0xIDEtMSAxIC40NDggMSAxem0wIDRjMCAuNTUyLS40NDggMS0xIDFzLTEtLjQ0OC0xLTEgLjQ0OC0xIDEtMSAxIC40NDggMSAxem0wIDRjMCAuNTUyLS40NDggMS0xIDFzLTEtLjQ0OC0xLTEgLjQ0OC0xIDEtMSAxIC40NDggMSAxem0tNS0xMGMwIC41NTItLjQ0OCAxLTEgMXMtMS0uNDQ4LTEtMSAuNDQ4LTEgMS0xIDEgLjQ0OCAxIDFabTAgNGMwIC41NTItLjQ0OCAxLTEgMXMtMS0uNDQ4LTEtMSAuNDQ4LTEgMS0xIDEgLjQ0OCAxIDFabS01LTEwYzAgLjU1Mi0uNDQ4IDEtMSAxcy0xLS40NDgtMS0xIC40NDgtMSAxLTEgMSAuNDQ4IDEgMVptMCA0YzAgLjU1Mi0uNDQ4IDEtMSAxcy0xLS40NDgtMS0xIC40NDgtMSAxLTEgMSAuNDQ4IDEgMVoiLz4KPHN2Zz4K');
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgNiA2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZG90cyBmaWxsPSIjODg4IiBkPSJtMTUgMTJjMCAuNTUyLS40NDggMS0xIDFzLTEtLjQ0OC0xLTEgLjQ0OC0xIDEtMSAxIC40NDggMSAxem0wIDRjMCAuNTUyLS40NDggMS0xIDFzLTEtLjQ0OC0xLTEgLjQ0OC0xIDEtMSAxIC40NDggMSAxem0wIDRjMCAuNTUyLS40NDggMS0xIDFzLTEtLjQ0OC0xLTEgLjQ0OC0xIDEtMSAxIC40NDggMSAxem0tNS0xMGMwIC41NTItLjQ0OCAxLTEgMXMtMS0uNDQ4LTEtMSAuNDQ4LTEgMS0xIDEgLjQ0OCAxIDFabTAgNGMwIC41NTItLjQ0OCAxLTEgMXMtMS0uNDQ4LTEtMSAuNDQ4LTEgMS0xIDEgLjQ0OCAxIDFabTAgNGMwIC41NTItLjQ0OCAxLTEgMXMtMS0uNDQ4LTEtMSAuNDQ4LTEgMS0xIDEgLjQ0OCAxIDFabS01LTEwYzAgLjU1Mi0uNDQ4IDEtMSAxcy0xLS40NDgtMS0xIC40NDgtMSAxLTEgMSAuNDQ4IDEgMVptMCA0YzAgLjU1Mi0uNDQ4IDEtMSAxcy0xLS40NDgtMS0xIC40NDgtMSAxLTEgMSAuNDQ4IDEgMVptMCA0YzAgLjU1Mi0uNDQ4IDEtMSAxcy0xLS40NDgtMS0xIC40NDgtMSAxLTEgMSAuNDQ4IDEgMVoiLz4KPHN2Zz4K');
   background-position: bottom right;
   padding: 0 3px 3px 0;
   background-repeat: no-repeat;
@@ -768,28 +422,4 @@ body {
   .chart-container {
     break-inside: avoid;
   }
-}
-
-/* Global Styles */
-* {
-  box-sizing: border-box;
-}
-
-/* Ensure RTL is properly applied to the root layout */
-[dir="rtl"] #root > div {
-  flex-direction: row-reverse;
-}
-
-/* Fix for flex containers in RTL */
-[dir="rtl"] .flex:not(.flex-col):not(.flex-column) {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .flex-row {
-  flex-direction: row-reverse !important;
-}
-
-/* Main layout container specific fix */
-[dir="rtl"] body > #root > div:first-child {
-  flex-direction: row-reverse !important;
 }

@@ -18,7 +18,7 @@ import {
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
-import { useRTL } from '@/hooks/useRTL';
+
 
 // ألوان فئات التقادم
 const AGING_COLORS = {
@@ -33,7 +33,7 @@ const AGING_COLORS = {
 
 const DelinquencyExecutiveDashboard = () => {
   const { t, i18n } = useTranslation();
-  const isRTL = useRTL();
+
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('current');
   const [dashboardData, setDashboardData] = useState({
@@ -551,12 +551,12 @@ const DelinquencyExecutiveDashboard = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.customerName')}</th>
-                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.customerNumber')}</th>
-                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.delinquentLoansCount')}</th>
-                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.totalDelinquency')}</th>
-                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.maxDaysOverdue')}</th>
-                  <th className={`${isRTL ? 'text-right' : 'text-left'} py-2`}>{t('delinquencyDashboard.table.collectionStatus')}</th>
+                                        <th className="text-left py-2">{t('delinquencyDashboard.table.customerName')}</th>
+                      <th className="text-left py-2">{t('delinquencyDashboard.table.customerNumber')}</th>
+                      <th className="text-left py-2">{t('delinquencyDashboard.table.delinquentLoansCount')}</th>
+                      <th className="text-left py-2">{t('delinquencyDashboard.table.totalDelinquency')}</th>
+                      <th className="text-left py-2">{t('delinquencyDashboard.table.maxDaysOverdue')}</th>
+                      <th className="text-left py-2">{t('delinquencyDashboard.table.collectionStatus')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -585,7 +585,7 @@ const DelinquencyExecutiveDashboard = () => {
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
           <strong>{t('delinquencyDashboard.recommendations.title')}</strong>
-          <ul className={`mt-2 ${isRTL ? 'mr-4' : 'ml-4'} list-disc`}>
+                                      <ul className="mt-2 ml-4 list-disc">
             <li>{t('delinquencyDashboard.recommendations.focus61_90')}</li>
             <li>{t('delinquencyDashboard.recommendations.reviewPolicies')}</li>
             <li>{t('delinquencyDashboard.recommendations.strengthenTeams')}</li>

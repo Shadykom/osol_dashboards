@@ -11,7 +11,7 @@ export function Layout({ children }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { i18n } = useTranslation();
-  const isRTL = i18n.language === 'ar';
+
 
   // Close mobile sidebar when route changes
   useEffect(() => {
@@ -29,11 +29,7 @@ export function Layout({ children }) {
 
   return (
     <div 
-      className={cn(
-        "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
-        isRTL ? "rtl" : "ltr"
-      )} 
-      dir={isRTL ? "rtl" : "ltr"}
+      className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950"
     >
       {/* Desktop Sidebar */}
       {!isMobile && (
@@ -48,7 +44,7 @@ export function Layout({ children }) {
       {isMobile && (
         <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
           <SheetContent 
-            side={isRTL ? "right" : "left"} 
+            side="left" 
             className="p-0 w-80 max-w-[85vw] border-0"
           >
             <Sidebar isCollapsed={false} setIsCollapsed={() => setIsMobileSidebarOpen(false)} />
