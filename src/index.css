@@ -5,6 +5,7 @@
 
 /* Import new sidebar styles */
 @import './styles/new-sidebar.css';
+@import './styles/mobile-sidebar.css';
 
 @layer base {
   :root {

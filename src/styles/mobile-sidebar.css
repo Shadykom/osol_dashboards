@@ -1,0 +1,71 @@
+/* Ultra-Simple Mobile Sidebar Styles */
+
+/* Ensure proper box-sizing for all elements */
+.mobile-sidebar * {
+  box-sizing: border-box;
+}
+
+/* Smooth scrolling for the navigation area */
+.mobile-sidebar-nav {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Ensure backdrop works on all devices */
+.mobile-sidebar-backdrop {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Optimize for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .mobile-sidebar-nav a {
+    min-height: 48px; /* Minimum touch target size */
+  }
+}
+
+/* Handle safe areas on mobile devices */
+@supports (padding: max(0px)) {
+  .mobile-sidebar-content {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Prevent zoom on focus for iOS */
+.mobile-sidebar input {
+  font-size: 16px; /* Prevents iOS zoom */
+}
+
+/* Ensure proper stacking context */
+.mobile-sidebar-container {
+  isolation: isolate;
+  contain: layout style paint;
+}
+
+/* Performance optimizations */
+.mobile-sidebar-slide {
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mobile-sidebar-item {
+    border: 1px solid transparent;
+  }
+  
+  .mobile-sidebar-item:hover,
+  .mobile-sidebar-item:focus {
+    border-color: currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sidebar-slide {
+    transition: none !important;
+    animation: none !important;
+  }
+}
