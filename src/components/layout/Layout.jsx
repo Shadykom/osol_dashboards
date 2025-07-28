@@ -57,7 +57,7 @@ export function Layout({ children }) {
       }}>
         <SheetContent 
           side="left" 
-          className="p-0 w-80 max-w-[85vw] border-0 overflow-y-auto"
+          className="p-0 w-80 max-w-[85vw] border-0 overflow-hidden flex flex-col"
         >
           <VisuallyHidden>
             <SheetHeader>
