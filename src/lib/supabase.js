@@ -40,8 +40,23 @@ const createMockClient = () => {
 
 // Function to get current auth token
 const getAuthToken = () => {
-  const session = JSON.parse(localStorage.getItem('osol-auth') || '{}');
-  return session?.access_token || supabaseAnonKey;
+  try {
+    const storedAuth = localStorage.getItem('osol-auth');
+    if (storedAuth) {
+      const authData = JSON.parse(storedAuth);
+      // Check for demo session format
+      if (authData.currentSession && authData.expiresAt > Date.now()) {
+        return authData.currentSession.access_token || supabaseAnonKey;
+      }
+      // Check for regular session format
+      if (authData.access_token) {
+        return authData.access_token;
+      }
+    }
+  } catch (e) {
+    // Invalid stored data
+  }
+  return supabaseAnonKey;
 };
 
 // Custom fetch function to ensure proper headers
