@@ -8,14 +8,30 @@ body[dir="rtl"] {
   text-align: right !important;
 }
 
+/* Global LTR Setup */
+html[dir="ltr"],
+html[lang="en"],
+body[dir="ltr"] {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
 /* 2. Fix Main Layout Container */
 [dir="rtl"] #root {
   direction: rtl !important;
 }
 
+[dir="ltr"] #root {
+  direction: ltr !important;
+}
+
 /* Critical: Fix the main flex container */
 [dir="rtl"] .flex.h-screen.overflow-hidden {
   flex-direction: row-reverse !important;
+}
+
+[dir="ltr"] .flex.h-screen.overflow-hidden {
+  flex-direction: row !important;
 }
 
 /* 3. Sidebar Positioning */
@@ -31,15 +47,35 @@ body[dir="rtl"] {
   z-index: 40;
 }
 
+[dir="ltr"] .sidebar,
+[dir="ltr"] aside {
+  order: 1 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  z-index: 40;
+}
+
 /* 4. Main Content Area */
 [dir="rtl"] main,
 [dir="rtl"] .flex-1.flex.flex-col.min-w-0 {
   order: 1 !important;
 }
 
+[dir="ltr"] main,
+[dir="ltr"] .flex-1.flex.flex-col.min-w-0 {
+  order: 2 !important;
+}
+
 /* 5. Fix All Flex Containers */
 [dir="rtl"] .flex:not(.flex-col):not(.flex-column):not([class*="flex-col"]) {
   flex-direction: row-reverse !important;
+}
+
+[dir="ltr"] .flex:not(.flex-col):not(.flex-column):not([class*="flex-col"]) {
+  flex-direction: row !important;
 }
 
 /* 6. Margin Utilities Override */
@@ -51,17 +87,17 @@ body[dir="rtl"] {
   margin-right: 0 !important;
 }
 
-/* Specific margin fixes */
-[dir="rtl"] .ml-1 { margin-right: 0.25rem !important; }
-[dir="rtl"] .ml-2 { margin-right: 0.5rem !important; }
-[dir="rtl"] .ml-3 { margin-right: 0.75rem !important; }
-[dir="rtl"] .ml-4 { margin-right: 1rem !important; }
+/* Specific margin fixes for RTL */
+[dir="rtl"] .ml-1 { margin-right: 0.25rem !important; margin-left: 0 !important; }
+[dir="rtl"] .ml-2 { margin-right: 0.5rem !important; margin-left: 0 !important; }
+[dir="rtl"] .ml-3 { margin-right: 0.75rem !important; margin-left: 0 !important; }
+[dir="rtl"] .ml-4 { margin-right: 1rem !important; margin-left: 0 !important; }
 [dir="rtl"] .ml-auto { margin-right: auto !important; margin-left: 0 !important; }
 
-[dir="rtl"] .mr-1 { margin-left: 0.25rem !important; }
-[dir="rtl"] .mr-2 { margin-left: 0.5rem !important; }
-[dir="rtl"] .mr-3 { margin-left: 0.75rem !important; }
-[dir="rtl"] .mr-4 { margin-left: 1rem !important; }
+[dir="rtl"] .mr-1 { margin-left: 0.25rem !important; margin-right: 0 !important; }
+[dir="rtl"] .mr-2 { margin-left: 0.5rem !important; margin-right: 0 !important; }
+[dir="rtl"] .mr-3 { margin-left: 0.75rem !important; margin-right: 0 !important; }
+[dir="rtl"] .mr-4 { margin-left: 1rem !important; margin-right: 0 !important; }
 [dir="rtl"] .mr-auto { margin-left: auto !important; margin-right: 0 !important; }
 
 /* 7. Padding Utilities Override */
@@ -73,19 +109,19 @@ body[dir="rtl"] {
   padding-right: 0 !important;
 }
 
-[dir="rtl"] .pl-1 { padding-right: 0.25rem !important; }
-[dir="rtl"] .pl-2 { padding-right: 0.5rem !important; }
-[dir="rtl"] .pl-3 { padding-right: 0.75rem !important; }
-[dir="rtl"] .pl-4 { padding-right: 1rem !important; }
-[dir="rtl"] .pl-6 { padding-right: 1.5rem !important; }
-[dir="rtl"] .pl-8 { padding-right: 2rem !important; }
+[dir="rtl"] .pl-1 { padding-right: 0.25rem !important; padding-left: 0 !important; }
+[dir="rtl"] .pl-2 { padding-right: 0.5rem !important; padding-left: 0 !important; }
+[dir="rtl"] .pl-3 { padding-right: 0.75rem !important; padding-left: 0 !important; }
+[dir="rtl"] .pl-4 { padding-right: 1rem !important; padding-left: 0 !important; }
+[dir="rtl"] .pl-6 { padding-right: 1.5rem !important; padding-left: 0 !important; }
+[dir="rtl"] .pl-8 { padding-right: 2rem !important; padding-left: 0 !important; }
 
-[dir="rtl"] .pr-1 { padding-left: 0.25rem !important; }
-[dir="rtl"] .pr-2 { padding-left: 0.5rem !important; }
-[dir="rtl"] .pr-3 { padding-left: 0.75rem !important; }
-[dir="rtl"] .pr-4 { padding-left: 1rem !important; }
-[dir="rtl"] .pr-6 { padding-left: 1.5rem !important; }
-[dir="rtl"] .pr-8 { padding-left: 2rem !important; }
+[dir="rtl"] .pr-1 { padding-left: 0.25rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pr-2 { padding-left: 0.5rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pr-3 { padding-left: 0.75rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pr-4 { padding-left: 1rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pr-6 { padding-left: 1.5rem !important; padding-right: 0 !important; }
+[dir="rtl"] .pr-8 { padding-left: 2rem !important; padding-right: 0 !important; }
 
 /* 8. Space Utilities */
 [dir="rtl"] [class*="space-x-"] > :not([hidden]) ~ :not([hidden]) {

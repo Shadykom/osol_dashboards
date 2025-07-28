@@ -30,6 +30,7 @@ import DatabaseTest from './pages/DatabaseTest';
 import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { RTLTest } from './components/RTLTest';
+import RTLTestPage from './pages/RTLTestPage';
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
 import { RTLDebug } from './components/RTLDebug';
@@ -174,7 +175,7 @@ function SafeApp() {
     });
 
     // Ensure document direction is set on mount and language changes
-    const currentLang = i18n.language || 'ar'; // Default to Arabic
+    const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = currentLang;
     document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
@@ -239,7 +240,7 @@ function SafeApp() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/compliance" element={<Compliance />} />
             <Route path="/database-test" element={<DatabaseTest />} />
-            <Route path="/rtl-test" element={<RTLTest />} />
+            <Route path="/rtl-test" element={<RTLTestPage />} />
             
             {/* Collection Routes */}
             <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
