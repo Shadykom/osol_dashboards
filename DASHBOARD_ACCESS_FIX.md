@@ -6,7 +6,7 @@ The collection/overview dashboard is not showing data due to 401 (Unauthorized) 
 1. The dashboard is trying to fetch data using the anonymous (anon) role
 2. Row Level Security (RLS) is enabled on the tables but no policies exist for anonymous access
 3. The table names in the code included schema prefixes which caused issues
-4. Some collection schema tables might not exist
+4. Some collection schema tables might not exist or have different structures
 
 ## Solutions Applied
 
@@ -25,78 +25,96 @@ Set the correct Supabase anon key in `.env` file:
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6bGVuZWdvaWxuc3dzYmFueGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyODU3ODIsImV4cCI6MjA2ODg2MTc4Mn0.DtVNndVsrUZtTtVRpEWiQb5QtbhPAErSQ88wWYVWeBE
 ```
 
-## Database Fixes Required
+## Database Fix - Simple Solution
 
-To allow the dashboard to access data, you need to run these SQL scripts in your Supabase SQL editor:
+Since the table structure in your database has required fields like `team_code`, use the simple RLS disable script:
 
-### Step 1: Fix Banking Schema Access
+### Run this SQL in Supabase
 
-Run the SQL script in `/workspace/fix_dashboard_rls.sql` to enable access to banking data.
-
-**Quick Fix (Development):**
-```sql
--- Temporarily disable RLS on banking tables to allow dashboard access
-ALTER TABLE kastle_banking.customers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_banking.accounts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_banking.transactions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_banking.loan_accounts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_banking.branches DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_banking.customer_types DISABLE ROW LEVEL SECURITY;
-
--- Grant permissions to anon role
-GRANT USAGE ON SCHEMA kastle_banking TO anon;
-GRANT SELECT ON ALL TABLES IN SCHEMA kastle_banking TO anon;
-```
-
-### Step 2: Fix Collection Schema Access
-
-Run the SQL script in `/workspace/fix_collection_rls.sql` to create missing collection tables and enable access.
+1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/bzlenegoilnswsbanxgb/sql
+2. Copy and paste the content from `/workspace/disable_all_rls.sql`
+3. Click "Run"
 
 This script will:
-- Create the `kastle_collection` schema if it doesn't exist
-- Create necessary collection tables if they don't exist
-- Enable RLS with proper policies for anonymous access
-- Insert sample data for testing
+- Automatically find all tables with RLS enabled
+- Disable RLS on all tables in both schemas
+- Grant read permissions to the anonymous role
+- Show you the results
 
-## How to Apply the Fix
+**Quick copy-paste version:**
+```sql
+-- Disable RLS on all banking tables
+DO $$ 
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN 
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'kastle_banking' 
+        AND rowsecurity = true
+    LOOP
+        EXECUTE format('ALTER TABLE kastle_banking.%I DISABLE ROW LEVEL SECURITY', r.tablename);
+    END LOOP;
+END $$;
 
-1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/bzlenegoilnswsbanxgb
-2. Navigate to the SQL Editor
-3. First, run the content from `/workspace/fix_dashboard_rls.sql`
-4. Then, run the content from `/workspace/fix_collection_rls.sql`
-5. Click "Run" to execute each SQL script
-6. Refresh your application - the dashboard should now load data properly
+-- Disable RLS on all collection tables
+DO $$ 
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN 
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'kastle_collection' 
+        AND rowsecurity = true
+    LOOP
+        EXECUTE format('ALTER TABLE kastle_collection.%I DISABLE ROW LEVEL SECURITY', r.tablename);
+    END LOOP;
+END $$;
+
+-- Grant permissions
+GRANT USAGE ON SCHEMA kastle_banking TO anon, authenticated;
+GRANT USAGE ON SCHEMA kastle_collection TO anon, authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA kastle_banking TO anon, authenticated;
+GRANT SELECT ON ALL TABLES IN SCHEMA kastle_collection TO anon, authenticated;
+```
 
 ## Testing
 
-After applying the fixes, you should see:
-- No more 401 errors in the console
-- No more "relation does not exist" errors
-- Actual data loading in the dashboard widgets instead of mock data
-- The message "Using mock data for..." should disappear from the console
-
-## Next Steps
-
-1. Restart your development server if needed:
+After running the script:
+1. Restart your development server:
    ```bash
    cd /workspace
    npm run dev
    ```
-2. Clear your browser cache and localStorage
-3. The dashboard should now display real data from your database
+2. Clear your browser cache
+3. Refresh the dashboard page
 
-## Security Note
-
-The current fix allows anonymous read access to dashboard data. For production:
-- Implement proper authentication flow
-- Add user-specific RLS policies
-- Consider creating read-only views for dashboard metrics
-- Use service role keys only on the server side
+You should see:
+- No more 401 errors
+- No more "relation does not exist" errors
+- Real data loading in the dashboard widgets
+- No "Using mock data" messages in the console
 
 ## Troubleshooting
 
-If you still see errors:
-1. Check that all SQL scripts ran successfully without errors
-2. Verify the Supabase URL and anon key are correct in `.env`
-3. Check browser console for specific error messages
-4. Try running the test script: `node test_db_connection.js`
+If you still see errors after running the script:
+
+1. **Check the script output** - It should show all tables with "RLS Disabled" status
+2. **Verify permissions** - The last query should show `true` for all access checks
+3. **Check browser console** - Look for specific error messages
+4. **Try a hard refresh** - Ctrl+Shift+R (or Cmd+Shift+R on Mac)
+5. **Check the network tab** - See if the API calls are returning data
+
+## Security Note
+
+This solution disables Row Level Security for development. For production:
+- Re-enable RLS with proper policies
+- Implement user authentication
+- Create read-only views for public metrics
+- Use service role keys only on the backend
+
+## Alternative Solutions
+
+If you need to keep RLS enabled, you can create specific policies for the anonymous role. See `/workspace/fix_dashboard_rls.sql` for an example of how to create proper RLS policies.
