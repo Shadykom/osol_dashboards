@@ -5,18 +5,21 @@ import { cn } from '@/lib/utils';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 export function Layout({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { i18n } = useTranslation();
-
+  const location = useLocation();
 
   // Close mobile sidebar when route changes
   useEffect(() => {
-    setIsMobileSidebarOpen(false);
-  }, [children]);
+    if (isMobile) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, [location.pathname, isMobile]);
 
   // Handle menu click - toggle sidebar state
   const handleMenuClick = () => {
@@ -25,6 +28,11 @@ export function Layout({ children }) {
     } else {
       setIsSidebarCollapsed(!isSidebarCollapsed);
     }
+  };
+
+  // Handle mobile sidebar close
+  const handleMobileSidebarClose = () => {
+    setIsMobileSidebarOpen(false);
   };
 
   return (
@@ -45,9 +53,13 @@ export function Layout({ children }) {
         <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
           <SheetContent 
             side="left" 
-            className="p-0 w-80 max-w-[85vw] border-0"
+            className="p-0 w-80 max-w-[85vw] border-0 overflow-y-auto"
           >
-            <Sidebar isCollapsed={false} setIsCollapsed={() => setIsMobileSidebarOpen(false)} />
+            <Sidebar 
+              isCollapsed={false} 
+              setIsCollapsed={handleMobileSidebarClose}
+              isMobileSheet={true}
+            />
           </SheetContent>
         </Sheet>
       )}
