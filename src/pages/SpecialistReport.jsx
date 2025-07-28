@@ -1,4 +1,4 @@
-import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 /**
  * خدمة تقرير مستوى الأخصائي
@@ -588,8 +588,8 @@ class SpecialistReportService {
       // جلب بيانات الأداء من جدول officer_performance_metrics إذا كان موجوداً
       const dateFrom = this.getDateRangeStart(dateRange);
       
-      const { data: performanceData, error } = await supabaseBanking
-        .from('officer_performance_metrics')
+      const { data: performanceData, error } = await supabaseCollection
+        .from(TABLES.OFFICER_PERFORMANCE_METRICS)
         .select(`
           metric_date,
           calls_made,

@@ -43,14 +43,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     });
 
 // Create a client specifically for kastle_banking schema
+// Share the auth instance to avoid multiple GoTrueClient warnings
 export const supabaseBanking = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: window.localStorage,
-    storageKey: 'osol-auth'
-  },
+  auth: supabase.auth,
   db: {
     schema: 'kastle_banking'
   },
@@ -62,14 +57,9 @@ export const supabaseBanking = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Create a client specifically for kastle_collection schema
+// Share the auth instance to avoid multiple GoTrueClient warnings
 export const supabaseCollection = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: window.localStorage,
-    storageKey: 'osol-auth'
-  },
+  auth: supabase.auth,
   db: {
     schema: 'kastle_collection'
   },
