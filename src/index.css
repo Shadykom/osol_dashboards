@@ -1,11 +1,11 @@
 /* src/index.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Import new sidebar styles */
 @import './styles/new-sidebar.css';
 @import './styles/mobile-sidebar.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   :root {
