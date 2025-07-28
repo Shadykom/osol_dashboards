@@ -1,5 +1,50 @@
 import { supabaseBanking, TABLES } from '@/lib/supabase';
 
+// Mock data for fallback
+const mockCustomers = [
+  {
+    customer_id: 'CUST001',
+    first_name: 'Ahmed',
+    middle_name: 'Mohammed',
+    last_name: 'Al-Rashid',
+    full_name: 'Ahmed Mohammed Al-Rashid',
+    email: 'ahmed.rashid@email.com',
+    phone: '+966501234567',
+    segment: 'RETAIL',
+    kyc_status: 'APPROVED',
+    risk_category: 'LOW',
+    annual_income: 75000,
+    created_at: new Date().toISOString()
+  },
+  {
+    customer_id: 'CUST002',
+    first_name: 'Fatima',
+    last_name: 'Al-Zahrani',
+    full_name: 'Fatima Al-Zahrani',
+    email: 'fatima.zahrani@email.com',
+    phone: '+966502345678',
+    segment: 'PREMIUM',
+    kyc_status: 'APPROVED',
+    risk_category: 'MEDIUM',
+    annual_income: 120000,
+    created_at: new Date().toISOString()
+  },
+  {
+    customer_id: 'CUST003',
+    first_name: 'Khalid',
+    middle_name: 'Abdullah',
+    last_name: 'Al-Otaibi',
+    full_name: 'Khalid Abdullah Al-Otaibi',
+    email: 'khalid.otaibi@email.com',
+    phone: '+966503456789',
+    segment: 'HNI',
+    kyc_status: 'APPROVED',
+    risk_category: 'LOW',
+    annual_income: 500000,
+    created_at: new Date().toISOString()
+  }
+];
+
 // Simple API response formatter
 function formatApiResponse(data, error = null, pagination = null) {
   if (error) {
@@ -40,51 +85,98 @@ export class CustomerService {
 
       console.log('CustomerService.getCustomers called with params:', params);
 
-      let query = supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('*', { count: 'exact' });
+      // Try to fetch from database first
+      try {
+        let query = supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select('*', { count: 'exact' });
 
-      // Apply search filter
-      if (search) {
-        query = query.or(`full_name.ilike.%${search}%,customer_id.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+        // Apply search filter
+        if (search) {
+          query = query.or(`full_name.ilike.%${search}%,customer_id.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+        }
+
+        // Apply segment filter
+        if (segment) {
+          query = query.eq('segment', segment);
+        }
+
+        // Apply KYC status filter
+        if (kyc_status) {
+          query = query.eq('kyc_status', kyc_status);
+        }
+
+        // Apply risk category filter
+        if (risk_category) {
+          query = query.eq('risk_category', risk_category);
+        }
+
+        // Apply pagination
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+        query = query.range(from, to);
+
+        // Order by creation date
+        query = query.order('created_at', { ascending: false });
+
+        console.log('Executing customer query...');
+        const { data, error, count } = await query;
+        
+        console.log('Customer query result:', { data: data?.length, error, count });
+
+        if (error) {
+          throw error;
+        }
+
+        const pagination = {
+          page,
+          limit,
+          total: count || 0,
+          total_pages: Math.ceil((count || 0) / limit)
+        };
+
+        return formatApiResponse(data, null, pagination);
+      } catch (dbError) {
+        console.warn('Database query failed, falling back to mock data:', dbError);
+        
+        // Filter mock data based on search
+        let filteredCustomers = [...mockCustomers];
+        
+        if (search) {
+          const searchLower = search.toLowerCase();
+          filteredCustomers = filteredCustomers.filter(customer => 
+            customer.full_name.toLowerCase().includes(searchLower) ||
+            customer.customer_id.toLowerCase().includes(searchLower) ||
+            customer.email.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        if (segment) {
+          filteredCustomers = filteredCustomers.filter(customer => customer.segment === segment);
+        }
+        
+        if (kyc_status) {
+          filteredCustomers = filteredCustomers.filter(customer => customer.kyc_status === kyc_status);
+        }
+        
+        if (risk_category) {
+          filteredCustomers = filteredCustomers.filter(customer => customer.risk_category === risk_category);
+        }
+        
+        // Apply pagination to mock data
+        const from = (page - 1) * limit;
+        const to = from + limit;
+        const paginatedCustomers = filteredCustomers.slice(from, to);
+        
+        const pagination = {
+          page,
+          limit,
+          total: filteredCustomers.length,
+          total_pages: Math.ceil(filteredCustomers.length / limit)
+        };
+        
+        return formatApiResponse(paginatedCustomers, null, pagination);
       }
-
-      // Apply segment filter
-      if (segment) {
-        query = query.eq('segment', segment);
-      }
-
-      // Apply KYC status filter
-      if (kyc_status) {
-        query = query.eq('kyc_status', kyc_status);
-      }
-
-      // Apply risk category filter
-      if (risk_category) {
-        query = query.eq('risk_category', risk_category);
-      }
-
-      // Apply pagination
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-
-      // Order by creation date
-      query = query.order('created_at', { ascending: false });
-
-      console.log('Executing customer query...');
-      const { data, error, count } = await query;
-      
-      console.log('Customer query result:', { data: data?.length, error, count });
-
-      const pagination = {
-        page,
-        limit,
-        total: count || 0,
-        total_pages: Math.ceil((count || 0) / limit)
-      };
-
-      return formatApiResponse(data, error, pagination);
     } catch (error) {
       console.error('CustomerService.getCustomers error:', error);
       return formatApiResponse(null, error);

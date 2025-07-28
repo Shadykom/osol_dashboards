@@ -70,19 +70,22 @@ export class ProductReportService {
         comparison = true
       } = filters;
 
+      // Convert productId to string if it's a number
+      const productIdStr = String(productId);
+
       // Get product info
       const { data: product, error: productError } = await supabaseBanking
         .from(TABLES.PRODUCTS)
         .select('*')
-        .eq('product_id', productId)
+        .eq('product_id', productIdStr)
         .single();
 
       if (productError) {
         // Use mock data
         const products = await this.getProducts();
-        const mockProduct = products.data?.find(p => p.product_id === productId) || products.data?.[0];
+        const mockProduct = products.data?.find(p => p.product_id === productIdStr) || products.data?.[0];
         
-        return this.getMockProductReport(productId, mockProduct, filters);
+        return this.getMockProductReport(productIdStr, mockProduct, filters);
       }
 
       // Get all loan accounts for the product
@@ -95,10 +98,9 @@ export class ProductReportService {
           loan_amount,
           overdue_amount,
           overdue_days,
-          customer_id,
-          branch_id
+          customer_id
         `)
-        .eq('product_id', productId);
+        .eq('product_id', productIdStr);
 
       if (loansError) throw loansError;
 
@@ -106,12 +108,12 @@ export class ProductReportService {
       const loanNumbers = loans?.map(l => l.loan_account_number) || [];
       
       // Get collection cases first (from banking schema)
-      let casesQuery = supabaseBanking
-        .from('collection_cases')
-        .select('*')
-        .in('loan_account_number', loanNumbers);
-
-      const { data: cases, error: casesError } = await casesQuery;
+      const { data: cases, error: casesError } = loanNumbers.length > 0
+        ? await supabaseBanking
+            .from('collection_cases')
+            .select('*')
+            .in('loan_account_number', loanNumbers)
+        : { data: [], error: null };
 
       if (casesError) throw casesError;
 
@@ -121,16 +123,20 @@ export class ProductReportService {
         const caseIds = cases.map(c => c.case_id);
 
         // Fetch interactions
-        const { data: interactions } = await supabaseCollection
-          .from('collection_interactions')
-          .select('case_id, interaction_type, outcome, interaction_datetime')
-          .in('case_id', caseIds);
+        const { data: interactions } = caseIds.length > 0
+          ? await supabaseCollection
+              .from('collection_interactions')
+              .select('case_id, interaction_type, outcome, interaction_datetime')
+              .in('case_id', caseIds)
+          : { data: [] };
 
         // Fetch promises to pay
-        const { data: ptps } = await supabaseCollection
-          .from('promise_to_pay')
-          .select('case_id, ptp_amount, ptp_date, status')
-          .in('case_id', caseIds);
+        const { data: ptps } = caseIds.length > 0
+          ? await supabaseCollection
+              .from('promise_to_pay')
+              .select('case_id, ptp_amount, ptp_date, status')
+              .in('case_id', caseIds)
+          : { data: [] };
 
         // Create lookup maps
         const interactionsMap = interactions?.reduce((map, interaction) => {
@@ -165,7 +171,7 @@ export class ProductReportService {
       // Get comparisons if requested
       let productComparison = null;
       if (comparison) {
-        productComparison = await this.getProductComparison(productId, metrics);
+        productComparison = await this.getProductComparison(productIdStr, metrics);
       }
 
       // Get communication stats
@@ -175,7 +181,7 @@ export class ProductReportService {
       const riskAnalysis = this.calculateRiskAnalysis(loans, enrichedCases);
 
       // Get trends
-      const trends = await this.getProductTrends(productId, dateRange);
+      const trends = await this.getProductTrends(productIdStr, dateRange);
 
       return formatApiResponse({
         product,

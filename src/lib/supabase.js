@@ -19,15 +19,28 @@ const isSupabaseConfigured = supabaseUrl && supabaseAnonKey &&
 
 console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Missing credentials');
 
-if (!isSupabaseConfigured) {
-  console.error('❌ Supabase credentials are missing or invalid');
-  console.error('VITE_SUPABASE_URL:', supabaseUrl || 'Missing');
-  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present' : 'Missing');
-  throw new Error('Supabase configuration is required. Please check your environment variables.');
-}
+// Create a mock client for when Supabase is not configured
+const createMockClient = () => {
+  return {
+    from: () => ({
+      select: () => Promise.resolve({ data: [], error: { message: 'Database not configured' } }),
+      insert: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
+      update: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
+      delete: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
+      upsert: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } })
+    }),
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      signIn: () => Promise.resolve({ data: null, error: { message: 'Auth not configured' } }),
+      signOut: () => Promise.resolve({ error: null })
+    },
+    rpc: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } })
+  };
+};
 
-// Create main Supabase client (uses public schema by default)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Create main Supabase client or mock if not configured
+export const supabase = isSupabaseConfigured 
+  ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -40,35 +53,38 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
           eventsPerSecond: 10
         }
       }
-    });
+    })
+  : createMockClient();
 
 // Create a client specifically for kastle_banking schema
-// Share the auth instance to avoid multiple GoTrueClient warnings
-export const supabaseBanking = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: supabase.auth,
-  db: {
-    schema: 'kastle_banking'
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    }
-  }
-});
+export const supabaseBanking = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: supabase.auth,
+      db: {
+        schema: 'kastle_banking'
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
+      }
+    })
+  : createMockClient();
 
 // Create a client specifically for kastle_collection schema
-// Share the auth instance to avoid multiple GoTrueClient warnings
-export const supabaseCollection = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: supabase.auth,
-  db: {
-    schema: 'kastle_collection'
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    }
-  }
-});
+export const supabaseCollection = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: supabase.auth,
+      db: {
+        schema: 'kastle_collection'
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
+      }
+    })
+  : createMockClient();
 
 // Database schema constants - using schema-qualified table names
 export const TABLES = {

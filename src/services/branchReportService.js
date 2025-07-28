@@ -123,15 +123,21 @@ export class BranchReportService {
 
       // Get products and customers data separately
       const productIds = [...new Set(loans?.map(l => l.product_id).filter(Boolean))];
-      const { data: products } = await supabaseBanking
-        .from(TABLES.PRODUCTS)
-        .select('product_id, product_name, product_type')
-        .in('product_id', productIds);
+      const { data: products } = productIds.length > 0 
+        ? await supabaseBanking
+            .from(TABLES.PRODUCTS)
+            .select('product_id, product_name, product_type')
+            .in('product_id', productIds)
+            .then(result => result)
+        : { data: [] };
 
-      const { data: customersData } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('customer_id, full_name, customer_type, branch_id')
-        .in('customer_id', customerIds);
+      const { data: customersData } = customerIds.length > 0
+        ? await supabaseBanking
+            .from(TABLES.CUSTOMERS)
+            .select('customer_id, full_name, customer_type, branch_id')
+            .in('customer_id', customerIds)
+            .then(result => result)
+        : { data: [] };
 
       // Merge the data
       const loansWithDetails = loans?.map(loan => ({
