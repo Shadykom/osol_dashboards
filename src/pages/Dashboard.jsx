@@ -1126,131 +1126,128 @@ export default function EnhancedDashboard() {
   };
 
   return (
-    <div className={cn("min-h-screen bg-gray-50")}>
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold">
-                Comprehensive Dashboard
-              </h1>
-              {selectedTemplate && (
-                <Badge variant="outline">
-                  <Layers className="w-3 h-3 mr-1" />
-                  {DASHBOARD_TEMPLATES[selectedTemplate].nameEn}
-                </Badge>
-              )}
+    <div className="space-y-6 h-full overflow-auto">
+      {/* Header Section */}
+      <div className="space-y-4">
+        {/* Title and Actions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold">
+              Comprehensive Dashboard
+            </h1>
+            {selectedTemplate && (
+              <Badge variant="outline">
+                <Layers className="w-3 h-3 mr-1" />
+                {DASHBOARD_TEMPLATES[selectedTemplate].nameEn}
+              </Badge>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setRefreshing(true);
+                fetchDashboardData();
+              }}
+              disabled={refreshing}
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+              Refresh
+            </Button>
+            
+            <div className="flex items-center gap-2 border-l pl-2 ml-2">
+              <Switch
+                checked={autoRefresh}
+                onCheckedChange={setAutoRefresh}
+                id="auto-refresh"
+              />
+              <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">
+                Auto-refresh
+              </Label>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setRefreshing(true);
-                  fetchDashboardData();
-                }}
-                disabled={refreshing}
-              >
-                <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-                Refresh
-              </Button>
-              
-              <div className="flex items-center gap-2 border-l pl-2 ml-2">
-                <Switch
-                  checked={autoRefresh}
-                  onCheckedChange={setAutoRefresh}
-                  id="auto-refresh"
-                />
-                <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">
-                  Auto-refresh
-                </Label>
-              </div>
-              
-              <div className="flex items-center gap-2 border-l pl-2 ml-2">
-                <Switch
-                  checked={isEditMode}
-                  onCheckedChange={setIsEditMode}
-                  id="edit-mode"
-                />
-                <Label htmlFor="edit-mode" className="text-sm cursor-pointer flex items-center gap-1">
-                  {isEditMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                  Edit Mode
-                </Label>
-              </div>
-              
-              {isEditMode && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowTemplates(true)}
-                  >
-                    <Layers className="h-4 w-4 mr-2" />
-                    Templates
-                  </Button>
-                  
-                  <Button
-                    size="sm"
-                    onClick={saveDashboardConfig}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </Button>
-                </>
-              )}
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => exportDashboard('pdf')}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Export as PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportDashboard('excel')}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Export as Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowDataSeeder(true)}>
-                    <DatabaseIcon className="h-4 w-4 mr-2" />
-                    Seed Sample Data
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => window.print()}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Print
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex items-center gap-2 border-l pl-2 ml-2">
+              <Switch
+                checked={isEditMode}
+                onCheckedChange={setIsEditMode}
+                id="edit-mode"
+              />
+              <Label htmlFor="edit-mode" className="text-sm cursor-pointer flex items-center gap-1">
+                {isEditMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                Edit Mode
+              </Label>
             </div>
+            
+            {isEditMode && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => setShowTemplates(true)}
+                >
+                  <Layers className="h-4 w-4 mr-2" />
+                  Templates
+                </Button>
+                
+                <Button
+                  size="sm"
+                  onClick={saveDashboardConfig}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save
+                </Button>
+              </>
+            )}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportDashboard('pdf')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportDashboard('excel')}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export as Excel
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowDataSeeder(true)}>
+                  <DatabaseIcon className="h-4 w-4 mr-2" />
+                  Seed Sample Data
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => window.print()}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-      </div>
 
-      {/* Filters Panel */}
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="bg-white border-b shadow-sm"
-          >
-            <div className="container mx-auto px-4 py-4">
+        {/* Filters Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
+            >
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <Label className="text-sm">Date Range</Label>
@@ -1339,63 +1336,58 @@ export default function EnhancedDashboard() {
                   Apply Filters
                 </Button>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* Section Tabs */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4">
-          <ScrollArea className="w-full">
-            <div className="flex gap-2 py-2">
-              {Object.entries(DASHBOARD_SECTIONS).map(([key, section]) => (
-                <Button
-                  key={key}
-                  variant={selectedSection === key ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setSelectedSection(key)}
-                  className="whitespace-nowrap"
-                >
-                  <section.icon className="h-4 w-4 mr-2" />
-                  {section.nameEn}
-                </Button>
-              ))}
-            </div>
-          </ScrollArea>
+        {/* Section Tabs */}
+        <ScrollArea className="w-full">
+          <div className="flex gap-2">
+            {Object.entries(DASHBOARD_SECTIONS).map(([key, section]) => (
+              <Button
+                key={key}
+                variant={selectedSection === key ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSelectedSection(key)}
+                className="whitespace-nowrap"
+              >
+                <section.icon className="h-4 w-4 mr-2" />
+                {section.nameEn}
+              </Button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Section Header */}
+      <div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <div className={cn("p-2 rounded-lg", DASHBOARD_SECTIONS[selectedSection].color)}>
+                {React.createElement(DASHBOARD_SECTIONS[selectedSection].icon, { className: "h-5 w-5 text-white" })}
+              </div>
+              {DASHBOARD_SECTIONS[selectedSection].nameEn}
+            </h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              {DASHBOARD_SECTIONS[selectedSection].descriptionEn}
+            </p>
+          </div>
+          
+          {isEditMode && (
+            <Button
+              size="sm"
+              onClick={() => setShowAddWidget(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Widget
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
-        {/* Section Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <div className={cn("p-2 rounded-lg", DASHBOARD_SECTIONS[selectedSection].color)}>
-                  {React.createElement(DASHBOARD_SECTIONS[selectedSection].icon, { className: "h-5 w-5 text-white" })}
-                </div>
-                {DASHBOARD_SECTIONS[selectedSection].nameEn}
-              </h2>
-              <p className="text-muted-foreground text-sm mt-1">
-                {DASHBOARD_SECTIONS[selectedSection].descriptionEn}
-              </p>
-            </div>
-            
-            {isEditMode && (
-              <Button
-                size="sm"
-                onClick={() => setShowAddWidget(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Widget
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Widgets Grid */}
+      {/* Widgets Grid */}
+      <div className="flex-1 overflow-auto">
         {loading && widgets.length === 0 ? (
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
@@ -1483,6 +1475,7 @@ export default function EnhancedDashboard() {
         )}
       </div>
 
+      {/* Dialogs remain the same... */}
       {/* Add Widget Dialog */}
       <Dialog open={showAddWidget} onOpenChange={setShowAddWidget}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden">
