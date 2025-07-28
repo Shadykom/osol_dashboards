@@ -84,6 +84,7 @@ import {
 import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { fixDashboard } from '@/utils/fixDashboardAuth';
 
 // Import existing widgets
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
@@ -641,8 +642,19 @@ export default function EnhancedDashboard() {
 
   // Load dashboard configuration
   useEffect(() => {
-    loadDashboardConfig();
-    fetchDashboardData();
+    const initializeDashboard = async () => {
+      // Fix authentication and seed data if needed
+      try {
+        await fixDashboard();
+      } catch (error) {
+        console.error('Error fixing dashboard:', error);
+      }
+      
+      loadDashboardConfig();
+      fetchDashboardData();
+    };
+    
+    initializeDashboard();
   }, []);
 
   // Auto-refresh logic
@@ -769,15 +781,33 @@ export default function EnhancedDashboard() {
       previousMonth.setMonth(previousMonth.getMonth() - 1);
       
       // Fetch current month data
-      const { data: currentAccounts } = await supabaseBanking
+      const { data: currentAccounts, error: accountsError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('current_balance')
         .eq('account_status', 'ACTIVE');
       
-      const { data: currentLoans } = await supabaseBanking
+      if (accountsError) {
+        console.error('Error fetching accounts:', accountsError);
+        // Try to fix authentication if we get a 401
+        if (accountsError.code === '401' || accountsError.message?.includes('JWT')) {
+          await fixDashboard();
+          // Retry the query
+          const { data: retryAccounts } = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('current_balance')
+            .eq('account_status', 'ACTIVE');
+          return retryAccounts;
+        }
+      }
+      
+      const { data: currentLoans, error: loansError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('outstanding_balance')
         .eq('loan_status', 'ACTIVE');
+      
+      if (loansError) {
+        console.error('Error fetching loans:', loansError);
+      }
       
       const currentDeposits = currentAccounts?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
       const currentLoanAmount = currentLoans?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
