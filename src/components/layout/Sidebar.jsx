@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n/i18n';
@@ -394,7 +394,7 @@ const Clock = ({ className }) => (
 );
 
 // Navigation item component
-function NavItem({ item, level = 0, isCollapsed }) {
+function NavItem({ item, level = 0, isCollapsed, onNavigate }) {
   const location = useLocation();
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
@@ -472,7 +472,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
         {!isCollapsed && (
           <CollapsibleContent className="mt-1">
             {item.items.map((child, index) => (
-              <NavItem key={index} item={child} level={level + 1} isCollapsed={isCollapsed} />
+              <NavItem key={index} item={child} level={level + 1} isCollapsed={isCollapsed} onNavigate={onNavigate} />
             ))}
           </CollapsibleContent>
         )}
@@ -490,7 +490,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
       )}
       asChild
     >
-      <Link to={item.href}>
+      <Link to={item.href} onClick={onNavigate}>
         {ItemIcon && (
           <div className={cn(
             "p-2 rounded-lg transition-colors",
@@ -584,14 +584,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Close mobile sidebar on navigation
-  useEffect(() => {
-    // Only close the mobile sheet when actually navigating to a different page
-    if (isMobileSheet && typeof setIsCollapsed === 'function') {
-      // setIsCollapsed in mobile context is actually the close handler
-      setIsCollapsed();
-    }
-  }, [location.pathname]); // Only depend on pathname changes, not on isMobileSheet or setIsCollapsed
+  // We'll handle closing on navigation through click handlers instead
 
   // Filter navigation items based on search
   const filterNavItems = (items, query) => {
@@ -733,7 +726,17 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
               )}
               <div className="space-y-1">
                 {section.items.map((item, index) => (
-                  <NavItem key={index} item={item} isCollapsed={isCollapsed} />
+                  <NavItem 
+                    key={index} 
+                    item={item} 
+                    isCollapsed={isCollapsed}
+                    onNavigate={() => {
+                      // Close mobile sidebar on navigation
+                      if (isMobileSheet && typeof setIsCollapsed === 'function') {
+                        setIsCollapsed();
+                      }
+                    }}
+                  />
                 ))}
               </div>
             </div>
