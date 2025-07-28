@@ -1,6 +1,21 @@
 # Instructions to Disable All RLS on Your PostgreSQL Database
 
-Due to network connectivity limitations in this environment, I've created SQL scripts that you can run directly. Here are your options:
+Due to network connectivity limitations in this environment, I've created SQL scripts that you can run directly. 
+
+## Important: Permission Error Fix
+
+If you encountered the error `ERROR: 42501: must be owner of table objects`, this is because some tables (like `storage.objects`) are owned by Supabase system users. I've created scripts that handle this properly.
+
+## Available Scripts
+
+1. **`disable_rls_user_tables_only.sql`** - Safely disables RLS only on tables you own, skipping system tables
+2. **`disable_rls_kastle_schemas.sql`** - Focuses only on your application schemas (kastle_banking and kastle_collection)
+3. **`disable_rls_simple.sql`** - Simple version (may error on system tables)
+4. **`disable_rls_all_schemas.sql`** - Comprehensive version (may error on system tables)
+
+## Recommended Approach
+
+Use either `disable_rls_user_tables_only.sql` or `disable_rls_kastle_schemas.sql` to avoid permission errors.
 
 ## Option 1: Using Supabase SQL Editor (Recommended)
 
