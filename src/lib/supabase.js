@@ -52,6 +52,11 @@ export const supabase = isSupabaseConfigured
         params: {
           eventsPerSecond: 10
         }
+      },
+      global: {
+        headers: {
+          'apikey': supabaseAnonKey
+        }
       }
     })
   : createMockClient();
@@ -59,13 +64,25 @@ export const supabase = isSupabaseConfigured
 // Create a client specifically for kastle_banking schema
 export const supabaseBanking = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: supabase.auth,
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: 'osol-auth'
+      },
       db: {
         schema: 'kastle_banking'
       },
       realtime: {
         params: {
           eventsPerSecond: 10
+        }
+      },
+      global: {
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Prefer': 'return=representation'
         }
       }
     })
