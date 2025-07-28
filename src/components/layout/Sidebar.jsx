@@ -730,13 +730,6 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
         isMobileSheet ? "h-[calc(100vh-240px)]" : "" // Fixed height calculation for mobile
       )}>
         <div className="space-y-6 py-4 pb-20">
-          {/* Debug info for mobile */}
-          {isMobileSheet && navigationItems.length === 0 && (
-            <div className="p-4 text-center text-sm text-red-500">
-              Loading navigation items...
-            </div>
-          )}
-          
           {/* No results message */}
           {searchQuery && displayItems.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
@@ -772,13 +765,6 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
               </div>
             </div>
           ))}
-          
-          {/* Fallback if no items at all */}
-          {displayItems.length === 0 && !searchQuery && (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              <p>Loading navigation...</p>
-            </div>
-          )}
         </div>
       </ScrollArea>
       
