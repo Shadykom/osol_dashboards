@@ -44,7 +44,7 @@ import ProductReportPage from '@/pages/collection/ProductReport';
 
 // Test and utility imports
 import DatabaseTest from './pages/DatabaseTest';
-import { SidebarTest } from './components/SidebarTest'; // Optional test component
+// import { SidebarTest } from './components/SidebarTest'; // Optional test component
 
 // UI imports
 import { Toaster } from './components/ui/sonner';
@@ -303,7 +303,7 @@ function AppContent() {
           
           {/* Test & Debug Routes */}
           <Route path="/database-test" element={<DatabaseTest />} />
-          <Route path="/sidebar-test" element={<SidebarTest />} />
+          {/* <Route path="/sidebar-test" element={<SidebarTest />} /> */}
           
           {/* 404 - This should be last */}
           <Route path="*" element={<NotFound />} />
