@@ -14,6 +14,7 @@ import {
 import { useDashboard } from '@/hooks/useDashboard';
 import { useTranslation } from 'react-i18next';
 import { formatCurrency as formatCurrencyUtil } from '@/utils/formatters';
+import { cn } from '@/lib/utils';
 
 // Mock data as fallback
 const mockKpis = {
@@ -198,15 +199,15 @@ export function Dashboard() {
   return (
     <div className="h-full flex flex-col">
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className={cn("flex items-center justify-between mb-6", i18n.language === 'ar' && "flex-row-reverse")}>
+        <div className={i18n.language === 'ar' ? "text-right" : ""}>
           <h1 className="text-3xl font-bold tracking-tight">{t('navigation.mainDashboard')}</h1>
           <p className="text-muted-foreground">
             {t('dashboard.welcomeBack')}
           </p>
         </div>
         <Button onClick={refreshData} variant="outline" size="sm">
-          <RefreshCw className="mr-2 h-4 w-4" />
+          <RefreshCw className={cn("h-4 w-4", i18n.language === 'ar' ? "ml-2" : "mr-2")} />
           {t('common.refresh')}
         </Button>
       </div>
@@ -294,7 +295,10 @@ export function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
+              <button className={cn(
+                "flex items-center justify-between rounded-lg border p-3 text-sm hover:bg-accent w-full",
+                i18n.language === 'ar' ? "flex-row-reverse text-right" : "text-left"
+              )}>
                 <div className="space-y-1">
                   <p className="font-medium">Add New Customer</p>
                   <p className="text-xs text-muted-foreground">Register a new customer</p>
@@ -302,7 +306,10 @@ export function Dashboard() {
                 <Users className="h-4 w-4" />
               </button>
               
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
+              <button className={cn(
+                "flex items-center justify-between rounded-lg border p-3 text-sm hover:bg-accent w-full",
+                i18n.language === 'ar' ? "flex-row-reverse text-right" : "text-left"
+              )}>
                 <div className="space-y-1">
                   <p className="font-medium">Open Account</p>
                   <p className="text-xs text-muted-foreground">Create new account</p>
@@ -310,7 +317,10 @@ export function Dashboard() {
                 <CreditCard className="h-4 w-4" />
               </button>
               
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
+              <button className={cn(
+                "flex items-center justify-between rounded-lg border p-3 text-sm hover:bg-accent w-full",
+                i18n.language === 'ar' ? "flex-row-reverse text-right" : "text-left"
+              )}>
                 <div className="space-y-1">
                   <p className="font-medium">Process Transaction</p>
                   <p className="text-xs text-muted-foreground">Manual transaction entry</p>
@@ -318,7 +328,10 @@ export function Dashboard() {
                 <Activity className="h-4 w-4" />
               </button>
               
-              <button className="flex items-center justify-between rounded-lg border p-3 text-left text-sm hover:bg-accent w-full">
+              <button className={cn(
+                "flex items-center justify-between rounded-lg border p-3 text-sm hover:bg-accent w-full",
+                i18n.language === 'ar' ? "flex-row-reverse text-right" : "text-left"
+              )}>
                 <div className="space-y-1">
                   <p className="font-medium">Generate Report</p>
                   <p className="text-xs text-muted-foreground">Create custom report</p>
