@@ -149,34 +149,70 @@ export class BranchReportService {
       // Get collection cases for the branch
       const loanNumbers = filteredLoans?.map(l => l.loan_account_number) || [];
       
-      let casesQuery = supabaseCollection
+      // Get collection cases first
+      let casesQuery = supabaseBanking
         .from('collection_cases')
-        .select(`
-          *,
-          collection_officers!assigned_to (
-            officer_id,
-            officer_name,
-            branch_id
-          ),
-          collection_interactions!case_id (
-            interaction_type,
-            outcome,
-            interaction_datetime
-          ),
-          promise_to_pay!case_id (
-            ptp_amount,
-            ptp_date,
-            status
-          )
-        `)
+        .select('*')
         .in('loan_account_number', loanNumbers);
 
       const { data: cases, error: casesError } = await casesQuery;
 
       if (casesError) throw casesError;
 
+      // Get related data separately to avoid foreign key issues
+      let enrichedCases = [];
+      if (cases && cases.length > 0) {
+        // Get unique officer IDs and case IDs
+        const officerIds = [...new Set(cases.map(c => c.assigned_to).filter(Boolean))];
+        const caseIds = cases.map(c => c.case_id);
+
+        // Fetch officers
+        const { data: officers } = await supabaseCollection
+          .from('collection_officers')
+          .select('officer_id, officer_name, branch_id')
+          .in('officer_id', officerIds);
+
+        // Fetch interactions
+        const { data: interactions } = await supabaseCollection
+          .from('collection_interactions')
+          .select('case_id, interaction_type, outcome, interaction_datetime')
+          .in('case_id', caseIds);
+
+        // Fetch promises to pay
+        const { data: ptps } = await supabaseCollection
+          .from('promise_to_pay')
+          .select('case_id, ptp_amount, ptp_date, status')
+          .in('case_id', caseIds);
+
+        // Create lookup maps
+        const officersMap = officers?.reduce((map, officer) => {
+          map[officer.officer_id] = officer;
+          return map;
+        }, {}) || {};
+
+        const interactionsMap = interactions?.reduce((map, interaction) => {
+          if (!map[interaction.case_id]) map[interaction.case_id] = [];
+          map[interaction.case_id].push(interaction);
+          return map;
+        }, {}) || {};
+
+        const ptpMap = ptps?.reduce((map, ptp) => {
+          if (!map[ptp.case_id]) map[ptp.case_id] = [];
+          map[ptp.case_id].push(ptp);
+          return map;
+        }, {}) || {};
+
+        // Enrich cases with related data
+        enrichedCases = cases.map(caseItem => ({
+          ...caseItem,
+          assigned_officer: officersMap[caseItem.assigned_to] || null,
+          collection_interactions: interactionsMap[caseItem.case_id] || [],
+          promise_to_pay: ptpMap[caseItem.case_id] || []
+        }));
+      }
+
       // Calculate branch metrics
-      const metrics = this.calculateBranchMetrics(filteredLoans, cases, dateRange);
+      const metrics = this.calculateBranchMetrics(filteredLoans, enrichedCases, dateRange);
 
       // Get officer performance for the branch
       const officerPerformance = await this.getBranchOfficerPerformance(branchId, dateRange);
@@ -188,10 +224,10 @@ export class BranchReportService {
       }
 
       // Get communication stats
-      const communicationStats = await this.getBranchCommunicationStats(branchId, cases, dateRange);
+      const communicationStats = await this.getBranchCommunicationStats(branchId, enrichedCases, dateRange);
 
       // Get product performance
-      const productPerformance = this.calculateProductPerformance(filteredLoans, cases);
+      const productPerformance = this.calculateProductPerformance(filteredLoans, enrichedCases);
 
       // Get delinquency distribution
       const delinquencyDistribution = this.calculateDelinquencyDistribution(filteredLoans);
