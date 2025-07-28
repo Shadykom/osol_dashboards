@@ -68,7 +68,27 @@
     "autoLoan": "قرض سيارة",
     "takeAction": "اتخاذ إجراء",
     "verified": "تم التحقق",
-    "expired": "منتهي الصلاحية"
+    "expired": "منتهي الصلاحية",
+    "daily": "يومي",
+    "weekly": "أسبوعي",
+    "monthly": "شهري",
+    "quarterly": "ربع سنوي",
+    "yearly": "سنوي"
+  },
+  "branches": {
+    "riyadhMain": "الرياض الرئيسي",
+    "jeddah": "جدة",
+    "dammam": "الدمام",
+    "khobar": "الخبر",
+    "makkah": "مكة",
+    "madinah": "المدينة",
+    "taif": "الطائف",
+    "abha": "أبها",
+    "tabuk": "تبوك",
+    "hail": "حائل",
+    "qassim": "القصيم",
+    "jubail": "الجبيل",
+    "yanbu": "ينبع"
   },
   "navigation": {
     "overview": "نظرة عامة",

@@ -1,4 +1,4 @@
-import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 /**
  * خدمة تقرير مستوى الأخصائي
@@ -680,17 +680,17 @@ class SpecialistReportService {
       const dateFrom = this.getDateRangeStart(dateRange);
       
       const { data: performanceData, error } = await supabaseCollection
-        .from('officer_performance_metrics')
+        .from(TABLES.OFFICER_PERFORMANCE_METRICS)
         .select(`
           metric_date,
           calls_made,
-          calls_answered,
-          promises_made,
-          promises_kept,
+          contacts_successful as calls_answered,
+          ptps_obtained as promises_made,
+          ptps_kept_rate,
           amount_collected,
-          cases_resolved,
-          avg_call_duration,
-          customer_satisfaction_score
+          accounts_worked as cases_resolved,
+          talk_time_minutes,
+          quality_score as customer_satisfaction_score
         `)
         .eq('officer_id', specialistId)
         .gte('metric_date', dateFrom.toISOString())
@@ -705,7 +705,7 @@ class SpecialistReportService {
       const totalCalls = performanceData.reduce((sum, p) => sum + (p.calls_made || 0), 0);
       const answeredCalls = performanceData.reduce((sum, p) => sum + (p.calls_answered || 0), 0);
       const totalPromises = performanceData.reduce((sum, p) => sum + (p.promises_made || 0), 0);
-      const keptPromises = performanceData.reduce((sum, p) => sum + (p.promises_kept || 0), 0);
+      const keptPromises = performanceData.reduce((sum, p) => sum + Math.round((p.promises_made || 0) * (p.ptps_kept_rate || 0) / 100), 0);
       const totalCollected = performanceData.reduce((sum, p) => sum + (p.amount_collected || 0), 0);
       const resolvedCases = performanceData.reduce((sum, p) => sum + (p.cases_resolved || 0), 0);
 

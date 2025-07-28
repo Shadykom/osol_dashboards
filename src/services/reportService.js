@@ -1,4 +1,4 @@
-import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 /**
  * خدمة التقارير الشاملة
@@ -18,7 +18,7 @@ class ReportService {
 
       // جلب بيانات الأداء
       const performanceQuery = supabaseCollection
-        .from('officer_performance_metrics')
+        .from(TABLES.OFFICER_PERFORMANCE_METRICS)
         .select(`
           *,
           collection_officers!inner(
@@ -28,8 +28,8 @@ class ReportService {
             collection_teams(team_name)
           )
         `)
-        .gte('date', startDate)
-        .lte('date', endDate);
+        .gte('metric_date', startDate)
+        .lte('metric_date', endDate);
 
       if (specialistId) {
         performanceQuery.eq('officer_id', specialistId);
@@ -97,17 +97,17 @@ class ReportService {
           ),
           collection_cases!inner(
             case_id,
-            assigned_officer_id,
-            current_bucket,
+            assigned_to,
+            bucket_id,
             total_outstanding,
             days_past_due,
             last_payment_date,
-            last_contact_date
+            last_payment_amount
           )
         `);
 
       if (specialistId) {
-        loansQuery = loansQuery.eq('collection_cases.assigned_officer_id', specialistId);
+        loansQuery = loansQuery.eq('collection_cases.assigned_to', specialistId);
       }
 
       if (status !== 'all') {
@@ -115,7 +115,7 @@ class ReportService {
       }
 
       if (bucket !== 'all') {
-        loansQuery = loansQuery.eq('collection_cases.current_bucket', bucket);
+        loansQuery = loansQuery.eq('collection_cases.bucket_id', bucket);
       }
 
       const { data: loansData, error: loansError } = await loansQuery;

@@ -37,7 +37,7 @@ export class BranchReportService {
     try {
       const { data, error } = await supabaseBanking
         .from(TABLES.BRANCHES)
-        .select('branch_id, branch_name, branch_code, city, region, is_active')
+        .select('branch_id, branch_name, city, state, is_active')
         .eq('is_active', true)
         .order('branch_name');
 
@@ -89,11 +89,16 @@ export class BranchReportService {
       const { data: customers, error: customersError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('customer_id')
-        .eq('branch_id', branchId);
+        .eq('onboarding_branch', branchId);
 
       if (customersError) throw customersError;
 
       const customerIds = customers?.map(c => c.customer_id) || [];
+
+      // If no customers found, return empty metrics
+      if (customerIds.length === 0) {
+        return this.getEmptyBranchMetrics(branch, filters);
+      }
 
       // Get all loan accounts for the branch customers
       let loansQuery = supabaseBanking
@@ -149,34 +154,82 @@ export class BranchReportService {
       // Get collection cases for the branch
       const loanNumbers = filteredLoans?.map(l => l.loan_account_number) || [];
       
-      let casesQuery = supabaseCollection
+      // Get collection cases first
+      let casesQuery = supabaseBanking
         .from('collection_cases')
-        .select(`
-          *,
-          collection_officers!assigned_to (
-            officer_id,
-            officer_name,
-            branch_id
-          ),
-          collection_interactions!case_id (
-            interaction_type,
-            outcome,
-            interaction_datetime
-          ),
-          promise_to_pay!case_id (
-            ptp_amount,
-            ptp_date,
-            status
-          )
-        `)
+        .select('*')
         .in('loan_account_number', loanNumbers);
 
       const { data: cases, error: casesError } = await casesQuery;
 
       if (casesError) throw casesError;
 
+      // Get related data separately to avoid foreign key issues
+      let enrichedCases = [];
+      if (cases && cases.length > 0) {
+        // Get unique officer IDs and case IDs
+        const officerIds = [...new Set(cases.map(c => c.assigned_to).filter(Boolean))];
+        const caseIds = cases.map(c => c.case_id);
+
+        // Fetch officers
+        let officers = [];
+        if (officerIds.length > 0) {
+          const { data } = await supabaseCollection
+            .from('collection_officers')
+            .select('officer_id, officer_name')
+            .in('officer_id', officerIds);
+          officers = data || [];
+        }
+
+        // Fetch interactions
+        let interactions = [];
+        if (caseIds.length > 0) {
+          const { data } = await supabaseCollection
+            .from('collection_interactions')
+            .select('case_id, interaction_type, outcome, interaction_datetime')
+            .in('case_id', caseIds);
+          interactions = data || [];
+        }
+
+        // Fetch promises to pay
+        let ptps = [];
+        if (caseIds.length > 0) {
+          const { data } = await supabaseCollection
+            .from('promise_to_pay')
+            .select('case_id, ptp_amount, ptp_date, status')
+            .in('case_id', caseIds);
+          ptps = data || [];
+        }
+
+        // Create lookup maps
+        const officersMap = officers?.reduce((map, officer) => {
+          map[officer.officer_id] = officer;
+          return map;
+        }, {}) || {};
+
+        const interactionsMap = interactions?.reduce((map, interaction) => {
+          if (!map[interaction.case_id]) map[interaction.case_id] = [];
+          map[interaction.case_id].push(interaction);
+          return map;
+        }, {}) || {};
+
+        const ptpMap = ptps?.reduce((map, ptp) => {
+          if (!map[ptp.case_id]) map[ptp.case_id] = [];
+          map[ptp.case_id].push(ptp);
+          return map;
+        }, {}) || {};
+
+        // Enrich cases with related data
+        enrichedCases = cases.map(caseItem => ({
+          ...caseItem,
+          assigned_officer: officersMap[caseItem.assigned_to] || null,
+          collection_interactions: interactionsMap[caseItem.case_id] || [],
+          promise_to_pay: ptpMap[caseItem.case_id] || []
+        }));
+      }
+
       // Calculate branch metrics
-      const metrics = this.calculateBranchMetrics(filteredLoans, cases, dateRange);
+      const metrics = this.calculateBranchMetrics(filteredLoans, enrichedCases, dateRange);
 
       // Get officer performance for the branch
       const officerPerformance = await this.getBranchOfficerPerformance(branchId, dateRange);
@@ -188,10 +241,10 @@ export class BranchReportService {
       }
 
       // Get communication stats
-      const communicationStats = await this.getBranchCommunicationStats(branchId, cases, dateRange);
+      const communicationStats = await this.getBranchCommunicationStats(branchId, enrichedCases, dateRange);
 
       // Get product performance
-      const productPerformance = this.calculateProductPerformance(filteredLoans, cases);
+      const productPerformance = this.calculateProductPerformance(filteredLoans, enrichedCases);
 
       // Get delinquency distribution
       const delinquencyDistribution = this.calculateDelinquencyDistribution(filteredLoans);
@@ -255,11 +308,25 @@ export class BranchReportService {
    */
   static async getBranchOfficerPerformance(branchId, dateRange) {
     try {
-      // Get collection officers for the branch
+      // First get teams for the branch
+      const { data: teams, error: teamsError } = await supabaseCollection
+        .from(TABLES.COLLECTION_TEAMS)
+        .select('team_id')
+        .eq('branch_id', branchId)
+        .eq('is_active', true);
+
+      if (teamsError) throw teamsError;
+
+      if (!teams || teams.length === 0) {
+        return [];
+      }
+
+      // Get collection officers for the branch through teams
+      const teamIds = teams.map(t => t.team_id);
       const { data: officers, error: officersError } = await supabaseCollection
         .from(TABLES.COLLECTION_OFFICERS)
-        .select('officer_id, officer_name, officer_type, status')
-        .eq('branch_id', branchId)
+        .select('officer_id, officer_name, officer_type, status, team_id')
+        .in('team_id', teamIds)
         .eq('status', 'ACTIVE');
 
       if (officersError) throw officersError;
@@ -338,6 +405,31 @@ export class BranchReportService {
   }
 
   /**
+   * Get empty branch metrics when no data is found
+   */
+  static getEmptyBranchMetrics(branch, filters) {
+    const metrics = {
+      totalPortfolio: 0,
+      totalCustomers: 0,
+      totalAccounts: 0,
+      totalOverdue: 0,
+      delinquencyRate: 0,
+      collectionRate: 0,
+      portfolioAtRisk: 0
+    };
+
+    return formatApiResponse({
+      branchInfo: branch || { branch_id: filters.branchId, branch_name: 'Unknown Branch' },
+      metrics,
+      productBreakdown: [],
+      delinquencyBuckets: [],
+      officerPerformance: [],
+      branchComparison: [],
+      dateRange: filters.dateRange
+    });
+  }
+
+  /**
    * Get branch comparison data
    */
   static async getBranchComparison(branchId, branchMetrics) {
@@ -345,7 +437,7 @@ export class BranchReportService {
       // Get all branches
       const { data: branches, error: branchesError } = await supabaseBanking
         .from(TABLES.BRANCHES)
-        .select('branch_id, branch_name, city, region')
+        .select('branch_id, branch_name, city, state')
         .eq('is_active', true);
 
       if (branchesError) throw branchesError;
@@ -355,7 +447,7 @@ export class BranchReportService {
         branchId: branch.branch_id,
         branchName: branch.branch_name,
         city: branch.city,
-        region: branch.region,
+        region: branch.state,
         delinquencyRate: branch.branch_id === branchId ? 
           branchMetrics.delinquencyRate : 
           Math.random() * 10 + 5,

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '@/i18n/i18n';
 import { 
   LayoutDashboard, 
   Users, 
@@ -606,9 +607,9 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   return (
     <div className={cn(
-      "flex h-screen flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl border-r border-gray-200 dark:border-gray-800",
-      isCollapsed ? "w-20" : "w-80 md:w-72",
-      isRTL && "border-r-0 border-l font-arabic"
+      "flex h-screen flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
+      isCollapsed ? "w-20" : "w-80",
+      isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic" : "border-r border-gray-200 dark:border-gray-800"
     )}>
       {/* Header */}
       <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
@@ -653,7 +654,11 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
             className="h-9 w-9 rounded-xl hover:bg-primary/10 transition-all duration-200"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            <ChevronsLeft className="h-5 w-5" />
+            {isRTL ? (
+              <ChevronsRight className="h-5 w-5" />
+            ) : (
+              <ChevronsLeft className="h-5 w-5" />
+            )}
           </Button>
         )}
       </div>
@@ -705,7 +710,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           {filteredNavItems.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {!isCollapsed && section.title && (
-                <h4 className="mb-3 px-3 text-xs font-semibold uppercase text-muted-foreground/60 tracking-wider">
+                <h4 className={cn(
+                  "mb-3 px-3 text-xs font-semibold uppercase text-muted-foreground/60 tracking-wider",
+                  isRTL && "text-right"
+                )}>
                   {section.title}
                 </h4>
               )}
@@ -804,7 +812,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
                   variant="ghost"
                   size="sm"
                   className="h-9 w-full rounded-lg hover:bg-primary/10"
-                  onClick={() => i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
+                  onClick={() => changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
                 >
                   <Languages className="h-4 w-4" />
                   {!isCollapsed && <span className="sr-only">Language</span>}
@@ -871,7 +879,11 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
                     className="h-9 w-full rounded-lg hover:bg-primary/10"
                     onClick={() => setIsCollapsed(false)}
                   >
-                    <ChevronsRight className="h-4 w-4" />
+                    {isRTL ? (
+                      <ChevronsLeft className="h-4 w-4" />
+                    ) : (
+                      <ChevronsRight className="h-4 w-4" />
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>

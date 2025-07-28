@@ -14,8 +14,10 @@ import {
   Clock, Target, Activity, FileText, Filter
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
+import { useTranslation } from 'react-i18next';
 
 const CollectionOverview = () => {
+  const { t } = useTranslation();
   const [overview, setOverview] = useState(null);
   const [performance, setPerformance] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -129,25 +131,25 @@ const CollectionOverview = () => {
             variant={selectedPeriod === 'daily' ? 'default' : 'outline'}
             onClick={() => setSelectedPeriod('daily')}
           >
-            Daily
+            {t('common.daily')}
           </Button>
           <Button
             variant={selectedPeriod === 'weekly' ? 'default' : 'outline'}
             onClick={() => setSelectedPeriod('weekly')}
           >
-            Weekly
+            {t('common.weekly')}
           </Button>
           <Button
             variant={selectedPeriod === 'monthly' ? 'default' : 'outline'}
             onClick={() => setSelectedPeriod('monthly')}
           >
-            Monthly
+            {t('common.monthly')}
           </Button>
           <Button
             variant={selectedPeriod === 'quarterly' ? 'default' : 'outline'}
             onClick={() => setSelectedPeriod('quarterly')}
           >
-            Quarterly
+            {t('common.quarterly')}
           </Button>
         </div>
       </div>
@@ -157,7 +159,7 @@ const CollectionOverview = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Filters
+            {t('common.filter')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -167,11 +169,11 @@ const CollectionOverview = () => {
                 <SelectValue placeholder="Branch" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem>
-                <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
-                <SelectItem value="JEDDAH">Jeddah</SelectItem>
-                <SelectItem value="DAMMAM">Dammam</SelectItem>
-                <SelectItem value="KHOBAR">Khobar</SelectItem>
+                <SelectItem value="all">{t('filters.allBranches')}</SelectItem>
+                <SelectItem value="RIYADH_MAIN">{t('branches.riyadhMain')}</SelectItem>
+                <SelectItem value="JEDDAH">{t('branches.jeddah')}</SelectItem>
+                <SelectItem value="DAMMAM">{t('branches.dammam')}</SelectItem>
+                <SelectItem value="KHOBAR">{t('branches.khobar')}</SelectItem>
               </SelectContent>
             </Select>
             
