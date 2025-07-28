@@ -546,7 +546,7 @@ function NavItem({ item, level = 0, isCollapsed }) {
 }
 
 // Main Sidebar Component
-export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
+export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
@@ -586,19 +586,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   // Close mobile sidebar on navigation
   useEffect(() => {
-    if (isMobile && typeof setIsCollapsed === 'function') {
-      // This will close the mobile sheet when navigating
-      const handleNavigation = () => {
-        if (window.innerWidth < 768) {
-          setIsCollapsed(true);
-        }
-      };
-      
-      // Add slight delay to allow navigation to complete
-      const timer = setTimeout(handleNavigation, 100);
-      return () => clearTimeout(timer);
+    // Only close the mobile sheet when actually navigating to a different page
+    if (isMobileSheet && typeof setIsCollapsed === 'function') {
+      // setIsCollapsed in mobile context is actually the close handler
+      setIsCollapsed();
     }
-  }, [location.pathname, isMobile, setIsCollapsed]);
+  }, [location.pathname]); // Only depend on pathname changes, not on isMobileSheet or setIsCollapsed
 
   // Filter navigation items based on search
   const filterNavItems = (items, query) => {
