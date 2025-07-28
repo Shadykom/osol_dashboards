@@ -6,6 +6,77 @@
   text-align: right;
 }
 
+/* Fix for sidebar visibility issues in RTL */
+[dir="rtl"] .sidebar,
+[dir="rtl"] aside,
+[dir="rtl"] [class*="sidebar"] {
+  /* Ensure sidebar is visible */
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  
+  /* Fix potential gradient rendering issues */
+  isolation: isolate;
+  
+  /* Ensure proper stacking context */
+  z-index: 40;
+}
+
+/* Fix backdrop filter issues in RTL */
+[dir="rtl"] [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+[dir="rtl"] .dark [class*="backdrop-blur"] {
+  background-color: rgba(17, 24, 39, 0.8);
+}
+
+/* Fix gradient backgrounds in RTL */
+[dir="rtl"] [class*="bg-gradient"] {
+  background-attachment: fixed;
+  will-change: auto;
+}
+
+/* Ensure all sidebar content is visible */
+[dir="rtl"] .sidebar *,
+[dir="rtl"] aside *,
+[dir="rtl"] [class*="sidebar"] * {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Fix absolute positioned elements in sidebar */
+[dir="rtl"] .sidebar .absolute,
+[dir="rtl"] aside .absolute {
+  right: auto;
+  left: auto;
+}
+
+/* Fix blur effects that might cause rendering issues */
+[dir="rtl"] .blur-xl,
+[dir="rtl"] .blur-lg,
+[dir="rtl"] .blur-md,
+[dir="rtl"] .blur-sm,
+[dir="rtl"] .blur {
+  filter: blur(0) !important;
+  -webkit-filter: blur(0) !important;
+}
+
+/* Re-enable blur with proper rendering */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  [dir="rtl"] .blur-xl {
+    filter: blur(24px) !important;
+    -webkit-filter: blur(24px) !important;
+  }
+  
+  [dir="rtl"] .blur-lg {
+    filter: blur(16px) !important;
+    -webkit-filter: blur(16px) !important;
+  }
+}
+
 /* Main Layout Container - Ensure proper RTL flex direction */
 [dir="rtl"] .flex {
   direction: rtl;
@@ -351,4 +422,91 @@
 [dir="rtl"] .accordion-trigger svg {
   margin-left: 0.5rem;
   margin-right: 0;
+}
+
+/* Additional RTL Sidebar Fixes */
+
+/* Disable complex shadows that might cause rendering issues */
+[dir="rtl"] .shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Simplify gradients in RTL mode to prevent rendering issues */
+[dir="rtl"] .bg-gradient-to-b {
+  background: linear-gradient(to bottom, rgb(249 250 251), rgb(255 255 255), rgb(249 250 251)) !important;
+}
+
+[dir="rtl"] .dark .bg-gradient-to-b {
+  background: linear-gradient(to bottom, rgb(17 24 39), rgb(3 7 18), rgb(17 24 39)) !important;
+}
+
+/* Fix overflow issues specific to sidebar */
+[dir="rtl"] .sidebar {
+  overflow: visible !important;
+}
+
+[dir="rtl"] .sidebar > * {
+  overflow: visible !important;
+}
+
+/* Only apply overflow-y-auto to the navigation scroll area */
+[dir="rtl"] .sidebar .overflow-y-auto {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+/* Ensure sidebar header is always visible */
+[dir="rtl"] .sidebar > div:first-child {
+  position: relative;
+  z-index: 50;
+}
+
+/* Fix potential transform issues on sidebar children */
+[dir="rtl"] .sidebar * {
+  transform: none !important;
+  -webkit-transform: none !important;
+}
+
+/* Only allow specific transforms */
+[dir="rtl"] .sidebar .rotate-90 {
+  transform: rotate(90deg) !important;
+}
+
+[dir="rtl"] .sidebar .rotate-180 {
+  transform: rotate(180deg) !important;
+}
+
+[dir="rtl"] .sidebar .-translate-y-1\/2 {
+  transform: translateY(-50%) !important;
+}
+
+/* Force hardware acceleration for better rendering */
+[dir="rtl"] .sidebar {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: contents;
+}
+
+/* Ensure text is visible in RTL */
+[dir="rtl"] .sidebar,
+[dir="rtl"] .sidebar * {
+  color: inherit !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix potential issues with absolute positioning in RTL */
+[dir="rtl"] .sidebar .absolute {
+  position: absolute !important;
+}
+
+/* Ensure proper rendering of backdrop blur elements */
+[dir="rtl"] .backdrop-blur-md {
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+[dir="rtl"] .dark .backdrop-blur-md {
+  background-color: rgba(17, 24, 39, 0.8) !important;
 }
