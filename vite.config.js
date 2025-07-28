@@ -18,6 +18,7 @@ export default defineConfig({
     allowedHosts: 'all'
   },
   build: {
+    target: 'esnext', // Support top-level await
     rollupOptions: {
       output: {
         manualChunks: {
@@ -31,7 +32,7 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['lucide-react']
+    include: ['lucide-react', '@hello-pangea/dnd']
   }
 })
 
