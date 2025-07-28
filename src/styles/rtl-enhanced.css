@@ -6,6 +6,24 @@
   text-align: right;
 }
 
+/* Main Layout Container - Ensure proper RTL flex direction */
+[dir="rtl"] .flex {
+  direction: rtl;
+}
+
+/* Sidebar Positioning for RTL */
+[dir="rtl"] .sidebar,
+[dir="rtl"] aside {
+  order: 2;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Main Content Area in RTL */
+[dir="rtl"] main {
+  order: 1;
+}
+
 /* Flexbox Direction Fixes */
 [dir="rtl"] .flex-row {
   flex-direction: row-reverse;
@@ -297,6 +315,21 @@
 [dir="rtl"] [data-sheet-side="right"] {
   left: 0;
   right: auto;
+}
+
+/* Specific fix for the main layout container */
+[dir="rtl"] .flex.h-screen.overflow-hidden {
+  flex-direction: row-reverse !important;
+}
+
+/* Ensure all direct flex children in main layout respect RTL */
+[dir="rtl"] #root > div.flex {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix for any flex container that should reverse in RTL */
+[dir="rtl"] .flex:not(.flex-col):not(.flex-column):not(.flex-wrap) {
+  flex-direction: row-reverse;
 }
 
 /* Dialog and Modal alignments */

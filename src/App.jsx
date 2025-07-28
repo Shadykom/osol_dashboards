@@ -30,6 +30,7 @@ import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
+import { RTLDebug } from './components/RTLDebug';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './App.css';
@@ -162,13 +163,18 @@ function NotFound() {
 function SafeApp() {
   const { i18n } = useTranslation();
   
-  // Database connection status logging
+  // Database connection status logging and RTL setup
   useEffect(() => {
     if (import.meta.env.DEV) {
       console.log('🔗 Checking database connection status...');
       // Connection status is already logged in supabase.js
     }
-  }, []);
+    
+    // Ensure document direction is set on mount
+    const currentLang = i18n.language || 'en';
+    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = currentLang;
+  }, [i18n.language]);
   
   return (
     <div className={`app ${i18n.language === 'ar' ? 'rtl' : 'ltr'}`} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
@@ -264,6 +270,7 @@ function SafeApp() {
           </Routes>
         </Layout>
         <Toaster />
+        <RTLDebug />
       </Router>
     </div>
   );
