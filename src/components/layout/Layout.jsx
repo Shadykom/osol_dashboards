@@ -28,13 +28,21 @@ export function Layout({ children }) {
   };
 
   return (
-    <div className={cn(
-      "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
-      isRTL ? "flex-row-reverse" : "flex-row"
-    )} dir={isRTL ? "rtl" : "ltr"}>
+    <div 
+      className={cn(
+        "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
+        isRTL ? "flex-row-reverse rtl" : "flex-row ltr"
+      )} 
+      dir={isRTL ? "rtl" : "ltr"}
+    >
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
+        <div className={cn(
+          "transition-all duration-300",
+          isRTL ? "order-2" : "order-1"
+        )}>
+          <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
+        </div>
       )}
       
       {/* Mobile Sidebar */}
@@ -49,7 +57,10 @@ export function Layout({ children }) {
         </Sheet>
       )}
       
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={cn(
+        "flex-1 flex flex-col min-w-0",
+        isRTL ? "order-1" : "order-2"
+      )}>
         <Header onMenuClick={handleMenuClick} />
         <main className={cn(
           "flex-1 overflow-auto bg-gray-50/50 dark:bg-gray-950 p-4 md:p-6 lg:p-8",

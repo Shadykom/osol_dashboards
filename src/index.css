@@ -9,6 +9,9 @@
 /* Import enhanced RTL styles */
 @import './styles/rtl-enhanced.css';
 
+/* Import comprehensive RTL fixes */
+@import './styles/rtl-fixes.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
