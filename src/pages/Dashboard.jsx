@@ -81,6 +81,7 @@ import {
   Sankey
 } from 'recharts';
 import { fixDashboard } from '@/utils/fixDashboardAuth';
+import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelper';
 
 // Mock Supabase clients for demonstration
 const mockSupabaseBanking = {
@@ -281,19 +282,21 @@ const WIDGET_CATALOG = {
       type: 'kpi',
       query: async () => {
         try {
-          const { data: accounts, error: accountsError } = await supabaseBanking
-            .from(TABLES.ACCOUNTS)
-            .select('current_balance')
-            .eq('account_status', 'ACTIVE');
+          const accounts = await authenticatedQuery(
+            () => supabaseBanking
+              .from(TABLES.ACCOUNTS)
+              .select('current_balance')
+              .eq('account_status', 'ACTIVE'),
+            []
+          );
           
-          if (accountsError) throw accountsError;
-          
-          const { data: loans, error: loansError } = await supabaseBanking
-            .from(TABLES.LOAN_ACCOUNTS)
-            .select('outstanding_balance')
-            .eq('loan_status', 'ACTIVE');
-          
-          if (loansError) throw loansError;
+          const loans = await authenticatedQuery(
+            () => supabaseBanking
+              .from(TABLES.LOAN_ACCOUNTS)
+              .select('outstanding_balance')
+              .eq('loan_status', 'ACTIVE'),
+            []
+          );
           
           const totalDeposits = accounts?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
           const totalLoans = loans?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
@@ -989,6 +992,13 @@ export default function EnhancedDashboard() {
   // Initialize dashboard with default data
   useEffect(() => {
     const initializeDashboard = async () => {
+      // Auto-login for demo purposes
+      try {
+        await autoLogin();
+      } catch (error) {
+        console.error('Error with auto-login:', error);
+      }
+      
       // Fix authentication and seed data if needed
       try {
         await fixDashboard();
