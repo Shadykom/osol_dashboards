@@ -123,10 +123,13 @@ BEGIN
 END $$;
 
 -- 4. Final verification
-RAISE NOTICE '';
-RAISE NOTICE '==========================================';
-RAISE NOTICE 'FINAL VERIFICATION';
-RAISE NOTICE '==========================================';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '==========================================';
+    RAISE NOTICE 'FINAL VERIFICATION';
+    RAISE NOTICE '==========================================';
+END $$;
 
 -- Show tables that still have RLS enabled
 WITH rls_status AS (

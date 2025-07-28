@@ -8,14 +8,19 @@ If you encountered the error `ERROR: 42501: must be owner of table objects`, thi
 
 ## Available Scripts
 
-1. **`disable_rls_user_tables_only.sql`** - Safely disables RLS only on tables you own, skipping system tables
-2. **`disable_rls_kastle_schemas.sql`** - Focuses only on your application schemas (kastle_banking and kastle_collection)
-3. **`disable_rls_simple.sql`** - Simple version (may error on system tables)
-4. **`disable_rls_all_schemas.sql`** - Comprehensive version (may error on system tables)
+1. **`disable_rls_kastle_clean.sql`** - ✅ RECOMMENDED - Clean, simple script for kastle schemas only
+2. **`disable_rls_user_tables_only.sql`** - Safely disables RLS only on tables you own, skipping system tables
+3. **`disable_rls_kastle_schemas.sql`** - Focuses only on your application schemas (fixed syntax)
+4. **`disable_rls_simple.sql`** - Simple version (may error on system tables)
+5. **`disable_rls_all_schemas.sql`** - Comprehensive version (may error on system tables)
 
 ## Recommended Approach
 
-Use either `disable_rls_user_tables_only.sql` or `disable_rls_kastle_schemas.sql` to avoid permission errors.
+**Use `disable_rls_kastle_clean.sql`** - This is the cleanest, most reliable script that:
+- Focuses only on your kastle_banking and kastle_collection schemas
+- Handles errors gracefully
+- Shows before/after status
+- Avoids syntax issues
 
 ## Option 1: Using Supabase SQL Editor (Recommended)
 

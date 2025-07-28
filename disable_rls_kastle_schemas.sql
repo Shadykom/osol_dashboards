@@ -124,10 +124,13 @@ EXCEPTION
 END $$;
 
 -- 6. Verification
-RAISE NOTICE '';
-RAISE NOTICE '==========================================';
-RAISE NOTICE 'VERIFICATION';
-RAISE NOTICE '==========================================';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '==========================================';
+    RAISE NOTICE 'VERIFICATION';
+    RAISE NOTICE '==========================================';
+END $$;
 
 -- Check RLS status
 SELECT 
