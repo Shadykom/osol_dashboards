@@ -31,7 +31,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: 'osol-auth'
       },
       realtime: {
         params: {
@@ -45,7 +47,9 @@ export const supabaseBanking = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+    storageKey: 'osol-auth'
   },
   db: {
     schema: 'kastle_banking'
@@ -62,7 +66,9 @@ export const supabaseCollection = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+    storageKey: 'osol-auth'
   },
   db: {
     schema: 'kastle_collection'
