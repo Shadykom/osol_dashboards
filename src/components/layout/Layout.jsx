@@ -38,12 +38,12 @@ export function Layout({ children }) {
 
   return (
     <div 
-      className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950"
+      className="flex h-screen bg-gray-50 dark:bg-gray-950"
     >
       {/* Desktop Sidebar */}
       {!isMobile && (
         <div className={cn(
-          "transition-all duration-300"
+          "transition-all duration-300 flex-shrink-0"
         )}>
           <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
         </div>
@@ -77,16 +77,18 @@ export function Layout({ children }) {
       </Sheet>
       
       <div className={cn(
-        "flex-1 flex flex-col min-w-0"
+        "flex-1 flex flex-col min-w-0 overflow-hidden"
       )}>
         <Header onMenuClick={handleMenuClick} />
         <main className={cn(
-          "flex-1 overflow-auto bg-gray-50/50 dark:bg-gray-950 p-4 md:p-6 lg:p-8",
+          "flex-1 overflow-y-auto bg-gray-50/50 dark:bg-gray-950",
           "transition-all duration-300"
         )}>
-          <div className="h-full w-full max-w-[1920px] mx-auto">
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 h-full p-6">
-              {children}
+          <div className="min-h-full p-4 md:p-6 lg:p-8">
+            <div className="w-full max-w-[1920px] mx-auto">
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                {children}
+              </div>
             </div>
           </div>
         </main>

@@ -717,7 +717,7 @@ const SpecialistLevelReport = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       <FilterSidebar />
       
       {/* Header */}
