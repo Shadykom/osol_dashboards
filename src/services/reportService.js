@@ -1,4 +1,4 @@
-import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 /**
  * خدمة التقارير الشاملة
@@ -18,7 +18,7 @@ class ReportService {
 
       // جلب بيانات الأداء
       const performanceQuery = supabaseCollection
-        .from('officer_performance_metrics')
+        .from(TABLES.OFFICER_PERFORMANCE_METRICS)
         .select(`
           *,
           collection_officers!inner(

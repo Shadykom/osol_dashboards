@@ -37,7 +37,7 @@ export class ProductReportService {
     try {
       const { data, error } = await supabaseBanking
         .from(TABLES.PRODUCTS)
-        .select('product_id, product_name, product_type, product_category, is_active')
+        .select('product_id, product_code, product_name, product_type, category_id, is_active')
         .eq('is_active', true)
         .order('product_name');
 
