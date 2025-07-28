@@ -91,6 +91,7 @@ export class ProductReportService {
         .select(`
           loan_account_number,
           outstanding_balance,
+          principal_amount,
           loan_amount,
           overdue_amount,
           overdue_days,
@@ -198,7 +199,7 @@ export class ProductReportService {
    */
   static calculateProductMetrics(loans, cases, dateRange) {
     const totalLoans = loans?.length || 0;
-    const totalPortfolio = loans?.reduce((sum, l) => sum + (l.loan_amount || 0), 0) || 0;
+    const totalPortfolio = loans?.reduce((sum, l) => sum + (l.loan_amount || l.principal_amount || 0), 0) || 0;
     const totalOutstanding = loans?.reduce((sum, l) => sum + (l.outstanding_balance || 0), 0) || 0;
     const overdueLoans = loans?.filter(l => l.overdue_amount > 0).length || 0;
     const totalOverdue = loans?.reduce((sum, l) => sum + (l.overdue_amount || 0), 0) || 0;
@@ -263,7 +264,7 @@ export class ProductReportService {
       }
       
       branchStats[branchId].totalLoans++;
-      branchStats[branchId].totalAmount += loan.loan_amount || 0;
+      branchStats[branchId].totalAmount += loan.loan_amount || loan.principal_amount || 0;
       
       if (loan.overdue_amount > 0) {
         branchStats[branchId].overdueLoans++;
@@ -306,7 +307,7 @@ export class ProductReportService {
       // Customer type stats
       if (customerTypeStats[customerType]) {
         customerTypeStats[customerType].count++;
-        customerTypeStats[customerType].amount += loan.loan_amount || 0;
+        customerTypeStats[customerType].amount += loan.loan_amount || loan.principal_amount || 0;
         if (loan.overdue_amount > 0) {
           customerTypeStats[customerType].overdueCount++;
           customerTypeStats[customerType].overdueAmount += loan.overdue_amount || 0;
@@ -316,7 +317,7 @@ export class ProductReportService {
       // Risk category stats
       if (riskCategoryStats[riskCategory]) {
         riskCategoryStats[riskCategory].count++;
-        riskCategoryStats[riskCategory].amount += loan.loan_amount || 0;
+        riskCategoryStats[riskCategory].amount += loan.loan_amount || loan.principal_amount || 0;
         riskCategoryStats[riskCategory].overdueAmount += loan.overdue_amount || 0;
       }
     });
@@ -543,7 +544,7 @@ export class ProductReportService {
       }
       
       vintages[monthYear].totalLoans++;
-      vintages[monthYear].totalAmount += loan.loan_amount || 0;
+      vintages[monthYear].totalAmount += loan.loan_amount || loan.principal_amount || 0;
       
       if (loan.overdue_amount > 0) {
         vintages[monthYear].overdueLoans++;
@@ -588,7 +589,7 @@ export class ProductReportService {
         customerName: loan.kastle_banking?.customers?.full_name || 'Unknown',
         customerType: loan.kastle_banking?.customers?.customer_type || 'Unknown',
         branchName: loan.kastle_banking?.customers?.kastle_banking?.branches?.branch_name || 'Unknown',
-        loanAmount: loan.loan_amount,
+        loanAmount: loan.loan_amount || loan.principal_amount,
         overdueAmount: loan.overdue_amount,
         overdueDays: loan.overdue_days,
         riskCategory: loan.kastle_banking?.customers?.risk_category || 'Unknown'
