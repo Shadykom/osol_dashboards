@@ -1,0 +1,84 @@
+/* New Sidebar Mobile-First Styles */
+
+/* Base mobile styles */
+@media (max-width: 1023px) {
+  /* Ensure proper touch scrolling on mobile */
+  .new-sidebar-mobile {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Prevent background scroll when mobile sidebar is open */
+  body.mobile-sidebar-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+  
+  /* Ensure proper z-index stacking */
+  .new-sidebar-overlay {
+    z-index: 40;
+  }
+  
+  .new-sidebar-container {
+    z-index: 50;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  /* Smooth transitions for desktop */
+  .new-sidebar-desktop {
+    transition: width 0.3s ease-in-out;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .new-sidebar-container,
+  .new-sidebar-desktop {
+    transition: none;
+  }
+}
+
+/* Focus management */
+.new-sidebar-item:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* RTL support */
+[dir="rtl"] .new-sidebar-mobile {
+  transform: translateX(100%);
+}
+
+[dir="rtl"] .new-sidebar-mobile.open {
+  transform: translateX(0);
+}
+
+/* Performance optimizations */
+.new-sidebar-container {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .new-sidebar-item {
+    border: 1px solid transparent;
+  }
+  
+  .new-sidebar-item:hover,
+  .new-sidebar-item:focus {
+    border-color: currentColor;
+  }
+}
+
+/* Print styles */
+@media print {
+  .new-sidebar-container,
+  .new-sidebar-overlay {
+    display: none !important;
+  }
+}

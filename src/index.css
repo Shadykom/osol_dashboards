@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import new sidebar styles */
+@import './styles/new-sidebar.css';
+
 @layer base {
   :root {
     --background: 0 0% 100%;
