@@ -6,12 +6,12 @@
 /* Import grid layout styles */
 @import './styles/grid-layout-styles.css';
 
+/* Import enhanced RTL styles */
+@import './styles/rtl-enhanced.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import enhanced RTL styles */
-@import './styles/rtl-enhanced.css';
 
 @layer base {
   :root {
@@ -229,4 +229,46 @@ main {
 /* Ensure main content is on the left in RTL */
 [dir="rtl"] .flex-1.flex.flex-col.min-w-0 {
   order: 1;
+}
+
+/* Print styles for dashboard */
+@media print {
+  /* Hide navigation and controls */
+  .no-print,
+  button,
+  .sticky,
+  [role="navigation"],
+  [role="menubar"] {
+    display: none !important;
+  }
+  
+  /* Adjust layout for print */
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Ensure widgets fit on page */
+  .grid {
+    display: block !important;
+  }
+  
+  .grid > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+  
+  /* Preserve colors and backgrounds */
+  * {
+    color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Ensure charts are visible */
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
 }

@@ -11,7 +11,8 @@ import {
   Banknote, Wallet, TrendingDown, AlertTriangle, FileText, Sparkles,
   Layers, Target, Brain, Zap, ChevronRight, Globe, Maximize2,
   Home, UserCheck, BanknoteIcon, Package, FileCheck, Briefcase,
-  GitBranch, Percent, Timer, Phone, MessageSquare, UserX, Scale
+  GitBranch, Percent, Timer, Phone, MessageSquare, UserX, Scale,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,7 +99,8 @@ const DASHBOARD_SECTIONS = {
     icon: Home,
     color: 'bg-blue-500',
     description: 'ملخص شامل للأداء',
-    descriptionEn: 'Comprehensive performance summary'
+    descriptionEn: 'Comprehensive performance summary',
+    gradient: 'from-blue-500 to-blue-600'
   },
   banking: {
     id: 'banking',
@@ -107,7 +109,8 @@ const DASHBOARD_SECTIONS = {
     icon: Building2,
     color: 'bg-green-500',
     description: 'الحسابات والمعاملات',
-    descriptionEn: 'Accounts and transactions'
+    descriptionEn: 'Accounts and transactions',
+    gradient: 'from-green-500 to-green-600'
   },
   lending: {
     id: 'lending',
@@ -116,7 +119,8 @@ const DASHBOARD_SECTIONS = {
     icon: Banknote,
     color: 'bg-purple-500',
     description: 'محفظة القروض والتمويل',
-    descriptionEn: 'Loan portfolio and financing'
+    descriptionEn: 'Loan portfolio and financing',
+    gradient: 'from-purple-500 to-purple-600'
   },
   collections: {
     id: 'collections',
@@ -125,7 +129,8 @@ const DASHBOARD_SECTIONS = {
     icon: Scale,
     color: 'bg-red-500',
     description: 'إدارة التحصيل والمتابعة',
-    descriptionEn: 'Collection management and follow-up'
+    descriptionEn: 'Collection management and follow-up',
+    gradient: 'from-red-500 to-red-600'
   },
   customers: {
     id: 'customers',
@@ -134,7 +139,8 @@ const DASHBOARD_SECTIONS = {
     icon: Users,
     color: 'bg-indigo-500',
     description: 'تحليلات العملاء',
-    descriptionEn: 'Customer analytics'
+    descriptionEn: 'Customer analytics',
+    gradient: 'from-indigo-500 to-indigo-600'
   },
   risk: {
     id: 'risk',
@@ -143,7 +149,8 @@ const DASHBOARD_SECTIONS = {
     icon: Shield,
     color: 'bg-orange-500',
     description: 'إدارة المخاطر',
-    descriptionEn: 'Risk management'
+    descriptionEn: 'Risk management',
+    gradient: 'from-orange-500 to-orange-600'
   }
 };
 
@@ -691,27 +698,47 @@ export default function EnhancedDashboard() {
     try {
       setLoading(true);
       const data = {};
+      const errors = [];
       
-      // Fetch data for all widgets
-      for (const widget of widgets) {
+      // Fetch data for all widgets in parallel
+      const widgetPromises = widgets.map(async (widget) => {
         const widgetDef = WIDGET_CATALOG[widget.section]?.[widget.widget];
         if (widgetDef?.query) {
           try {
-            data[`${widget.section}_${widget.widget}`] = await widgetDef.query(filters);
+            const result = await widgetDef.query(filters);
+            data[`${widget.section}_${widget.widget}`] = result;
           } catch (error) {
             console.error(`Error fetching ${widget.widget}:`, error);
+            errors.push({ widget: widget.widget, error: error.message });
             data[`${widget.section}_${widget.widget}`] = null;
           }
         }
-      }
+      });
       
-      // Fetch comparison data
-      data.monthlyComparison = await fetchMonthlyComparison();
+      // Fetch comparison data in parallel
+      const comparisonPromise = fetchMonthlyComparison().then(result => {
+        data.monthlyComparison = result;
+      }).catch(error => {
+        console.error('Error fetching comparison data:', error);
+        errors.push({ widget: 'monthlyComparison', error: error.message });
+      });
+      
+      // Wait for all promises to complete
+      await Promise.all([...widgetPromises, comparisonPromise]);
       
       setWidgetData(data);
+      
+      // Show error summary if any widgets failed
+      if (errors.length > 0) {
+        const errorCount = errors.length;
+        const message = isRTL 
+          ? `فشل تحميل ${errorCount} من الويدجات` 
+          : `Failed to load ${errorCount} widget${errorCount > 1 ? 's' : ''}`;
+        toast.warning(message);
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error(t('dashboard.fetchError'));
+      toast.error(isRTL ? 'حدث خطأ في تحميل البيانات' : 'Error loading dashboard data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -814,6 +841,40 @@ export default function EnhancedDashboard() {
     items.splice(result.destination.index, 0, reorderedItem);
     
     setWidgets(items);
+  };
+
+  // Export dashboard
+  const exportDashboard = async (format) => {
+    try {
+      if (format === 'pdf') {
+        // For PDF export, we'll use the browser's print functionality
+        // with a print-specific CSS
+        window.print();
+        toast.success(isRTL ? 'جاري إعداد الطباعة...' : 'Preparing print...');
+      } else if (format === 'excel') {
+        // Export data to Excel
+        const XLSX = await import('xlsx');
+        const workbook = XLSX.utils.book_new();
+        
+        // Create sheets for each section
+        Object.entries(widgetData).forEach(([key, data]) => {
+          if (data && Array.isArray(data)) {
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const sheetName = key.replace(/[^\w\s]/gi, '').substring(0, 31);
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+          }
+        });
+        
+        // Generate filename with timestamp
+        const filename = `dashboard_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(workbook, filename);
+        
+        toast.success(isRTL ? 'تم تصدير البيانات بنجاح' : 'Data exported successfully');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error(isRTL ? 'فشل التصدير' : 'Export failed');
+    }
   };
 
   // Render widget
@@ -1119,6 +1180,29 @@ export default function EnhancedDashboard() {
                   </Button>
                 </>
               )}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => exportDashboard('pdf')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    {isRTL ? 'تصدير كـ PDF' : 'Export as PDF'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportDashboard('excel')}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    {isRTL ? 'تصدير كـ Excel' : 'Export as Excel'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => window.print()}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    {isRTL ? 'طباعة' : 'Print'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
