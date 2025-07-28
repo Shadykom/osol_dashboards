@@ -70,19 +70,22 @@ export class ProductReportService {
         comparison = true
       } = filters;
 
+      // Convert productId to string if it's a number
+      const productIdStr = String(productId);
+
       // Get product info
       const { data: product, error: productError } = await supabaseBanking
         .from(TABLES.PRODUCTS)
         .select('*')
-        .eq('product_id', productId)
+        .eq('product_id', productIdStr)
         .single();
 
       if (productError) {
         // Use mock data
         const products = await this.getProducts();
-        const mockProduct = products.data?.find(p => p.product_id === productId) || products.data?.[0];
+        const mockProduct = products.data?.find(p => p.product_id === productIdStr) || products.data?.[0];
         
-        return this.getMockProductReport(productId, mockProduct, filters);
+        return this.getMockProductReport(productIdStr, mockProduct, filters);
       }
 
       // Get all loan accounts for the product
@@ -95,10 +98,9 @@ export class ProductReportService {
           loan_amount,
           overdue_amount,
           overdue_days,
-          customer_id,
-          branch_id
+          customer_id
         `)
-        .eq('product_id', productId);
+        .eq('product_id', productIdStr);
 
       if (loansError) throw loansError;
 
@@ -169,7 +171,7 @@ export class ProductReportService {
       // Get comparisons if requested
       let productComparison = null;
       if (comparison) {
-        productComparison = await this.getProductComparison(productId, metrics);
+        productComparison = await this.getProductComparison(productIdStr, metrics);
       }
 
       // Get communication stats
@@ -179,7 +181,7 @@ export class ProductReportService {
       const riskAnalysis = this.calculateRiskAnalysis(loans, enrichedCases);
 
       // Get trends
-      const trends = await this.getProductTrends(productId, dateRange);
+      const trends = await this.getProductTrends(productIdStr, dateRange);
 
       return formatApiResponse({
         product,
