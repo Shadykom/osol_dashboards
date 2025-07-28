@@ -168,13 +168,13 @@ function SafeApp() {
   
   // Database connection status logging and RTL setup
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('🔗 Checking database connection status...');
-      // Connection status is already logged in supabase.js
-    }
-    
+    console.log('Database connection status:', {
+      isConnected: window.db !== undefined,
+      hasDatabase: !!window.db
+    });
+
     // Ensure document direction is set on mount and language changes
-    const currentLang = i18n.language || 'en';
+    const currentLang = i18n.language || 'ar'; // Default to Arabic
     document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = currentLang;
     document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
@@ -182,7 +182,7 @@ function SafeApp() {
   }, [i18n.language]);
   
   return (
-    <div className={`app ${i18n.language === 'ar' ? 'rtl' : 'ltr'}`} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`app ${i18n.language === 'ar' ? 'rtl' : 'ltr'}`}>
       <Router>
         <RouteRedirect />
         <Layout>
@@ -284,7 +284,23 @@ function SafeApp() {
 
 // Main App Component
 function App() {
-  console.log('App component rendering...');
+  const { i18n } = useTranslation();
+  const isRTL = useRTL();
+
+  // Database connection status logging and RTL setup
+  useEffect(() => {
+    console.log('Database connection status:', {
+      isConnected: window.db !== undefined,
+      hasDatabase: !!window.db
+    });
+
+    // Ensure document direction is set on mount and language changes
+    const currentLang = i18n.language || 'ar'; // Default to Arabic
+    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = currentLang;
+    document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    console.log('App.jsx: Setting dir to', currentLang === 'ar' ? 'rtl' : 'ltr', 'for language', currentLang);
+  }, [i18n.language]);
   
   return (
     <ErrorBoundary>

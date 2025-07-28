@@ -1,0 +1,485 @@
+/* Comprehensive RTL Fixes for Arabic Layout */
+
+/* Force RTL on html and body when Arabic is selected */
+html[lang="ar"],
+html[dir="rtl"] {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+html[lang="ar"] body,
+html[dir="rtl"] body {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Fix main app container */
+[dir="rtl"] #root,
+[dir="rtl"] .app {
+  direction: rtl !important;
+}
+
+/* Fix main layout flex direction */
+[dir="rtl"] .flex:not(.flex-col):not(.flex-column) {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix sidebar positioning and visibility */
+[dir="rtl"] .sidebar,
+[dir="rtl"] aside {
+  /* Position on the right side */
+  order: 2 !important;
+  /* Ensure visibility */
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  /* Fix rendering issues */
+  isolation: isolate;
+  z-index: 40;
+}
+
+/* Fix main content area */
+[dir="rtl"] main {
+  order: 1 !important;
+}
+
+/* Fix all margin utilities */
+[dir="rtl"] [class*="ml-"] {
+  margin-left: 0 !important;
+}
+
+[dir="rtl"] [class*="mr-"] {
+  margin-right: 0 !important;
+}
+
+[dir="rtl"] .ml-1 { margin-right: 0.25rem !important; }
+[dir="rtl"] .ml-2 { margin-right: 0.5rem !important; }
+[dir="rtl"] .ml-3 { margin-right: 0.75rem !important; }
+[dir="rtl"] .ml-4 { margin-right: 1rem !important; }
+[dir="rtl"] .ml-5 { margin-right: 1.25rem !important; }
+[dir="rtl"] .ml-6 { margin-right: 1.5rem !important; }
+[dir="rtl"] .ml-8 { margin-right: 2rem !important; }
+[dir="rtl"] .ml-auto { margin-right: auto !important; }
+
+[dir="rtl"] .mr-1 { margin-left: 0.25rem !important; }
+[dir="rtl"] .mr-2 { margin-left: 0.5rem !important; }
+[dir="rtl"] .mr-3 { margin-left: 0.75rem !important; }
+[dir="rtl"] .mr-4 { margin-left: 1rem !important; }
+[dir="rtl"] .mr-5 { margin-left: 1.25rem !important; }
+[dir="rtl"] .mr-6 { margin-left: 1.5rem !important; }
+[dir="rtl"] .mr-8 { margin-left: 2rem !important; }
+[dir="rtl"] .mr-auto { margin-left: auto !important; }
+
+/* Fix all padding utilities */
+[dir="rtl"] [class*="pl-"] {
+  padding-left: 0 !important;
+}
+
+[dir="rtl"] [class*="pr-"] {
+  padding-right: 0 !important;
+}
+
+[dir="rtl"] .pl-1 { padding-right: 0.25rem !important; }
+[dir="rtl"] .pl-2 { padding-right: 0.5rem !important; }
+[dir="rtl"] .pl-3 { padding-right: 0.75rem !important; }
+[dir="rtl"] .pl-4 { padding-right: 1rem !important; }
+[dir="rtl"] .pl-5 { padding-right: 1.25rem !important; }
+[dir="rtl"] .pl-6 { padding-right: 1.5rem !important; }
+[dir="rtl"] .pl-8 { padding-right: 2rem !important; }
+[dir="rtl"] .pl-10 { padding-right: 2.5rem !important; }
+[dir="rtl"] .pl-12 { padding-right: 3rem !important; }
+
+[dir="rtl"] .pr-1 { padding-left: 0.25rem !important; }
+[dir="rtl"] .pr-2 { padding-left: 0.5rem !important; }
+[dir="rtl"] .pr-3 { padding-left: 0.75rem !important; }
+[dir="rtl"] .pr-4 { padding-left: 1rem !important; }
+[dir="rtl"] .pr-5 { padding-left: 1.25rem !important; }
+[dir="rtl"] .pr-6 { padding-left: 1.5rem !important; }
+[dir="rtl"] .pr-8 { padding-left: 2rem !important; }
+[dir="rtl"] .pr-10 { padding-left: 2.5rem !important; }
+[dir="rtl"] .pr-12 { padding-left: 3rem !important; }
+
+/* Fix space utilities */
+[dir="rtl"] [class*="space-x-"] > * + * {
+  margin-left: 0 !important;
+}
+
+[dir="rtl"] .space-x-1 > * + * { margin-right: 0.25rem !important; }
+[dir="rtl"] .space-x-2 > * + * { margin-right: 0.5rem !important; }
+[dir="rtl"] .space-x-3 > * + * { margin-right: 0.75rem !important; }
+[dir="rtl"] .space-x-4 > * + * { margin-right: 1rem !important; }
+[dir="rtl"] .space-x-5 > * + * { margin-right: 1.25rem !important; }
+[dir="rtl"] .space-x-6 > * + * { margin-right: 1.5rem !important; }
+[dir="rtl"] .space-x-8 > * + * { margin-right: 2rem !important; }
+
+/* Fix gap utilities in flex containers */
+[dir="rtl"] .gap-x-1 { column-gap: 0.25rem !important; }
+[dir="rtl"] .gap-x-2 { column-gap: 0.5rem !important; }
+[dir="rtl"] .gap-x-3 { column-gap: 0.75rem !important; }
+[dir="rtl"] .gap-x-4 { column-gap: 1rem !important; }
+
+/* Fix border utilities */
+[dir="rtl"] .border-l { 
+  border-left: 0 !important; 
+  border-right-width: 1px !important;
+}
+
+[dir="rtl"] .border-r { 
+  border-right: 0 !important; 
+  border-left-width: 1px !important;
+}
+
+[dir="rtl"] .border-l-2 { 
+  border-left-width: 0 !important; 
+  border-right-width: 2px !important;
+}
+
+[dir="rtl"] .border-l-4 { 
+  border-left-width: 0 !important; 
+  border-right-width: 4px !important;
+}
+
+[dir="rtl"] [class*="border-l-"] {
+  border-left-width: 0 !important;
+}
+
+/* Fix border colors */
+[dir="rtl"] .border-l-blue-500 { border-right-color: rgb(59 130 246) !important; }
+[dir="rtl"] .border-l-green-500 { border-right-color: rgb(34 197 94) !important; }
+[dir="rtl"] .border-l-yellow-500 { border-right-color: rgb(234 179 8) !important; }
+[dir="rtl"] .border-l-red-500 { border-right-color: rgb(239 68 68) !important; }
+[dir="rtl"] .border-l-purple-500 { border-right-color: rgb(168 85 247) !important; }
+
+/* Fix rounded corners */
+[dir="rtl"] .rounded-l-lg {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: 0.5rem !important;
+  border-bottom-right-radius: 0.5rem !important;
+}
+
+[dir="rtl"] .rounded-r-lg {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-top-left-radius: 0.5rem !important;
+  border-bottom-left-radius: 0.5rem !important;
+}
+
+/* Fix absolute positioning */
+[dir="rtl"] .left-0 { left: auto !important; right: 0 !important; }
+[dir="rtl"] .right-0 { right: auto !important; left: 0 !important; }
+[dir="rtl"] .left-1 { left: auto !important; right: 0.25rem !important; }
+[dir="rtl"] .right-1 { right: auto !important; left: 0.25rem !important; }
+[dir="rtl"] .left-2 { left: auto !important; right: 0.5rem !important; }
+[dir="rtl"] .right-2 { right: auto !important; left: 0.5rem !important; }
+[dir="rtl"] .left-3 { left: auto !important; right: 0.75rem !important; }
+[dir="rtl"] .right-3 { right: auto !important; left: 0.75rem !important; }
+[dir="rtl"] .left-4 { left: auto !important; right: 1rem !important; }
+[dir="rtl"] .right-4 { right: auto !important; left: 1rem !important; }
+
+/* Fix text alignment */
+[dir="rtl"] .text-left { text-align: right !important; }
+[dir="rtl"] .text-right { text-align: left !important; }
+[dir="rtl"] .text-start { text-align: right !important; }
+[dir="rtl"] .text-end { text-align: left !important; }
+
+/* Fix transform utilities */
+[dir="rtl"] .translate-x-1 { transform: translateX(-0.25rem) !important; }
+[dir="rtl"] .translate-x-2 { transform: translateX(-0.5rem) !important; }
+[dir="rtl"] .translate-x-full { transform: translateX(-100%) !important; }
+[dir="rtl"] .-translate-x-1 { transform: translateX(0.25rem) !important; }
+[dir="rtl"] .-translate-x-2 { transform: translateX(0.5rem) !important; }
+[dir="rtl"] .-translate-x-full { transform: translateX(100%) !important; }
+
+/* Fix icons that should flip */
+[dir="rtl"] .lucide-chevron-right,
+[dir="rtl"] .lucide-chevron-left,
+[dir="rtl"] .lucide-arrow-right,
+[dir="rtl"] .lucide-arrow-left,
+[dir="rtl"] .lucide-chevrons-right,
+[dir="rtl"] .lucide-chevrons-left {
+  transform: scaleX(-1) !important;
+}
+
+/* Icons that should NOT flip */
+[dir="rtl"] .lucide-refresh-cw,
+[dir="rtl"] .lucide-download,
+[dir="rtl"] .lucide-upload,
+[dir="rtl"] .lucide-loader-2,
+[dir="rtl"] .lucide-settings,
+[dir="rtl"] .lucide-x,
+[dir="rtl"] .lucide-check {
+  transform: none !important;
+}
+
+/* Fix dropdown and popover alignments */
+[dir="rtl"] [data-radix-popper-content-wrapper] {
+  text-align: right !important;
+}
+
+[dir="rtl"] [data-align="start"] {
+  right: 0 !important;
+  left: auto !important;
+}
+
+[dir="rtl"] [data-align="end"] {
+  left: 0 !important;
+  right: auto !important;
+}
+
+/* Fix tables */
+[dir="rtl"] table {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+[dir="rtl"] th,
+[dir="rtl"] td {
+  text-align: right !important;
+}
+
+/* Fix charts - keep them LTR */
+[dir="rtl"] .recharts-wrapper {
+  direction: ltr !important;
+}
+
+[dir="rtl"] .recharts-cartesian-axis-tick-value {
+  direction: rtl !important;
+  text-anchor: end !important;
+}
+
+/* Fix form inputs */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] input[type="search"],
+[dir="rtl"] input[type="number"],
+[dir="rtl"] input[type="tel"],
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+/* Fix buttons in groups */
+[dir="rtl"] .btn-group,
+[dir="rtl"] [role="group"] {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix navigation items */
+[dir="rtl"] nav ul,
+[dir="rtl"] nav ol {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix breadcrumbs */
+[dir="rtl"] .breadcrumb {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .breadcrumb-item::before {
+  content: "/" !important;
+  transform: scaleX(-1) !important;
+  margin: 0 0.5rem !important;
+}
+
+/* Fix pagination */
+[dir="rtl"] .pagination {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix progress bars */
+[dir="rtl"] .progress,
+[dir="rtl"] [role="progressbar"] {
+  direction: ltr !important;
+}
+
+[dir="rtl"] .progress-bar {
+  float: right !important;
+}
+
+/* Fix badges and tags */
+[dir="rtl"] .badge,
+[dir="rtl"] .tag {
+  margin-left: 0.25rem !important;
+  margin-right: 0 !important;
+}
+
+/* Fix tooltips */
+[dir="rtl"] [role="tooltip"] {
+  text-align: right !important;
+}
+
+/* Fix modals and dialogs */
+[dir="rtl"] [role="dialog"] {
+  text-align: right !important;
+}
+
+[dir="rtl"] .dialog-close,
+[dir="rtl"] [aria-label="Close"] {
+  right: auto !important;
+  left: 1rem !important;
+}
+
+/* Fix sheets */
+[dir="rtl"] [data-sheet-side="left"] {
+  right: 0 !important;
+  left: auto !important;
+}
+
+[dir="rtl"] [data-sheet-side="right"] {
+  left: 0 !important;
+  right: auto !important;
+}
+
+/* Fix tabs */
+[dir="rtl"] .tabs-list,
+[dir="rtl"] [role="tablist"] {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix accordions */
+[dir="rtl"] .accordion-trigger {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .accordion-trigger svg {
+  margin-left: 0.5rem !important;
+  margin-right: 0 !important;
+}
+
+/* Fix cards */
+[dir="rtl"] .card-header {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix specific layout issues */
+[dir="rtl"] .flex.items-center.gap-4 {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .flex.items-center.gap-2 {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .flex.items-center.gap-3 {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix justify utilities */
+[dir="rtl"] .justify-start { justify-content: flex-end !important; }
+[dir="rtl"] .justify-end { justify-content: flex-start !important; }
+
+/* Fix sidebar specific issues */
+[dir="rtl"] .sidebar .flex.items-center {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .sidebar svg:first-child {
+  margin-left: 0.5rem !important;
+  margin-right: 0 !important;
+}
+
+/* Ensure proper font for Arabic */
+[dir="rtl"] * {
+  font-family: 'Noto Sans Arabic', 'Tajawal', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* Fix any hardcoded left/right styles */
+[dir="rtl"] [style*="left:"] {
+  right: var(--left-value) !important;
+  left: auto !important;
+}
+
+[dir="rtl"] [style*="right:"] {
+  left: var(--right-value) !important;
+  right: auto !important;
+}
+
+/* Fix transition origins */
+[dir="rtl"] .origin-left { transform-origin: right !important; }
+[dir="rtl"] .origin-right { transform-origin: left !important; }
+
+/* Additional fixes for specific components */
+[dir="rtl"] .ReactModal__Content {
+  text-align: right !important;
+}
+
+[dir="rtl"] .Select__control {
+  text-align: right !important;
+}
+
+[dir="rtl"] .Select__menu {
+  text-align: right !important;
+}
+
+/* Ensure all children inherit RTL */
+[dir="rtl"] * {
+  direction: inherit;
+}
+
+/* Override any conflicting styles */
+[dir="rtl"] .ltr {
+  direction: rtl !important;
+}
+
+/* Fix header navigation */
+[dir="rtl"] header nav {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] header .flex {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix dashboard grid layouts */
+[dir="rtl"] .grid {
+  direction: rtl !important;
+}
+
+/* Fix widget layouts */
+[dir="rtl"] .widget-header {
+  flex-direction: row-reverse !important;
+}
+
+/* Ensure numbers stay LTR */
+[dir="rtl"] .number,
+[dir="rtl"] .price,
+[dir="rtl"] .amount,
+[dir="rtl"] [data-number] {
+  direction: ltr !important;
+  unicode-bidi: embed !important;
+}
+
+/* Fix specific Tailwind utilities that might be missed */
+[dir="rtl"] .flex-row-reverse {
+  flex-direction: row !important;
+}
+
+[dir="rtl"] .flex-row {
+  flex-direction: row-reverse !important;
+}
+
+/* Ensure proper scrollbar position */
+[dir="rtl"] * {
+  scrollbar-placement: left;
+}
+
+/* Fix any z-index issues */
+[dir="rtl"] .sidebar {
+  z-index: 40 !important;
+}
+
+[dir="rtl"] header {
+  z-index: 30 !important;
+}
+
+/* Additional high-priority fixes */
+[dir="rtl"] .flex.h-screen.overflow-hidden {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] #root > div > div.flex {
+  flex-direction: row-reverse !important;
+}

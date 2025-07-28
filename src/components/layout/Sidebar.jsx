@@ -609,12 +609,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     <div className={cn(
       "sidebar flex h-screen flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
       isCollapsed ? "w-20" : "w-80",
-      isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic" : "border-r border-gray-200 dark:border-gray-800"
-    )}>
+      isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic rtl" : "border-r border-gray-200 dark:border-gray-800 ltr"
+    )} dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
         {!isCollapsed ? (
-          <div className={cn("flex items-center gap-4", isRTL && "flex-row-reverse")}>
+          <div className={cn("flex items-center gap-4", isRTL ? "flex-row-reverse" : "flex-row")}>
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl blur-xl" />
               <div className="relative p-3 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg">
