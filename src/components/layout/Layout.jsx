@@ -49,27 +49,29 @@ export function Layout({ children }) {
         </div>
       )}
       
-      {/* Mobile Sidebar */}
-      {isMobile && (
-        <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
-          <SheetContent 
-            side="left" 
-            className="p-0 w-80 max-w-[85vw] border-0 overflow-y-auto"
-          >
-            <VisuallyHidden>
-              <SheetHeader>
-                <SheetTitle>Navigation Menu</SheetTitle>
-                <SheetDescription>Navigate through the application</SheetDescription>
-              </SheetHeader>
-            </VisuallyHidden>
-            <Sidebar 
-              isCollapsed={false} 
-              setIsCollapsed={handleMobileSidebarClose}
-              isMobileSheet={true}
-            />
-          </SheetContent>
-        </Sheet>
-      )}
+      {/* Mobile Sidebar - Always render Sheet to prevent remounting */}
+      <Sheet open={isMobile && isMobileSidebarOpen} onOpenChange={(open) => {
+        if (isMobile) {
+          setIsMobileSidebarOpen(open);
+        }
+      }}>
+        <SheetContent 
+          side="left" 
+          className="p-0 w-80 max-w-[85vw] border-0 overflow-y-auto"
+        >
+          <VisuallyHidden>
+            <SheetHeader>
+              <SheetTitle>Navigation Menu</SheetTitle>
+              <SheetDescription>Navigate through the application</SheetDescription>
+            </SheetHeader>
+          </VisuallyHidden>
+          <Sidebar 
+            isCollapsed={false} 
+            setIsCollapsed={handleMobileSidebarClose}
+            isMobileSheet={true}
+          />
+        </SheetContent>
+      </Sheet>
       
       <div className={cn(
         "flex-1 flex flex-col min-w-0"
