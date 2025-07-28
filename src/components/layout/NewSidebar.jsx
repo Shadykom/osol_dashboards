@@ -350,26 +350,6 @@ const getNavigationConfig = (t) => [
   }
 ];
 
-// Clock component
-function Clock({ className }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      height="16"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="16"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
 // Navigation Item Component
 function NavigationItem({ item, isCollapsed, onItemClick, level = 0 }) {
   const location = useLocation();
