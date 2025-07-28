@@ -50,6 +50,7 @@ import {
 } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { DataSeeder } from '@/components/dashboard/DataSeeder';
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -623,6 +624,7 @@ export default function EnhancedDashboard() {
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showDataSeeder, setShowDataSeeder] = useState(false);
   
   // Filters
   const [filters, setFilters] = useState({
@@ -1197,6 +1199,11 @@ export default function EnhancedDashboard() {
                     {isRTL ? 'تصدير كـ Excel' : 'Export as Excel'}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowDataSeeder(true)}>
+                    <Database className="h-4 w-4 mr-2" />
+                    {isRTL ? 'بيانات تجريبية' : 'Seed Sample Data'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => window.print()}>
                     <FileText className="h-4 w-4 mr-2" />
                     {isRTL ? 'طباعة' : 'Print'}
@@ -1561,6 +1568,29 @@ export default function EnhancedDashboard() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTemplates(false)}>
               {isRTL ? 'إلغاء' : 'Cancel'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Data Seeder Dialog */}
+      <Dialog open={showDataSeeder} onOpenChange={setShowDataSeeder}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{isRTL ? 'مولد البيانات التجريبية' : 'Sample Data Generator'}</DialogTitle>
+            <DialogDescription>
+              {isRTL 
+                ? 'قم بملء قاعدة البيانات ببيانات تجريبية لجميع مكونات لوحة المعلومات' 
+                : 'Populate the database with sample data for all dashboard components'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DataSeeder />
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDataSeeder(false)}>
+              {isRTL ? 'إغلاق' : 'Close'}
             </Button>
           </DialogFooter>
         </DialogContent>
