@@ -28,6 +28,26 @@ function formatApiResponse(data, error = null, pagination = null) {
   };
 }
 
+/**
+ * Helper function to ensure proper column aliases in select queries
+ */
+function buildSelectQuery(columns) {
+  if (Array.isArray(columns)) {
+    return columns.map(col => {
+      if (typeof col === 'string' && col.includes(' as ')) {
+        // Ensure proper spacing around 'as'
+        return col.replace(/\s*as\s*/g, ' as ');
+      }
+      return col;
+    }).join(', ');
+  }
+  if (typeof columns === 'string') {
+    // Fix any missing spaces around 'as' keyword
+    return columns.replace(/(\w+)as(\w+)/g, '$1 as $2');
+  }
+  return columns;
+}
+
 export class CollectionService {
   /**
    * Get collection cases with filtering and pagination
@@ -355,8 +375,8 @@ export class CollectionService {
     try {
       const { branch, team, status, dateFrom, dateTo } = filters;
 
-      // Build base query for cases
-      let casesQuery = supabaseCollection
+      // Build base query for cases - collection_cases is in kastle_banking schema
+      let casesQuery = supabaseBanking
         .from('collection_cases')
         .select('case_id, total_outstanding, days_past_due, case_status, priority, bucket_id, assigned_to');
 
@@ -407,8 +427,8 @@ export class CollectionService {
       const totalMonthlyRecovery = monthlyRecovery?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
       const collectionRate = totalOutstanding > 0 ? (totalMonthlyRecovery / totalOutstanding) * 100 : 0;
 
-      // Get bucket distribution
-      const { data: buckets } = await supabaseCollection
+      // Get bucket distribution - collection_buckets is in banking schema
+      const { data: buckets } = await supabaseBanking
         .from('collection_buckets')
         .select('bucket_id, bucket_name, min_days, max_days');
 
@@ -473,11 +493,13 @@ export class CollectionService {
         const teamCases = filteredCases.filter(c => teamOfficerIds.includes(c.assigned_to));
         
         // Get team recovery
-        const { data: teamRecovery } = await supabaseCollection
-          .from('officer_performance_summary')
-          .select('total_collected')
-          .in('officer_id', teamOfficerIds)
-          .gte('summary_date', startOfMonth.toISOString().split('T')[0]);
+        const { data: teamRecovery } = teamOfficerIds.length > 0
+          ? await supabaseCollection
+              .from('officer_performance_summary')
+              .select('total_collected')
+              .in('officer_id', teamOfficerIds)
+              .gte('summary_date', startOfMonth.toISOString().split('T')[0])
+          : { data: [] };
 
         const totalTeamRecovery = teamRecovery?.reduce((sum, r) => sum + (r.total_collected || 0), 0) || 0;
 
@@ -969,12 +991,14 @@ export class CollectionService {
           const teamPerformance = await Promise.all((teams || []).map(async (team) => {
             const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
             
-            const { data: teamData } = await supabaseCollection
-              .from('officer_performance_summary')
-              .select('total_collected, total_cases, contact_rate')
-              .in('officer_id', officerIds)
-              .gte('summary_date', startDate.toISOString().split('T')[0])
-              .lte('summary_date', endDate.toISOString().split('T')[0]);
+            const { data: teamData } = officerIds.length > 0
+              ? await supabaseCollection
+                  .from('officer_performance_summary')
+                  .select('total_collected, total_cases, contact_rate')
+                  .in('officer_id', officerIds)
+                  .gte('summary_date', startDate.toISOString().split('T')[0])
+                  .lte('summary_date', endDate.toISOString().split('T')[0])
+              : { data: [] };
 
             const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
             const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
@@ -1113,12 +1137,14 @@ export class CollectionService {
       const teamPerformance = await Promise.all((teams || []).map(async (team) => {
         const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
         
-        const { data: teamData } = await supabaseCollection
-          .from('officer_performance_summary')
-          .select('total_collected, total_cases, contact_rate, ptp_rate')
-          .in('officer_id', officerIds)
-          .gte('summary_date', startDate.toISOString().split('T')[0])
-          .lte('summary_date', endDate.toISOString().split('T')[0]);
+        const { data: teamData } = officerIds.length > 0
+          ? await supabaseCollection
+              .from('officer_performance_summary')
+              .select('total_collected, total_cases, contact_rate, ptp_rate')
+              .in('officer_id', officerIds)
+              .gte('summary_date', startDate.toISOString().split('T')[0])
+              .lte('summary_date', endDate.toISOString().split('T')[0])
+          : { data: [] };
 
         const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
         const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
