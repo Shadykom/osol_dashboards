@@ -31,26 +31,12 @@ export const createAuthenticatedClient = (schema = 'kastle_banking') => {
   });
 };
 
-// Function to ensure user is authenticated
+// Ensure authentication - bypassed to always return true
 export const ensureAuthentication = async () => {
-  const client = createAuthenticatedClient('public');
+  console.log('Authentication check bypassed - always authenticated');
   
-  try {
-    // Check if user is already authenticated
-    const { data: { session } } = await client.auth.getSession();
-    
-    if (!session) {
-      console.log('No active session found. User needs to log in.');
-      // Don't try to create a user automatically - this should be done through proper registration
-      return false;
-    }
-    
-    console.log('User authenticated:', session.user.email);
-    return true;
-  } catch (error) {
-    console.error('Authentication check error:', error);
-    return false;
-  }
+  // Always return true - no authentication required
+  return true;
 };
 
 // Function to check if tables have data

@@ -211,9 +211,7 @@ export function Header({ onMenuClick }) {
                 {t('common.settings')}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-2" />
-              <DropdownMenuItem className="text-red-600 rounded-lg focus:bg-red-50 dark:focus:bg-red-900/20">
-                {t('common.logout')}
-              </DropdownMenuItem>
+              {/* Logout removed - authentication not required */}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
