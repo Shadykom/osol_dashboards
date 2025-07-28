@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -55,6 +56,12 @@ export function Layout({ children }) {
             side="left" 
             className="p-0 w-80 max-w-[85vw] border-0 overflow-y-auto"
           >
+            <VisuallyHidden>
+              <SheetHeader>
+                <SheetTitle>Navigation Menu</SheetTitle>
+                <SheetDescription>Navigate through the application</SheetDescription>
+              </SheetHeader>
+            </VisuallyHidden>
             <Sidebar 
               isCollapsed={false} 
               setIsCollapsed={handleMobileSidebarClose}
