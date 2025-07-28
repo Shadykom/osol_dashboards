@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { useState, useEffect, Suspense } from 'react';
 import { CustomerService } from '@/services/customerService';
 
-function getSegmentBadge(segment) {
+function getSegmentBadge(segment, t) {
   const variants = {
     'RETAIL': 'default',
     'PREMIUM': 'secondary',
@@ -16,19 +16,15 @@ function getSegmentBadge(segment) {
     'CORPORATE': 'outline'
   };
   
-  const { t } = useTranslation();
-  
   return <Badge variant={variants[segment] || 'default'}>{t(`common.${segment?.toLowerCase() || 'retail'}`)}</Badge>;
 }
 
-function getKYCBadge(status) {
+function getKYCBadge(status, t) {
   const variants = {
     'APPROVED': 'default',
     'PENDING': 'secondary',
     'REJECTED': 'destructive'
   };
-  
-  const { t } = useTranslation();
   
   return <Badge variant={variants[status] || 'default'}>{t(`common.${status?.toLowerCase() || 'pending'}`)}</Badge>;
 }
@@ -205,8 +201,8 @@ export function Customers() {
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
                         <p className="font-medium">{customer.full_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer'}</p>
-                        {getSegmentBadge(customer.segment)}
-                        {getKYCBadge(customer.kyc_status)}
+                        {getSegmentBadge(customer.segment, t)}
+                        {getKYCBadge(customer.kyc_status, t)}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {customer.customer_id} • {customer.email || 'No email'}
