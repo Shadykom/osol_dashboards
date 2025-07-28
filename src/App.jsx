@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
-import { useRTL } from './hooks/useRTL';
+
 import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
 import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
@@ -29,11 +29,10 @@ import SpecialistLevelReport from './pages/SpecialistLevelReport';
 import DatabaseTest from './pages/DatabaseTest';
 import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
-import { RTLTest } from './components/RTLTest';
-import RTLTestPage from './pages/RTLTestPage';
+
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
-import { RTLDebug } from './components/RTLDebug';
+
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './App.css';
@@ -165,25 +164,21 @@ function NotFound() {
 // Safe App Component
 function SafeApp() {
   const { i18n } = useTranslation();
-  const isRTL = useRTL();
   
-  // Database connection status logging and RTL setup
+  // Database connection status logging
   useEffect(() => {
     console.log('Database connection status:', {
       isConnected: window.db !== undefined,
       hasDatabase: !!window.db
     });
 
-    // Ensure document direction is set on mount and language changes
+    // Ensure document language is set
     const currentLang = i18n.language || 'en'; // Default to English
-    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = currentLang;
-    document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-    console.log('App.jsx: Setting dir to', currentLang === 'ar' ? 'rtl' : 'ltr', 'for language', currentLang);
   }, [i18n.language]);
   
   return (
-    <div className={`app ${i18n.language === 'ar' ? 'rtl' : 'ltr'}`}>
+    <div className="app">
       <Router>
         <RouteRedirect />
         <Layout>
@@ -240,7 +235,7 @@ function SafeApp() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/compliance" element={<Compliance />} />
             <Route path="/database-test" element={<DatabaseTest />} />
-            <Route path="/rtl-test" element={<RTLTestPage />} />
+            
             
             {/* Collection Routes */}
             <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
@@ -276,8 +271,7 @@ function SafeApp() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
-        <Toaster />
-        <RTLDebug />
+                  <Toaster />
       </Router>
     </div>
   );
@@ -286,21 +280,17 @@ function SafeApp() {
 // Main App Component
 function App() {
   const { i18n } = useTranslation();
-  const isRTL = useRTL();
-
-  // Database connection status logging and RTL setup
+  
+  // Database connection status logging
   useEffect(() => {
     console.log('Database connection status:', {
       isConnected: window.db !== undefined,
       hasDatabase: !!window.db
     });
 
-    // Ensure document direction is set on mount and language changes
-    const currentLang = i18n.language || 'ar'; // Default to Arabic
-    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    // Ensure document language is set
+    const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
-    document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-    console.log('App.jsx: Setting dir to', currentLang === 'ar' ? 'rtl' : 'ltr', 'for language', currentLang);
   }, [i18n.language]);
   
   return (

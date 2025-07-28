@@ -20,12 +20,12 @@ import osoulLogo from '@/assets/osol-logo.png';
 export function Header({ onMenuClick }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === 'ar';
+
 
   return (
     <header className="flex h-20 items-center justify-between border-b bg-white dark:bg-gray-900 px-4 md:px-6 shadow-sm">
       {/* Left side - Logo, Menu and Search */}
-      <div className={cn("flex items-center gap-4 flex-1", isRTL && "flex-row-reverse")}>
+              <div className="flex items-center gap-4 flex-1">
         {/* Logo for mobile */}
         <div className="flex items-center gap-3 md:hidden">
           <Button
@@ -62,23 +62,17 @@ export function Header({ onMenuClick }) {
 
         {/* Search Bar */}
         <div className="relative flex-1 max-w-xl hidden md:block">
-          <Search className={cn(
-            "absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground",
-            isRTL ? "right-3" : "left-3"
-          )} />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
             placeholder={t('common.searchPlaceholder')}
-            className={cn(
-              "h-10 w-full rounded-lg border-0 bg-gray-50 dark:bg-gray-800 shadow-sm ring-1 ring-gray-200 dark:ring-gray-700 focus:ring-2 focus:ring-primary transition-all",
-              isRTL ? "pr-10 pl-10" : "pl-10 pr-10"
-            )}
+            className="h-10 w-full rounded-lg border-0 bg-gray-50 dark:bg-gray-800 shadow-sm ring-1 ring-gray-200 dark:ring-gray-700 focus:ring-2 focus:ring-primary transition-all pl-10 pr-10"
           />
         </div>
       </div>
 
       {/* Right side - Actions */}
-      <div className={cn("flex items-center gap-2", isRTL && "flex-row-reverse")}>
+      <div className="flex items-center gap-2">
         {/* Search icon for mobile */}
         <Button
           variant="ghost"
@@ -185,7 +179,7 @@ export function Header({ onMenuClick }) {
                   JD
                 </AvatarFallback>
               </Avatar>
-              <div className={cn("hidden md:flex flex-col items-start", isRTL && "items-end")}>
+              <div className="hidden md:flex flex-col items-start">
                 <span className="text-sm font-semibold">John Doe</span>
                 <span className="text-xs text-muted-foreground">Administrator</span>
               </div>

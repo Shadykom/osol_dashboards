@@ -612,7 +612,7 @@ const DASHBOARD_TEMPLATES = {
 export default function EnhancedDashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const isRTL = i18n.language === 'ar';
+
   
   // State Management
   const [loading, setLoading] = useState(true);
@@ -693,7 +693,7 @@ export default function EnhancedDashboard() {
     setSelectedTemplate(templateId);
     setShowTemplates(false);
     
-    toast.success(isRTL ? `تم تحميل ${template.name}` : `${template.nameEn} loaded`);
+    toast.success(`${template.nameEn} loaded`);
   };
 
   // Fetch dashboard data
@@ -749,14 +749,12 @@ export default function EnhancedDashboard() {
       // Show error summary if any widgets failed
       if (errors.length > 0) {
         const errorCount = errors.length;
-        const message = isRTL 
-          ? `فشل تحميل ${errorCount} من الويدجات` 
-          : `Failed to load ${errorCount} widget${errorCount > 1 ? 's' : ''}`;
+        const message = 'Failed to load ' + (errorCount > 1 ? 'widgets' : 'widget');
         toast.warning(message);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error(isRTL ? 'حدث خطأ في تحميل البيانات' : 'Error loading dashboard data');
+      toast.error('Error loading dashboard data');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -868,7 +866,7 @@ export default function EnhancedDashboard() {
         // For PDF export, we'll use the browser's print functionality
         // with a print-specific CSS
         window.print();
-        toast.success(isRTL ? 'جاري إعداد الطباعة...' : 'Preparing print...');
+        toast.success('Preparing print...');
       } else if (format === 'excel') {
         // Export data to Excel
         const XLSX = await import('xlsx');
@@ -887,11 +885,11 @@ export default function EnhancedDashboard() {
         const filename = `dashboard_export_${new Date().toISOString().split('T')[0]}.xlsx`;
         XLSX.writeFile(workbook, filename);
         
-        toast.success(isRTL ? 'تم تصدير البيانات بنجاح' : 'Data exported successfully');
+        toast.success('Data exported successfully');
       }
     } catch (error) {
       console.error('Export error:', error);
-      toast.error(isRTL ? 'فشل التصدير' : 'Export failed');
+      toast.error('Export failed');
     }
   };
 
@@ -901,7 +899,7 @@ export default function EnhancedDashboard() {
     if (!widgetDef) return null;
     
     const data = widgetData[`${widget.section}_${widget.widget}`];
-    const widgetName = isRTL ? widgetDef.name : widgetDef.nameEn;
+    const widgetName = widgetDef.nameEn;
     
     // Size classes
     const sizeClasses = {
@@ -1110,7 +1108,7 @@ export default function EnhancedDashboard() {
                   <div className="h-64 flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <BarChart3 className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                      <p className="text-sm">{isRTL ? 'لا توجد بيانات للعرض' : 'No data to display'}</p>
+                      <p className="text-sm">No data to display</p>
                     </div>
                   </div>
                 )}
@@ -1118,7 +1116,7 @@ export default function EnhancedDashboard() {
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground">
                 <AlertCircle className="h-5 w-5 mr-2" />
-                {isRTL ? 'لا توجد بيانات' : 'No data available'}
+                No data available
               </div>
             )}
           </CardContent>
@@ -1128,22 +1126,19 @@ export default function EnhancedDashboard() {
   };
 
   return (
-    <div className={cn("min-h-screen bg-gray-50", isRTL && "rtl")}>
+    <div className={cn("min-h-screen bg-gray-50")}>
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold">
-                {isRTL ? 'لوحة المعلومات الشاملة' : 'Comprehensive Dashboard'}
+                Comprehensive Dashboard
               </h1>
               {selectedTemplate && (
                 <Badge variant="outline">
                   <Layers className="w-3 h-3 mr-1" />
-                  {isRTL 
-                    ? DASHBOARD_TEMPLATES[selectedTemplate].name 
-                    : DASHBOARD_TEMPLATES[selectedTemplate].nameEn
-                  }
+                  {DASHBOARD_TEMPLATES[selectedTemplate].nameEn}
                 </Badge>
               )}
             </div>
@@ -1155,7 +1150,7 @@ export default function EnhancedDashboard() {
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="h-4 w-4 mr-2" />
-                {isRTL ? 'الفلاتر' : 'Filters'}
+                Filters
               </Button>
               
               <Button
@@ -1168,7 +1163,7 @@ export default function EnhancedDashboard() {
                 disabled={refreshing}
               >
                 <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-                {isRTL ? 'تحديث' : 'Refresh'}
+                Refresh
               </Button>
               
               <div className="flex items-center gap-2 border-l pl-2 ml-2">
@@ -1178,7 +1173,7 @@ export default function EnhancedDashboard() {
                   id="auto-refresh"
                 />
                 <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">
-                  {isRTL ? 'تحديث تلقائي' : 'Auto-refresh'}
+                  Auto-refresh
                 </Label>
               </div>
               
@@ -1190,7 +1185,7 @@ export default function EnhancedDashboard() {
                 />
                 <Label htmlFor="edit-mode" className="text-sm cursor-pointer flex items-center gap-1">
                   {isEditMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                  {isRTL ? 'وضع التحرير' : 'Edit Mode'}
+                  Edit Mode
                 </Label>
               </div>
               
@@ -1201,7 +1196,7 @@ export default function EnhancedDashboard() {
                     onClick={() => setShowTemplates(true)}
                   >
                     <Layers className="h-4 w-4 mr-2" />
-                    {isRTL ? 'القوالب' : 'Templates'}
+                    Templates
                   </Button>
                   
                   <Button
@@ -1209,7 +1204,7 @@ export default function EnhancedDashboard() {
                     onClick={saveDashboardConfig}
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {isRTL ? 'حفظ' : 'Save'}
+                    Save
                   </Button>
                 </>
               )}
@@ -1223,21 +1218,21 @@ export default function EnhancedDashboard() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => exportDashboard('pdf')}>
                     <FileText className="h-4 w-4 mr-2" />
-                    {isRTL ? 'تصدير كـ PDF' : 'Export as PDF'}
+                    Export as PDF
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => exportDashboard('excel')}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    {isRTL ? 'تصدير كـ Excel' : 'Export as Excel'}
+                    Export as Excel
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowDataSeeder(true)}>
                     <DatabaseIcon className="h-4 w-4 mr-2" />
-                    {isRTL ? 'بيانات تجريبية' : 'Seed Sample Data'}
+                    Seed Sample Data
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => window.print()}>
                     <FileText className="h-4 w-4 mr-2" />
-                    {isRTL ? 'طباعة' : 'Print'}
+                    Print
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1258,62 +1253,62 @@ export default function EnhancedDashboard() {
             <div className="container mx-auto px-4 py-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <Label className="text-sm">{isRTL ? 'الفترة الزمنية' : 'Date Range'}</Label>
+                  <Label className="text-sm">Date Range</Label>
                   <Select value={filters.dateRange} onValueChange={(value) => setFilters({...filters, dateRange: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="today">{isRTL ? 'اليوم' : 'Today'}</SelectItem>
-                      <SelectItem value="last_7_days">{isRTL ? 'آخر 7 أيام' : 'Last 7 Days'}</SelectItem>
-                      <SelectItem value="last_30_days">{isRTL ? 'آخر 30 يوم' : 'Last 30 Days'}</SelectItem>
-                      <SelectItem value="last_quarter">{isRTL ? 'الربع الأخير' : 'Last Quarter'}</SelectItem>
-                      <SelectItem value="last_year">{isRTL ? 'السنة الماضية' : 'Last Year'}</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                      <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                      <SelectItem value="last_quarter">Last Quarter</SelectItem>
+                      <SelectItem value="last_year">Last Year</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
-                  <Label className="text-sm">{isRTL ? 'الفرع' : 'Branch'}</Label>
+                  <Label className="text-sm">Branch</Label>
                   <Select value={filters.branch} onValueChange={(value) => setFilters({...filters, branch: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{isRTL ? 'جميع الفروع' : 'All Branches'}</SelectItem>
-                      <SelectItem value="riyadh">{isRTL ? 'الرياض' : 'Riyadh'}</SelectItem>
-                      <SelectItem value="jeddah">{isRTL ? 'جدة' : 'Jeddah'}</SelectItem>
-                      <SelectItem value="dammam">{isRTL ? 'الدمام' : 'Dammam'}</SelectItem>
+                      <SelectItem value="all">All Branches</SelectItem>
+                      <SelectItem value="riyadh">Riyadh</SelectItem>
+                      <SelectItem value="jeddah">Jeddah</SelectItem>
+                      <SelectItem value="dammam">Dammam</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
-                  <Label className="text-sm">{isRTL ? 'نوع المنتج' : 'Product Type'}</Label>
+                  <Label className="text-sm">Product Type</Label>
                   <Select value={filters.productType} onValueChange={(value) => setFilters({...filters, productType: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{isRTL ? 'جميع المنتجات' : 'All Products'}</SelectItem>
-                      <SelectItem value="savings">{isRTL ? 'حساب التوفير' : 'Savings Account'}</SelectItem>
-                      <SelectItem value="current">{isRTL ? 'حساب جاري' : 'Current Account'}</SelectItem>
-                      <SelectItem value="loan">{isRTL ? 'قرض' : 'Loan'}</SelectItem>
+                      <SelectItem value="all">All Products</SelectItem>
+                      <SelectItem value="savings">Savings Account</SelectItem>
+                      <SelectItem value="current">Current Account</SelectItem>
+                      <SelectItem value="loan">Loan</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
-                  <Label className="text-sm">{isRTL ? 'شريحة العملاء' : 'Customer Segment'}</Label>
+                  <Label className="text-sm">Customer Segment</Label>
                   <Select value={filters.customerSegment} onValueChange={(value) => setFilters({...filters, customerSegment: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{isRTL ? 'جميع الشرائح' : 'All Segments'}</SelectItem>
-                      <SelectItem value="vip">{isRTL ? 'VIP' : 'VIP'}</SelectItem>
-                      <SelectItem value="premium">{isRTL ? 'مميز' : 'Premium'}</SelectItem>
-                      <SelectItem value="standard">{isRTL ? 'عادي' : 'Standard'}</SelectItem>
+                      <SelectItem value="all">All Segments</SelectItem>
+                      <SelectItem value="vip">VIP</SelectItem>
+                      <SelectItem value="premium">Premium</SelectItem>
+                      <SelectItem value="standard">Standard</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1332,7 +1327,7 @@ export default function EnhancedDashboard() {
                     });
                   }}
                 >
-                  {isRTL ? 'إعادة تعيين' : 'Reset'}
+                  Reset
                 </Button>
                 <Button
                   size="sm"
@@ -1341,7 +1336,7 @@ export default function EnhancedDashboard() {
                     setShowFilters(false);
                   }}
                 >
-                  {isRTL ? 'تطبيق الفلاتر' : 'Apply Filters'}
+                  Apply Filters
                 </Button>
               </div>
             </div>
@@ -1363,7 +1358,7 @@ export default function EnhancedDashboard() {
                   className="whitespace-nowrap"
                 >
                   <section.icon className="h-4 w-4 mr-2" />
-                  {isRTL ? section.name : section.nameEn}
+                  {section.nameEn}
                 </Button>
               ))}
             </div>
@@ -1381,16 +1376,10 @@ export default function EnhancedDashboard() {
                 <div className={cn("p-2 rounded-lg", DASHBOARD_SECTIONS[selectedSection].color)}>
                   {React.createElement(DASHBOARD_SECTIONS[selectedSection].icon, { className: "h-5 w-5 text-white" })}
                 </div>
-                {isRTL 
-                  ? DASHBOARD_SECTIONS[selectedSection].name 
-                  : DASHBOARD_SECTIONS[selectedSection].nameEn
-                }
+                {DASHBOARD_SECTIONS[selectedSection].nameEn}
               </h2>
               <p className="text-muted-foreground text-sm mt-1">
-                {isRTL 
-                  ? DASHBOARD_SECTIONS[selectedSection].description 
-                  : DASHBOARD_SECTIONS[selectedSection].descriptionEn
-                }
+                {DASHBOARD_SECTIONS[selectedSection].descriptionEn}
               </p>
             </div>
             
@@ -1400,7 +1389,7 @@ export default function EnhancedDashboard() {
                 onClick={() => setShowAddWidget(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {isRTL ? 'إضافة ويدجت' : 'Add Widget'}
+                Add Widget
               </Button>
             )}
           </div>
@@ -1412,7 +1401,7 @@ export default function EnhancedDashboard() {
             <div className="text-center">
               <RefreshCw className="h-12 w-12 animate-spin mx-auto text-primary mb-4" />
               <p className="text-muted-foreground">
-                {isRTL ? 'جاري تحميل البيانات...' : 'Loading data...'}
+                Loading data...
               </p>
             </div>
           </div>
@@ -1426,7 +1415,7 @@ export default function EnhancedDashboard() {
                 className="mb-6"
               >
                 <ComparisonWidget
-                  title={isRTL ? "مقارنة الأداء الشهري" : "Monthly Performance Comparison"}
+                  title="Monthly Performance Comparison"
                   data={{ monthlyComparison: widgetData.monthlyComparison }}
                   comparisonType="month"
                 />
@@ -1476,18 +1465,15 @@ export default function EnhancedDashboard() {
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">
-                    {isRTL ? 'لا توجد ويدجات في هذا القسم' : 'No widgets in this section'}
+                    No widgets in this section
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    {isRTL 
-                      ? 'أضف ويدجات لعرض البيانات هنا' 
-                      : 'Add widgets to display data here'
-                    }
+                    Add widgets to customize your dashboard
                   </p>
                   {isEditMode && (
                     <Button onClick={() => setShowAddWidget(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      {isRTL ? 'إضافة ويدجت' : 'Add Widget'}
+                      Add Widget
                     </Button>
                   )}
                 </CardContent>
@@ -1502,13 +1488,10 @@ export default function EnhancedDashboard() {
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>
-              {isRTL ? 'إضافة ويدجت' : 'Add Widget'}
+              Add Widget
             </DialogTitle>
             <DialogDescription>
-              {isRTL 
-                ? `اختر ويدجت لإضافتها إلى قسم ${DASHBOARD_SECTIONS[selectedSection].name}`
-                : `Choose a widget to add to ${DASHBOARD_SECTIONS[selectedSection].nameEn} section`
-              }
+              Choose a widget to add to {DASHBOARD_SECTIONS[selectedSection].nameEn} section
             </DialogDescription>
           </DialogHeader>
           
@@ -1524,9 +1507,9 @@ export default function EnhancedDashboard() {
                     <div className="flex items-start gap-3">
                       <widget.icon className="h-5 w-5 text-primary mt-0.5" />
                       <div>
-                        <h4 className="font-medium">{isRTL ? widget.name : widget.nameEn}</h4>
+                        <h4 className="font-medium">{widget.nameEn}</h4>
                         <p className="text-sm text-muted-foreground">
-                          {widget.type === 'kpi' ? 'مؤشر أداء' : 'رسم بياني'}
+                          {widget.type === 'kpi' ? 'Performance Indicator' : 'Chart'}
                         </p>
                       </div>
                     </div>
@@ -1542,12 +1525,9 @@ export default function EnhancedDashboard() {
       <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle>{isRTL ? 'قوالب لوحة المعلومات' : 'Dashboard Templates'}</DialogTitle>
+            <DialogTitle>Dashboard Templates</DialogTitle>
             <DialogDescription>
-              {isRTL 
-                ? 'اختر قالبًا جاهزًا للبدء بسرعة' 
-                : 'Choose a pre-built template to get started quickly'
-              }
+              Choose a pre-built template to get started quickly
             </DialogDescription>
           </DialogHeader>
           
@@ -1566,12 +1546,12 @@ export default function EnhancedDashboard() {
                     <div className="flex items-start justify-between">
                       <div>
                         <CardTitle className="text-base">
-                          {isRTL ? template.name : template.nameEn}
+                          {template.nameEn}
                         </CardTitle>
                       </div>
                       {selectedTemplate === key && (
                         <Badge className="bg-green-500">
-                          {isRTL ? 'نشط' : 'Active'}
+                          Active
                         </Badge>
                       )}
                     </div>
@@ -1580,15 +1560,12 @@ export default function EnhancedDashboard() {
                     <div className="flex flex-wrap gap-2">
                       {template.sections.map((section) => (
                         <Badge key={section} variant="outline">
-                          {isRTL 
-                            ? DASHBOARD_SECTIONS[section].name 
-                            : DASHBOARD_SECTIONS[section].nameEn
-                          }
+                          {DASHBOARD_SECTIONS[section].nameEn}
                         </Badge>
                       ))}
                     </div>
                     <p className="text-sm text-muted-foreground mt-3">
-                      {template.widgets.length} {isRTL ? 'ويدجت' : 'widgets'}
+                      {template.widgets.length} widgets
                     </p>
                   </CardContent>
                 </Card>
@@ -1598,7 +1575,7 @@ export default function EnhancedDashboard() {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTemplates(false)}>
-              {isRTL ? 'إلغاء' : 'Cancel'}
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1608,12 +1585,9 @@ export default function EnhancedDashboard() {
       <Dialog open={showDataSeeder} onOpenChange={setShowDataSeeder}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{isRTL ? 'مولد البيانات التجريبية' : 'Sample Data Generator'}</DialogTitle>
+            <DialogTitle>Sample Data Generator</DialogTitle>
             <DialogDescription>
-              {isRTL 
-                ? 'قم بملء قاعدة البيانات ببيانات تجريبية لجميع مكونات لوحة المعلومات' 
-                : 'Populate the database with sample data for all dashboard components'
-              }
+              Generate sample data for testing and demonstration purposes
             </DialogDescription>
           </DialogHeader>
           
@@ -1621,7 +1595,7 @@ export default function EnhancedDashboard() {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDataSeeder(false)}>
-              {isRTL ? 'إغلاق' : 'Close'}
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
