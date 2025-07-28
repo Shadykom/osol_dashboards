@@ -12,6 +12,9 @@
 /* Import comprehensive RTL fixes */
 @import './styles/rtl-fixes.css';
 
+/* Import the new comprehensive RTL fix - This should be loaded last to override any conflicts */
+@import './styles/rtl-comprehensive-fix.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
