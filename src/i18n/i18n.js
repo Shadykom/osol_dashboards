@@ -8,8 +8,8 @@ i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    fallbackLng: 'ar', // Default to Arabic
-    lng: 'ar', // Force Arabic as default
+    fallbackLng: 'en', // Default to English
+    lng: 'en', // Force English as default
     debug: false,
     supportedLngs: ['en', 'ar'],
     
@@ -79,7 +79,7 @@ export const changeLanguage = async (lng) => {
 
 // Set initial direction based on detected/stored language
 const storedLang = localStorage.getItem('i18nextLng');
-const currentLang = storedLang || i18n.language || 'ar'; // Default to Arabic
+const currentLang = storedLang || i18n.language || 'en'; // Default to English
 const isInitialRTL = currentLang === 'ar';
 
 // Function to apply initial RTL settings

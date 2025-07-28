@@ -31,15 +31,14 @@ export function Layout({ children }) {
     <div 
       className={cn(
         "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
-        isRTL ? "flex-row-reverse rtl" : "flex-row ltr"
+        isRTL ? "rtl" : "ltr"
       )} 
       dir={isRTL ? "rtl" : "ltr"}
     >
       {/* Desktop Sidebar */}
       {!isMobile && (
         <div className={cn(
-          "transition-all duration-300",
-          isRTL ? "order-2" : "order-1"
+          "transition-all duration-300"
         )}>
           <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
         </div>
@@ -58,8 +57,7 @@ export function Layout({ children }) {
       )}
       
       <div className={cn(
-        "flex-1 flex flex-col min-w-0",
-        isRTL ? "order-1" : "order-2"
+        "flex-1 flex flex-col min-w-0"
       )}>
         <Header onMenuClick={handleMenuClick} />
         <main className={cn(
