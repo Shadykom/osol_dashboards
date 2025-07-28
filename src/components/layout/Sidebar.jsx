@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '@/i18n/i18n';
 import { 
   LayoutDashboard, 
   Users, 
@@ -808,7 +809,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
                   variant="ghost"
                   size="sm"
                   className="h-9 w-full rounded-lg hover:bg-primary/10"
-                  onClick={() => i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
+                  onClick={() => changeLanguage(i18n.language === 'ar' ? 'en' : 'ar')}
                 >
                   <Languages className="h-4 w-4" />
                   {!isCollapsed && <span className="sr-only">Language</span>}

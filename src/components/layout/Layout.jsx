@@ -30,8 +30,8 @@ export function Layout({ children }) {
   return (
     <div className={cn(
       "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
-      isRTL && "flex-row-reverse"
-    )}>
+      isRTL ? "flex-row-reverse" : "flex-row"
+    )} dir={isRTL ? "rtl" : "ltr"}>
       {/* Desktop Sidebar */}
       {!isMobile && (
         <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
