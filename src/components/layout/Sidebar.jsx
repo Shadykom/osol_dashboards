@@ -608,7 +608,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   return (
     <div className={cn(
       "flex h-screen flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
-      isCollapsed ? "w-20" : "w-80 md:w-72",
+      isCollapsed ? "w-20" : "w-80",
       isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic" : "border-r border-gray-200 dark:border-gray-800"
     )}>
       {/* Header */}
@@ -710,7 +710,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           {filteredNavItems.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {!isCollapsed && section.title && (
-                <h4 className="mb-3 px-3 text-xs font-semibold uppercase text-muted-foreground/60 tracking-wider">
+                <h4 className={cn(
+                  "mb-3 px-3 text-xs font-semibold uppercase text-muted-foreground/60 tracking-wider",
+                  isRTL && "text-right"
+                )}>
                   {section.title}
                 </h4>
               )}
