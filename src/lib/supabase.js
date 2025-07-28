@@ -56,7 +56,8 @@ export const supabase = isSupabaseConfigured
       global: {
         headers: {
           'apikey': supabaseAnonKey
-        }
+        },
+        fetch: customFetch
       }
     })
   : createMockClient();
@@ -65,6 +66,17 @@ export const supabase = isSupabaseConfigured
 const getAuthToken = () => {
   const session = JSON.parse(localStorage.getItem('osol-auth') || '{}');
   return session?.access_token || supabaseAnonKey;
+};
+
+// Custom fetch function to ensure proper headers
+const customFetch = (url, options = {}) => {
+  const token = getAuthToken();
+  const headers = {
+    ...options.headers,
+    'apikey': supabaseAnonKey,
+    'Authorization': `Bearer ${token}`
+  };
+  return fetch(url, { ...options, headers });
 };
 
 // Create a client specifically for kastle_banking schema
@@ -90,15 +102,7 @@ export const supabaseBanking = isSupabaseConfigured
           'apikey': supabaseAnonKey,
           'Prefer': 'return=representation'
         },
-        fetch: (url, options = {}) => {
-          // Add the current auth token to every request
-          const token = getAuthToken();
-          const headers = {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`
-          };
-          return fetch(url, { ...options, headers });
-        }
+        fetch: customFetch
       }
     })
   : createMockClient();
@@ -120,15 +124,7 @@ export const supabaseCollection = isSupabaseConfigured
           'apikey': supabaseAnonKey,
           'Prefer': 'return=representation'
         },
-        fetch: (url, options = {}) => {
-          // Add the current auth token to every request
-          const token = getAuthToken();
-          const headers = {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`
-          };
-          return fetch(url, { ...options, headers });
-        }
+        fetch: customFetch
       }
     })
   : createMockClient();
