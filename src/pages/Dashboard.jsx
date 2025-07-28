@@ -703,17 +703,31 @@ export default function EnhancedDashboard() {
       const data = {};
       const errors = [];
       
+      console.log('Starting dashboard data fetch...');
+      console.log('Active widgets:', widgets);
+      
       // Fetch data for all widgets in parallel
       const widgetPromises = widgets.map(async (widget) => {
         const widgetDef = WIDGET_CATALOG[widget.section]?.[widget.widget];
         if (widgetDef?.query) {
           try {
+            console.log(`Fetching data for widget: ${widget.section}_${widget.widget}`);
             const result = await widgetDef.query(filters);
+            console.log(`Data received for ${widget.widget}:`, result);
             data[`${widget.section}_${widget.widget}`] = result;
           } catch (error) {
             console.error(`Error fetching ${widget.widget}:`, error);
             errors.push({ widget: widget.widget, error: error.message });
-            data[`${widget.section}_${widget.widget}`] = null;
+            // Return mock data instead of null for better UX
+            if (widgetDef.type === 'kpi') {
+              data[`${widget.section}_${widget.widget}`] = {
+                value: 0,
+                change: 0,
+                trend: 'neutral'
+              };
+            } else if (widgetDef.type === 'chart') {
+              data[`${widget.section}_${widget.widget}`] = [];
+            }
           }
         }
       });
@@ -729,6 +743,7 @@ export default function EnhancedDashboard() {
       // Wait for all promises to complete
       await Promise.all([...widgetPromises, comparisonPromise]);
       
+      console.log('Final widget data:', data);
       setWidgetData(data);
       
       // Show error summary if any widgets failed
@@ -954,25 +969,31 @@ export default function EnhancedDashboard() {
               <div className="h-32 flex items-center justify-center">
                 <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : data ? (
+            ) : data !== undefined && data !== null ? (
               <>
                 {widgetDef.type === 'kpi' && (
                   <div className="space-y-2">
                     <div className="text-3xl font-bold">
                       {typeof data.value === 'number' && data.value >= 1000000 
                         ? formatCurrency(data.value)
-                        : formatNumber(data.value)
+                        : formatNumber(data.value || 0)
                       }
                       {data.suffix}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       {data.trend === 'up' ? (
                         <TrendingUp className="h-4 w-4 text-green-500" />
-                      ) : (
+                      ) : data.trend === 'down' ? (
                         <TrendingDown className="h-4 w-4 text-red-500" />
+                      ) : (
+                        <Activity className="h-4 w-4 text-gray-500" />
                       )}
-                      <span className={data.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                        {data.change > 0 ? '+' : ''}{data.change}%
+                      <span className={
+                        data.trend === 'up' ? 'text-green-500' : 
+                        data.trend === 'down' ? 'text-red-500' : 
+                        'text-gray-500'
+                      }>
+                        {data.change > 0 ? '+' : ''}{data.change || 0}%
                       </span>
                       <span className="text-muted-foreground">
                         {t('dashboard.vsLastPeriod')}
@@ -981,7 +1002,7 @@ export default function EnhancedDashboard() {
                   </div>
                 )}
                 
-                {widgetDef.type === 'chart' && (
+                {widgetDef.type === 'chart' && Array.isArray(data) && data.length > 0 && (
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       {widgetDef.chartType === 'line' && (
@@ -1084,11 +1105,20 @@ export default function EnhancedDashboard() {
                     </ResponsiveContainer>
                   </div>
                 )}
+                
+                {widgetDef.type === 'chart' && (!Array.isArray(data) || data.length === 0) && (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">{isRTL ? 'لا توجد بيانات للعرض' : 'No data to display'}</p>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground">
                 <AlertCircle className="h-5 w-5 mr-2" />
-                {t('dashboard.noData')}
+                {isRTL ? 'لا توجد بيانات' : 'No data available'}
               </div>
             )}
           </CardContent>
