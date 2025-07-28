@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { initializeSupabase } from '@/lib/supabase';
 
 // Check if user is authenticated - ALWAYS RETURN TRUE
 export const checkAuth = async () => {
@@ -40,10 +39,7 @@ export const handle401Error = async (error) => {
 // Create authenticated Supabase client - returns regular client
 export const createAuthenticatedClient = async () => {
   try {
-    // Initialize Supabase if not already done
-    await initializeSupabase();
-    
-    // Return the existing supabase client
+    // Just return the existing supabase client
     return supabase;
   } catch (error) {
     console.error('Error creating client:', error);

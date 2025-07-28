@@ -818,10 +818,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
               {safeTranslate('common.settings', 'Settings')}
             </DropdownMenuItem>
             <DropdownMenuSeparator className="my-2" />
-            <DropdownMenuItem className="text-red-600 dark:text-red-400 rounded-lg p-2.5 focus:bg-red-50 dark:focus:bg-red-900/20" onClick={() => console.log('Logout')}>
-              <LogOut className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
-              {safeTranslate('common.logout', 'Logout')}
-            </DropdownMenuItem>
+            {/* Logout removed - authentication not required */}
           </DropdownMenuContent>
         </DropdownMenu>
 
