@@ -37,7 +37,7 @@ export class BranchReportService {
     try {
       const { data, error } = await supabaseBanking
         .from(TABLES.BRANCHES)
-        .select('branch_id, branch_name, branch_code, city, region, is_active')
+        .select('branch_id, branch_name, city, state, is_active')
         .eq('is_active', true)
         .order('branch_name');
 
@@ -89,7 +89,7 @@ export class BranchReportService {
       const { data: customers, error: customersError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('customer_id')
-        .eq('branch_id', branchId);
+        .eq('onboarding_branch', branchId);
 
       if (customersError) throw customersError;
 
