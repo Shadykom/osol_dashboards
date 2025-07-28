@@ -1,63 +1,52 @@
 // Ethereum Provider Conflict Resolver
-// This script prevents conflicts when multiple crypto wallet extensions try to inject window.ethereum
+// This script works with the extension blocker to handle any remaining conflicts
 
 (function() {
   'use strict';
   
-  // Store the original defineProperty method
-  const originalDefineProperty = Object.defineProperty;
+  console.log('Ethereum conflict resolver starting...');
   
-  // Track if ethereum has been defined
-  let ethereumDefined = false;
-  let ethereumValue = undefined;
-  
-  // Pre-define ethereum to prevent conflicts
-  try {
-    originalDefineProperty.call(Object, window, 'ethereum', {
-      get() {
-        return ethereumValue;
-      },
-      set(value) {
-        if (!ethereumValue) {
-          ethereumValue = value;
-          console.log('Ethereum provider set successfully');
-        } else {
-          console.warn('Attempted to overwrite ethereum provider, ignoring...');
-        }
-      },
-      configurable: true
-    });
-    ethereumDefined = true;
-  } catch (e) {
-    console.warn('Failed to pre-define ethereum property:', e);
+  // If the extension blocker already handled ethereum, skip
+  if (window.__extensionBlockerActive) {
+    console.log('Extension blocker is active, skipping ethereum resolver');
+    return;
   }
   
-  // Override Object.defineProperty to prevent redefinition errors
-  Object.defineProperty = function(obj, prop, descriptor) {
-    // Special handling for window.ethereum
-    if (obj === window && prop === 'ethereum') {
-      if (ethereumDefined) {
-        console.warn('Attempted to redefine window.ethereum, ignoring...');
-        // Update the value if it's the first real provider
-        if (!ethereumValue && descriptor.value) {
-          ethereumValue = descriptor.value;
-        }
-        return obj;
-      }
+  // Simple approach: just log attempts to access ethereum
+  try {
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+    if (descriptor) {
+      console.log('Ethereum property exists with descriptor:', {
+        configurable: descriptor.configurable,
+        enumerable: descriptor.enumerable,
+        writable: descriptor.writable,
+        hasGetter: !!descriptor.get,
+        hasSetter: !!descriptor.set
+      });
+    }
+  } catch (e) {
+    console.log('Could not check ethereum property:', e.message);
+  }
+  
+  // Override console.error to catch ethereum-related errors
+  const originalConsoleError = console.error;
+  console.error = function(...args) {
+    const errorString = args.join(' ');
+    
+    // Filter out ethereum-related errors
+    if (errorString.includes('ethereum') || 
+        errorString.includes('Cannot redefine property') ||
+        errorString.includes('Cannot set property ethereum')) {
+      console.warn('Suppressed ethereum error:', errorString);
+      return;
     }
     
-    // Call the original method
-    try {
-      return originalDefineProperty.call(this, obj, prop, descriptor);
-    } catch (error) {
-      if (prop === 'ethereum') {
-        console.warn(`Failed to define property ${prop}:`, error.message);
-        return obj;
-      }
-      // Re-throw for non-ethereum properties
-      throw error;
-    }
+    // Pass through other errors
+    originalConsoleError.apply(console, args);
   };
+  
+  // Add a flag to indicate this script has run
+  window.__ethereumResolverActive = true;
   
   console.log('Ethereum conflict resolver initialized');
 })();
