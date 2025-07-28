@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { TABLES } from '../lib/supabase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -39,42 +40,15 @@ export const ensureAuthentication = async () => {
     const { data: { session } } = await client.auth.getSession();
     
     if (!session) {
-      // Create a test user if not authenticated
-      const { data, error } = await client.auth.signUp({
-        email: 'admin@osoldashboard.com',
-        password: 'admin123456',
-        options: {
-          data: {
-            full_name: 'Admin User',
-            role: 'admin'
-          }
-        }
-      });
-      
-      if (error && error.message !== 'User already registered') {
-        console.error('Error creating user:', error);
-        return false;
-      }
-      
-      // Sign in with the test user
-      const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
-        email: 'admin@osoldashboard.com',
-        password: 'admin123456'
-      });
-      
-      if (signInError) {
-        console.error('Error signing in:', signInError);
-        return false;
-      }
-      
-      console.log('Successfully authenticated');
-      return true;
+      console.log('No active session found. User needs to log in.');
+      // Don't try to create a user automatically - this should be done through proper registration
+      return false;
     }
     
-    console.log('User already authenticated');
+    console.log('User authenticated:', session.user.email);
     return true;
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('Authentication check error:', error);
     return false;
   }
 };
@@ -109,8 +83,8 @@ export const seedDashboardData = async () => {
   
   try {
     // Check if data already exists
-    const accountsCount = await checkTableData(bankingClient, 'accounts');
-    const customersCount = await checkTableData(bankingClient, 'customers');
+    const accountsCount = await checkTableData(bankingClient, TABLES.ACCOUNTS);
+    const customersCount = await checkTableData(bankingClient, TABLES.CUSTOMERS);
     
     console.log('Current data counts:', { accounts: accountsCount, customers: customersCount });
     
@@ -124,7 +98,7 @@ export const seedDashboardData = async () => {
     
     // Insert sample branches
     const { data: branches, error: branchError } = await bankingClient
-      .from('branches')
+      .from(TABLES.BRANCHES)
       .upsert([
         { branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', status: 'ACTIVE' },
         { branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'BRANCH', status: 'ACTIVE' },
@@ -139,7 +113,7 @@ export const seedDashboardData = async () => {
     
     // Insert sample customer types
     const { error: customerTypeError } = await bankingClient
-      .from('customer_types')
+      .from(TABLES.CUSTOMER_TYPES)
       .upsert([
         { type_code: 'IND', type_name: 'Individual', description: 'Individual customers' },
         { type_code: 'CORP', type_name: 'Corporate', description: 'Corporate customers' },
@@ -168,7 +142,7 @@ export const seedDashboardData = async () => {
     }
     
     const { data: customers, error: customerError } = await bankingClient
-      .from('customers')
+      .from(TABLES.CUSTOMERS)
       .insert(customerData)
       .select();
     
@@ -198,7 +172,7 @@ export const seedDashboardData = async () => {
     });
     
     const { error: accountError } = await bankingClient
-      .from('accounts')
+      .from(TABLES.ACCOUNTS)
       .insert(accountData);
     
     if (accountError) {
@@ -225,7 +199,7 @@ export const seedDashboardData = async () => {
     });
     
     const { error: loanError } = await bankingClient
-      .from('loan_accounts')
+      .from(TABLES.LOAN_ACCOUNTS)
       .insert(loanData);
     
     if (loanError) {
@@ -253,7 +227,7 @@ export const seedDashboardData = async () => {
     }
     
     const { error: transactionError } = await bankingClient
-      .from('transactions')
+      .from(TABLES.TRANSACTIONS)
       .insert(transactionData);
     
     if (transactionError) {
@@ -273,20 +247,22 @@ export const seedDashboardData = async () => {
 export const fixDashboard = async () => {
   console.log('Starting dashboard fix...');
   
-  // Step 1: Ensure authentication
+  // Step 1: Check authentication
   const authSuccess = await ensureAuthentication();
   if (!authSuccess) {
-    console.error('Failed to authenticate');
-    return false;
+    console.log('User not authenticated - skipping dashboard fix');
+    // Return true to allow the dashboard to load without authentication
+    // The app should handle authentication separately
+    return true;
   }
   
-  // Step 2: Seed sample data if needed
+  // Step 2: Seed sample data if needed (only if authenticated)
   const seedSuccess = await seedDashboardData();
   if (!seedSuccess) {
     console.error('Failed to seed data');
-    return false;
+    // Don't fail completely if seeding fails
   }
   
-  console.log('Dashboard fix completed successfully');
+  console.log('Dashboard fix completed');
   return true;
 };
