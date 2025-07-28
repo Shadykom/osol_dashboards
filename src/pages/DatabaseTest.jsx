@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Database } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, AlertTriangle, DatabaseIcon } from '@/utils/icons';
 import { 
   supabase, 
   supabaseBanking, 
@@ -137,7 +137,7 @@ export function DatabaseTest() {
       case 'error':
         return <XCircle className="h-8 w-8 text-red-500" />;
       default:
-        return <Database className="h-8 w-8 text-gray-500 animate-pulse" />;
+        return <DatabaseIcon className="h-8 w-8 text-gray-500 animate-pulse" />;
     }
   };
 

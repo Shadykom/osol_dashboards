@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { Database, RefreshCw, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { DatabaseIcon, RefreshCw, CheckCircle, AlertCircle, Info } from '@/utils/icons';
 import { seedDashboardData, checkDataExists } from '@/utils/seedDashboardData';
 
 export function DataSeeder() {
@@ -72,7 +72,7 @@ export function DataSeeder() {
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Database className="h-5 w-5" />
+          <DatabaseIcon className="h-5 w-5" />
           Dashboard Data Seeder
         </CardTitle>
         <CardDescription>
@@ -140,7 +140,7 @@ export function DataSeeder() {
               </>
             ) : (
               <>
-                <Database className="h-4 w-4" />
+                <DatabaseIcon className="h-4 w-4" />
                 {hasData ? 'Add More Sample Data' : 'Seed Sample Data'}
               </>
             )}
