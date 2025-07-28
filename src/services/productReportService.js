@@ -94,7 +94,6 @@ export class ProductReportService {
           loan_amount,
           overdue_amount,
           overdue_days,
-          dpd,
           customer_id,
           branch_id
         `)

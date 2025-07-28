@@ -334,20 +334,12 @@ export class BranchReportService {
       // Get performance data for each officer
       const performanceData = await Promise.all((officers || []).map(async (officer) => {
         // Get cases assigned to officer
-        const { data: officerCases, error: casesError } = await supabaseCollection
+        const { data: officerCases, error: casesError } = await supabaseBanking
           .from('collection_cases')
           .select(`
             case_id,
             total_outstanding,
-            days_past_due,
-            collection_interactions!case_id (
-              interaction_type,
-              outcome
-            ),
-            promise_to_pay!case_id (
-              ptp_amount,
-              status
-            )
+            days_past_due
           `)
           .eq('assigned_to', officer.officer_id)
           .eq('case_status', 'ACTIVE');
@@ -355,19 +347,32 @@ export class BranchReportService {
         const totalCases = officerCases?.length || 0;
         const totalOutstanding = officerCases?.reduce((sum, c) => sum + (c.total_outstanding || 0), 0) || 0;
         
-        // Count interactions
-        const totalCalls = officerCases?.reduce((sum, c) => 
-          sum + (c.kastle_collection?.collection_interactions?.filter(i => i.interaction_type === 'CALL').length || 0), 0
-        ) || 0;
-        
-        // Count PTPs
-        const totalPTPs = officerCases?.reduce((sum, c) => 
-          sum + (c.kastle_collection?.promise_to_pay?.length || 0), 0
-        ) || 0;
-        
-        const keptPTPs = officerCases?.reduce((sum, c) => 
-          sum + (c.kastle_collection?.promise_to_pay?.filter(p => p.status === 'KEPT').length || 0), 0
-        ) || 0;
+        // Get interactions for these cases
+        let totalCalls = 0;
+        let totalPTPs = 0;
+        let keptPTPs = 0;
+
+        if (officerCases && officerCases.length > 0) {
+          const caseIds = officerCases.map(c => c.case_id);
+          
+          // Get interactions
+          const { data: interactions } = await supabaseCollection
+            .from('collection_interactions')
+            .select('interaction_type')
+            .in('case_id', caseIds)
+            .eq('interaction_type', 'CALL');
+          
+          totalCalls = interactions?.length || 0;
+
+          // Get PTPs
+          const { data: ptps } = await supabaseCollection
+            .from('promise_to_pay')
+            .select('status')
+            .in('case_id', caseIds);
+          
+          totalPTPs = ptps?.length || 0;
+          keptPTPs = ptps?.filter(p => p.status === 'KEPT').length || 0;
+        }
 
         return {
           officerId: officer.officer_id,

@@ -241,7 +241,7 @@ class SpecialistReportService {
           assignment_date,
           total_outstanding,
           total_overdue,
-          dpd,
+          days_past_due,
           bucket_id,
           last_payment_date,
           last_payment_amount,
@@ -286,9 +286,9 @@ class SpecialistReportService {
       if (filters.delinquencyBucket && filters.delinquencyBucket !== 'all') {
         const bucketRange = this.getBucketRange(filters.delinquencyBucket);
         if (bucketRange) {
-          query = query.gte('dpd', bucketRange.min);
+          query = query.gte('days_past_due', bucketRange.min);
           if (bucketRange.max) {
-            query = query.lte('dpd', bucketRange.max);
+            query = query.lte('days_past_due', bucketRange.max);
           }
         }
       }
@@ -321,8 +321,8 @@ class SpecialistReportService {
         paidAmount: (caseData.loan_accounts?.loan_amount || 0) - (caseData.loan_accounts?.outstanding_balance || 0),
         dueAmount: caseData.loan_accounts?.outstanding_balance || 0,
         totalOverdueAmount: caseData.loan_accounts?.overdue_amount || caseData.total_overdue || 0,
-        totalOverdueDays: caseData.loan_accounts?.overdue_days || caseData.dpd || 0,
-        delinquencyBucket: caseData.collection_buckets?.bucket_name || this.getDPDBucket(caseData.dpd),
+        totalOverdueDays: caseData.loan_accounts?.overdue_days || caseData.days_past_due || 0,
+        delinquencyBucket: caseData.collection_buckets?.bucket_name || this.getDPDBucket(caseData.days_past_due),
         loanStatus: caseData.case_status,
         lastContactDate: caseData.last_contact_date,
         lastPaymentDate: caseData.last_payment_date,
