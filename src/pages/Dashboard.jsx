@@ -1410,7 +1410,7 @@ export default function EnhancedDashboard() {
   };
 
   return (
-    <div className="space-y-6 h-full overflow-auto">
+    <div className="space-y-6">
       {/* Header Section */}
       <div className="space-y-4">
         {/* Title and Actions */}

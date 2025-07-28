@@ -119,7 +119,7 @@ class SpecialistReportService {
   async getSpecialistById(specialistId) {
     try {
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection').from('collection_officers')
+        .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
         .select(`
           officer_id,
           officer_name,
@@ -500,7 +500,7 @@ class SpecialistReportService {
       
       // First try with all columns
       let query = supabaseCollection
-        .schema('kastle_collection').from('promise_to_pay')
+        .from(COLLECTION_TABLES.PROMISE_TO_PAY)
         .select(`
           ptp_id,
           case_id,
@@ -522,7 +522,7 @@ class SpecialistReportService {
         if (error.code === '42703' && (error.message.includes('actual_payment_date') || error.message.includes('actual_payment_amount'))) {
           console.warn('Some columns not found in promise_to_pay, retrying with basic columns');
           const { data: retryData, error: retryError } = await supabaseCollection
-            .schema('kastle_collection').from('promise_to_pay')
+            .from(COLLECTION_TABLES.PROMISE_TO_PAY)
             .select(`
               ptp_id,
               case_id,
