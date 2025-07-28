@@ -42,49 +42,35 @@ CREATE POLICY "Allow anonymous read access to loan accounts" ON kastle_banking.l
     FOR SELECT TO anon
     USING (true);
 
--- For authenticated users, allow full access to their own data
--- Customers - authenticated users can see their own data
-CREATE POLICY "Users can view own customer data" ON kastle_banking.customers
-    FOR SELECT TO authenticated
-    USING (auth.uid()::text = user_id OR user_id IS NULL);
+-- For authenticated users, allow full access
+-- Since there's no user_id column, we'll allow authenticated users to see all data
+-- In production, you would implement proper user-based filtering
 
--- Accounts - authenticated users can see their own accounts
-CREATE POLICY "Users can view own accounts" ON kastle_banking.accounts
+-- Customers - authenticated users can see all customer data
+CREATE POLICY "Users can view customer data" ON kastle_banking.customers
     FOR SELECT TO authenticated
-    USING (
-        customer_id IN (
-            SELECT customer_id FROM kastle_banking.customers 
-            WHERE auth.uid()::text = user_id OR user_id IS NULL
-        )
-    );
+    USING (true);
 
--- Transactions - authenticated users can see their own transactions
-CREATE POLICY "Users can view own transactions" ON kastle_banking.transactions
+-- Accounts - authenticated users can see all accounts
+CREATE POLICY "Users can view accounts" ON kastle_banking.accounts
     FOR SELECT TO authenticated
-    USING (
-        account_id IN (
-            SELECT account_number FROM kastle_banking.accounts a
-            JOIN kastle_banking.customers c ON a.customer_id = c.customer_id
-            WHERE auth.uid()::text = c.user_id OR c.user_id IS NULL
-        )
-    );
+    USING (true);
 
--- Loan accounts - authenticated users can see their own loans
-CREATE POLICY "Users can view own loans" ON kastle_banking.loan_accounts
+-- Transactions - authenticated users can see all transactions
+CREATE POLICY "Users can view transactions" ON kastle_banking.transactions
     FOR SELECT TO authenticated
-    USING (
-        customer_id IN (
-            SELECT customer_id FROM kastle_banking.customers 
-            WHERE auth.uid()::text = user_id OR user_id IS NULL
-        )
-    );
+    USING (true);
+
+-- Loan accounts - authenticated users can see all loans
+CREATE POLICY "Users can view loans" ON kastle_banking.loan_accounts
+    FOR SELECT TO authenticated
+    USING (true);
 
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA kastle_banking TO anon, authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA kastle_banking TO anon, authenticated;
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_customers_user_id ON kastle_banking.customers(user_id);
 CREATE INDEX IF NOT EXISTS idx_accounts_customer_id ON kastle_banking.accounts(customer_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON kastle_banking.transactions(account_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON kastle_banking.transactions(transaction_date);
