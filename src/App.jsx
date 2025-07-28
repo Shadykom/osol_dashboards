@@ -31,6 +31,7 @@ import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
 import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
+import { BasicSidebarTest } from './pages/BasicSidebarTest';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -239,6 +240,7 @@ function SafeApp() {
             <Route path="/database-test" element={<DatabaseTest />} />
             <Route path="/new-sidebar-demo" element={<NewSidebarDemo />} />
             <Route path="/simple-sidebar-demo" element={<SimpleSidebarDemo />} />
+            <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
             
             
             {/* Collection Routes */}
