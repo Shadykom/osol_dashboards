@@ -635,7 +635,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
       "sidebar flex h-full flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
       isCollapsed ? "w-20" : "w-80",
       isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic rtl" : "border-r border-gray-200 dark:border-gray-800 ltr",
-      isMobileSheet && "h-screen w-full max-h-screen" // Ensure full height on mobile
+      isMobileSheet && "h-screen w-full max-h-screen bg-white dark:bg-gray-950" // Ensure proper background on mobile
     )} dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
