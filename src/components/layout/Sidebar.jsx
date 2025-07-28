@@ -546,7 +546,7 @@ function NavItem({ item, level = 0, isCollapsed, onNavigate }) {
 }
 
 // Main Sidebar Component
-export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) => {
+export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false, mobileOpen = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
@@ -591,15 +591,14 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Force navigation items to be visible on mobile sheet
+  // Reset search and ensure nav items when mobile sheet opens
   useEffect(() => {
-    if (isMobileSheet) {
-      setSearchQuery(''); // Clear search when opening mobile sheet
-      // Re-initialize navigation items for mobile
+    if (isMobileSheet && mobileOpen) {
+      setSearchQuery('');
       const items = getNavigationItems(t, hasTranslations);
       setNavigationItems(items);
     }
-  }, [isMobileSheet, t, hasTranslations]);
+  }, [mobileOpen, isMobileSheet, t, hasTranslations]);
 
   // Filter navigation items based on search
   const filterNavItems = (items, query) => {

@@ -66,10 +66,11 @@ export function Layout({ children }) {
             </SheetHeader>
           </VisuallyHidden>
           <div className="h-full overflow-hidden bg-white dark:bg-gray-950">
-            <Sidebar 
-              isCollapsed={false} 
+            <Sidebar
+              isCollapsed={false}
               setIsCollapsed={handleMobileSidebarClose}
               isMobileSheet={true}
+              mobileOpen={isMobileSidebarOpen}
             />
           </div>
         </SheetContent>
