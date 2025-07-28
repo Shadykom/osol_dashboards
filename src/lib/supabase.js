@@ -61,6 +61,12 @@ export const supabase = isSupabaseConfigured
     })
   : createMockClient();
 
+// Function to get current auth token
+const getAuthToken = () => {
+  const session = JSON.parse(localStorage.getItem('osol-auth') || '{}');
+  return session?.access_token || supabaseAnonKey;
+};
+
 // Create a client specifically for kastle_banking schema
 export const supabaseBanking = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
@@ -83,6 +89,15 @@ export const supabaseBanking = isSupabaseConfigured
         headers: {
           'apikey': supabaseAnonKey,
           'Prefer': 'return=representation'
+        },
+        fetch: (url, options = {}) => {
+          // Add the current auth token to every request
+          const token = getAuthToken();
+          const headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+          };
+          return fetch(url, { ...options, headers });
         }
       }
     })
@@ -99,6 +114,21 @@ export const supabaseCollection = isSupabaseConfigured
         params: {
           eventsPerSecond: 10
         }
+      },
+      global: {
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Prefer': 'return=representation'
+        },
+        fetch: (url, options = {}) => {
+          // Add the current auth token to every request
+          const token = getAuthToken();
+          const headers = {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+          };
+          return fetch(url, { ...options, headers });
+        }
       }
     })
   : createMockClient();
@@ -106,31 +136,32 @@ export const supabaseCollection = isSupabaseConfigured
 // Database schema constants - using schema-qualified table names
 export const TABLES = {
   // kastle_banking schema tables
-  CUSTOMERS: 'kastle_banking.customers',
-  ACCOUNTS: 'kastle_banking.accounts',
-  TRANSACTIONS: 'kastle_banking.transactions',
-  LOAN_ACCOUNTS: 'kastle_banking.loan_accounts',
-  BRANCHES: 'kastle_banking.branches',
-  CURRENCIES: 'kastle_banking.currencies',
-  COUNTRIES: 'kastle_banking.countries',
-  AUDIT_TRAIL: 'kastle_banking.audit_trail',
-  AUTH_USER_PROFILES: 'kastle_banking.auth_user_profiles',
-  REALTIME_NOTIFICATIONS: 'kastle_banking.realtime_notifications',
-  CUSTOMER_ADDRESSES: 'kastle_banking.customer_addresses',
-  CUSTOMER_CONTACTS: 'kastle_banking.customer_contacts',
-  CUSTOMER_DOCUMENTS: 'kastle_banking.customer_documents',
-  CUSTOMER_TYPES: 'kastle_banking.customer_types',
-  PRODUCTS: 'kastle_banking.products',
-  PRODUCT_CATEGORIES: 'kastle_banking.product_categories',
-  BANK_CONFIG: 'kastle_banking.bank_config',
-  COLLECTION_CASES: 'kastle_banking.collection_cases',
-  COLLECTION_BUCKETS: 'kastle_banking.collection_buckets',
-  COLLECTION_RATES: 'kastle_banking.collection_rates',
+  CUSTOMERS: 'customers',
+  ACCOUNTS: 'accounts',
+  TRANSACTIONS: 'transactions',
+  LOAN_ACCOUNTS: 'loan_accounts',
+  BRANCHES: 'branches',
+  CURRENCIES: 'currencies',
+  COUNTRIES: 'countries',
+  AUDIT_TRAIL: 'audit_trail',
+  AUTH_USER_PROFILES: 'auth_user_profiles',
+  REALTIME_NOTIFICATIONS: 'realtime_notifications',
+  CUSTOMER_ADDRESSES: 'customer_addresses',
+  CUSTOMER_CONTACTS: 'customer_contacts',
+  CUSTOMER_DOCUMENTS: 'customer_documents',
+  CUSTOMER_TYPES: 'customer_types',
+  PRODUCTS: 'products',
+  PRODUCT_CATEGORIES: 'product_categories',
+  BANK_CONFIG: 'bank_config',
+  COLLECTION_CASES: 'collection_cases',
+  COLLECTION_BUCKETS: 'collection_buckets',
+  COLLECTION_RATES: 'collection_rates',
   
   // kastle_collection schema tables
   COLLECTION_AUDIT_TRAIL: 'kastle_collection.audit_trail',
-  COLLECTION_CALL_RECORDS: 'kastle_collection.call_records',
-  COLLECTION_CAMPAIGNS: 'kastle_collection.collection_campaigns',
+  COLLECTION_AUTH_USER_PROFILES: 'kastle_collection.auth_user_profiles',
+  COLLECTION_CALL_ATTEMPTS: 'kastle_collection.call_attempts',
+  COLLECTION_CASES_COLL: 'kastle_collection.collection_cases',
   COLLECTION_INTERACTIONS: 'kastle_collection.collection_interactions',
   COLLECTION_OFFICERS: 'kastle_collection.collection_officers',
   COLLECTION_SCORES: 'kastle_collection.collection_scores',
@@ -146,6 +177,29 @@ export const TABLES = {
   OFFICER_PERFORMANCE_METRICS: 'kastle_collection.officer_performance_metrics',
   OFFICER_PERFORMANCE_SUMMARY: 'kastle_collection.officer_performance_summary',
   CASE_BUCKET_HISTORY: 'kastle_collection.case_bucket_history'
+};
+
+// Separate table constants for collection schema (without schema prefix)
+export const COLLECTION_TABLES = {
+  AUDIT_TRAIL: 'audit_trail',
+  AUTH_USER_PROFILES: 'auth_user_profiles',
+  CALL_ATTEMPTS: 'call_attempts',
+  COLLECTION_CASES: 'collection_cases',
+  COLLECTION_INTERACTIONS: 'collection_interactions',
+  COLLECTION_OFFICERS: 'collection_officers',
+  COLLECTION_SCORES: 'collection_scores',
+  COLLECTION_STRATEGIES: 'collection_strategies',
+  SYSTEM_PERFORMANCE: 'system_performance',
+  COLLECTION_TEAMS: 'collection_teams',
+  PROMISE_TO_PAY: 'promise_to_pay',
+  LEGAL_CASES: 'legal_cases',
+  DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
+  DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
+  FIELD_VISITS: 'field_visits',
+  HARDSHIP_APPLICATIONS: 'hardship_applications',
+  OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
+  OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
+  CASE_BUCKET_HISTORY: 'case_bucket_history'
 };
 
 // Helper function to get the appropriate client for a table
