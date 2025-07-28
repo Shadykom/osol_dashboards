@@ -16,6 +16,22 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: 'all'
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'lucide': ['lucide-react']
+        }
+      }
+    },
+    // Ensure proper handling of external dependencies
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
+  },
+  optimizeDeps: {
+    include: ['lucide-react']
   }
 })
 
