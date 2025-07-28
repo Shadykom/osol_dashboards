@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =============================================
-   ROOT VARIABLES & THEME
-   ============================================= */
-
 /* Osol Company Brand Colors and Typography */
 :root {
   /* Osol Brand Colors */
@@ -63,224 +59,41 @@
   --ring: 47 100% 45%;
 }
 
-/* =============================================
-   BASE STYLES
-   ============================================= */
-
+/* Base Styles */
 * {
   border-color: hsl(var(--border));
-}
-
-html {
-  scroll-behavior: smooth;
-  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Ensure proper height */
-html, body, #root {
-  height: 100%;
-  overflow: hidden;
-}
-
-/* Selection styles */
-::selection {
-  background: hsl(var(--primary) / 0.3);
-  color: hsl(var(--primary-foreground));
-}
-
-/* Focus styles */
-*:focus {
-  outline: none;
-}
-
-*:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-}
-
-/* =============================================
-   RTL SUPPORT
-   ============================================= */
-
+/* RTL Support for Arabic */
 [dir="rtl"] {
-  direction: rtl;
   text-align: right;
 }
 
-[dir="rtl"] .ltr {
-  direction: ltr;
-  text-align: left;
+[dir="rtl"] .sidebar {
+  right: 0;
+  left: auto;
 }
 
-[dir="ltr"] .rtl {
-  direction: rtl;
-  text-align: right;
+[dir="rtl"] .main-content {
+  margin-right: 16rem;
+  margin-left: 0;
 }
 
 /* Arabic Font Support */
-body.rtl,
-[lang="ar"] {
-  font-family: 'Noto Sans Arabic', 'Amiri', 'Scheherazade', 'Inter', sans-serif;
-}
-
 .arabic-text {
   font-family: 'Noto Sans Arabic', 'Amiri', 'Scheherazade', sans-serif;
   font-weight: 400;
   line-height: 1.8;
 }
 
-/* =============================================
-   MOBILE SIDEBAR STYLES
-   ============================================= */
-
-/* Mobile Sidebar Animations */
-@media (max-width: 1024px) {
-  /* Sheet overlay */
-  [data-state="open"] > [data-sheet-overlay] {
-    animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  [data-state="closed"] > [data-sheet-overlay] {
-    animation: overlayHide 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  /* LTR Sheet content animations */
-  [dir="ltr"] [data-state="open"] > [data-sheet-content][data-side="left"] {
-    animation: slideInFromLeft 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  [dir="ltr"] [data-state="closed"] > [data-sheet-content][data-side="left"] {
-    animation: slideOutToLeft 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  /* RTL Sheet content animations */
-  [dir="rtl"] [data-state="open"] > [data-sheet-content][data-side="right"] {
-    animation: slideInFromRight 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  [dir="rtl"] [data-state="closed"] > [data-sheet-content][data-side="right"] {
-    animation: slideOutToRight 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-}
-
-/* Animation keyframes */
-@keyframes overlayShow {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes overlayHide {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-@keyframes slideInFromLeft {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes slideOutToLeft {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
-}
-
-@keyframes slideInFromRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes slideOutToRight {
-  from { transform: translateX(0); }
-  to { transform: translateX(100%); }
-}
-
-/* Mobile-specific styles */
-@media (max-width: 1024px) {
-  /* Ensure full viewport height on mobile */
-  .app {
-    height: 100vh;
-    height: 100dvh; /* Dynamic viewport height for mobile browsers */
-  }
-
-  /* Prevent body scroll when sidebar is open */
-  body:has([data-state="open"]) {
-    overflow: hidden;
-  }
-
-  /* Ensure proper touch scrolling */
-  [data-radix-scroll-area-viewport] {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
-
-  /* Larger touch targets */
-  .sidebar button,
-  .sidebar a {
-    min-height: 44px; /* iOS recommended touch target size */
-  }
-
-  /* Safe area padding for notched devices */
-  [data-sheet-content] {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  [dir="ltr"] [data-sheet-content][data-side="left"] {
-    padding-left: env(safe-area-inset-left);
-  }
-
-  [dir="rtl"] [data-sheet-content][data-side="right"] {
-    padding-right: env(safe-area-inset-right);
-  }
-}
-
-/* =============================================
-   ACCORDION ANIMATIONS
-   ============================================= */
-
-[data-state="open"] > [data-accordion-content] {
-  animation: accordionDown 200ms cubic-bezier(0.87, 0, 0.13, 1);
-}
-
-[data-state="closed"] > [data-accordion-content] {
-  animation: accordionUp 200ms cubic-bezier(0.87, 0, 0.13, 1);
-}
-
-@keyframes accordionDown {
-  from {
-    height: 0;
-    opacity: 0;
-  }
-  to {
-    height: var(--radix-accordion-content-height);
-    opacity: 1;
-  }
-}
-
-@keyframes accordionUp {
-  from {
-    height: var(--radix-accordion-content-height);
-    opacity: 1;
-  }
-  to {
-    height: 0;
-    opacity: 0;
-  }
-}
-
-/* =============================================
-   OSOL BRAND COMPONENTS
-   ============================================= */
-
+/* Osol Brand Components */
 .osol-gradient {
   background: linear-gradient(135deg, var(--osol-primary) 0%, var(--osol-primary-dark) 100%);
 }
@@ -323,10 +136,7 @@ body.rtl,
   color: var(--osol-secondary);
 }
 
-/* =============================================
-   KPI CARDS
-   ============================================= */
-
+/* Enhanced KPI Cards */
 .kpi-card {
   background: white;
   border-radius: 12px;
@@ -367,10 +177,7 @@ body.rtl,
   color: var(--osol-error);
 }
 
-/* =============================================
-   CHART STYLES
-   ============================================= */
-
+/* Chart Enhancements */
 .chart-container {
   background: white;
   border-radius: 12px;
@@ -392,10 +199,72 @@ body.rtl,
   margin-bottom: 1rem;
 }
 
-/* =============================================
-   LOADING STATES
-   ============================================= */
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    position: fixed;
+    z-index: 50;
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+  
+  [dir="rtl"] .sidebar {
+    transform: translateX(100%);
+  }
+  
+  [dir="rtl"] .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  [dir="rtl"] .main-content {
+    margin-right: 0;
+  }
+  
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .chart-container {
+    padding: 1rem;
+  }
+  
+  .kpi-value {
+    font-size: 1.5rem;
+  }
+}
 
+@media (max-width: 640px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .dashboard-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .kpi-card {
+    padding: 1rem;
+  }
+  
+  .chart-container {
+    padding: 0.75rem;
+  }
+}
+
+/* Loading States */
 .loading-skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
@@ -411,26 +280,7 @@ body.rtl,
   }
 }
 
-/* Spinner */
-.spinner {
-  border: 2px solid hsl(var(--muted));
-  border-top-color: hsl(var(--primary));
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* =============================================
-   MICRO-INTERACTIONS
-   ============================================= */
-
+/* Micro-interactions */
 .interactive-element {
   transition: all 0.2s ease-in-out;
 }
@@ -443,23 +293,7 @@ body.rtl,
   transform: scale(0.98);
 }
 
-/* Smooth transitions */
-* {
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
-}
-
-/* Prevent text selection on navigation items */
-.sidebar nav {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-/* =============================================
-   STATUS INDICATORS
-   ============================================= */
-
+/* Status Indicators */
 .status-operational {
   color: var(--osol-success);
   background-color: rgba(72, 187, 120, 0.1);
@@ -475,40 +309,27 @@ body.rtl,
   background-color: rgba(245, 101, 101, 0.1);
 }
 
-/* =============================================
-   SCROLLBAR STYLES
-   ============================================= */
-
-/* Webkit Scrollbars */
+/* Enhanced Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
-  border-radius: 4px;
+  background: #f1f1f1;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
+  background: var(--osol-primary);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: var(--osol-primary-dark);
 }
 
-/* Firefox Scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--background));
-}
-
-/* =============================================
-   REACT GRID LAYOUT
-   ============================================= */
-
+/* React Grid Layout Styles */
 .react-grid-layout {
   position: relative;
 }
@@ -583,338 +404,22 @@ body.rtl,
   border-bottom: 2px solid rgba(0, 0, 0, 0.4);
 }
 
-/* =============================================
-   UTILITY CLASSES
-   ============================================= */
-
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Glass morphism effect */
-.glass {
-  background: hsl(var(--background) / 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid hsl(var(--border) / 0.5);
-}
-
-/* Animate in/out */
-.animate-in {
-  animation: animateIn 0.3s ease-out;
-}
-
-.animate-out {
-  animation: animateOut 0.3s ease-in forwards;
-}
-
-@keyframes animateIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes animateOut {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-/* =============================================
-   RESPONSIVE DESIGN
-   ============================================= */
-
-/* Tablet and below */
-@media (max-width: 1024px) {
-  .container {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .kpi-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .chart-container {
-    padding: 1rem;
-  }
-  
-  .kpi-value {
-    font-size: 1.5rem;
-  }
-  
-  /* Hide desktop-only elements */
-  .desktop-only {
+/* Print Styles */
+@media print {
+  .sidebar {
     display: none;
   }
   
-  /* Show mobile-only elements */
-  .mobile-only {
-    display: block;
-  }
-}
-
-/* Small mobile */
-@media (max-width: 640px) {
-  .dashboard-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .dashboard-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  
-  .kpi-card {
-    padding: 1rem;
-  }
-  
-  .chart-container {
-    padding: 0.75rem;
-  }
-  
-  .text-sm {
-    font-size: 0.875rem;
-  }
-  
-  .text-xs {
-    font-size: 0.75rem;
-  }
-}
-
-/* Landscape orientation fixes */
-@media (max-width: 768px) and (orientation: landscape) {
-  .sidebar {
-    max-width: 320px;
-  }
-  
-  /* Adjust heights for landscape */
-  [data-radix-scroll-area-viewport] {
-    max-height: calc(100vh - 180px) !important;
-  }
-}
-
-/* =============================================
-   ACCESSIBILITY
-   ============================================= */
-
-/* Focus visible improvements */
-@media (max-width: 1024px) {
-  *:focus-visible {
-    outline: 3px solid hsl(var(--primary));
-    outline-offset: 2px;
-  }
-}
-
-/* Skip to main content link */
-.skip-to-main {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  z-index: 999;
-  padding: 1rem;
-  background: hsl(var(--background));
-  text-decoration: none;
-  color: hsl(var(--foreground));
-}
-
-.skip-to-main:focus {
-  left: 0;
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  :root {
-    --foreground: 0 0% 0%;
-    --background: 0 0% 100%;
-    --primary: 0 0% 0%;
-    --primary-foreground: 0 0% 100%;
-  }
-  
-  .dark {
-    --foreground: 0 0% 100%;
-    --background: 0 0% 0%;
-    --primary: 0 0% 100%;
-    --primary-foreground: 0 0% 0%;
-  }
-  
-  [data-sheet-overlay] {
-    background-color: rgba(0, 0, 0, 0.8);
-  }
-  
-  .sidebar {
-    border-color: black;
-  }
-  
-  .dark .sidebar {
-    border-color: white;
-  }
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* =============================================
-   PRINT STYLES
-   ============================================= */
-
-@media print {
-  /* Hide non-essential elements */
-  .sidebar,
-  .header,
-  .no-print,
-  button,
-  [data-sheet-content],
-  [data-sheet-overlay] {
-    display: none !important;
-  }
-  
-  /* Reset main content margins */
   .main-content {
-    margin: 0 !important;
-    padding: 0 !important;
+    margin-left: 0;
   }
   
-  /* Ensure content fits on page */
-  .osol-card,
-  .chart-container {
+  .osol-card {
     box-shadow: none;
     border: 1px solid #ccc;
+  }
+  
+  .chart-container {
     break-inside: avoid;
-    page-break-inside: avoid;
-  }
-  
-  /* Reset colors for better printing */
-  body {
-    background: white;
-    color: black;
-  }
-  
-  /* Ensure links are visible */
-  a {
-    text-decoration: underline;
-  }
-  
-  /* Show link URLs */
-  a[href]:after {
-    content: " (" attr(href) ")";
   }
 }
-
-/* =============================================
-   PERFORMANCE OPTIMIZATIONS
-   ============================================= */
-
-/* Use GPU acceleration for animations */
-.sidebar,
-[data-sheet-content],
-.react-grid-item {
-  will-change: transform;
-}
-
-/* Disable hover effects on touch devices */
-@media (hover: none) {
-  .sidebar button:hover,
-  .osol-card:hover,
-  .interactive-element:hover {
-    transform: none;
-  }
-}
-
-/* =============================================
-   CUSTOM COMPONENT STYLES
-   ============================================= */
-
-/* Dashboard specific styles */
-.dashboard-grid {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-}
-
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-/* Table styles */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th {
-  text-align: left;
-  font-weight: 600;
-  padding: 0.75rem;
-  border-bottom: 2px solid hsl(var(--border));
-}
-
-.data-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.data-table tr:hover {
-  background-color: hsl(var(--muted) / 0.5);
-}
-
-/* Badge variations */
-.badge-success {
-  background-color: var(--osol-success);
-  color: white;
-}
-
-.badge-warning {
-  background-color: var(--osol-warning);
-  color: white;
-}
-
-.badge-error {
-  background-color: var(--osol-error);
-  color: white;
-}
-
-/* =============================================
-   Z-INDEX SCALE
-   ============================================= */
-
-/* Maintain consistent z-index hierarchy */
-.z-dropdown { z-index: 10; }
-.z-sticky { z-index: 20; }
-.z-fixed { z-index: 30; }
-.z-modal-backdrop { z-index: 40; }
-.z-modal { z-index: 50; }
-.z-notification { z-index: 60; }
-.z-tooltip { z-index: 70; }

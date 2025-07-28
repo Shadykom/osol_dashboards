@@ -83,18 +83,6 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Ensure proper height and scrolling */
-html, body, #root {
-  height: 100%;
-  overflow: hidden;
-}
-
-/* Fix for main content area */
-.main-content {
-  height: 100%;
-  overflow-y: auto;
-}
-
 /* Focus styles */
 *:focus {
   outline: none;
