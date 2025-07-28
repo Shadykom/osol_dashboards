@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -167,10 +168,12 @@ function Sidebar({
             }
           }
           side={side}>
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
+          <VisuallyHidden>
+            <SheetHeader>
+              <SheetTitle>Navigation Menu</SheetTitle>
+              <SheetDescription>Navigate through the application</SheetDescription>
+            </SheetHeader>
+          </VisuallyHidden>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>
