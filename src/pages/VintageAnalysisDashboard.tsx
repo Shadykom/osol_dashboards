@@ -12,7 +12,7 @@ import {
   Cell, ScatterChart, Scatter, ComposedChart
 } from 'recharts';
 import { 
-  TrendingUp, Calendar, DollarSign, AlertTriangle, Activity,
+  TrendingUp, TrendingDown, Calendar, DollarSign, AlertTriangle, Activity,
   BarChart3, PieChart, Target, Clock, Layers, Filter,
   Download, ChevronDown, Info, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
