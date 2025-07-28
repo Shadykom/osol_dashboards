@@ -6,12 +6,12 @@
 /* Import grid layout styles */
 @import './styles/grid-layout-styles.css';
 
+/* Import enhanced RTL styles */
+@import './styles/rtl-enhanced.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import enhanced RTL styles */
-@import './styles/rtl-enhanced.css';
 
 @layer base {
   :root {
