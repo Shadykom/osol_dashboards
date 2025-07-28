@@ -546,7 +546,7 @@ function NavItem({ item, level = 0, isCollapsed, onNavigate }) {
 }
 
 // Main Sidebar Component
-export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) => {
+export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false, mobileOpen = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
@@ -591,15 +591,14 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Force navigation items to be visible on mobile sheet
+  // Reset search and ensure nav items when mobile sheet opens
   useEffect(() => {
-    if (isMobileSheet) {
-      setSearchQuery(''); // Clear search when opening mobile sheet
-      // Re-initialize navigation items for mobile
+    if (isMobileSheet && mobileOpen) {
+      setSearchQuery('');
       const items = getNavigationItems(t, hasTranslations);
       setNavigationItems(items);
     }
-  }, [isMobileSheet, t, hasTranslations]);
+  }, [mobileOpen, isMobileSheet, t, hasTranslations]);
 
   // Filter navigation items based on search
   const filterNavItems = (items, query) => {
@@ -635,7 +634,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
       "sidebar flex h-full flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
       isCollapsed ? "w-20" : "w-80",
       isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic rtl" : "border-r border-gray-200 dark:border-gray-800 ltr",
-      isMobileSheet && "h-screen w-full max-h-screen" // Ensure full height on mobile
+      isMobileSheet && "h-screen w-full max-h-screen bg-white dark:bg-gray-950" // Ensure proper background on mobile
     )} dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
@@ -730,13 +729,6 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
         isMobileSheet ? "h-[calc(100vh-240px)]" : "" // Fixed height calculation for mobile
       )}>
         <div className="space-y-6 py-4 pb-20">
-          {/* Debug info for mobile */}
-          {isMobileSheet && navigationItems.length === 0 && (
-            <div className="p-4 text-center text-sm text-red-500">
-              Loading navigation items...
-            </div>
-          )}
-          
           {/* No results message */}
           {searchQuery && displayItems.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
@@ -772,13 +764,6 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
               </div>
             </div>
           ))}
-          
-          {/* Fallback if no items at all */}
-          {displayItems.length === 0 && !searchQuery && (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              <p>Loading navigation...</p>
-            </div>
-          )}
         </div>
       </ScrollArea>
       
@@ -832,10 +817,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
               {safeTranslate('common.settings', 'Settings')}
             </DropdownMenuItem>
             <DropdownMenuSeparator className="my-2" />
-            <DropdownMenuItem className="text-red-600 dark:text-red-400 rounded-lg p-2.5 focus:bg-red-50 dark:focus:bg-red-900/20" onClick={() => console.log('Logout')}>
-              <LogOut className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
-              {safeTranslate('common.logout', 'Logout')}
-            </DropdownMenuItem>
+            {/* Logout removed - authentication not required */}
           </DropdownMenuContent>
         </DropdownMenu>
 

@@ -57,7 +57,7 @@ export function Layout({ children }) {
       }}>
         <SheetContent 
           side="left" 
-          className="p-0 w-80 max-w-[85vw] border-0 overflow-hidden flex flex-col h-full"
+          className="p-0 w-80 max-w-[85vw] border-0 overflow-hidden flex flex-col h-full bg-white dark:bg-gray-950"
         >
           <VisuallyHidden>
             <SheetHeader>
@@ -65,11 +65,12 @@ export function Layout({ children }) {
               <SheetDescription>Navigate through the application</SheetDescription>
             </SheetHeader>
           </VisuallyHidden>
-          <div className="h-full overflow-hidden">
-            <Sidebar 
-              isCollapsed={false} 
+          <div className="h-full overflow-hidden bg-white dark:bg-gray-950">
+            <Sidebar
+              isCollapsed={false}
               setIsCollapsed={handleMobileSidebarClose}
               isMobileSheet={true}
+              mobileOpen={isMobileSidebarOpen}
             />
           </div>
         </SheetContent>

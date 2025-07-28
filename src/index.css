@@ -439,3 +439,92 @@ html {
     padding: 1rem;
   }
 }
+
+/* Mobile sidebar specific fixes */
+@media (max-width: 768px) {
+  /* Ensure sheet content is visible */
+  [data-slot="sheet-content"] {
+    background-color: white !important;
+  }
+  
+  .dark [data-slot="sheet-content"] {
+    background-color: rgb(3 7 18) !important;
+  }
+  
+  /* Fix for sidebar inside sheet */
+  [data-slot="sheet-content"] .sidebar {
+    background: linear-gradient(to bottom, 
+      rgb(249 250 251), 
+      rgb(255 255 255), 
+      rgb(249 250 251)
+    ) !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .dark [data-slot="sheet-content"] .sidebar {
+    background: linear-gradient(to bottom, 
+      rgb(17 24 39), 
+      rgb(3 7 18), 
+      rgb(17 24 39)
+    ) !important;
+  }
+  
+  /* Ensure content is visible */
+  [data-slot="sheet-content"] * {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+  
+  /* Fix z-index issues */
+  [data-slot="sheet-overlay"] {
+    z-index: 40 !important;
+  }
+  
+  [data-slot="sheet-content"] {
+    z-index: 50 !important;
+  }
+  
+  /* Ensure proper rendering on iOS */
+  [data-slot="sheet-content"] {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+}
+
+/* Fix for sheet animations on mobile */
+@media (max-width: 768px) {
+  [data-state="open"][data-side="left"] {
+    animation: mobileSlideInFromLeft 0.3s ease-out !important;
+  }
+
+  [data-state="closed"][data-side="left"] {
+    animation: mobileSlideOutToLeft 0.3s ease-in !important;
+  }
+
+  @keyframes mobileSlideInFromLeft {
+    from {
+      transform: translateX(-100%);
+      opacity: 0.8;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes mobileSlideOutToLeft {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(-100%);
+      opacity: 0.8;
+    }
+  }
+}

@@ -12,106 +12,69 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState(null);
+  // Always set a demo user - no authentication required
+  const demoUser = {
+    id: 'demo-user-' + Date.now(),
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'demo@osol.sa',
+    email_confirmed_at: new Date().toISOString(),
+    app_metadata: {
+      provider: 'email',
+      providers: ['email']
+    },
+    user_metadata: {
+      full_name: 'Demo User',
+      avatar_url: null
+    },
+    created_at: new Date().toISOString()
+  };
+
+  const demoSession = {
+    access_token: import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-token',
+    token_type: 'bearer',
+    expires_in: 3600,
+    refresh_token: 'demo-refresh-token',
+    user: demoUser
+  };
+
+  const [user, setUser] = useState(demoUser);
+  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState(demoSession);
 
   useEffect(() => {
-    // Check active sessions and sets the user
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (error) {
-        console.error('Error getting session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // No need to check for actual authentication
+    // Always use demo user
+    setUser(demoUser);
+    setSession(demoSession);
+    setLoading(false);
   }, []);
 
+  // Mock functions that always succeed
   const signUp = async ({ email, password, metadata }) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata,
-        },
-      });
-      
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return { data: null, error };
-    }
+    console.log('Sign up bypassed - using demo user');
+    return { data: { user: demoUser, session: demoSession }, error: null };
   };
 
   const signIn = async ({ email, password }) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return { data: null, error };
-    }
+    console.log('Sign in bypassed - using demo user');
+    return { data: { user: demoUser, session: demoSession }, error: null };
   };
 
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      console.error('Sign out error:', error);
-      return { error };
-    }
+    console.log('Sign out bypassed - keeping demo user');
+    // Don't actually sign out, keep the demo user
+    return { error: null };
   };
 
   const updateProfile = async (updates) => {
-    try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: updates,
-      });
-      
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Update profile error:', error);
-      return { data: null, error };
-    }
+    console.log('Profile update bypassed');
+    return { data: { ...demoUser, ...updates }, error: null };
   };
 
   const resetPassword = async (email) => {
-    try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error('Reset password error:', error);
-      return { data: null, error };
-    }
+    console.log('Password reset bypassed');
+    return { data: {}, error: null };
   };
 
   const value = {
