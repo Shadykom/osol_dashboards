@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sidebar } from './Sidebar';
+import { NewSidebar as Sidebar } from './NewSidebar';
 import { Header } from './Header';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -42,10 +42,13 @@ export function Layout({ children }) {
     >
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <div className={cn(
-          "transition-all duration-300 flex-shrink-0"
-        )}>
-          <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
+        <div
+          className={cn(
+            "transition-all duration-300 flex-shrink-0 overflow-hidden",
+            isSidebarCollapsed ? "w-0" : "w-72"
+          )}
+        >
+          <Sidebar isMobile={false} onClose={() => {}} />
         </div>
       )}
       
@@ -67,10 +70,8 @@ export function Layout({ children }) {
           </VisuallyHidden>
           <div className="h-full overflow-hidden bg-white dark:bg-gray-950">
             <Sidebar
-              isCollapsed={false}
-              setIsCollapsed={handleMobileSidebarClose}
-              isMobileSheet={true}
-              mobileOpen={isMobileSidebarOpen}
+              isMobile
+              onClose={handleMobileSidebarClose}
             />
           </div>
         </SheetContent>
