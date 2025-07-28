@@ -1,91 +1,80 @@
 import { useState, useEffect } from 'react';
-import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { VisuallyHidden } from '@/components/ui/visually-hidden';
-import { useMediaQuery } from '@/hooks/use-media-query';
-import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useMediaQuery } from '@/hooks/use-media-query';
+import { Header } from './Header';
+import { NewSidebar } from './NewSidebar';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 export function Layout({ children }) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const isMobile = useMediaQuery('(max-width: 768px)');
-  const { i18n } = useTranslation();
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const location = useLocation();
-
+  const { i18n } = useTranslation();
+  const isMobile = useMediaQuery('(max-width: 1024px)');
+  const isRTL = i18n.language === 'ar';
+  
   // Close mobile sidebar when route changes
   useEffect(() => {
-    if (isMobile) {
-      setIsMobileSidebarOpen(false);
-    }
-  }, [location.pathname, isMobile]);
-
-  // Handle menu click - toggle sidebar state
+    setIsMobileSidebarOpen(false);
+  }, [location.pathname]);
+  
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 1024) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   const handleMenuClick = () => {
     if (isMobile) {
       setIsMobileSidebarOpen(true);
     } else {
-      setIsSidebarCollapsed(!isSidebarCollapsed);
+      setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed);
     }
   };
-
-  // Handle mobile sidebar close
-  const handleMobileSidebarClose = () => {
-    setIsMobileSidebarOpen(false);
-  };
-
+  
   return (
-    <div 
-      className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950"
-    >
+    <div className={cn("flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950", isRTL && "rtl")} dir={isRTL ? "rtl" : "ltr"}>
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <div className={cn(
-          "transition-all duration-300"
+        <aside className={cn(
+          "hidden lg:block transition-all duration-300 border-r border-gray-200 dark:border-gray-800",
+          isDesktopSidebarCollapsed ? "w-0" : "w-80"
         )}>
-          <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
-        </div>
+          <div className="h-full overflow-hidden">
+            <NewSidebar isOpen={!isDesktopSidebarCollapsed} />
+          </div>
+        </aside>
       )}
       
-      {/* Mobile Sidebar - Always render Sheet to prevent remounting */}
-      <Sheet open={isMobile && isMobileSidebarOpen} onOpenChange={(open) => {
-        if (isMobile) {
-          setIsMobileSidebarOpen(open);
-        }
-      }}>
+      {/* Mobile Sidebar Sheet */}
+      <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
         <SheetContent 
-          side="left" 
-          className="p-0 w-80 max-w-[85vw] border-0 overflow-hidden flex flex-col h-full bg-white dark:bg-gray-950"
+          side={isRTL ? "right" : "left"} 
+          className="w-80 max-w-[85vw] p-0 border-0"
         >
-          <VisuallyHidden>
-            <SheetHeader>
-              <SheetTitle>Navigation Menu</SheetTitle>
-              <SheetDescription>Navigate through the application</SheetDescription>
-            </SheetHeader>
-          </VisuallyHidden>
-          <div className="h-full overflow-hidden bg-white dark:bg-gray-950">
-            <Sidebar
-              isCollapsed={false}
-              setIsCollapsed={handleMobileSidebarClose}
-              isMobileSheet={true}
-              mobileOpen={isMobileSidebarOpen}
-            />
-          </div>
+          <NewSidebar 
+            isOpen={isMobileSidebarOpen} 
+            onClose={() => setIsMobileSidebarOpen(false)}
+            isMobile={true}
+          />
         </SheetContent>
       </Sheet>
       
-      <div className={cn(
-        "flex-1 flex flex-col min-w-0"
-      )}>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={handleMenuClick} />
-        <main className={cn(
-          "flex-1 overflow-auto bg-gray-50/50 dark:bg-gray-950 p-4 md:p-6 lg:p-8",
-          "transition-all duration-300"
-        )}>
-          <div className="h-full w-full max-w-[1920px] mx-auto">
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 h-full p-6">
+        
+        <main className="flex-1 overflow-y-auto">
+          <div className="container mx-auto p-4 md:p-6 lg:p-8">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
               {children}
             </div>
           </div>
