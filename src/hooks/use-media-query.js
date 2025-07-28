@@ -5,16 +5,13 @@ export function useMediaQuery(query) {
 
   useEffect(() => {
     const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
     
-    // Set initial value
-    setMatches(media.matches);
+    const listener = (event) => setMatches(event.matches);
     
-    // Create event listener function
-    const listener = (event) => {
-      setMatches(event.matches);
-    };
-    
-    // Add event listener
+    // Use addEventListener for modern browsers
     if (media.addEventListener) {
       media.addEventListener('change', listener);
     } else {
@@ -22,7 +19,6 @@ export function useMediaQuery(query) {
       media.addListener(listener);
     }
     
-    // Clean up
     return () => {
       if (media.removeEventListener) {
         media.removeEventListener('change', listener);
@@ -31,7 +27,7 @@ export function useMediaQuery(query) {
         media.removeListener(listener);
       }
     };
-  }, [query]);
+  }, [matches, query]);
 
   return matches;
 }
