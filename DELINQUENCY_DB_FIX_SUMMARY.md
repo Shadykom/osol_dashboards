@@ -31,12 +31,12 @@ Updated the following functions in `src/pages/DelinquencyExecutiveDashboard.tsx`
   - Recovery rates
   - YTD achievement metrics
 
-### 3. Created Missing Database Tables
-Created `create_delinquency_tables.sql` script that:
-- Creates `executive_delinquency_summary` table if it doesn't exist
-- Adds performance index on `snapshot_date`
-- Inserts sample data for testing
+### 3. Fixed Database View Data
+Discovered that `executive_delinquency_summary` is a VIEW, not a table. Created `fix_delinquency_view_data.sql` script that:
+- Populates the underlying `portfolio_summary` table with recent data
 - Ensures `collection_rates` table has monthly data for the last 12 months
+- The view automatically aggregates data from these tables
+- No index needed as it's a view, not a table
 
 ## Testing Performed
 1. Created `test_delinquency_db.js` to verify database connectivity
@@ -57,7 +57,7 @@ The delinquency executive dashboard should now:
 To apply the database schema changes:
 1. Run the SQL script in your Supabase dashboard:
    ```sql
-   -- Execute the contents of create_delinquency_tables.sql
+   -- Execute the contents of fix_delinquency_view_data.sql
    ```
 2. Restart the development server:
    ```bash
