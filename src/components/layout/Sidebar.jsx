@@ -584,6 +584,13 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Force navigation items to be visible on mobile sheet
+  useEffect(() => {
+    if (isMobileSheet) {
+      setSearchQuery(''); // Clear search when opening mobile sheet
+    }
+  }, [isMobileSheet]);
+
   // We'll handle closing on navigation through click handlers instead
 
   // Filter navigation items based on search
@@ -616,7 +623,8 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
     <div className={cn(
       "sidebar flex h-screen flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
       isCollapsed ? "w-20" : "w-80",
-      isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic rtl" : "border-r border-gray-200 dark:border-gray-800 ltr"
+      isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic rtl" : "border-r border-gray-200 dark:border-gray-800 ltr",
+      isMobileSheet && "h-full w-full" // Ensure full height on mobile
     )} dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
@@ -706,7 +714,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
       )}
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 overflow-y-auto">
+      <ScrollArea className={cn(
+        "flex-1 px-3 overflow-y-auto",
+        isMobileSheet && "min-h-0" // Ensure proper height on mobile
+      )}>
         <div className="space-y-6 py-4 pb-20">
           {searchQuery && filteredNavItems.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
@@ -714,7 +725,8 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
             </div>
           )}
           
-          {filteredNavItems.map((section, sectionIndex) => (
+          {/* Always show navigation items, especially on mobile */}
+          {(filteredNavItems.length > 0 ? filteredNavItems : navigationItems).map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {!isCollapsed && section.title && (
                 <h4 className={cn(
