@@ -9,6 +9,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import enhanced RTL styles */
+@import './styles/rtl-enhanced.css';
+
 @layer base {
   :root {
     --background: 0 0% 100%;
