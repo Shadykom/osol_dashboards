@@ -105,35 +105,62 @@ export class ProductReportService {
       // Get collection cases for the product
       const loanNumbers = loans?.map(l => l.loan_account_number) || [];
       
-      let casesQuery = supabaseCollection
+      // Get collection cases first (from banking schema)
+      let casesQuery = supabaseBanking
         .from('collection_cases')
-        .select(`
-          *,
-          collection_interactions!case_id (
-            interaction_type,
-            outcome,
-            interaction_datetime
-          ),
-          promise_to_pay!case_id (
-            ptp_amount,
-            ptp_date,
-            status
-          )
-        `)
+        .select('*')
         .in('loan_account_number', loanNumbers);
 
       const { data: cases, error: casesError } = await casesQuery;
 
       if (casesError) throw casesError;
 
+      // Get related data separately to avoid foreign key issues
+      let enrichedCases = [];
+      if (cases && cases.length > 0) {
+        const caseIds = cases.map(c => c.case_id);
+
+        // Fetch interactions
+        const { data: interactions } = await supabaseCollection
+          .from('collection_interactions')
+          .select('case_id, interaction_type, outcome, interaction_datetime')
+          .in('case_id', caseIds);
+
+        // Fetch promises to pay
+        const { data: ptps } = await supabaseCollection
+          .from('promise_to_pay')
+          .select('case_id, ptp_amount, ptp_date, status')
+          .in('case_id', caseIds);
+
+        // Create lookup maps
+        const interactionsMap = interactions?.reduce((map, interaction) => {
+          if (!map[interaction.case_id]) map[interaction.case_id] = [];
+          map[interaction.case_id].push(interaction);
+          return map;
+        }, {}) || {};
+
+        const ptpMap = ptps?.reduce((map, ptp) => {
+          if (!map[ptp.case_id]) map[ptp.case_id] = [];
+          map[ptp.case_id].push(ptp);
+          return map;
+        }, {}) || {};
+
+        // Enrich cases with related data
+        enrichedCases = cases.map(caseItem => ({
+          ...caseItem,
+          collection_interactions: interactionsMap[caseItem.case_id] || [],
+          promise_to_pay: ptpMap[caseItem.case_id] || []
+        }));
+      }
+
       // Calculate product metrics
-      const metrics = this.calculateProductMetrics(loans, cases, dateRange);
+      const metrics = this.calculateProductMetrics(loans, enrichedCases, dateRange);
 
       // Get branch performance for this product
-      const branchPerformance = this.calculateBranchPerformance(loans, cases);
+      const branchPerformance = this.calculateBranchPerformance(loans, enrichedCases);
 
       // Get customer segment analysis
-      const customerAnalysis = this.calculateCustomerAnalysis(loans, cases);
+      const customerAnalysis = this.calculateCustomerAnalysis(loans, enrichedCases);
 
       // Get comparisons if requested
       let productComparison = null;
@@ -142,10 +169,10 @@ export class ProductReportService {
       }
 
       // Get communication stats
-      const communicationStats = await this.getProductCommunicationStats(cases, dateRange);
+      const communicationStats = await this.getProductCommunicationStats(enrichedCases, dateRange);
 
       // Get risk analysis
-      const riskAnalysis = this.calculateRiskAnalysis(loans, cases);
+      const riskAnalysis = this.calculateRiskAnalysis(loans, enrichedCases);
 
       // Get trends
       const trends = await this.getProductTrends(productId, dateRange);

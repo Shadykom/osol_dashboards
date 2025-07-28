@@ -180,28 +180,88 @@ export class CollectionService {
    */
   static async getCaseDetails(caseId) {
     try {
-      // Get case info with all related data
-      const { data: caseData, error: caseError } = await supabaseCollection
+      // Get case info from banking schema
+      const { data: caseData, error: caseError } = await supabaseBanking
         .from('collection_cases')
-        .select(`
-          *,
-          loan_accounts!loan_account_number (
-            *,
-            products!product_id (*)
-          ),
-          customers!customer_id (
-            *,
-            customer_contacts!customer_id (*),
-            customer_addresses!customer_id (*)
-          ),
-          collection_officers!assigned_to (*),
-          collection_strategies!strategy_id (*),
-          collection_buckets!bucket_id (*)
-        `)
+        .select('*')
         .eq('case_id', caseId)
         .single();
 
       if (caseError) throw caseError;
+
+      // Get related data separately
+      let enrichedCase = { ...caseData };
+
+      // Get loan account details
+      if (caseData.loan_account_number) {
+        const { data: loanAccount } = await supabaseBanking
+          .from('loan_accounts')
+          .select(`
+            *,
+            products!product_id (*)
+          `)
+          .eq('loan_account_number', caseData.loan_account_number)
+          .single();
+        enrichedCase.loan_accounts = loanAccount;
+      }
+
+      // Get customer details
+      if (caseData.customer_id) {
+        const { data: customer } = await supabaseBanking
+          .from('customers')
+          .select('*')
+          .eq('customer_id', caseData.customer_id)
+          .single();
+        
+        if (customer) {
+          // Get customer contacts and addresses
+          const { data: contacts } = await supabaseBanking
+            .from('customer_contacts')
+            .select('*')
+            .eq('customer_id', caseData.customer_id);
+          
+          const { data: addresses } = await supabaseBanking
+            .from('customer_addresses')
+            .select('*')
+            .eq('customer_id', caseData.customer_id);
+          
+          enrichedCase.customers = {
+            ...customer,
+            customer_contacts: contacts || [],
+            customer_addresses: addresses || []
+          };
+        }
+      }
+
+      // Get officer details
+      if (caseData.assigned_to) {
+        const { data: officer } = await supabaseCollection
+          .from('collection_officers')
+          .select('*')
+          .eq('officer_id', caseData.assigned_to)
+          .single();
+        enrichedCase.collection_officers = officer;
+      }
+
+      // Get strategy details
+      if (caseData.strategy_id) {
+        const { data: strategy } = await supabaseCollection
+          .from('collection_strategies')
+          .select('*')
+          .eq('strategy_id', caseData.strategy_id)
+          .single();
+        enrichedCase.collection_strategies = strategy;
+      }
+
+      // Get bucket details
+      if (caseData.bucket_id) {
+        const { data: bucket } = await supabaseBanking
+          .from('collection_buckets')
+          .select('*')
+          .eq('bucket_id', caseData.bucket_id)
+          .single();
+        enrichedCase.collection_buckets = bucket;
+      }
 
       // Get interactions
       const { data: interactions, error: interactionsError } = await supabaseCollection
@@ -251,7 +311,7 @@ export class CollectionService {
       const { data: payments, error: paymentsError } = await supabaseBanking
         .from('transactions')
         .select('*')
-        .eq('account_number', caseData?.account_number)
+        .eq('account_number', enrichedCase?.account_number)
         .eq('transaction_type_id', 'LOAN_REPAYMENT')
         .order('transaction_date', { ascending: false })
         .limit(10);
@@ -265,7 +325,7 @@ export class CollectionService {
         .limit(30);
 
       return formatApiResponse({
-        caseInfo: caseData,
+        caseInfo: enrichedCase,
         interactions: interactions || [],
         promisesToPay: promisesToPay || [],
         fieldVisits: fieldVisits || [],
