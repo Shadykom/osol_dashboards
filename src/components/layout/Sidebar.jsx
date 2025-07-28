@@ -554,7 +554,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
   
   // Check if translations are available
   const hasTranslations = i18n.exists('navigation.overview');
-  const navigationItems = getNavigationItems(t, hasTranslations);
+  const [navigationItems, setNavigationItems] = useState([]);
   
   const [isMobile, setIsMobile] = useState(false);
   const isRTL = i18n.language === 'ar';
@@ -566,6 +566,13 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
     }
     return fallback;
   };
+
+  // Initialize navigation items
+  useEffect(() => {
+    const items = getNavigationItems(t, hasTranslations);
+    setNavigationItems(items);
+    console.log('Navigation items loaded:', items.length, 'sections');
+  }, [t, hasTranslations]);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -588,10 +595,11 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
   useEffect(() => {
     if (isMobileSheet) {
       setSearchQuery(''); // Clear search when opening mobile sheet
+      // Re-initialize navigation items for mobile
+      const items = getNavigationItems(t, hasTranslations);
+      setNavigationItems(items);
     }
-  }, [isMobileSheet]);
-
-  // We'll handle closing on navigation through click handlers instead
+  }, [isMobileSheet, t, hasTranslations]);
 
   // Filter navigation items based on search
   const filterNavItems = (items, query) => {
@@ -619,15 +627,18 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
 
   const filteredNavItems = filterNavItems(navigationItems, searchQuery);
 
+  // Use filtered items if search is active, otherwise use all items
+  const displayItems = searchQuery ? filteredNavItems : navigationItems;
+
   return (
     <div className={cn(
-      "sidebar flex h-screen flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
+      "sidebar flex h-full flex-col bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-all duration-300 overflow-hidden shadow-2xl",
       isCollapsed ? "w-20" : "w-80",
       isRTL ? "border-l border-gray-200 dark:border-gray-800 font-arabic rtl" : "border-r border-gray-200 dark:border-gray-800 ltr",
-      isMobileSheet && "h-full w-full" // Ensure full height on mobile
+      isMobileSheet && "h-screen w-full max-h-screen" // Ensure full height on mobile
     )} dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
-      <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+      <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
         {!isCollapsed ? (
           <div className={cn("flex items-center gap-4", isRTL ? "flex-row-reverse" : "flex-row")}>
             <div className="relative">
@@ -662,7 +673,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
             </div>
           </div>
         )}
-        {!isCollapsed && (
+        {!isCollapsed && !isMobileSheet && (
           <Button
             variant="ghost"
             size="icon"
@@ -680,7 +691,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
 
       {/* Search */}
       {!isCollapsed && (
-        <div className="p-4 bg-gradient-to-b from-white/50 to-transparent dark:from-gray-900/50">
+        <div className="p-4 bg-gradient-to-b from-white/50 to-transparent dark:from-gray-900/50 flex-shrink-0">
           <div className="relative group">
             <Search className={cn(
               "absolute top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary",
@@ -715,18 +726,26 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
 
       {/* Navigation */}
       <ScrollArea className={cn(
-        "flex-1 px-3 overflow-y-auto",
-        isMobileSheet && "min-h-0" // Ensure proper height on mobile
+        "flex-1 px-3",
+        isMobileSheet ? "h-[calc(100vh-240px)]" : "" // Fixed height calculation for mobile
       )}>
         <div className="space-y-6 py-4 pb-20">
-          {searchQuery && filteredNavItems.length === 0 && (
+          {/* Debug info for mobile */}
+          {isMobileSheet && navigationItems.length === 0 && (
+            <div className="p-4 text-center text-sm text-red-500">
+              Loading navigation items...
+            </div>
+          )}
+          
+          {/* No results message */}
+          {searchQuery && displayItems.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
               {safeTranslate('common.noResultsFound', 'No results found')}
             </div>
           )}
           
-          {/* Always show navigation items, especially on mobile */}
-          {(filteredNavItems.length > 0 ? filteredNavItems : navigationItems).map((section, sectionIndex) => (
+          {/* Always show navigation items */}
+          {displayItems.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               {!isCollapsed && section.title && (
                 <h4 className={cn(
@@ -753,11 +772,18 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
               </div>
             </div>
           ))}
+          
+          {/* Fallback if no items at all */}
+          {displayItems.length === 0 && !searchQuery && (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              <p>Loading navigation...</p>
+            </div>
+          )}
         </div>
       </ScrollArea>
       
       {/* Footer */}
-      <div className="border-t bg-gradient-to-t from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-950/50 p-3 space-y-3">
+      <div className="border-t bg-gradient-to-t from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-950/50 p-3 space-y-3 flex-shrink-0">
         {/* User Profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -897,7 +923,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false }) 
             </Tooltip>
           </TooltipProvider>
 
-          {/* Collapse/Expand */}
+          {/* Collapse/Expand or Feedback */}
           {isCollapsed ? (
             <TooltipProvider>
               <Tooltip delayDuration={0}>

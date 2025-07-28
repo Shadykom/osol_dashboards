@@ -221,3 +221,221 @@ html {
     background-color: hsl(var(--muted) / 0.7);
   }
 }
+
+/* =============================================
+   MOBILE SIDEBAR FIXES
+   ============================================= */
+
+/* Mobile Sidebar Fixes */
+@media (max-width: 768px) {
+  /* Ensure sidebar takes full height on mobile */
+  .sidebar {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Fix scrollarea height on mobile */
+  .sidebar [data-radix-scroll-area-viewport] {
+    max-height: calc(100vh - 240px) !important;
+  }
+  
+  /* Ensure sheet content takes full height */
+  [data-radix-dialog-content] {
+    height: 100vh !important;
+    max-height: 100vh !important;
+  }
+  
+  /* Fix navigation item spacing on mobile */
+  .sidebar .space-y-6 {
+    padding-bottom: 80px;
+  }
+  
+  /* Ensure footer stays at bottom */
+  .sidebar > div:last-child {
+    margin-top: auto;
+  }
+  
+  /* Fix for navigation scroll container */
+  .sidebar-scroll-area {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  
+  /* Ensure proper touch scrolling */
+  .sidebar [data-radix-scroll-area-viewport],
+  .sidebar-scroll-area {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+  }
+  
+  /* Fix header height */
+  .sidebar > div:first-child {
+    flex-shrink: 0;
+  }
+  
+  /* Fix search area */
+  .sidebar > div:nth-child(2) {
+    flex-shrink: 0;
+  }
+}
+
+/* Sheet animations for mobile sidebar */
+[data-state="open"][data-side="left"] {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+[data-state="closed"][data-side="left"] {
+  animation: slideOutToLeft 0.3s ease-in;
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToLeft {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* Fix for iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .sidebar {
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+  }
+  
+  /* iOS safe area handling */
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Fix for iOS rubber band scrolling */
+  .sidebar [data-radix-scroll-area-viewport] {
+    position: relative;
+  }
+}
+
+/* Android specific fixes */
+@media (max-width: 768px) and (pointer: coarse) {
+  /* Larger touch targets on mobile */
+  .sidebar button {
+    min-height: 44px;
+  }
+  
+  /* Better spacing for touch */
+  .sidebar .space-y-1 > * {
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Dark mode adjustments for mobile sidebar */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+  .sidebar {
+    background: linear-gradient(to bottom, 
+      rgb(17 24 39), 
+      rgb(3 7 18), 
+      rgb(17 24 39)
+    );
+  }
+  
+  /* Ensure good contrast in dark mode */
+  .sidebar [data-radix-scroll-area-thumb] {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Landscape orientation fixes */
+@media (max-width: 768px) and (orientation: landscape) {
+  .sidebar {
+    max-width: 320px;
+  }
+  
+  /* Adjust heights for landscape */
+  .sidebar [data-radix-scroll-area-viewport] {
+    max-height: calc(100vh - 180px) !important;
+  }
+}
+
+/* RTL support for mobile sidebar */
+[dir="rtl"] .sidebar {
+  border-right: none;
+  border-left: 1px solid hsl(var(--border));
+}
+
+[dir="rtl"] [data-state="open"][data-side="left"] {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+[dir="rtl"] [data-state="closed"][data-side="left"] {
+  animation: slideOutToRight 0.3s ease-in;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Performance optimizations */
+@media (max-width: 768px) {
+  /* Use GPU acceleration for animations */
+  .sidebar,
+  [data-radix-dialog-content] {
+    will-change: transform;
+  }
+  
+  /* Disable hover effects on touch devices */
+  @media (hover: none) {
+    .sidebar button:hover {
+      background-color: transparent;
+    }
+  }
+}
+
+/* Accessibility improvements */
+@media (max-width: 768px) {
+  /* Ensure focus indicators are visible */
+  .sidebar *:focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 2px;
+    z-index: 1;
+  }
+  
+  /* Skip to main content link for mobile */
+  .skip-to-main {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 999;
+  }
+  
+  .skip-to-main:focus {
+    left: 0;
+    background: hsl(var(--background));
+    padding: 1rem;
+  }
+}
