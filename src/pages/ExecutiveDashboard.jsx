@@ -489,5 +489,3 @@ export function ExecutiveDashboard() {
     </div>
   );
 }
-
-export { ExecutiveDashboard };
