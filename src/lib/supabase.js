@@ -281,6 +281,27 @@ window.checkSupabaseConfig = async () => {
   return !error;
 };
 
+// Export checkSchemaAccess function
+export async function checkSchemaAccess() {
+  try {
+    // Try a simple query to test access
+    const { data, error } = await supabaseBanking
+      .from('customers')
+      .select('customer_id')
+      .limit(1);
+    
+    if (error && error.code === '42P01') {
+      console.error('kastle_banking schema is not exposed!');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error checking schema access:', error);
+    return false;
+  }
+}
+
 // Auto-run diagnostic on load
 if (import.meta.env.DEV) {
   setTimeout(() => {

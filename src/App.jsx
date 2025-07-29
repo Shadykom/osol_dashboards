@@ -28,6 +28,7 @@ import DelinquencyExecutiveDashboard from './pages/DelinquencyExecutiveDashboard
 import SpecialistLevelReport from './pages/SpecialistLevelReport';
 import DatabaseTest from './pages/DatabaseTest';
 import DiagnosticPage from './pages/DiagnosticPage';
+import DatabaseDiagnostic from './pages/DatabaseDiagnostic';
 import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
@@ -243,6 +244,7 @@ function SafeApp() {
             <Route path="/compliance" element={<Compliance />} />
             <Route path="/database-test" element={<DatabaseTest />} />
             <Route path="/diagnostic" element={<DiagnosticPage />} />
+            <Route path="/db-diagnostic" element={<DatabaseDiagnostic />} />
             <Route path="/new-sidebar-demo" element={<NewSidebarDemo />} />
             <Route path="/simple-sidebar-demo" element={<SimpleSidebarDemo />} />
             <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
