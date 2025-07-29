@@ -1,34 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
-import { TABLES } from '../lib/supabase';
+import { supabase, supabaseBanking, supabaseCollection, TABLES, getClientForTable } from '@/lib/supabase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Create a properly configured Supabase client with RLS bypass for initial setup
+// Use the shared clients instead of creating new ones
 export const createAuthenticatedClient = (schema = 'kastle_banking') => {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Supabase credentials not configured');
-    return null;
+  // Return the appropriate shared client based on schema
+  if (schema === 'kastle_banking') {
+    return supabaseBanking;
+  } else if (schema === 'kastle_collection') {
+    return supabaseCollection;
+  } else {
+    return supabase;
   }
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-      storage: window.localStorage,
-      storageKey: 'osol-auth'
-    },
-    db: {
-      schema: schema
-    },
-    global: {
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`
-      }
-    }
-  });
 };
 
 // Ensure authentication - bypassed to always return true
@@ -60,10 +41,10 @@ export const checkTableData = async (client, tableName) => {
 
 // Function to seed sample data for dashboard
 export const seedDashboardData = async () => {
-  const bankingClient = createAuthenticatedClient('kastle_banking');
+  const bankingClient = supabaseBanking; // Use shared client
   
   if (!bankingClient) {
-    console.error('Failed to create banking client');
+    console.error('Banking client not available');
     return false;
   }
   

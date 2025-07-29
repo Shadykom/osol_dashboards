@@ -6,6 +6,13 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Debug environment variables (only in development)
+console.log('🔍 Supabase Configuration Debug:');
+console.log('VITE_SUPABASE_URL:', supabaseUrl);
+console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...${supabaseAnonKey.slice(-10)}` : 'NOT SET');
+console.log('Key length:', supabaseAnonKey?.length);
+console.log('URL valid:', supabaseUrl?.includes('supabase.co'));
+console.log('Key looks valid:', supabaseAnonKey?.startsWith('eyJ'));
+
 if (import.meta.env.DEV) {
   console.log('Environment variables check:');
   console.log('VITE_SUPABASE_URL:', supabaseUrl ? 'Set' : 'Not set');
@@ -15,31 +22,52 @@ if (import.meta.env.DEV) {
 // Check if Supabase credentials are configured
 const isSupabaseConfigured = supabaseUrl && supabaseAnonKey && 
                             supabaseUrl !== 'https://your-project.supabase.co' && 
-                            supabaseAnonKey !== 'your-anon-key';
+                            supabaseAnonKey !== 'your-anon-key' &&
+                            supabaseAnonKey !== 'YOUR_ANON_KEY_HERE';
 
 console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Missing credentials');
+
+// If credentials are missing, provide helpful instructions
+if (!isSupabaseConfigured) {
+  console.warn(`
+⚠️ Supabase credentials not configured!
+
+To fix the 401 errors:
+1. Go to: https://supabase.com/dashboard/project/bzlenegoilnswsbanxgb/settings/api
+2. Copy the "anon" key
+3. Update your .env file with:
+   VITE_SUPABASE_ANON_KEY=<your-anon-key>
+4. Restart your dev server
+
+Using mock data mode for now...
+  `);
+}
 
 // Create a mock client for when Supabase is not configured
 const createMockClient = () => {
   return {
     from: () => ({
-      select: () => Promise.resolve({ data: [], error: { message: 'Database not configured' } }),
-      insert: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
-      update: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
-      delete: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
-      upsert: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } })
+      select: () => Promise.resolve({ data: [], error: { message: 'Database not configured - using mock data' } }),
+      insert: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } }),
+      update: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } }),
+      delete: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } }),
+      upsert: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } })
     }),
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
       signIn: () => Promise.resolve({ data: null, error: { message: 'Auth not configured' } }),
       signOut: () => Promise.resolve({ error: null })
     },
-    rpc: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } })
+    rpc: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } })
   };
 };
 
 // Function to get current auth token
 const getAuthToken = () => {
+  // For now, always use the anon key to avoid authentication issues
+  return supabaseAnonKey;
+  
+  /* Original complex logic - temporarily disabled
   try {
     const storedAuth = localStorage.getItem('osol-auth');
     if (storedAuth) {
@@ -57,6 +85,7 @@ const getAuthToken = () => {
     // Invalid stored data
   }
   return supabaseAnonKey;
+  */
 };
 
 // Custom fetch function to ensure proper headers
@@ -125,7 +154,13 @@ export const supabaseBanking = isSupabaseConfigured
 // Create a client specifically for kastle_collection schema
 export const supabaseCollection = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: supabase.auth,
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: 'osol-auth'
+      },
       db: {
         schema: 'kastle_collection'
       },
@@ -229,4 +264,30 @@ export function getClientForTable(tableName) {
   }
   // Default to the main client
   return supabase;
+}
+
+// Diagnostic function for debugging
+window.checkSupabaseConfig = () => {
+  console.log('=== SUPABASE CONFIGURATION CHECK ===');
+  console.log('URL:', supabaseUrl);
+  console.log('Key:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 30)}...${supabaseAnonKey.slice(-20)}` : 'NOT SET');
+  console.log('Key Length:', supabaseAnonKey?.length);
+  console.log('Is Configured:', isSupabaseConfigured);
+  console.log('===================================');
+  
+  // Test a simple query
+  supabase.from('customers').select('*').limit(1).then(({ data, error }) => {
+    if (error) {
+      console.error('Test query failed:', error);
+    } else {
+      console.log('Test query success:', data);
+    }
+  });
+};
+
+// Auto-run diagnostic on load
+if (import.meta.env.DEV) {
+  setTimeout(() => {
+    console.log('💡 Run window.checkSupabaseConfig() in console to check configuration');
+  }, 1000);
 }
