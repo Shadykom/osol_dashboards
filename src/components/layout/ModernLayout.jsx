@@ -73,8 +73,9 @@ const LayoutContent = () => {
 
   // Debug logging
   React.useEffect(() => {
-    console.log('[ModernLayout] Mounted');
-    console.log('[ModernLayout] Current path:', window.location.pathname);
+    console.log('🚀 [ModernLayout] Mounted - Using MODERN SIDEBAR');
+    console.log('🚀 [ModernLayout] Current path:', window.location.pathname);
+    console.log('🚀 [ModernLayout] This is the NEW layout with organized sidebar');
   }, []);
 
   return (
@@ -91,11 +92,15 @@ const LayoutContent = () => {
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
           <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Development indicator - remove in production */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mb-4 p-2 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-lg text-sm">
-                ✅ Using Modern Sidebar Layout
+            <div className="mb-4 p-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg shadow-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🚀</span>
+                <div>
+                  <h3 className="text-lg font-bold">Modern Sidebar Active</h3>
+                  <p className="text-sm opacity-90">You are using the NEW organized sidebar with RTL support</p>
+                </div>
               </div>
-            )}
+            </div>
             <ErrorBoundaryWrapper>
               <React.Suspense fallback={
                 <div className="flex items-center justify-center h-64">

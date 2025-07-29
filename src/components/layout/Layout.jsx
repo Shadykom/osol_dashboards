@@ -1,3 +1,14 @@
+// This file now redirects to ModernLayout
+import ModernLayout from './ModernLayout';
+
+// Legacy Layout component - now uses ModernLayout
+export function Layout(props) {
+  console.warn('⚠️ Legacy Layout component is being used - redirecting to ModernLayout');
+  return <ModernLayout {...props} />;
+}
+
+// Original imports kept for reference
+/*
 import { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -8,7 +19,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
-export function Layout({ children }) {
+export function LayoutOld({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -96,3 +107,4 @@ export function Layout({ children }) {
     </div>
   );
 }
+*/
