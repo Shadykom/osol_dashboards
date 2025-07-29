@@ -203,20 +203,20 @@ export const TABLES = {
   COLLECTION_AUTH_USER_PROFILES: 'auth_user_profiles',
   COLLECTION_CALL_ATTEMPTS: 'call_attempts',
   COLLECTION_CASES_COLL: 'collection_cases',
-  COLLECTION_INTERACTIONS: 'collection_interactions',
-  COLLECTION_OFFICERS: 'collection_officers',
+  COLLECTION_INTERACTIONS: 'v_collection_interactions',  // Using view to consolidate
+  COLLECTION_OFFICERS: 'v_collection_officers',  // Using view to consolidate
   COLLECTION_SCORES: 'collection_scores',
   COLLECTION_STRATEGIES: 'collection_strategies',
   COLLECTION_SYSTEM_PERFORMANCE: 'system_performance',
   COLLECTION_TEAMS: 'collection_teams',
-  PROMISE_TO_PAY: 'promise_to_pay',
+  PROMISE_TO_PAY: 'v_promise_to_pay',  // Using view to consolidate
   LEGAL_CASES: 'legal_cases',
   DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
   DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
   FIELD_VISITS: 'field_visits',
   HARDSHIP_APPLICATIONS: 'hardship_applications',
   OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
-  OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
+  OFFICER_PERFORMANCE_SUMMARY: 'v_officer_performance_summary',  // Using view to consolidate
   CASE_BUCKET_HISTORY: 'case_bucket_history',
   COLLECTION_CAMPAIGNS: 'collection_campaigns'
 };
@@ -228,20 +228,20 @@ export const COLLECTION_TABLES = {
   AUTH_USER_PROFILES: 'auth_user_profiles',
   CALL_ATTEMPTS: 'call_attempts',
   COLLECTION_CASES: 'collection_cases',
-  COLLECTION_INTERACTIONS: 'collection_interactions',
-  COLLECTION_OFFICERS: 'collection_officers',
+  COLLECTION_INTERACTIONS: 'v_collection_interactions',  // Using view to consolidate
+  COLLECTION_OFFICERS: 'v_collection_officers',  // Using view to consolidate
   COLLECTION_SCORES: 'collection_scores',
   COLLECTION_STRATEGIES: 'collection_strategies',
   SYSTEM_PERFORMANCE: 'system_performance',
   COLLECTION_TEAMS: 'collection_teams',
-  PROMISE_TO_PAY: 'promise_to_pay',
+  PROMISE_TO_PAY: 'v_promise_to_pay',  // Using view to consolidate
   LEGAL_CASES: 'legal_cases',
   DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
   DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
   FIELD_VISITS: 'field_visits',
   HARDSHIP_APPLICATIONS: 'hardship_applications',
   OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
-  OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
+  OFFICER_PERFORMANCE_SUMMARY: 'v_officer_performance_summary',  // Using view to consolidate
   CASE_BUCKET_HISTORY: 'case_bucket_history'
 };
 
