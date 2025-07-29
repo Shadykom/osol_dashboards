@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp,
@@ -58,6 +59,7 @@ import {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#8DD1E1'];
 
 export function Analytics() {
+  const { t } = useTranslation();
   const [timeRange, setTimeRange] = useState('7d');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [loading, setLoading] = useState(true);
@@ -307,8 +309,8 @@ export function Analytics() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
-          <p className="text-muted-foreground">Advanced insights and business intelligence</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('analytics.title')}</h1>
+          <p className="text-muted-foreground">{t('analytics.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
@@ -316,10 +318,10 @@ export function Analytics() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-              <SelectItem value="custom">Custom range</SelectItem>
+              <SelectItem value="7d">{t('analytics.last7Days')}</SelectItem>
+              <SelectItem value="30d">{t('analytics.last30Days')}</SelectItem>
+              <SelectItem value="90d">{t('analytics.last90Days')}</SelectItem>
+              <SelectItem value="custom">{t('analytics.customRange')}</SelectItem>
             </SelectContent>
           </Select>
           {timeRange === 'custom' && (
@@ -335,7 +337,7 @@ export function Analytics() {
           </Button>
           <Button className="gap-2" onClick={() => toast.info('Export functionality coming soon')}>
             <Download className="h-4 w-4" />
-            Export Report
+            {t('analytics.export')}
           </Button>
         </div>
       </div>
@@ -343,7 +345,7 @@ export function Analytics() {
       {/* KPI Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          title="Total Revenue"
+          title={t('analytics.totalRevenue')}
           value={analyticsData.kpis.revenue}
           change={analyticsData.kpis.revenueGrowth}
           icon={DollarSign}
