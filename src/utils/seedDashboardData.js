@@ -236,7 +236,7 @@ async function seedCustomers() {
     // Create corporate customers
     for (let i = 1; i <= 20; i++) {
       customers.push({
-        customer_number: `CRP${String(i).padStart(6, '0')}`,
+        customer_id: `CRP${String(i).padStart(6, '0')}`,
         customer_type_id: corpTypeId,
         first_name: 'Company',
         last_name: `${i}`,
@@ -262,7 +262,7 @@ async function seedCustomers() {
       const gender = ['Ahmed', 'Mohammed', 'Abdullah', 'Khalid', 'Fahad', 'Omar', 'Ali', 'Hassan', 'Ibrahim', 'Yousef'].includes(firstName) ? 'M' : 'F';
       
       customers.push({
-        customer_number: `CUS${String(i).padStart(6, '0')}`,
+        customer_id: `CUS${String(i).padStart(6, '0')}`,
         customer_type_id: indTypeId,
         first_name: firstName,
         last_name: lastName,
@@ -424,7 +424,7 @@ async function seedTransactions() {
   
   // Get reference data
   const { data: accounts } = await supabaseBanking.from(TABLES.ACCOUNTS).select('account_id').eq('account_status', 'ACTIVE').limit(100);
-  const { data: transactionTypes } = await supabaseBanking.from('transaction_types').select('transaction_type_id, type_code, type_name');
+  const { data: transactionTypes } = await supabaseBanking.from('transaction_types').select('type_id, type_code, type_name');
   const { data: customers } = await supabaseBanking.from(TABLES.CUSTOMERS).select('full_name');
   
   const transactions = [];
@@ -443,7 +443,7 @@ async function seedTransactions() {
       transactions.push({
         transaction_ref: `TRN${today.toISOString().split('T')[0].replace(/-/g, '')}_${String(transNum++).padStart(6, '0')}`,
         account_id: account.account_id,
-        transaction_type_id: transType.transaction_type_id,
+        transaction_type_id: transType.type_id,
         amount: random(100, 50000),
         currency_code: 'SAR',
         transaction_date: transDate.toISOString(),
