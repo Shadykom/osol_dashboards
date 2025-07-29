@@ -174,7 +174,8 @@ export const seedDashboardData = async () => {
     }
     
     // Use upsert to avoid duplicate key errors
-    const { data: customers, error: customerError } = await bankingClient
+    let customers;
+    const { data: insertedCustomers, error: customerError } = await bankingClient
       .from(TABLES.CUSTOMERS)
       .upsert(customerData, { onConflict: 'customer_id' })
       .select();
@@ -192,6 +193,8 @@ export const seedDashboardData = async () => {
         return false;
       }
       customers = existingCustomers;
+    } else {
+      customers = insertedCustomers;
     }
     
     // Insert sample customer contacts
