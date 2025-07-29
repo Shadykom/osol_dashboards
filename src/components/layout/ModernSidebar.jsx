@@ -27,7 +27,8 @@ import {
   Languages,
   Moon,
   Sun,
-  Zap
+  Zap,
+  User
 } from 'lucide-react';
 
 const ModernSidebar = () => {
@@ -217,6 +218,12 @@ const ModernSidebar = () => {
           label: t('sidebar.customers'),
           path: '/customers',
           icon: Users
+        },
+        {
+          id: 'customer-footprint',
+          label: t('sidebar.customerFootprint'),
+          path: '/customer-footprint',
+          icon: User
         },
         {
           id: 'accounts',
