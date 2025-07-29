@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 
 const VintageAnalysisDashboard = () => {
+  const { t } = useTranslation();
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedCohort, setSelectedCohort] = useState('2023-Q4');
   const [viewType, setViewType] = useState('percentage');
@@ -191,16 +193,16 @@ const VintageAnalysisDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Vintage Analysis Dashboard</h1>
-          <p className="text-gray-600 mt-1">Portfolio performance analysis by origination cohort</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('vintageAnalysisDashboard.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('vintageAnalysisDashboard.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Select value={selectedProduct} onValueChange={setSelectedProduct}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select Product" />
+              <SelectValue placeholder={t('vintageAnalysisDashboard.selectProduct')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Products</SelectItem>
+              <SelectItem value="all">{t('vintageAnalysisDashboard.allProducts')}</SelectItem>
               {vintageData.products.map(product => (
                 <SelectItem key={product} value={product}>{product}</SelectItem>
               ))}
@@ -208,7 +210,7 @@ const VintageAnalysisDashboard = () => {
           </Select>
           <Select value={selectedCohort} onValueChange={setSelectedCohort}>
             <SelectTrigger className="w-32">
-              <SelectValue placeholder="Select Cohort" />
+              <SelectValue placeholder={t('vintageAnalysisDashboard.selectCohort')} />
             </SelectTrigger>
             <SelectContent>
               {vintageData.cohorts.map(cohort => (
@@ -218,7 +220,7 @@ const VintageAnalysisDashboard = () => {
           </Select>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t('vintageAnalysisDashboard.export')}
           </Button>
         </div>
       </div>
@@ -227,26 +229,26 @@ const VintageAnalysisDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Exposure</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('vintageAnalysisDashboard.totalExposure')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(vintageData.expectedLoss.totalExposure)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Across all cohorts
+              {t('vintageAnalysisDashboard.acrossAllCohorts')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-red-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Expected Loss</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('vintageAnalysisDashboard.expectedLoss')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
               {formatCurrency(vintageData.expectedLoss.expectedLoss)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {vintageData.expectedLoss.lossRate}% loss rate
+              {vintageData.expectedLoss.lossRate}% {t('vintageAnalysisDashboard.lossRate')}
             </p>
           </CardContent>
         </Card>
