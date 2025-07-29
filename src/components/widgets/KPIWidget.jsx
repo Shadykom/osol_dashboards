@@ -1,6 +1,7 @@
 import { BaseWidget } from './BaseWidget';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 export function KPIWidget({
   id,
@@ -12,8 +13,10 @@ export function KPIWidget({
   icon: Icon,
   isLoading = false,
   error = null,
+  clickable = true,
   ...props
 }) {
+  const navigate = useNavigate();
   const formatValue = (val) => {
     if (typeof val === 'number') {
       if (val >= 1000000000) {
@@ -30,13 +33,22 @@ export function KPIWidget({
     return val;
   };
 
+  const handleClick = () => {
+    if (clickable && id) {
+      // Extract the type from the widget ID (e.g., 'customers', 'accounts', etc.)
+      const widgetType = id.split('_')[0];
+      navigate(`/dashboard/detail/${widgetType}/${id}`);
+    }
+  };
+
   return (
     <BaseWidget
       id={id}
       title={title}
       isLoading={isLoading}
       error={error}
-      className="h-32"
+      className={cn("h-32", clickable && "cursor-pointer hover:shadow-lg transition-shadow")}
+      onClick={handleClick}
       {...props}
     >
       <div className="space-y-3">
