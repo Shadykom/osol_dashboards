@@ -554,7 +554,7 @@ export default function DashboardDetail() {
                   </>
                 )}
 
-                {type === 'collection' || type === 'collections') && (
+                {(type === 'collection' || type === 'collections') && (
                   <>
                     <StatCard
                       title="Total Cases"
