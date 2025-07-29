@@ -1,59 +1,68 @@
 # Database Connection Fix Summary
 
 ## Issue
-The application was getting 401 (Unauthorized) errors when trying to access the Supabase database, specifically:
-- Error: "No API key found in request"
-- Tables in the `kastle_collection` schema were not accessible
+The application was experiencing a database connection error when trying to insert branches:
+- Error: "null value in column 'branch_id' of relation 'branches' violates not-null constraint"
+- The `branch_id` column is NOT NULL and is the primary key, but the code wasn't providing values for it
 
 ## Root Cause
-1. The Supabase client configuration was not properly including the API key in all requests
-2. The collection schema tables required explicit schema specification in queries
+1. The `branches` table in the `kastle_banking` schema has `branch_id` as a required NOT NULL primary key
+2. The insertion code was not providing `branch_id` values
+3. The `onConflict` was using 'branch_code' but there was no unique constraint on that column
 
 ## Fixes Applied
 
-### 1. Updated Supabase Client Configuration (src/lib/supabase.js)
-- Created a unified `customFetch` function that ensures both `apikey` and `Authorization` headers are included in all requests
-- Applied this custom fetch function to all three Supabase clients:
-  - `supabase` (main client)
-  - `supabaseBanking` (kastle_banking schema)
-  - `supabaseCollection` (kastle_collection schema)
-
-### 2. Fixed Schema References
-Updated all queries to collection tables to use the proper schema specification:
-
-#### Files Updated:
-- **src/services/specialistReportService.js**: Added `.schema('kastle_collection')` to all collection table queries
-- **src/services/branchReportService.js**: Fixed collection_officers query
-- **src/services/collectionService.js**: Fixed all collection table queries
-- **src/pages/SpecialistReport.jsx**: Fixed collection table queries
-
-### 3. SQL Script Created
-Created `fix_collection_database_access.sql` which:
-- Disables Row Level Security (RLS) on all collection tables
-- Grants proper permissions to `anon` and `authenticated` roles
-- Creates sample data for testing
-- Creates helper functions for performance metrics
-
-## How to Apply Database Fixes
-
-Run the SQL script in your Supabase SQL editor:
-```bash
-postgresql://postgres:OSOL1a15975311@db.bzlenegoilnswsbanxgb.supabase.co:5432/postgres
+### 1. Updated Environment Variables (.env)
+```env
+VITE_SUPABASE_URL=https://bzlenegoilnswsbanxgb.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6bGVuZWdvaWxuc3dzYmFueGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyODU3ODIsImV4cCI6MjA2ODg2MTc4Mn0.DtVNndVsrUZtTtVRpEWiQb5QtbhPAErSQ88wWYVWeBE
+DATABASE_URL=postgresql://postgres:OSOL1a15975311@db.bzlenegoilnswsbanxgb.supabase.co:5432/postgres
 ```
 
-Execute the contents of `fix_collection_database_access.sql` to:
-1. Disable RLS on collection tables
-2. Grant necessary permissions
-3. Create sample data if needed
+### 2. Fixed Branch Insertion Code
+Updated the following files to include `branch_id` values:
+
+#### /workspace/src/utils/fixDashboardAuth.js
+- Added `branch_id` field to each branch object
+- Changed `onConflict` from 'branch_code' to 'branch_id'
+- Updated branch types to valid values (MAIN, URBAN)
+
+#### /workspace/src/utils/seedDashboardData.js
+- Added `branch_id` field to each branch object
+- Changed `onConflict` from 'branch_code' to 'branch_id'
+- Updated branch types to valid values (MAIN, URBAN)
+
+#### /workspace/scripts/fix-dashboard-db.js
+- Added `branch_id` field to each branch object
+- Changed `onConflict` from 'branch_code' to 'branch_id'
+- Updated branch types to valid values (MAIN, URBAN, SUB)
+
+### 3. Created SQL Fix Script
+Created `/workspace/fix_branches_table.sql` to:
+- Add a unique constraint on `branch_code` if needed
+- Update any existing branches without `branch_id`
+- Display current branches
+
+## Valid Branch Types
+According to the schema constraint, valid branch types are:
+- HEAD_OFFICE
+- MAIN
+- SUB
+- RURAL
+- URBAN
+
+## Next Steps
+1. Run the SQL fix script in your Supabase SQL editor:
+   ```sql
+   -- Copy and run the contents of /workspace/fix_branches_table.sql
+   ```
+
+2. Restart your development server to pick up the new environment variables
+
+3. The application should now be able to connect to the database and insert branches successfully
 
 ## Testing
-After applying these fixes, the collection/specialist-report page should:
-- Load without 401 errors
-- Display the list of collection officers
-- Show report data properly
-
-## Note
-The RLS is temporarily disabled for testing. In production, you should:
-1. Re-enable RLS with proper policies
-2. Ensure proper authentication is in place
-3. Create appropriate RLS policies for data access control
+After applying these fixes, the application should:
+- Successfully connect to the Supabase database
+- Insert branch data without errors
+- Display dashboard data properly

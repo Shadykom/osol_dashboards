@@ -68,10 +68,10 @@ export const seedDashboardData = async () => {
     const { data: branches, error: branchError } = await bankingClient
       .from(TABLES.BRANCHES)
       .upsert([
-        { branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', status: 'ACTIVE' },
-        { branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'BRANCH', status: 'ACTIVE' },
-        { branch_code: 'BR003', branch_name: 'West Side Branch', branch_type: 'BRANCH', status: 'ACTIVE' }
-      ], { onConflict: 'branch_code' })
+        { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', is_active: true },
+        { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'URBAN', is_active: true },
+        { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'West Side Branch', branch_type: 'URBAN', is_active: true }
+      ], { onConflict: 'branch_id' })
       .select();
     
     if (branchError) {
