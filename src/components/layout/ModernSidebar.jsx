@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useSidebar } from '../../contexts/SidebarContext';
+import osoulLogo from '@/assets/osol-logo.png';
 import { 
   LayoutDashboard, 
   Users, 
@@ -22,7 +23,11 @@ import {
   Globe,
   Home,
   Settings,
-  LogOut
+  LogOut,
+  Languages,
+  Moon,
+  Sun,
+  Zap
 } from 'lucide-react';
 
 const ModernSidebar = () => {
@@ -38,6 +43,9 @@ const ModernSidebar = () => {
   } = useSidebar();
   const sidebarRef = useRef(null);
   const isRTL = i18n.language === 'ar';
+  const [theme, setTheme] = React.useState(() => 
+    localStorage.getItem('theme') || (document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+  );
 
   // Dashboard menu structure with categories
   const menuItems = [
@@ -283,28 +291,49 @@ const ModernSidebar = () => {
       <aside
         ref={sidebarRef}
         className={`
-          fixed top-0 ${isRTL ? 'right-0' : 'left-0'} h-full bg-white dark:bg-gray-900 
-          shadow-xl transition-transform duration-300 ease-in-out z-50
+          fixed top-0 ${isRTL ? 'right-0' : 'left-0'} h-full flex flex-col
+          bg-gradient-to-b from-gray-50 via-white to-gray-50 
+          dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 
+          shadow-2xl transition-transform duration-300 ease-in-out z-50
           ${isOpen ? 'translate-x-0' : isRTL ? 'translate-x-full' : '-translate-x-full'}
-          w-72 lg:w-64 lg:translate-x-0 lg:static lg:z-30
+          w-80 lg:w-80 lg:translate-x-0 lg:static lg:z-30
+          ${isRTL ? 'border-l' : 'border-r'} border-gray-200 dark:border-gray-800
         `}
         dir={isRTL ? 'rtl' : 'ltr'}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-            {t('sidebar.title', 'OSOL Collection')}
-          </h2>
+        {/* Header with OSOL Branding */}
+        <div className="flex h-24 items-center justify-between px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+          <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl blur-xl" />
+              <div className="relative p-3 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg">
+                <img 
+                  src={osoulLogo} 
+                  alt="OSOL" 
+                  className="h-14 w-14 object-contain"
+                />
+              </div>
+            </div>
+            <div className={`flex flex-col ${isRTL && 'text-right'}`}>
+              <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                OSOL Collection
+              </span>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                v2.0.0
+              </span>
+            </div>
+          </div>
           <button
             onClick={closeSidebar}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="lg:hidden p-2 rounded-lg hover:bg-primary/10 transition-colors"
           >
             <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4">
+        <nav className="flex-1 overflow-y-auto p-4 sidebar-scrollbar">
           <ul className="space-y-2">
             {menuItems.map((item) => (
               <li key={item.id}>
@@ -312,10 +341,10 @@ const ModernSidebar = () => {
                   <Link
                     to={item.path}
                     className={`
-                      flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200
+                      flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                       ${isActive(item.path) 
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' 
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        ? 'bg-primary/10 text-primary font-medium shadow-sm' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-primary/5 hover:text-primary'
                       }
                     `}
                     onClick={() => isMobile && closeSidebar()}
@@ -328,10 +357,10 @@ const ModernSidebar = () => {
                     <button
                       onClick={() => toggleGroup(item.id)}
                       className={`
-                        w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-200
+                        w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
                         ${isGroupActive(item.items)
-                          ? 'bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          ? 'bg-gradient-to-r from-primary/5 to-primary/10 text-primary font-medium'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50'
                         }
                       `}
                     >
@@ -357,10 +386,10 @@ const ModernSidebar = () => {
                           <Link
                             to={subItem.path}
                             className={`
-                              flex items-center gap-3 ${isRTL ? 'pr-10' : 'pl-10'} px-3 py-2 rounded-lg transition-all duration-200
+                              flex items-center gap-3 ${isRTL ? 'pr-10' : 'pl-10'} px-3 py-2 rounded-xl transition-all duration-200
                               ${isActive(subItem.path)
-                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
-                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                ? 'bg-primary/10 text-primary font-medium'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-primary/5 hover:text-primary'
                               }
                             `}
                             onClick={() => isMobile && closeSidebar()}
@@ -379,24 +408,50 @@ const ModernSidebar = () => {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-t from-gray-50 to-transparent dark:from-gray-900/50 flex-shrink-0">
           <div className="space-y-2">
-            {/* Language Switcher */}
+            {/* Language Switcher - More Prominent */}
             <button
               onClick={() => {
                 const newLang = i18n.language === 'en' ? 'ar' : 'en';
                 i18n.changeLanguage(newLang);
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 transition-all duration-200 group"
             >
-              <Globe className="w-5 h-5" />
-              <span>{i18n.language === 'en' ? 'العربية' : 'English'}</span>
+              <div className="flex items-center gap-3">
+                <Languages className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  {i18n.language === 'en' ? 'Language' : 'اللغة'}
+                </span>
+              </div>
+              <span className="text-sm font-bold text-primary">
+                {i18n.language === 'en' ? 'العربية' : 'English'}
+              </span>
+            </button>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={() => {
+                const newTheme = theme === 'dark' ? 'light' : 'dark';
+                setTheme(newTheme);
+                document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', newTheme);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/5 transition-colors"
+            >
+              <div className="relative">
+                <Sun className="w-5 h-5 text-gray-600 dark:text-gray-400 dark:opacity-0 transition-opacity" />
+                <Moon className="w-5 h-5 text-gray-600 dark:text-gray-400 absolute top-0 left-0 opacity-0 dark:opacity-100 transition-opacity" />
+              </div>
+              <span className="text-gray-700 dark:text-gray-300">
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </span>
             </button>
 
             {/* Settings */}
             <Link
               to="/settings"
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-primary/5 transition-colors"
               onClick={() => isMobile && closeSidebar()}
             >
               <Settings className="w-5 h-5" />
@@ -405,7 +460,7 @@ const ModernSidebar = () => {
 
             {/* Logout */}
             <button
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <LogOut className="w-5 h-5" />
               <span>{t('sidebar.logout')}</span>
