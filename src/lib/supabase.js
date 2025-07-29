@@ -57,6 +57,10 @@ const createMockClient = () => {
 
 // Function to get current auth token
 const getAuthToken = () => {
+  // For now, always use the anon key to avoid authentication issues
+  return supabaseAnonKey;
+  
+  /* Original complex logic - temporarily disabled
   try {
     const storedAuth = localStorage.getItem('osol-auth');
     if (storedAuth) {
@@ -74,6 +78,7 @@ const getAuthToken = () => {
     // Invalid stored data
   }
   return supabaseAnonKey;
+  */
 };
 
 // Custom fetch function to ensure proper headers
@@ -142,7 +147,13 @@ export const supabaseBanking = isSupabaseConfigured
 // Create a client specifically for kastle_collection schema
 export const supabaseCollection = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: supabase.auth,
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: 'osol-auth'
+      },
       db: {
         schema: 'kastle_collection'
       },
