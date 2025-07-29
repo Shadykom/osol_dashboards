@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutGrid, Save, RefreshCw, Settings, Plus, X,
@@ -320,6 +321,8 @@ const STORAGE_KEYS = {
 };
 
 export function CustomDashboard() {
+  const { t } = useTranslation();
+  
   // State for widgets and configurations
   const [widgets, setWidgets] = useState([]);
   const [widgetData, setWidgetData] = useState({});

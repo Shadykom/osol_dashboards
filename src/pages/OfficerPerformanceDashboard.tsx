@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 const OfficerPerformanceDashboard = () => {
+  const { t } = useTranslation();
   const [selectedOfficer, setSelectedOfficer] = useState('all');
   const [selectedTeam, setSelectedTeam] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
@@ -229,28 +231,28 @@ const OfficerPerformanceDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Officer Performance Dashboard</h1>
-          <p className="text-gray-600 mt-1">Individual and team performance tracking</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('officerPerformanceDashboard.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('officerPerformanceDashboard.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Select value={selectedTeam} onValueChange={setSelectedTeam}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select Team" />
+              <SelectValue placeholder={t('officerPerformanceDashboard.selectTeam')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Teams</SelectItem>
-              <SelectItem value="alpha">Team Alpha</SelectItem>
-              <SelectItem value="beta">Team Beta</SelectItem>
-              <SelectItem value="gamma">Team Gamma</SelectItem>
+              <SelectItem value="all">{t('officerPerformanceDashboard.allTeams')}</SelectItem>
+              <SelectItem value="alpha">{t('officerPerformanceDashboard.teamAlpha')}</SelectItem>
+              <SelectItem value="beta">{t('officerPerformanceDashboard.teamBeta')}</SelectItem>
+              <SelectItem value="gamma">{t('officerPerformanceDashboard.teamGamma')}</SelectItem>
               <SelectItem value="delta">Team Delta</SelectItem>
             </SelectContent>
           </Select>
           <Select value={selectedOfficer} onValueChange={setSelectedOfficer}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select Officer" />
+              <SelectValue placeholder={t('officerPerformanceDashboard.selectOfficer')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Officers</SelectItem>
+              <SelectItem value="all">{t('officerPerformanceDashboard.allOfficers')}</SelectItem>
               {officers.map(officer => (
                 <SelectItem key={officer.id} value={officer.id}>
                   {officer.name}
@@ -263,15 +265,15 @@ const OfficerPerformanceDashboard = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
+              <SelectItem value="daily">{t('officerPerformanceDashboard.daily')}</SelectItem>
+              <SelectItem value="weekly">{t('officerPerformanceDashboard.weekly')}</SelectItem>
+              <SelectItem value="monthly">{t('officerPerformanceDashboard.monthly')}</SelectItem>
+              <SelectItem value="quarterly">{t('common.quarterly')}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t('officerPerformanceDashboard.export')}
           </Button>
         </div>
       </div>
@@ -280,24 +282,24 @@ const OfficerPerformanceDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('officerPerformanceDashboard.totalCollected')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(performanceMetrics.overview.totalCollected)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {performanceMetrics.overview.targetAchievement}% of target
+              {performanceMetrics.overview.targetAchievement}% {t('officerPerformanceDashboard.targetAchievement')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Contact Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('officerPerformanceDashboard.contactRate')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{performanceMetrics.overview.contactRate}%</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {formatNumber(performanceMetrics.overview.callsMade)} calls made
+              {formatNumber(performanceMetrics.overview.callsMade)} {t('officerPerformanceDashboard.callsMade')}
             </p>
           </CardContent>
         </Card>

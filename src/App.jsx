@@ -178,9 +178,10 @@ function SafeApp() {
       hasDatabase: !!window.db
     });
 
-    // Ensure document language is set
+    // Ensure document language and direction are set
     const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
+    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
   }, [i18n.language]);
   
   return (
@@ -300,9 +301,10 @@ function App() {
       hasDatabase: !!window.db
     });
 
-    // Ensure document language is set
+    // Ensure document language and direction are set
     const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
+    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
   }, [i18n.language]);
   
   return (
