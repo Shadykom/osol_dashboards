@@ -110,7 +110,7 @@ export class ProductReportService {
       // Get collection cases first (from banking schema)
       const { data: cases, error: casesError } = loanNumbers.length > 0
         ? await supabaseBanking
-            .from('collection_cases')
+            .from(TABLES.COLLECTION_CASES)
             .select('*')
             .in('loan_account_number', loanNumbers)
         : { data: [], error: null };
@@ -125,7 +125,7 @@ export class ProductReportService {
         // Fetch interactions
         const { data: interactions } = caseIds.length > 0
           ? await supabaseCollection
-              .from('collection_interactions')
+              .from(TABLES.COLLECTION_INTERACTIONS)
               .select('case_id, interaction_type, outcome, interaction_datetime')
               .in('case_id', caseIds)
           : { data: [] };
@@ -133,7 +133,7 @@ export class ProductReportService {
         // Fetch promises to pay
         const { data: ptps } = caseIds.length > 0
           ? await supabaseCollection
-              .from('promise_to_pay')
+              .from(TABLES.PROMISE_TO_PAY)
               .select('case_id, ptp_amount, ptp_date, status')
               .in('case_id', caseIds)
           : { data: [] };
@@ -425,7 +425,7 @@ export class ProductReportService {
       const caseIds = cases?.map(c => c.case_id) || [];
       
       const { data: interactions, error } = await supabaseCollection
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select('*')
         .in('case_id', caseIds)
         .gte('interaction_datetime', startDate);

@@ -91,10 +91,23 @@ const getAuthToken = () => {
 // Custom fetch function to ensure proper headers
 const customFetch = (url, options = {}) => {
   const token = getAuthToken();
+  
+  // Determine if this is a data-modifying request
+  const isDataRequest = ['POST', 'PUT', 'PATCH'].includes(options.method?.toUpperCase());
+  
   const headers = {
     ...options.headers,
     'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${token}`,
+    // Add Content-Type for data requests if not already set
+    ...(isDataRequest && !options.headers?.['Content-Type'] && {
+      'Content-Type': 'application/json'
+    }),
+    // Add schema headers if this is a request to the REST API
+    ...(url.includes('/rest/v1/') && {
+      'Accept-Profile': 'kastle_banking',
+      'Content-Profile': 'kastle_banking'
+    })
   };
   return fetch(url, { ...options, headers });
 };
@@ -133,9 +146,6 @@ export const supabaseBanking = isSupabaseConfigured
         storage: window.localStorage,
         storageKey: 'osol-auth'
       },
-      db: {
-        schema: 'kastle_banking'
-      },
       realtime: {
         params: {
           eventsPerSecond: 10
@@ -144,7 +154,9 @@ export const supabaseBanking = isSupabaseConfigured
       global: {
         headers: {
           'apikey': supabaseAnonKey,
-          'Prefer': 'return=representation'
+          'Prefer': 'return=representation',
+          'Accept-Profile': 'kastle_banking',
+          'Content-Profile': 'kastle_banking'
         },
         fetch: customFetch
       }
@@ -199,7 +211,8 @@ export const TABLES = {
   HARDSHIP_APPLICATIONS: 'hardship_applications',
   OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
   OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
-  CASE_BUCKET_HISTORY: 'case_bucket_history'
+  CASE_BUCKET_HISTORY: 'case_bucket_history',
+  COLLECTION_CAMPAIGNS: 'collection_campaigns'
 };
 
 // Separate table constants for collection schema (without schema prefix)
@@ -237,7 +250,7 @@ export function getClientForTable(tableName) {
 }
 
 // Diagnostic function for debugging
-window.checkSupabaseConfig = () => {
+window.checkSupabaseConfig = async () => {
   console.log('=== SUPABASE CONFIGURATION CHECK ===');
   console.log('URL:', supabaseUrl);
   console.log('Key:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 30)}...${supabaseAnonKey.slice(-20)}` : 'NOT SET');
@@ -245,14 +258,27 @@ window.checkSupabaseConfig = () => {
   console.log('Is Configured:', isSupabaseConfigured);
   console.log('===================================');
   
-  // Test a simple query
-  supabaseBanking.from('customers').select('*').limit(1).then(({ data, error }) => {
-    if (error) {
-      console.error('Test query failed:', error);
-    } else {
-      console.log('Test query success:', data);
+  // Test a simple query to kastle_banking schema
+  console.log('\n🔍 Testing kastle_banking schema access...');
+  const { data, error } = await supabaseBanking.from('customers').select('*').limit(1);
+  
+  if (error) {
+    console.error('❌ Test query failed:', error);
+    if (error.code === '42P01') {
+      console.error('\n⚠️  SCHEMA NOT EXPOSED!');
+      console.error('Please follow these steps:');
+      console.error('1. Go to: https://app.supabase.com/project/bzlenegoilnswsbanxgb/settings/api');
+      console.error('2. Find "Exposed schemas" section');
+      console.error('3. Add "kastle_banking" to the list');
+      console.error('4. Click Save');
+      console.error('\nCurrent error:', error.message);
     }
-  });
+  } else {
+    console.log('✅ Test query success! Schema is properly exposed.');
+    console.log('Sample data:', data);
+  }
+  
+  return !error;
 };
 
 // Auto-run diagnostic on load

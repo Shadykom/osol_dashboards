@@ -1,130 +1,123 @@
-// Helper utilities for Supabase queries when schemas are not exposed
+// Helper utilities for Supabase queries with kastle_banking schema
+
+import { supabase, supabaseBanking, supabaseCollection } from '@/lib/supabase';
 
 /**
- * Manually join data from related tables when foreign key syntax is not available
- * @param {Array} primaryData - The main dataset
- * @param {Object} joinConfig - Configuration for the join
- * @param {string} joinConfig.foreignKey - The foreign key field in primary data
- * @param {string} joinConfig.tableName - The table to join from
- * @param {string} joinConfig.joinKey - The key field in the join table
- * @param {string} joinConfig.fields - Fields to select from join table
- * @param {Object} joinConfig.client - Supabase client to use
- * @param {string} joinConfig.resultKey - Key to store joined data in primary records
- * @returns {Promise<Array>} Primary data with joined records
+ * Execute a query with proper error handling for kastle_banking schema
+ * @param {string} tableName - The table name
+ * @param {Function} queryBuilder - Function that builds the query
+ * @param {Object} client - The Supabase client to use
+ * @returns {Promise} - Query result
  */
-export async function manualJoin(primaryData, joinConfig) {
-  const {
-    foreignKey,
-    tableName,
-    joinKey = 'id',
-    fields = '*',
-    client,
-    resultKey
-  } = joinConfig;
-
-  if (!primaryData || primaryData.length === 0) {
-    return primaryData;
-  }
-
+export async function executeWithSchemaFallback(tableName, queryBuilder, client = supabaseBanking) {
   try {
-    // Get unique foreign key values
-    const foreignKeyValues = [...new Set(
-      primaryData
-        .map(item => item[foreignKey])
-        .filter(value => value != null)
-    )];
-
-    if (foreignKeyValues.length === 0) {
-      return primaryData;
+    // Execute with the kastle_banking client
+    const query = client.from(tableName);
+    const result = await queryBuilder(query);
+    
+    // If we get a "relation does not exist" error, it means schema is not exposed
+    if (result.error && result.error.code === '42P01') {
+      console.error(`Table ${tableName} not accessible in kastle_banking schema.`);
+      console.error('Please ensure kastle_banking schema is exposed in Supabase Dashboard.');
+      console.error('Go to: Settings > API > Exposed schemas and add "kastle_banking"');
+      
+      // Return the error with helpful message
+      return {
+        ...result,
+        error: {
+          ...result.error,
+          hint: 'kastle_banking schema needs to be exposed in Supabase Dashboard settings'
+        }
+      };
     }
-
-    // Fetch related data
-    const { data: joinedData, error } = await client
-      .from(tableName)
-      .select(fields)
-      .in(joinKey, foreignKeyValues);
-
-    if (error) {
-      console.error(`Error fetching data from ${tableName}:`, error);
-      return primaryData; // Return original data on error
-    }
-
-    if (!joinedData) {
-      return primaryData;
-    }
-
-    // Create lookup map
-    const joinedDataMap = joinedData.reduce((acc, item) => {
-      acc[item[joinKey]] = item;
-      return acc;
-    }, {});
-
-    // Merge data
-    return primaryData.map(item => {
-      const foreignKeyValue = item[foreignKey];
-      if (foreignKeyValue && joinedDataMap[foreignKeyValue]) {
-        return {
-          ...item,
-          [resultKey]: joinedDataMap[foreignKeyValue]
-        };
-      }
-      return item;
-    });
+    
+    return result;
   } catch (error) {
-    console.error('Manual join error:', error);
-    return primaryData;
+    console.error(`Error querying ${tableName}:`, error);
+    throw error;
   }
 }
 
 /**
- * Perform multiple manual joins sequentially
- * @param {Array} data - Initial dataset
- * @param {Array<Object>} joins - Array of join configurations
- * @returns {Promise<Array>} Data with all joins applied
+ * Helper function to ensure we're using the correct client for kastle_banking
+ * @param {string} tableName - The table name to query
+ * @returns {Object} - Supabase query builder
  */
-export async function multipleManualJoins(data, joins) {
-  let result = data;
-  
-  for (const joinConfig of joins) {
-    result = await manualJoin(result, joinConfig);
-  }
-  
-  return result;
+export function getKastleBankingTable(tableName) {
+  // Always use supabaseBanking which has the correct schema headers
+  return supabaseBanking.from(tableName);
 }
 
 /**
- * Check if schemas are exposed by attempting a simple query
- * @param {Object} client - Supabase client
- * @param {string} schema - Schema name to check
- * @returns {Promise<boolean>} True if schema is accessible
+ * Check if kastle_banking schema is properly exposed
+ * @returns {Promise<boolean>} - True if schema is accessible
  */
-export async function isSchemaExposed(client, schema) {
+export async function checkSchemaAccess() {
   try {
-    // Try to query a system table in the schema
-    const { error } = await client
-      .from(`${schema}.collection_officers`)
-      .select('officer_id')
+    // Try a simple query to test access
+    const { data, error } = await supabaseBanking
+      .from('customers')
+      .select('customer_id')
       .limit(1);
     
-    return !error;
+    if (error && error.code === '42P01') {
+      console.error('kastle_banking schema is not exposed!');
+      console.error('Please follow these steps:');
+      console.error('1. Go to https://app.supabase.com/project/bzlenegoilnswsbanxgb/settings/api');
+      console.error('2. In "Exposed schemas" add: kastle_banking');
+      console.error('3. Save the changes');
+      return false;
+    }
+    
+    return true;
   } catch (error) {
+    console.error('Error checking schema access:', error);
     return false;
   }
 }
 
 /**
- * Get appropriate query based on schema exposure
- * @param {Object} client - Supabase client
- * @param {string} tableName - Full table name with schema
- * @param {string} selectQuery - Query with foreign key syntax
- * @param {string} fallbackQuery - Query without foreign key syntax
- * @returns {Promise<Object>} Query builder
+ * Manually join data from related tables when foreign key syntax is not available
+ * @param {Array} primaryData - The main dataset
+ * @param {Object} joinConfig - Configuration for the join
+ * @returns {Promise<Array>} - Joined data
  */
-export async function getAdaptiveQuery(client, tableName, selectQuery, fallbackQuery) {
-  const schema = tableName.split('.')[0];
-  const schemasExposed = await isSchemaExposed(client, schema);
+export async function manualJoin(primaryData, joinConfig) {
+  const { 
+    foreignKey, 
+    targetTable, 
+    targetKey, 
+    targetFields = '*',
+    targetClient = supabaseBanking 
+  } = joinConfig;
+
+  if (!primaryData || primaryData.length === 0) return primaryData;
+
+  // Get unique foreign key values
+  const foreignKeyValues = [...new Set(primaryData.map(item => item[foreignKey]).filter(Boolean))];
   
-  return client
-    .from(tableName)
-    .select(schemasExposed ? selectQuery : fallbackQuery);
+  if (foreignKeyValues.length === 0) return primaryData;
+
+  // Fetch related data
+  const { data: relatedData, error } = await targetClient
+    .from(targetTable)
+    .select(targetFields)
+    .in(targetKey, foreignKeyValues);
+
+  if (error) {
+    console.error(`Error fetching related data from ${targetTable}:`, error);
+    return primaryData;
+  }
+
+  // Create lookup map
+  const relatedMap = (relatedData || []).reduce((map, item) => {
+    map[item[targetKey]] = item;
+    return map;
+  }, {});
+
+  // Join data
+  return primaryData.map(item => ({
+    ...item,
+    [targetTable]: relatedMap[item[foreignKey]] || null
+  }));
 }

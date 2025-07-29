@@ -5,6 +5,7 @@ import {
   COLLECTION_TABLES, 
   getClientForTable
 } from '@/lib/supabase';
+import { executeWithSchemaFallback } from '@/utils/supabaseHelper';
 
 // Simple API response formatter
 function formatApiResponse(data, error = null, pagination = null) {
@@ -73,7 +74,7 @@ export class CollectionService {
 
       // Build query - collection_cases is in kastle_banking schema
       let query = supabaseBanking
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select(`
           *,
           loan_accounts!loan_account_number (
@@ -203,7 +204,7 @@ export class CollectionService {
     try {
       // Get case info from banking schema
       const { data: caseData, error: caseError } = await supabaseBanking
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select('*')
         .eq('case_id', caseId)
         .single();
@@ -216,7 +217,7 @@ export class CollectionService {
       // Get loan account details
       if (caseData.loan_account_number) {
         const { data: loanAccount } = await supabaseBanking
-          .from('loan_accounts')
+          .from(TABLES.LOAN_ACCOUNTS)
           .select(`
             *,
             products!product_id (*)
@@ -229,7 +230,7 @@ export class CollectionService {
       // Get customer details
       if (caseData.customer_id) {
         const { data: customer } = await supabaseBanking
-          .from('customers')
+          .from(TABLES.CUSTOMERS)
           .select('*')
           .eq('customer_id', caseData.customer_id)
           .single();
@@ -237,12 +238,12 @@ export class CollectionService {
         if (customer) {
           // Get customer contacts and addresses
           const { data: contacts } = await supabaseBanking
-            .from('customer_contacts')
+            .from(TABLES.CUSTOMER_CONTACTS)
             .select('*')
             .eq('customer_id', caseData.customer_id);
           
           const { data: addresses } = await supabaseBanking
-            .from('customer_addresses')
+            .from(TABLES.CUSTOMER_ADDRESSES)
             .select('*')
             .eq('customer_id', caseData.customer_id);
           
@@ -267,7 +268,7 @@ export class CollectionService {
       // Get strategy details
       if (caseData.strategy_id) {
         const { data: strategy } = await supabaseCollection
-          .from('collection_strategies')
+          .from(TABLES.COLLECTION_STRATEGIES)
           .select('*')
           .eq('strategy_id', caseData.strategy_id)
           .single();
@@ -277,7 +278,7 @@ export class CollectionService {
       // Get bucket details
       if (caseData.bucket_id) {
         const { data: bucket } = await supabaseBanking
-          .from('collection_buckets')
+          .from(TABLES.COLLECTION_BUCKETS)
           .select('*')
           .eq('bucket_id', caseData.bucket_id)
           .single();
@@ -311,7 +312,7 @@ export class CollectionService {
 
       // Get field visits
       const { data: fieldVisits, error: visitsError } = await supabaseCollection
-        .from('field_visits')
+        .from(TABLES.FIELD_VISITS)
         .select(`
           *,
           collection_officers!officer_id (
@@ -323,14 +324,14 @@ export class CollectionService {
 
       // Get legal case if exists
       const { data: legalCase, error: legalError } = await supabaseCollection
-        .from('legal_cases')
+        .from(TABLES.LEGAL_CASES)
         .select('*')
         .eq('case_id', caseId)
         .single();
 
       // Get payment history
       const { data: payments, error: paymentsError } = await supabaseBanking
-        .from('transactions')
+        .from(TABLES.TRANSACTIONS)
         .select('*')
         .eq('account_number', enrichedCase?.account_number)
         .eq('transaction_type_id', 'LOAN_REPAYMENT')
@@ -339,7 +340,7 @@ export class CollectionService {
 
       // Get collection score history
       const { data: scoreHistory, error: scoreError } = await supabaseCollection
-        .from('collection_scores')
+        .from(TABLES.COLLECTION_SCORES)
         .select('*')
         .eq('case_id', caseId)
         .order('score_date', { ascending: false })
@@ -378,7 +379,7 @@ export class CollectionService {
 
       // Build base query for cases - collection_cases is in kastle_banking schema
       let casesQuery = supabaseBanking
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select('case_id, total_outstanding, days_past_due, case_status, priority, bucket_id, assigned_to');
 
       // Apply filters
@@ -430,7 +431,7 @@ export class CollectionService {
 
       // Get bucket distribution - collection_buckets is in banking schema
       const { data: buckets } = await supabaseBanking
-        .from('collection_buckets')
+        .from(TABLES.COLLECTION_BUCKETS)
         .select('bucket_id, bucket_name, min_days, max_days');
 
       const bucketDistribution = buckets?.map(bucket => {
@@ -676,7 +677,7 @@ export class CollectionService {
 
       // Get campaign effectiveness
       const { data: campaigns, error: campaignsError } = await supabaseCollection
-        .from('collection_campaigns')
+        .from(TABLES.COLLECTION_CAMPAIGNS)
         .select('*')
         .in('status', ['ACTIVE', 'COMPLETED'])
         .order('created_at', { ascending: false })
@@ -684,7 +685,7 @@ export class CollectionService {
 
       // Get channel performance
       const { data: channelPerformance } = await supabaseCollection
-        .from('digital_collection_attempts')
+        .from(TABLES.DIGITAL_COLLECTION_ATTEMPTS)
         .select('channel_type, payment_made, payment_amount')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -863,7 +864,7 @@ export class CollectionService {
 
       // Get bucket movement analysis
       const { data: bucketMovements, error: bucketError } = await supabaseCollection
-        .from('case_bucket_history')
+        .from(TABLES.CASE_BUCKET_HISTORY)
         .select(`
           from_bucket_id,
           to_bucket_id,
@@ -895,7 +896,7 @@ export class CollectionService {
 
       // Channel effectiveness from digital attempts
       const { data: digitalAttempts } = await supabaseCollection
-        .from('digital_collection_attempts')
+        .from(TABLES.DIGITAL_COLLECTION_ATTEMPTS)
         .select('channel_type, payment_made, payment_amount, response_received')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -1050,7 +1051,7 @@ export class CollectionService {
         case 'bucket':
           // Get collection by bucket
           const { data: bucketData } = await supabaseCollection
-            .from('collection_cases')
+            .from(TABLES.COLLECTION_CASES)
             .select(`
               bucket_id,
               total_outstanding,
@@ -1419,7 +1420,7 @@ export class CollectionService {
 
       // Get cases assigned to specialist with all loan details
       let casesQuery = supabaseCollection
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select(`
           *,
           loan_accounts!loan_account_number (
@@ -1659,7 +1660,7 @@ export class CollectionService {
   static async createCollectionCase(caseData) {
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .insert([{
           ...caseData,
           case_number: `CASE-${Date.now()}`,
@@ -1673,7 +1674,7 @@ export class CollectionService {
 
       // Create initial collection score
       await supabaseCollection
-        .from('collection_scores')
+        .from(TABLES.COLLECTION_SCORES)
         .insert([{
           case_id: data.case_id,
           score_date: new Date().toISOString(),
@@ -1695,7 +1696,7 @@ export class CollectionService {
   static async updateCollectionCase(caseId, updates) {
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -1803,7 +1804,7 @@ export class CollectionService {
   static async scheduleFieldVisit(visitData) {
     try {
       const { data, error } = await supabaseCollection
-        .from('field_visits')
+        .from(TABLES.FIELD_VISITS)
         .insert([{
           ...visitData,
           status: 'SCHEDULED',
@@ -1998,7 +1999,7 @@ export class CollectionService {
   static async getStrategies() {
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_strategies')
+        .from(TABLES.COLLECTION_STRATEGIES)
         .select('*')
         .eq('is_active', true)
         .order('strategy_name');
@@ -2018,7 +2019,7 @@ export class CollectionService {
   static async getBuckets() {
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_buckets')
+        .from(TABLES.COLLECTION_BUCKETS)
         .select('*')
         .order('min_days');
 
