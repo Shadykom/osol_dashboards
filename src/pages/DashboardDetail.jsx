@@ -259,7 +259,7 @@ export default function DashboardDetail() {
           (service.getCollectionTrends ? service.getCollectionTrends(30) :
           (service.getProductTrends ? service.getProductTrends(null, 30) :
           (service.getHourlyDistribution ? service.getHourlyDistribution() : 
-          Promise.resolve({ data: null })))))))
+          Promise.resolve({ data: null }))))))))
       ]);
 
       if (overviewResult.error) throw new Error(overviewResult.error);
