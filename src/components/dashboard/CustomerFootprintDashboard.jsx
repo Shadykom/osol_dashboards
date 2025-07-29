@@ -29,298 +29,7 @@ import { format, parseISO, differenceInDays, addDays, subMonths } from 'date-fns
 import { ar, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-
-// Mock Service for Customer Data
-const CustomerFootprintService = {
-  searchCustomers: async (query) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: [
-        {
-          customer_id: 'CUST001',
-          full_name: 'أحمد محمد الراشد',
-          national_id: '1234567890',
-          email: 'ahmed.rashid@email.com',
-          phone: '+966501234567',
-          customer_type: 'Premium',
-          risk_category: 'Low',
-          created_at: '2020-03-15',
-          branch: { id: 'BR001', name: 'الرياض - الفرع الرئيسي' }
-        },
-        {
-          customer_id: 'CUST002',
-          full_name: 'فاطمة عبدالله السالم',
-          national_id: '0987654321',
-          email: 'fatima.salem@email.com',
-          phone: '+966502345678',
-          customer_type: 'Gold',
-          risk_category: 'Medium',
-          created_at: '2019-06-20',
-          branch: { id: 'BR002', name: 'جدة - فرع التحلية' }
-        }
-      ]
-    };
-  },
-
-  getCustomerFootprint: async (customerId, filters) => {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    return {
-      success: true,
-      data: {
-        profile: {
-          customer_id: customerId,
-          full_name: 'أحمد محمد الراشد',
-          national_id: '1234567890',
-          email: 'ahmed.rashid@email.com',
-          phone: '+966501234567',
-          customer_type: 'Premium',
-          segment: 'High Value',
-          risk_category: 'Low',
-          created_at: '2020-03-15',
-          kyc_status: 'Verified',
-          preferred_language: 'Arabic',
-          occupation: 'Business Owner',
-          annual_income: 850000,
-          total_relationship_value: 2450000,
-          customer_since_days: 1380,
-          loyalty_score: 92,
-          churn_probability: 12,
-          lifetime_value: 3200000,
-          branch: {
-            id: 'BR001',
-            name: 'الرياض - الفرع الرئيسي',
-            city: 'الرياض',
-            region: 'الوسطى'
-          },
-          relationship_manager: {
-            id: 'RM001',
-            name: 'محمد عبدالله',
-            phone: '+966503456789',
-            email: 'mohammed.abdullah@bank.com'
-          }
-        },
-        
-        products: [
-          {
-            id: 'LOAN001',
-            type: 'قرض تورق',
-            product_name: 'تمويل شخصي',
-            amount: 500000,
-            outstanding: 320000,
-            status: 'Active',
-            start_date: '2022-01-15',
-            maturity_date: '2027-01-15',
-            interest_rate: 4.5,
-            monthly_payment: 9250,
-            dpd: 0,
-            next_payment_date: '2024-08-01',
-            branch: 'الرياض - الفرع الرئيسي'
-          },
-          {
-            id: 'CC001',
-            type: 'بطاقة ائتمان',
-            product_name: 'بطاقة بلاتينيوم',
-            credit_limit: 50000,
-            outstanding: 12500,
-            status: 'Active',
-            start_date: '2021-06-10',
-            expiry_date: '2025-06-10',
-            utilization: 25,
-            last_payment: 12500,
-            last_payment_date: '2024-06-28'
-          },
-          {
-            id: 'ACC001',
-            type: 'حساب جاري',
-            product_name: 'الحساب الذهبي',
-            balance: 125000,
-            status: 'Active',
-            start_date: '2020-03-15',
-            avg_monthly_balance: 180000,
-            transactions_count: 1250
-          }
-        ],
-        
-        interactions: {
-          summary: {
-            total: 245,
-            calls: 125,
-            emails: 45,
-            sms: 50,
-            branch_visits: 15,
-            digital_logins: 850,
-            last_contact: '2024-07-28',
-            preferred_channel: 'Phone'
-          },
-          recent: [
-            {
-              id: 'INT001',
-              date: '2024-07-28',
-              type: 'Call',
-              channel: 'Phone',
-              officer: 'محمد عبدالله',
-              department: 'Customer Service',
-              purpose: 'Account Inquiry',
-              duration: '5:32',
-              outcome: 'Resolved',
-              satisfaction: 5
-            },
-            {
-              id: 'INT002',
-              date: '2024-07-25',
-              type: 'Email',
-              channel: 'Email',
-              officer: 'فاطمة أحمد',
-              department: 'Collections',
-              purpose: 'Payment Reminder',
-              outcome: 'Acknowledged'
-            },
-            {
-              id: 'INT003',
-              date: '2024-07-20',
-              type: 'Visit',
-              channel: 'Branch',
-              officer: 'خالد سعود',
-              department: 'Relationship Management',
-              purpose: 'Product Consultation',
-              duration: '45:00',
-              outcome: 'New Product Interest'
-            }
-          ],
-          timeline: this.generateInteractionTimeline()
-        },
-        
-        payment_behavior: {
-          on_time_payments: 45,
-          late_payments: 3,
-          missed_payments: 0,
-          avg_days_late: 2.5,
-          payment_score: 94,
-          preferred_payment_method: 'Online Banking',
-          payment_pattern: 'Consistent',
-          risk_indicators: [],
-          monthly_trend: this.generatePaymentTrend()
-        },
-        
-        collection_history: {
-          total_cases: 2,
-          active_cases: 0,
-          resolved_cases: 2,
-          total_collected: 25000,
-          promises_kept: 2,
-          promises_broken: 0,
-          avg_resolution_days: 5,
-          last_collection_date: '2023-11-15'
-        },
-        
-        transaction_patterns: {
-          avg_monthly_transactions: 45,
-          avg_transaction_amount: 2500,
-          preferred_transaction_time: 'Evening',
-          preferred_transaction_day: 'Thursday',
-          top_categories: [
-            { category: 'Groceries', percentage: 25, amount: 12500 },
-            { category: 'Fuel', percentage: 20, amount: 10000 },
-            { category: 'Restaurants', percentage: 15, amount: 7500 },
-            { category: 'Shopping', percentage: 18, amount: 9000 },
-            { category: 'Bills', percentage: 22, amount: 11000 }
-          ],
-          monthly_spending: this.generateSpendingTrend()
-        },
-        
-        risk_profile: {
-          current_score: 750,
-          trend: 'Improving',
-          factors: [
-            { factor: 'Payment History', impact: 35, status: 'Positive' },
-            { factor: 'Credit Utilization', impact: 30, status: 'Positive' },
-            { factor: 'Account Age', impact: 15, status: 'Positive' },
-            { factor: 'Credit Mix', impact: 10, status: 'Neutral' },
-            { factor: 'New Credit', impact: 10, status: 'Positive' }
-          ],
-          predictions: {
-            default_probability: 2.5,
-            churn_probability: 12,
-            upsell_probability: 78,
-            risk_category_change: 'Stable'
-          }
-        },
-        
-        engagement_metrics: {
-          digital_adoption: 85,
-          mobile_app_usage: 'High',
-          email_open_rate: 72,
-          sms_response_rate: 45,
-          campaign_responsiveness: 'Medium',
-          nps_score: 8,
-          last_survey_date: '2024-05-15',
-          preferences: {
-            contact_time: 'Evening',
-            contact_method: 'Phone',
-            language: 'Arabic',
-            product_interests: ['Investment', 'Insurance']
-          }
-        }
-      }
-    };
-  },
-
-  generateInteractionTimeline() {
-    const types = ['Call', 'Email', 'SMS', 'Visit', 'Digital'];
-    const timeline = [];
-    for (let i = 0; i < 12; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      timeline.push({
-        month: format(date, 'MMM yyyy'),
-        interactions: Math.floor(Math.random() * 20) + 5,
-        calls: Math.floor(Math.random() * 8) + 2,
-        emails: Math.floor(Math.random() * 5) + 1,
-        digital: Math.floor(Math.random() * 15) + 10
-      });
-    }
-    return timeline.reverse();
-  },
-
-  generatePaymentTrend() {
-    const trend = [];
-    for (let i = 0; i < 12; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      trend.push({
-        month: format(date, 'MMM yy'),
-        onTime: Math.floor(Math.random() * 5) + 3,
-        late: Math.random() > 0.7 ? 1 : 0,
-        amount: Math.floor(Math.random() * 5000) + 8000
-      });
-    }
-    return trend.reverse();
-  },
-
-  generateSpendingTrend() {
-    const trend = [];
-    for (let i = 0; i < 6; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      trend.push({
-        month: format(date, 'MMM'),
-        spending: Math.floor(Math.random() * 20000) + 30000,
-        transactions: Math.floor(Math.random() * 30) + 40
-      });
-    }
-    return trend.reverse();
-  },
-
-  exportReport: async (customerId, format) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`Exporting customer ${customerId} report in ${format} format`);
-    return { success: true, url: `report_${customerId}.${format}` };
-  }
-};
+import CustomerFootprintService from '@/services/customerFootprintService';
 
 const CustomerFootprintDashboard = () => {
   const { t, i18n } = useTranslation();
@@ -597,9 +306,9 @@ const CustomerFootprintDashboard = () => {
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span>{customer.national_id}</span>
                         <span>•</span>
-                        <span>{customer.phone}</span>
+                        <span>{customer.phone_number}</span>
                         <span>•</span>
-                        <span>{customer.branch.name}</span>
+                        <span>{customer.branch?.branch_name}</span>
                       </div>
                     </div>
                   </div>
@@ -643,7 +352,7 @@ const CustomerFootprintDashboard = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       <Phone className="h-4 w-4" />
-                      <span>{customerData.profile.phone}</span>
+                      <span>{customerData.profile.phone_number}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Mail className="h-4 w-4" />
@@ -651,7 +360,7 @@ const CustomerFootprintDashboard = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       <Building2 className="h-4 w-4" />
-                      <span>{customerData.profile.branch.name}</span>
+                      <span>{customerData.profile.branch?.branch_name}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -699,11 +408,11 @@ const CustomerFootprintDashboard = () => {
                         <User className="h-5 w-5 text-gray-600" />
                       </div>
                       <div>
-                        <p className="font-medium">{customerData.profile.relationship_manager.name}</p>
+                        <p className="font-medium">{customerData.profile.relationship_manager?.full_name}</p>
                         <div className="flex items-center gap-3 text-sm text-gray-600">
-                          <span>{customerData.profile.relationship_manager.phone}</span>
+                          <span>{customerData.profile.relationship_manager?.phone_number}</span>
                           <span>•</span>
-                          <span>{customerData.profile.relationship_manager.email}</span>
+                          <span>{customerData.profile.relationship_manager?.email}</span>
                         </div>
                       </div>
                     </div>
