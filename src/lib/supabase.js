@@ -115,6 +115,9 @@ const customFetch = (url, options = {}) => {
 // Create main Supabase client or mock if not configured
 export const supabase = isSupabaseConfigured 
   ? createClient(supabaseUrl, supabaseAnonKey, {
+      db: {
+        schema: 'kastle_banking'
+      },
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -139,6 +142,9 @@ export const supabase = isSupabaseConfigured
 // Create a client specifically for kastle_banking schema
 export const supabaseBanking = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
+      db: {
+        schema: 'kastle_banking'
+      },
       auth: {
         autoRefreshToken: true,
         persistSession: true,

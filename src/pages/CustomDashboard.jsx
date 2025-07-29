@@ -449,7 +449,16 @@ export function CustomDashboard() {
       ]);
 
       const newData = {
-        kpis: kpisResponse.success ? kpisResponse.data : {
+        kpis: kpisResponse.success ? {
+          total_customers: kpisResponse.data.totalCustomers || 0,
+          total_accounts: kpisResponse.data.totalAccounts || 0,
+          total_deposits: kpisResponse.data.totalDeposits || 0,
+          total_loans: kpisResponse.data.totalLoans || 0,
+          daily_transactions: kpisResponse.data.dailyTransactions || 0,
+          monthly_revenue: kpisResponse.data.monthlyRevenue || 0,
+          npl_ratio: 2.5,
+          avg_balance: kpisResponse.data.totalDeposits ? Math.round(kpisResponse.data.totalDeposits / kpisResponse.data.totalAccounts) : 0
+        } : {
           total_customers: 12847,
           total_accounts: 18293,
           total_deposits: 2400000000,
@@ -459,7 +468,20 @@ export function CustomDashboard() {
           npl_ratio: 2.5,
           avg_balance: 131250
         },
-        comparison: comparisonResponse.success ? comparisonResponse.data : null,
+        comparison: comparisonResponse.success ? comparisonResponse.data : {
+          current_month: {
+            revenue: 0,
+            customers: 0,
+            transactions: 0,
+            deposits: 0
+          },
+          previous_month: {
+            revenue: 0,
+            customers: 0,
+            transactions: 0,
+            deposits: 0
+          }
+        },
         customerAnalytics: {
           by_segment: [
             { segment: 'Premium', count: 2500, value: 35 },
@@ -745,7 +767,7 @@ export function CustomDashboard() {
 
     // Comparison Widgets
     if (category === 'comparison') {
-      if (type === 'monthly_comparison' && widgetData.comparison) {
+      if (type === 'monthly_comparison') {
         return (
           <WidgetWrapper
             widget={widget}

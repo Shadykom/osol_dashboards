@@ -47,29 +47,32 @@ export function ComparisonWidget({
     const current = data.monthlyComparison.current_month;
     const previous = data.monthlyComparison.previous_month;
 
+    // Add null checks for current and previous
+    if (!current || !previous) return null;
+
     return {
       revenue: {
-        current: current.revenue,
-        previous: previous.revenue,
-        change: ((current.revenue - previous.revenue) / previous.revenue * 100).toFixed(1),
+        current: current.revenue || 0,
+        previous: previous.revenue || 0,
+        change: previous.revenue ? ((current.revenue - previous.revenue) / previous.revenue * 100).toFixed(1) : '0',
         trend: current.revenue > previous.revenue ? 'up' : 'down'
       },
       customers: {
-        current: current.customers,
-        previous: previous.customers,
-        change: ((current.customers - previous.customers) / previous.customers * 100).toFixed(1),
+        current: current.customers || 0,
+        previous: previous.customers || 0,
+        change: previous.customers ? ((current.customers - previous.customers) / previous.customers * 100).toFixed(1) : '0',
         trend: current.customers > previous.customers ? 'up' : 'down'
       },
       transactions: {
-        current: current.transactions,
-        previous: previous.transactions,
-        change: ((current.transactions - previous.transactions) / previous.transactions * 100).toFixed(1),
+        current: current.transactions || 0,
+        previous: previous.transactions || 0,
+        change: previous.transactions ? ((current.transactions - previous.transactions) / previous.transactions * 100).toFixed(1) : '0',
         trend: current.transactions > previous.transactions ? 'up' : 'down'
       },
       deposits: {
-        current: current.deposits,
-        previous: previous.deposits,
-        change: ((current.deposits - previous.deposits) / previous.deposits * 100).toFixed(1),
+        current: current.deposits || 0,
+        previous: previous.deposits || 0,
+        change: previous.deposits ? ((current.deposits - previous.deposits) / previous.deposits * 100).toFixed(1) : '0',
         trend: current.deposits > previous.deposits ? 'up' : 'down'
       }
     };
@@ -195,7 +198,7 @@ export function ComparisonWidget({
                     <span className="text-sm">{branch.name}</span>
                   </div>
                   <span className="text-sm font-medium">
-                    SAR {(branch.revenue / 1000000).toFixed(1)}M
+                    SAR {((branch.revenue || 0) / 1000000).toFixed(1)}M
                   </span>
                 </div>
               ))}
