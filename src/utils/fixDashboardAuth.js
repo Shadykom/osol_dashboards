@@ -8,7 +8,8 @@ export const createAuthenticatedClient = (schema = 'kastle_banking') => {
   } else if (schema === 'kastle_collection') {
     return supabaseCollection;
   } else {
-    return supabase;
+    // Default to kastle_banking schema
+    return supabaseBanking;
   }
 };
 
