@@ -265,3 +265,29 @@ export function getClientForTable(tableName) {
   // Default to the main client
   return supabase;
 }
+
+// Diagnostic function for debugging
+window.checkSupabaseConfig = () => {
+  console.log('=== SUPABASE CONFIGURATION CHECK ===');
+  console.log('URL:', supabaseUrl);
+  console.log('Key:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 30)}...${supabaseAnonKey.slice(-20)}` : 'NOT SET');
+  console.log('Key Length:', supabaseAnonKey?.length);
+  console.log('Is Configured:', isSupabaseConfigured);
+  console.log('===================================');
+  
+  // Test a simple query
+  supabase.from('customers').select('*').limit(1).then(({ data, error }) => {
+    if (error) {
+      console.error('Test query failed:', error);
+    } else {
+      console.log('Test query success:', data);
+    }
+  });
+};
+
+// Auto-run diagnostic on load
+if (import.meta.env.DEV) {
+  setTimeout(() => {
+    console.log('💡 Run window.checkSupabaseConfig() in console to check configuration');
+  }, 1000);
+}

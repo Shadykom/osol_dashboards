@@ -15,8 +15,14 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: 'all'
+    allowedHosts: 'all',
+    // Force reload on changes
+    hmr: {
+      overlay: true
+    }
   },
+  // Clear cache on start
+  cacheDir: '.vite-cache',
   build: {
     target: 'esnext', // Support top-level await
     rollupOptions: {
@@ -32,7 +38,9 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['lucide-react', '@hello-pangea/dnd']
+    include: ['lucide-react', '@hello-pangea/dnd'],
+    // Force re-optimization in development
+    force: true
   }
 })
 
