@@ -75,11 +75,11 @@ export const seedDashboardData = async () => {
       // Insert sample branches only if they don't exist
       const { data: insertedBranches, error: branchError } = await bankingClient
         .from(TABLES.BRANCHES)
-        .insert([
-          { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', is_active: true },
-          { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'URBAN', is_active: true },
-          { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'West Side Branch', branch_type: 'URBAN', is_active: true }
-        ])
+        .upsert([
+          { branch_id: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN' },
+          { branch_id: 'BR002', branch_name: 'Downtown Branch', branch_type: 'URBAN' },
+          { branch_id: 'BR003', branch_name: 'West Side Branch', branch_type: 'URBAN' }
+        ], { onConflict: 'branch_id' })
         .select();
       
       if (branchError) {
@@ -135,15 +135,16 @@ export const seedDashboardData = async () => {
     const customerData = [];
     for (let i = 1; i <= 50; i++) {
       customerData.push({
-        customer_number: `CUST${String(i).padStart(6, '0')}`,
+        customer_id: `CUST${String(i).padStart(6, '0')}`,
+        first_name: `Customer`,
+        last_name: `${i}`,
         full_name: `Customer ${i}`,
         email: `customer${i}@example.com`,
         phone_number: `+1234567${String(i).padStart(4, '0')}`,
-        customer_type: i % 3 === 0 ? 'CORP' : 'IND',
-        branch_id: branches[i % branches.length].branch_id,
-        status: 'ACTIVE',
+        customer_type_id: i % 3 === 0 ? 2 : 1, // 1 for IND, 2 for CORP based on typical setup
+        onboarding_branch: branches[i % branches.length].branch_id,
         kyc_status: 'VERIFIED',
-        risk_rating: ['LOW', 'MEDIUM', 'HIGH'][i % 3],
+        risk_category: ['LOW', 'MEDIUM', 'HIGH'][i % 3],
         created_at: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString()
       });
     }
@@ -167,13 +168,13 @@ export const seedDashboardData = async () => {
         accountData.push({
           account_number: `ACC${String(index * 10 + j + 1).padStart(10, '0')}`,
           customer_id: customer.customer_id,
-          account_type: ['SAVINGS', 'CHECKING', 'FIXED_DEPOSIT'][j % 3],
+          account_type_id: j % 3 + 1, // 1, 2, or 3 for different account types
           currency_code: 'USD',
           current_balance: Math.random() * 100000,
           available_balance: Math.random() * 90000,
           account_status: 'ACTIVE',
-          branch_id: customer.branch_id,
-          created_at: customer.created_at
+          branch_id: customer.onboarding_branch,
+          opening_date: customer.created_at
         });
       }
     });
@@ -190,18 +191,21 @@ export const seedDashboardData = async () => {
     // Insert sample loan accounts
     const loanData = [];
     customers.slice(0, 30).forEach((customer, index) => {
+      const principalAmount = Math.random() * 500000 + 10000;
+      const outstandingPrincipal = Math.random() * 400000 + 5000;
       loanData.push({
         loan_account_number: `LOAN${String(index + 1).padStart(8, '0')}`,
         customer_id: customer.customer_id,
-        product_type: ['PERSONAL', 'MORTGAGE', 'AUTO', 'BUSINESS'][index % 4],
-        principal_amount: Math.random() * 500000 + 10000,
-        outstanding_balance: Math.random() * 400000 + 5000,
+        product_id: index % 4 + 1, // 1-4 for different loan products
+        principal_amount: principalAmount,
+        outstanding_principal: outstandingPrincipal,
         interest_rate: Math.random() * 10 + 5,
+        tenure_months: [12, 24, 36, 48, 60][index % 5],
         loan_status: ['ACTIVE', 'ACTIVE', 'ACTIVE', 'CLOSED'][index % 4],
         disbursement_date: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
         maturity_date: new Date(Date.now() + Math.random() * 365 * 5 * 24 * 60 * 60 * 1000).toISOString(),
-        branch_id: customer.branch_id,
-        created_at: customer.created_at
+        emi_amount: principalAmount / 12 * 1.1, // Simple EMI calculation
+        overdue_days: Math.floor(Math.random() * 30)
       });
     });
     
