@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { ModernLayout } from './components/layout';
+import { Layout } from './components/layout';
 
 import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
@@ -32,6 +32,7 @@ import ProductReportPage from '@/pages/collection/ProductReport';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
 import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
 import { BasicSidebarTest } from './pages/BasicSidebarTest';
+import TestModernLayout from './pages/TestModernLayout';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -184,7 +185,7 @@ function SafeApp() {
     <div className="app">
       <Router>
         <RouteRedirect />
-        <ModernLayout>
+        <Layout>
           <Routes>
             {/* Main Routes */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -241,6 +242,7 @@ function SafeApp() {
             <Route path="/new-sidebar-demo" element={<NewSidebarDemo />} />
             <Route path="/simple-sidebar-demo" element={<SimpleSidebarDemo />} />
             <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
+            <Route path="/test-modern-layout" element={<TestModernLayout />} />
             
             
             {/* Collection Routes */}
@@ -276,7 +278,7 @@ function SafeApp() {
             {/* 404 Route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </ModernLayout>
+        </Layout>
                   <Toaster />
       </Router>
     </div>

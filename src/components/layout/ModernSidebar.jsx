@@ -45,7 +45,7 @@ const ModernSidebar = () => {
       id: 'home',
       label: t('sidebar.home'),
       icon: Home,
-      path: '/',
+      path: '/dashboard',
       type: 'single'
     },
     {
@@ -57,13 +57,13 @@ const ModernSidebar = () => {
         {
           id: 'executive-dashboard',
           label: t('sidebar.executiveDashboard'),
-          path: '/executive-dashboard',
+          path: '/dashboards/executive',
           icon: LayoutDashboard
         },
         {
           id: 'executive-collection',
           label: t('sidebar.executiveCollection'),
-          path: '/executive-collection',
+          path: '/collection/executive',
           icon: BarChart3
         }
       ]
@@ -77,31 +77,31 @@ const ModernSidebar = () => {
         {
           id: 'collection-overview',
           label: t('sidebar.collectionOverview'),
-          path: '/collection-overview',
+          path: '/collection/overview',
           icon: LayoutDashboard
         },
         {
           id: 'daily-collection',
           label: t('sidebar.dailyCollection'),
-          path: '/daily-collection',
+          path: '/collection/daily',
           icon: Calendar
         },
         {
           id: 'field-collection',
           label: t('sidebar.fieldCollection'),
-          path: '/field-collection',
+          path: '/collection/field',
           icon: Users
         },
         {
           id: 'digital-collection',
           label: t('sidebar.digitalCollection'),
-          path: '/digital-collection',
+          path: '/collection/digital',
           icon: Globe
         },
         {
           id: 'collection-cases',
           label: t('sidebar.collectionCases'),
-          path: '/collection-cases',
+          path: '/collection/cases',
           icon: FileText
         }
       ]
@@ -115,19 +115,19 @@ const ModernSidebar = () => {
         {
           id: 'delinquency-executive',
           label: t('sidebar.delinquencyExecutive'),
-          path: '/delinquency-executive',
+          path: '/collection/delinquency-executive',
           icon: TrendingUp
         },
         {
           id: 'early-warning',
           label: t('sidebar.earlyWarning'),
-          path: '/early-warning',
+          path: '/collection/early-warning',
           icon: AlertCircle
         },
         {
           id: 'vintage-analysis',
           label: t('sidebar.vintageAnalysis'),
-          path: '/vintage-analysis',
+          path: '/collection/vintage-analysis',
           icon: BarChart3
         }
       ]
@@ -141,19 +141,19 @@ const ModernSidebar = () => {
         {
           id: 'officer-performance',
           label: t('sidebar.officerPerformance'),
-          path: '/officer-performance',
+          path: '/collection/officer-performance',
           icon: UserCheck
         },
         {
           id: 'specialist-report',
           label: t('sidebar.specialistReport'),
-          path: '/specialist-report',
+          path: '/collection/specialist-report',
           icon: FileText
         },
         {
           id: 'specialist-level-report',
           label: t('sidebar.specialistLevelReport'),
-          path: '/specialist-level-report',
+          path: '/collection/specialist-report',
           icon: BarChart3
         }
       ]
@@ -173,7 +173,7 @@ const ModernSidebar = () => {
         {
           id: 'sharia-compliance',
           label: t('sidebar.shariaCompliance'),
-          path: '/sharia-compliance',
+          path: '/collection/sharia-compliance',
           icon: Building2
         }
       ]
@@ -187,13 +187,13 @@ const ModernSidebar = () => {
         {
           id: 'operations-dashboard',
           label: t('sidebar.operationsDashboard'),
-          path: '/operations',
+          path: '/dashboards/operations',
           icon: LayoutDashboard
         },
         {
           id: 'custom-dashboard',
           label: t('sidebar.customDashboard'),
-          path: '/custom-dashboard',
+          path: '/dashboards/custom',
           icon: Settings
         }
       ]

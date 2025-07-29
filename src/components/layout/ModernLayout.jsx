@@ -83,6 +83,12 @@ const LayoutContent = () => {
         {/* Page content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Development indicator - remove in production */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-4 p-2 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-lg text-sm">
+                ✅ Using Modern Sidebar Layout
+              </div>
+            )}
             <Outlet />
           </div>
         </main>
