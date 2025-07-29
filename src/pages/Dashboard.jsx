@@ -1004,6 +1004,12 @@ export default function EnhancedDashboard() {
         await fixDashboard();
       } catch (error) {
         console.error('Error fixing dashboard:', error);
+        // Try again without seeding to avoid duplicate key errors
+        try {
+          await fixDashboard({ skipSeeding: true });
+        } catch (retryError) {
+          console.error('Error fixing dashboard (retry):', retryError);
+        }
       }
       
       await loadDashboardConfig();
@@ -1076,7 +1082,7 @@ export default function EnhancedDashboard() {
         console.error('Error fetching accounts:', accountsError);
         // Try to fix authentication if we get a 401
         if (accountsError.code === '401' || accountsError.message?.includes('JWT')) {
-          await fixDashboard();
+          await fixDashboard({ skipSeeding: true });
           // Retry the query
           const { data: retryAccounts } = await supabaseBanking
             .from(TABLES.ACCOUNTS)
