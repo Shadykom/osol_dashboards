@@ -85,6 +85,18 @@ import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelpe
 import { useDashboard } from '@/hooks/useDashboard';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { DataSeeder } from '@/components/dashboard/DataSeeder';
+import { supabaseBanking } from '@/lib/supabase';
+import { testSupabaseConnection } from '@/utils/testConnection';
+
+// Database table names
+const TABLES = {
+  ACCOUNTS: 'kastle_banking.accounts',
+  LOAN_ACCOUNTS: 'kastle_banking.loan_accounts',
+  CUSTOMERS: 'public.customers',
+  TRANSACTIONS: 'kastle_banking.transactions',
+  COLLECTION_CASES: 'kastle_collection.collection_cases',
+  DAILY_COLLECTION_SUMMARY: 'kastle_collection.daily_collection_summary'
+};
 
 // Mock Supabase clients for demonstration
 const mockSupabaseBanking = {
@@ -364,8 +376,7 @@ const WIDGET_CATALOG = {
         try {
           const { count, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true })
-            .eq('customer_status', 'ACTIVE');
+            .select('*', { count: 'exact', head: true });
           
           if (error) throw error;
           
@@ -874,8 +885,7 @@ const WIDGET_CATALOG = {
         try {
           const { count, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true })
-            .eq('customer_status', 'ACTIVE');
+            .select('*', { count: 'exact', head: true });
           
           if (error) throw error;
           
@@ -904,8 +914,7 @@ const WIDGET_CATALOG = {
         try {
           const { data, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('customer_type, segment')
-            .eq('customer_status', 'ACTIVE');
+            .select('customer_type, segment');
           
           if (error) throw error;
           
@@ -1342,6 +1351,7 @@ export default function EnhancedDashboard() {
     
     // Navigate to detail page based on widget type
     const navigationMap = {
+      overview: '/dashboard/detail/overview/' + widget.widget,
       banking: '/accounts',
       lending: '/loans',
       collections: '/collection/dashboard',
@@ -2049,7 +2059,7 @@ export default function EnhancedDashboard() {
       </div>
 
       {/* Schema Test Button - Add this for debugging */}
-      <div className="mb-6">
+      <div className="mb-6 flex gap-2">
         <Button 
           onClick={handleSchemaTest}
           variant="outline"
@@ -2058,6 +2068,22 @@ export default function EnhancedDashboard() {
         >
           <Database className="h-4 w-4" />
           Test Database Schema
+        </Button>
+        <Button 
+          onClick={async () => {
+            const result = await testSupabaseConnection();
+            if (result.success) {
+              toast.success('Database connection successful!');
+            } else {
+              toast.error('Database connection failed!');
+            }
+          }}
+          variant="outline"
+          size="sm"
+          className="gap-2"
+        >
+          <Database className="h-4 w-4" />
+          Test Connection
         </Button>
       </div>
     </div>
