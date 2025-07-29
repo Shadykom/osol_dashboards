@@ -13,7 +13,6 @@ class SpecialistReportService {
     try {
       // جلب البيانات من جدول collection_officers
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection')
         .from('collection_officers')
         .select(`
           officer_id,
@@ -590,7 +589,7 @@ class SpecialistReportService {
       const dateFrom = this.getDateRangeStart(dateRange);
       
       const { data: performanceData, error } = await supabaseCollection
-        .schema('kastle_collection').from(TABLES.OFFICER_PERFORMANCE_METRICS)
+        .from(TABLES.OFFICER_PERFORMANCE_METRICS)
         .select(`
           metric_date,
           calls_made,

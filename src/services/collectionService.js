@@ -267,7 +267,7 @@ export class CollectionService {
       // Get strategy details
       if (caseData.strategy_id) {
         const { data: strategy } = await supabaseCollection
-          .schema('kastle_collection').from('collection_strategies')
+          .from('collection_strategies')
           .select('*')
           .eq('strategy_id', caseData.strategy_id)
           .single();
@@ -311,7 +311,7 @@ export class CollectionService {
 
       // Get field visits
       const { data: fieldVisits, error: visitsError } = await supabaseCollection
-        .schema('kastle_collection').from('field_visits')
+        .from('field_visits')
         .select(`
           *,
           collection_officers!officer_id (
@@ -323,7 +323,7 @@ export class CollectionService {
 
       // Get legal case if exists
       const { data: legalCase, error: legalError } = await supabaseCollection
-        .schema('kastle_collection').from('legal_cases')
+        .from('legal_cases')
         .select('*')
         .eq('case_id', caseId)
         .single();
@@ -339,7 +339,7 @@ export class CollectionService {
 
       // Get collection score history
       const { data: scoreHistory, error: scoreError } = await supabaseCollection
-        .schema('kastle_collection').from('collection_scores')
+        .from('collection_scores')
         .select('*')
         .eq('case_id', caseId)
         .order('score_date', { ascending: false })
@@ -676,7 +676,7 @@ export class CollectionService {
 
       // Get campaign effectiveness
       const { data: campaigns, error: campaignsError } = await supabaseCollection
-        .schema('kastle_collection').from('collection_campaigns')
+        .from('collection_campaigns')
         .select('*')
         .in('status', ['ACTIVE', 'COMPLETED'])
         .order('created_at', { ascending: false })
@@ -684,7 +684,7 @@ export class CollectionService {
 
       // Get channel performance
       const { data: channelPerformance } = await supabaseCollection
-        .schema('kastle_collection').from('digital_collection_attempts')
+        .from('digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -863,7 +863,7 @@ export class CollectionService {
 
       // Get bucket movement analysis
       const { data: bucketMovements, error: bucketError } = await supabaseCollection
-        .schema('kastle_collection').from('case_bucket_history')
+        .from('case_bucket_history')
         .select(`
           from_bucket_id,
           to_bucket_id,
@@ -895,7 +895,7 @@ export class CollectionService {
 
       // Channel effectiveness from digital attempts
       const { data: digitalAttempts } = await supabaseCollection
-        .schema('kastle_collection').from('digital_collection_attempts')
+        .from('digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount, response_received')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -1050,7 +1050,7 @@ export class CollectionService {
         case 'bucket':
           // Get collection by bucket
           const { data: bucketData } = await supabaseCollection
-            .schema('kastle_collection').from('collection_cases')
+            .from('collection_cases')
             .select(`
               bucket_id,
               total_outstanding,
@@ -1419,7 +1419,7 @@ export class CollectionService {
 
       // Get cases assigned to specialist with all loan details
       let casesQuery = supabaseCollection
-        .schema('kastle_collection').from('collection_cases')
+        .from('collection_cases')
         .select(`
           *,
           loan_accounts!loan_account_number (
@@ -1659,7 +1659,7 @@ export class CollectionService {
   static async createCollectionCase(caseData) {
     try {
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection').from('collection_cases')
+        .from('collection_cases')
         .insert([{
           ...caseData,
           case_number: `CASE-${Date.now()}`,
@@ -1673,7 +1673,7 @@ export class CollectionService {
 
       // Create initial collection score
       await supabaseCollection
-        .schema('kastle_collection').from('collection_scores')
+        .from('collection_scores')
         .insert([{
           case_id: data.case_id,
           score_date: new Date().toISOString(),
@@ -1695,7 +1695,7 @@ export class CollectionService {
   static async updateCollectionCase(caseId, updates) {
     try {
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection').from('collection_cases')
+        .from('collection_cases')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -1803,7 +1803,7 @@ export class CollectionService {
   static async scheduleFieldVisit(visitData) {
     try {
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection').from('field_visits')
+        .from('field_visits')
         .insert([{
           ...visitData,
           status: 'SCHEDULED',
@@ -1998,7 +1998,7 @@ export class CollectionService {
   static async getStrategies() {
     try {
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection').from('collection_strategies')
+        .from('collection_strategies')
         .select('*')
         .eq('is_active', true)
         .order('strategy_name');
@@ -2018,7 +2018,7 @@ export class CollectionService {
   static async getBuckets() {
     try {
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection').from('collection_buckets')
+        .from('collection_buckets')
         .select('*')
         .order('min_days');
 

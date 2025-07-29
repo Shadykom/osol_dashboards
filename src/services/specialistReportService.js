@@ -11,9 +11,7 @@ class SpecialistReportService {
    */
   async getSpecialists() {
     try {
-      // جلب البيانات من جدول collection_officers
-      const { data: officers, error: officersError } = await supabaseCollection
-        .schema('kastle_collection')
+      const { data, error } = await supabaseCollection
         .from('collection_officers')
         .select(`
           officer_id,
@@ -27,18 +25,17 @@ class SpecialistReportService {
         .eq('status', 'ACTIVE')
         .order('officer_name');
 
-      if (officersError) {
-        console.error('Error fetching specialists:', officersError);
-        throw officersError;
+      if (error) {
+        console.error('Error fetching specialists:', error);
+        throw error;
       }
 
       // If we have officers, get the teams separately
-      if (officers && officers.length > 0) {
-        const teamIds = [...new Set(officers.map(o => o.team_id).filter(id => id))];
+      if (data && data.length > 0) {
+        const teamIds = [...new Set(data.map(o => o.team_id).filter(id => id))];
         
         if (teamIds.length > 0) {
           const { data: teams, error: teamsError } = await supabaseCollection
-            .schema('kastle_collection')
             .from('collection_teams')
             .select('team_id, team_name, team_type')
             .in('team_id', teamIds);
@@ -54,7 +51,7 @@ class SpecialistReportService {
             }, {});
 
             // Merge team data with officers
-            officers.forEach(officer => {
+            data.forEach(officer => {
               if (officer.team_id && teamsMap[officer.team_id]) {
                 officer.collection_teams = teamsMap[officer.team_id];
               }
@@ -65,7 +62,7 @@ class SpecialistReportService {
 
       return {
         success: true,
-        data: officers || [],
+        data: data || [],
         error: null
       };
     } catch (error) {
@@ -146,7 +143,6 @@ class SpecialistReportService {
   async getSpecialistById(specialistId) {
     try {
       const { data, error } = await supabaseCollection
-        .schema('kastle_collection')
         .from('collection_officers')
         .select(`
           officer_id,
@@ -174,7 +170,6 @@ class SpecialistReportService {
         if (error.code === '42703' && error.message.includes('team_lead_id')) {
           console.warn('team_lead_id column not found in collection_teams, retrying without it');
           const { data: retryData, error: retryError } = await supabaseCollection
-            .schema('kastle_collection')
             .from('collection_officers')
             .select(`
               officer_id,
@@ -424,7 +419,6 @@ class SpecialistReportService {
       
       // جلب تفاعلات الأخصائي
       const { data: interactions, error } = await supabaseCollection
-        .schema('kastle_collection')
         .from('collection_interactions')
         .select(`
           interaction_id,
@@ -563,7 +557,6 @@ class SpecialistReportService {
       
       // First try with all columns
       let query = supabaseCollection
-        .schema('kastle_collection')
         .from('promise_to_pay')
         .select(`
           ptp_id,
@@ -586,7 +579,6 @@ class SpecialistReportService {
         if (error.code === '42703' && (error.message.includes('actual_payment_date') || error.message.includes('actual_payment_amount'))) {
           console.warn('Some columns not found in promise_to_pay, retrying with basic columns');
           const { data: retryData, error: retryError } = await supabaseCollection
-            .schema('kastle_collection')
             .from('promise_to_pay')
             .select(`
               ptp_id,
@@ -687,7 +679,6 @@ class SpecialistReportService {
       const dateFrom = this.getDateRangeStart(dateRange);
       
       const { data: performanceData, error } = await supabaseCollection
-        .schema('kastle_collection')
         .from(TABLES.OFFICER_PERFORMANCE_METRICS)
         .select(`
           metric_date,
@@ -1166,7 +1157,6 @@ class SpecialistReportService {
     try {
       // جلب آخر التفاعلات
       const { data: recentInteractions } = await supabaseCollection
-        .schema('kastle_collection')
         .from('collection_interactions')
         .select(`
           interaction_type,
