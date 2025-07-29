@@ -246,7 +246,7 @@ window.checkSupabaseConfig = () => {
   console.log('===================================');
   
   // Test a simple query
-  supabase.from('customers').select('*').limit(1).then(({ data, error }) => {
+  supabaseBanking.from('customers').select('*').limit(1).then(({ data, error }) => {
     if (error) {
       console.error('Test query failed:', error);
     } else {

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabaseBanking } from '@/lib/supabase';
 
 // Check if user is authenticated - ALWAYS RETURN TRUE
 export const checkAuth = async () => {

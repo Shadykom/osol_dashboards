@@ -1,4 +1,4 @@
-import { supabase, supabaseBanking, supabaseCollection, TABLES, getClientForTable } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES, getClientForTable } from '@/lib/supabase';
 
 // Use the shared clients instead of creating new ones
 export const createAuthenticatedClient = (schema = 'kastle_banking') => {
@@ -8,7 +8,8 @@ export const createAuthenticatedClient = (schema = 'kastle_banking') => {
   } else if (schema === 'kastle_collection') {
     return supabaseCollection;
   } else {
-    return supabase;
+    // Default to kastle_banking schema
+    return supabaseBanking;
   }
 };
 
