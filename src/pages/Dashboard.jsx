@@ -82,7 +82,6 @@ import {
 } from 'recharts';
 import { fixDashboard } from '@/utils/fixDashboardAuth';
 import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelper';
-import { useAuthStore } from '@/store/authStore';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import DataSeeder from '@/components/dashboard/DataSeeder';
