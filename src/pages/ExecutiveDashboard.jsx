@@ -489,4 +489,3 @@ export function ExecutiveDashboard() {
     </div>
   );
 }
-
