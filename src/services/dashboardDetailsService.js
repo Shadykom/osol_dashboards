@@ -35,10 +35,19 @@ export const customerDetailsService = {
         .gte('created_at', startOfMonth.toISOString());
 
       // Customer segments
-      const { data: segments } = await supabaseBanking
+      const { data: segments, error: segmentsError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
-        .select('customer_type_id, customer_types!inner(type_name)')
+        .select(`
+          customer_type_id,
+          customer_types (
+            type_name
+          )
+        `)
         .order('customer_type_id');
+      
+      if (segmentsError) {
+        console.error('Error fetching customer segments:', segmentsError);
+      }
 
       const segmentCounts = segments?.reduce((acc, curr) => {
         const typeName = curr.customer_types?.type_name || 'Unknown';

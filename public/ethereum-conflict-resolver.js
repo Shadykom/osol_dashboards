@@ -1,8 +1,12 @@
-// Ethereum Provider Conflict Resolver
-// This script prevents conflicts when multiple crypto wallet extensions try to inject window.ethereum
+// Enhanced Ethereum Provider Conflict Resolver with EIP-6963 Support
+// This script prevents conflicts when multiple crypto wallet extensions try to inject providers
 
 (function() {
   'use strict';
+  
+  // Store discovered providers
+  const providers = new Map();
+  let primaryProvider = null;
   
   // Store the original Object.defineProperty
   const originalDefineProperty = Object.defineProperty;
@@ -10,6 +14,32 @@
   // Track if ethereum has been defined
   let ethereumDefined = false;
   let ethereumValue = undefined;
+  
+  // EIP-6963: Listen for provider announcements
+  window.addEventListener('eip6963:announceProvider', (event) => {
+    const detail = event.detail;
+    if (detail && detail.info && detail.provider) {
+      console.log(`EIP-6963: Discovered wallet - ${detail.info.name}`);
+      providers.set(detail.info.uuid, detail);
+      
+      // If no primary provider yet, use the first one
+      if (!primaryProvider) {
+        primaryProvider = detail.provider;
+        ethereumValue = detail.provider;
+      }
+      
+      // Dispatch custom event for the app to handle multiple wallets
+      window.dispatchEvent(new CustomEvent('walletDiscovered', {
+        detail: {
+          wallets: Array.from(providers.values()),
+          count: providers.size
+        }
+      }));
+    }
+  });
+  
+  // Request providers to announce themselves
+  window.dispatchEvent(new Event('eip6963:requestProvider'));
   
   // Pre-define ethereum to prevent conflicts
   try {
@@ -35,14 +65,40 @@
       // Only define if it doesn't exist
       originalDefineProperty.call(Object, window, 'ethereum', {
         get() {
-          return ethereumValue;
+          return ethereumValue || primaryProvider;
         },
         set(value) {
           if (!ethereumValue) {
             ethereumValue = value;
             console.log('Ethereum provider set successfully');
+            
+            // If this is the first provider and we don't have EIP-6963 support,
+            // treat it as the primary provider
+            if (!primaryProvider) {
+              primaryProvider = value;
+            }
           } else {
-            console.warn('Attempted to overwrite ethereum provider, ignoring...');
+            console.warn('Attempted to overwrite ethereum provider, storing as alternative...');
+            // Store the provider even if we can't set it as primary
+            if (value && value.isMetaMask) {
+              providers.set('metamask-legacy', { 
+                info: { 
+                  uuid: 'metamask-legacy', 
+                  name: 'MetaMask', 
+                  icon: '' 
+                }, 
+                provider: value 
+              });
+            } else if (value && value.isCoinbaseWallet) {
+              providers.set('coinbase-legacy', { 
+                info: { 
+                  uuid: 'coinbase-legacy', 
+                  name: 'Coinbase Wallet', 
+                  icon: '' 
+                }, 
+                provider: value 
+              });
+            }
           }
         },
         configurable: true,
@@ -60,10 +116,13 @@
     // Special handling for window.ethereum
     if (obj === window && prop === 'ethereum') {
       if (ethereumDefined) {
-        console.warn('Attempted to redefine window.ethereum, ignoring...');
+        console.warn('Attempted to redefine window.ethereum, handling gracefully...');
         // Update the value if we don't have one yet
         if (!ethereumValue && descriptor && descriptor.value) {
           ethereumValue = descriptor.value;
+          if (!primaryProvider) {
+            primaryProvider = descriptor.value;
+          }
         }
         return obj;
       }
@@ -82,22 +141,22 @@
     }
   };
   
-  // Also override setter attempts
-  try {
-    const originalSet = window.__lookupSetter__ ? window.__lookupSetter__.bind(window) : null;
-    if (originalSet) {
-      window.__defineSetter__('ethereum', function(value) {
-        if (!ethereumValue) {
-          ethereumValue = value;
-          console.log('Ethereum provider set via setter');
-        } else {
-          console.warn('Attempted to overwrite ethereum provider via setter, ignoring...');
-        }
-      });
-    }
-  } catch(e) {
-    // Ignore setter override failures
-  }
+  // Expose a method to get all discovered providers
+  window.getAllWalletProviders = function() {
+    return Array.from(providers.values());
+  };
   
-  console.log('Ethereum conflict resolver initialized');
+  // Expose a method to switch providers
+  window.switchWalletProvider = function(uuid) {
+    const provider = providers.get(uuid);
+    if (provider && provider.provider) {
+      ethereumValue = provider.provider;
+      primaryProvider = provider.provider;
+      console.log(`Switched to wallet: ${provider.info.name}`);
+      return true;
+    }
+    return false;
+  };
+  
+  console.log('Enhanced Ethereum conflict resolver with EIP-6963 support initialized');
 })();
