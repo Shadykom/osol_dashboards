@@ -82,9 +82,9 @@ import {
 } from 'recharts';
 import { fixDashboard } from '@/utils/fixDashboardAuth';
 import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelper';
-import { useDashboardData } from '@/hooks/useDashboardData';
+import { useDashboard } from '@/hooks/useDashboard';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
-import DataSeeder from '@/components/dashboard/DataSeeder';
+import { DataSeeder } from '@/components/dashboard/DataSeeder';
 
 // Mock Supabase clients for demonstration
 const mockSupabaseBanking = {
