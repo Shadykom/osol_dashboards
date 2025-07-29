@@ -81,6 +81,7 @@ import {
   Sankey
 } from 'recharts';
 import { fixDashboard } from '@/utils/fixDashboardAuth';
+import { initializeDatabase } from '@/utils/databaseInit';
 import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelper';
 import { useDashboard } from '@/hooks/useDashboard';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
@@ -1305,12 +1306,12 @@ export default function EnhancedDashboard() {
         console.error('Error with auto-login:', error);
       }
       
-      // Fix authentication and seed data if needed
+      // Initialize database with proper reference data
       try {
-        await fixDashboard();
+        await initializeDatabase();
       } catch (error) {
-        console.error('Error fixing dashboard:', error);
-        // Try again without seeding to avoid duplicate key errors
+        console.error('Error initializing database:', error);
+        // Fallback to old fix method
         try {
           await fixDashboard({ skipSeeding: true });
         } catch (retryError) {
