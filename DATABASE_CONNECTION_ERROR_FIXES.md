@@ -9,18 +9,18 @@ The Supabase URL and anon key are properly configured:
 - URL: `https://bzlenegoilnswsbanxgb.supabase.co`
 - Anon Key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...88wWYVWeBE`
 
-### 2. ❌ Schema Not Exposed in Supabase API
-**Error**: `42P01` - Schema `kastle_banking` is not exposed through the REST API
-**Fix**: You need to expose the `kastle_banking` schema in Supabase settings
+### 2. ✅ Schema Already Exposed in Supabase API
+The `kastle_banking` schema is already exposed and accessible via the REST API
 
-### 3. ❌ Query Syntax Error (400 Bad Request)
+### 3. ✅ Query Syntax Error Fixed (400 Bad Request)
 **Error**: Column aliases using `as` in select queries cause malformed requests
 **Location**: `src/services/specialistReportService.js` line 742-755
-**Fix**: Remove column aliases from the select query
+**Fix**: Removed column aliases from the select query
 
-### 4. ⚠️ Database Connection Status Shows Disconnected
+### 4. ✅ Misleading Database Connection Status Fixed
 **Issue**: `{isConnected: false, hasDatabase: false}`
-**Cause**: The schema exposure issue prevents proper database connection
+**Cause**: Legacy code checking for `window.db` which is not related to Supabase
+**Fix**: Removed the misleading logs from App.jsx
 
 ## Fixes Applied
 
@@ -51,27 +51,27 @@ Removed column aliases from the select query:
 `)
 ```
 
+### 3. Removed Misleading Database Connection Logs
+Removed legacy `window.db` checks from App.jsx that were showing false connection status
+
+## Real Issue: Empty Data
+
+The actual issue is that the `officer_performance_metrics` table has no data for officer `OFF007`. The query is working correctly but returning an empty array `[]`.
+
 ## Required Manual Actions
 
-### 1. Expose kastle_banking Schema in Supabase
-1. Go to: https://supabase.com/dashboard/project/bzlenegoilnswsbanxgb/settings/api
-2. Find the "Exposed schemas" section
-3. Update from `public` to: `public, kastle_banking`
-4. Click Save
-
-### 2. Run Database Migration (if needed)
-Execute the migration script to ensure all tables are in the correct schema:
-```bash
-psql postgresql://postgres:OSOL1a15975311@db.bzlenegoilnswsbanxgb.supabase.co:5432/postgres -f check_and_update_schemas.sql
-```
-
-### 3. Restart Development Server
-After making the changes:
+### 1. Restart Development Server
+To pick up the environment variables and code changes:
 ```bash
 npm run dev
 # or
 pnpm dev
 ```
+
+### 2. Seed Performance Data (if needed)
+If you need test data for the officer performance metrics, you may need to:
+1. Check if there's a seeding script for `officer_performance_metrics`
+2. Or manually insert test data for officer OFF007
 
 ## Other Observations
 
@@ -81,9 +81,10 @@ pnpm dev
 
 ## Testing After Fixes
 
-1. Check if the database connection status shows `{isConnected: true, hasDatabase: true}`
-2. Verify that the specialist report loads without 400 errors
-3. Test other database queries to ensure they work properly
+1. The misleading database connection status logs have been removed
+2. The 400 errors from column aliases have been fixed
+3. The database connection is working correctly - verified with curl tests
+4. The main issue is that there's no data in the `officer_performance_metrics` table for the requested officer
 
 ## Connection Details
 - **Project URL**: https://bzlenegoilnswsbanxgb.supabase.co

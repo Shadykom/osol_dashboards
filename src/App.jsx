@@ -172,14 +172,8 @@ function NotFound() {
 function SafeApp() {
   const { i18n } = useTranslation();
   
-  // Database connection status logging
+  // Ensure document language and direction are set
   useEffect(() => {
-    console.log('Database connection status:', {
-      isConnected: window.db !== undefined,
-      hasDatabase: !!window.db
-    });
-
-    // Ensure document language and direction are set
     const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
     document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
@@ -296,14 +290,8 @@ function SafeApp() {
 function App() {
   const { i18n } = useTranslation();
   
-  // Database connection status logging
+  // Ensure document language and direction are set
   useEffect(() => {
-    console.log('Database connection status:', {
-      isConnected: window.db !== undefined,
-      hasDatabase: !!window.db
-    });
-
-    // Ensure document language and direction are set
     const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
     document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
