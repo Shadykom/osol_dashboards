@@ -15,26 +15,43 @@ if (import.meta.env.DEV) {
 // Check if Supabase credentials are configured
 const isSupabaseConfigured = supabaseUrl && supabaseAnonKey && 
                             supabaseUrl !== 'https://your-project.supabase.co' && 
-                            supabaseAnonKey !== 'your-anon-key';
+                            supabaseAnonKey !== 'your-anon-key' &&
+                            supabaseAnonKey !== 'YOUR_ANON_KEY_HERE';
 
 console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Missing credentials');
+
+// If credentials are missing, provide helpful instructions
+if (!isSupabaseConfigured) {
+  console.warn(`
+⚠️ Supabase credentials not configured!
+
+To fix the 401 errors:
+1. Go to: https://supabase.com/dashboard/project/bzlenegoilnswsbanxgb/settings/api
+2. Copy the "anon" key
+3. Update your .env file with:
+   VITE_SUPABASE_ANON_KEY=<your-anon-key>
+4. Restart your dev server
+
+Using mock data mode for now...
+  `);
+}
 
 // Create a mock client for when Supabase is not configured
 const createMockClient = () => {
   return {
     from: () => ({
-      select: () => Promise.resolve({ data: [], error: { message: 'Database not configured' } }),
-      insert: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
-      update: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
-      delete: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } }),
-      upsert: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } })
+      select: () => Promise.resolve({ data: [], error: { message: 'Database not configured - using mock data' } }),
+      insert: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } }),
+      update: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } }),
+      delete: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } }),
+      upsert: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } })
     }),
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
       signIn: () => Promise.resolve({ data: null, error: { message: 'Auth not configured' } }),
       signOut: () => Promise.resolve({ error: null })
     },
-    rpc: () => Promise.resolve({ data: null, error: { message: 'Database not configured' } })
+    rpc: () => Promise.resolve({ data: null, error: { message: 'Database not configured - using mock data' } })
   };
 };
 
