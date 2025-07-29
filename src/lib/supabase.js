@@ -91,10 +91,23 @@ const getAuthToken = () => {
 // Custom fetch function to ensure proper headers
 const customFetch = (url, options = {}) => {
   const token = getAuthToken();
+  
+  // Determine if this is a data-modifying request
+  const isDataRequest = ['POST', 'PUT', 'PATCH'].includes(options.method?.toUpperCase());
+  
   const headers = {
     ...options.headers,
     'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${token}`,
+    // Add Content-Type for data requests if not already set
+    ...(isDataRequest && !options.headers?.['Content-Type'] && {
+      'Content-Type': 'application/json'
+    }),
+    // Add schema headers if this is a request to the REST API
+    ...(url.includes('/rest/v1/') && {
+      'Accept-Profile': 'kastle_banking',
+      'Content-Profile': 'kastle_banking'
+    })
   };
   return fetch(url, { ...options, headers });
 };
@@ -133,9 +146,6 @@ export const supabaseBanking = isSupabaseConfigured
         storage: window.localStorage,
         storageKey: 'osol-auth'
       },
-      db: {
-        schema: 'kastle_banking'
-      },
       realtime: {
         params: {
           eventsPerSecond: 10
@@ -144,7 +154,9 @@ export const supabaseBanking = isSupabaseConfigured
       global: {
         headers: {
           'apikey': supabaseAnonKey,
-          'Prefer': 'return=representation'
+          'Prefer': 'return=representation',
+          'Accept-Profile': 'kastle_banking',
+          'Content-Profile': 'kastle_banking'
         },
         fetch: customFetch
       }

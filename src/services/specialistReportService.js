@@ -1,4 +1,5 @@
 import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
+import { executeWithSchemaFallback } from '@/utils/supabaseHelper';
 
 /**
  * خدمة تقرير مستوى الأخصائي
@@ -11,28 +12,31 @@ class SpecialistReportService {
    */
   async getSpecialists() {
     try {
-      const { data, error } = await supabaseCollection
-        .from('collection_officers')
-        .select(`
-          officer_id,
-          officer_name,
-          officer_type,
-          team_id,
-          contact_number,
-          email,
-          status
-        `)
-        .eq('status', 'ACTIVE')
-        .order('officer_name');
+      const result = await executeWithSchemaFallback(
+        'collection_officers',
+        (query) => query
+          .select(`
+            officer_id,
+            officer_name,
+            officer_type,
+            team_id,
+            contact_number,
+            email,
+            status
+          `)
+          .eq('status', 'ACTIVE')
+          .order('officer_name'),
+        supabaseCollection
+      );
 
-      if (error) {
-        console.error('Error fetching specialists:', error);
-        throw error;
+      if (result.error) {
+        console.error('Error fetching specialists:', result.error);
+        throw result.error;
       }
 
       // If we have officers, get the teams separately
-      if (data && data.length > 0) {
-        const teamIds = [...new Set(data.map(o => o.team_id).filter(id => id))];
+      if (result.data && result.data.length > 0) {
+        const teamIds = [...new Set(result.data.map(o => o.team_id).filter(id => id))];
         
         if (teamIds.length > 0) {
           const { data: teams, error: teamsError } = await supabaseCollection
@@ -51,7 +55,7 @@ class SpecialistReportService {
             }, {});
 
             // Merge team data with officers
-            data.forEach(officer => {
+            result.data.forEach(officer => {
               if (officer.team_id && teamsMap[officer.team_id]) {
                 officer.collection_teams = teamsMap[officer.team_id];
               }
@@ -62,7 +66,7 @@ class SpecialistReportService {
 
       return {
         success: true,
-        data: data || [],
+        data: result.data || [],
         error: null
       };
     } catch (error) {
