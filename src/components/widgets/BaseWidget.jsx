@@ -32,6 +32,7 @@ export function BaseWidget({
   onExpand,
   isExpanded = false,
   showActions = true,
+  onClick,
   ...props
 }) {
   const handleRefresh = () => {
@@ -70,6 +71,7 @@ export function BaseWidget({
         isExpanded && "fixed inset-4 z-50 shadow-2xl",
         className
       )}
+      onClick={onClick}
       {...props}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

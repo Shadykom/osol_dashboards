@@ -1,4 +1,5 @@
 import { BaseWidget } from './BaseWidget';
+import { useNavigate } from 'react-router-dom';
 import {
   LineChart,
   Line,
@@ -42,8 +43,10 @@ export function ChartWidget({
   showGrid = true,
   showTooltip = true,
   showLegend = false,
+  clickable = true,
   ...props
 }) {
+  const navigate = useNavigate();
   const renderChart = () => {
     const commonProps = {
       data,
@@ -123,6 +126,14 @@ export function ChartWidget({
     }
   };
 
+  const handleClick = () => {
+    if (clickable && id) {
+      // Extract the type from the widget ID
+      const widgetType = id.split('_')[0];
+      navigate(`/dashboard/detail/${widgetType}/${id}`);
+    }
+  };
+
   return (
     <BaseWidget
       id={id}
@@ -130,7 +141,8 @@ export function ChartWidget({
       description={description}
       isLoading={isLoading}
       error={error}
-      className="min-h-[400px]"
+      className={clickable ? "min-h-[400px] cursor-pointer hover:shadow-lg transition-shadow" : "min-h-[400px]"}
+      onClick={handleClick}
       {...props}
     >
       <div style={{ height: height }}>

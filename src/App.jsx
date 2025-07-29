@@ -37,6 +37,7 @@ import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
 import { BasicSidebarTest } from './pages/BasicSidebarTest';
 import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
+import DashboardDetail from './pages/DashboardDetail';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -189,6 +190,7 @@ function SafeApp() {
             {/* Main Routes */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
             
             {/* Dashboard Routes */}
             <Route path="/dashboards/custom" element={<CustomDashboard />} />
