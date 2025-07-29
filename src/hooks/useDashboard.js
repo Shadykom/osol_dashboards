@@ -185,19 +185,27 @@ export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
     
     // For demonstration, we'll use monthly comparison data for trends
     if (key === 'total_customers' && data.monthlyComparison) {
-      const trend = getTrend(
-        data.monthlyComparison.current_month.customers,
-        data.monthlyComparison.previous_month.customers
-      );
-      return { value: currentValue, ...trend };
+      const current = data.monthlyComparison.current_month;
+      const previous = data.monthlyComparison.previous_month;
+      if (current && previous) {
+        const trend = getTrend(
+          current.customers || 0,
+          previous.customers || 0
+        );
+        return { value: currentValue, ...trend };
+      }
     }
     
     if (key === 'monthly_revenue' && data.monthlyComparison) {
-      const trend = getTrend(
-        data.monthlyComparison.current_month.revenue,
-        data.monthlyComparison.previous_month.revenue
-      );
-      return { value: currentValue, ...trend };
+      const current = data.monthlyComparison.current_month;
+      const previous = data.monthlyComparison.previous_month;
+      if (current && previous) {
+        const trend = getTrend(
+          current.revenue || 0,
+          previous.revenue || 0
+        );
+        return { value: currentValue, ...trend };
+      }
     }
     
     // Default trend for other KPIs

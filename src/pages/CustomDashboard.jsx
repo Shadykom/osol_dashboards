@@ -459,7 +459,20 @@ export function CustomDashboard() {
           npl_ratio: 2.5,
           avg_balance: 131250
         },
-        comparison: comparisonResponse.success ? comparisonResponse.data : null,
+        comparison: comparisonResponse.success ? comparisonResponse.data : {
+          current_month: {
+            revenue: 0,
+            customers: 0,
+            transactions: 0,
+            deposits: 0
+          },
+          previous_month: {
+            revenue: 0,
+            customers: 0,
+            transactions: 0,
+            deposits: 0
+          }
+        },
         customerAnalytics: {
           by_segment: [
             { segment: 'Premium', count: 2500, value: 35 },
@@ -745,7 +758,7 @@ export function CustomDashboard() {
 
     // Comparison Widgets
     if (category === 'comparison') {
-      if (type === 'monthly_comparison' && widgetData.comparison) {
+      if (type === 'monthly_comparison') {
         return (
           <WidgetWrapper
             widget={widget}
