@@ -761,11 +761,11 @@ class SpecialistReportService {
 
       // حساب المتوسطات من البيانات المسترجعة
       const totalCalls = performanceData.reduce((sum, p) => sum + (p.calls_made || 0), 0);
-      const answeredCalls = performanceData.reduce((sum, p) => sum + (p.contacts_successful || 0), 0);
-      const totalPromises = performanceData.reduce((sum, p) => sum + (p.ptps_obtained || 0), 0);
-      const keptPromises = performanceData.reduce((sum, p) => sum + Math.round((p.ptps_obtained || 0) * (p.ptps_kept_rate || 0) / 100), 0);
+      const answeredCalls = performanceData.reduce((sum, p) => sum + (p.calls_answered || p.contacts_successful || 0), 0);
+      const totalPromises = performanceData.reduce((sum, p) => sum + (p.promises_made || p.ptps_obtained || 0), 0);
+      const keptPromises = performanceData.reduce((sum, p) => sum + (p.promises_kept || p.ptps_kept || Math.round((p.promises_made || p.ptps_obtained || 0) * (p.ptps_kept_rate || 0) / 100) || 0), 0);
       const totalCollected = performanceData.reduce((sum, p) => sum + (p.amount_collected || 0), 0);
-      const resolvedCases = performanceData.reduce((sum, p) => sum + (p.accounts_worked || 0), 0);
+      const resolvedCases = performanceData.reduce((sum, p) => sum + (p.cases_resolved || p.accounts_worked || 0), 0);
 
       return {
         success: true,

@@ -5,29 +5,28 @@ I've created SQL scripts to insert sample data for testing the Specialist Report
 
 ## Scripts Available
 
-### 1. Simple Script (Recommended for Quick Testing)
-**File**: `seed_specialist_data_simple.sql`
-- Contains only officer performance metrics data
-- Covers July 2025 and June 2025
+### 1. Fixed Script (Use This One!)
+**File**: `seed_specialist_data_fixed.sql`
+- Contains officer performance metrics with correct column names
+- Covers May, June, and July 2025
 - Uses ON CONFLICT to handle duplicate entries
-- Quick and easy to run
+- Includes data for multiple officers (OFF007, OFF001, OFF002, OFF003)
+- **This script matches the actual table structure**
 
-### 2. Comprehensive Script
+### 2. ~~Simple Script~~ (Outdated - Wrong column names)
+**File**: `seed_specialist_data_simple.sql`
+- DO NOT USE - has incorrect column names
+
+### 3. ~~Comprehensive Script~~ (Outdated - Wrong column names)
 **File**: `seed_specialist_performance_data.sql`
-- Contains performance metrics, interactions, and promises to pay
-- Includes data for multiple officers for comparison
-- Creates a summary view
-- More complete dataset for thorough testing
+- DO NOT USE - has incorrect column names
 
 ## How to Run the Scripts
 
 ### Option 1: Using psql Command Line
 ```bash
-# Simple script
-psql postgresql://postgres:OSOL1a15975311@db.bzlenegoilnswsbanxgb.supabase.co:5432/postgres -f seed_specialist_data_simple.sql
-
-# Comprehensive script
-psql postgresql://postgres:OSOL1a15975311@db.bzlenegoilnswsbanxgb.supabase.co:5432/postgres -f seed_specialist_performance_data.sql
+# Use the fixed script with correct column names
+psql postgresql://postgres:OSOL1a15975311@db.bzlenegoilnswsbanxgb.supabase.co:5432/postgres -f seed_specialist_data_fixed.sql
 ```
 
 ### Option 2: Using Supabase SQL Editor
