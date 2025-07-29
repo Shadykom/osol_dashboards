@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext';
 import ModernSidebar from './ModernSidebar';
+import ErrorBoundaryWrapper from './ErrorBoundaryWrapper';
 import { Menu, Bell, Search, User } from 'lucide-react';
 
 // Header component
@@ -70,6 +71,12 @@ const LayoutContent = () => {
   const { i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[ModernLayout] Mounted');
+    console.log('[ModernLayout] Current path:', window.location.pathname);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Sidebar */}
@@ -81,15 +88,26 @@ const LayoutContent = () => {
         <Header />
 
         {/* Page content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Development indicator - remove in production */}
             {process.env.NODE_ENV === 'development' && (
               <div className="mb-4 p-2 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-lg text-sm">
                 ✅ Using Modern Sidebar Layout
               </div>
             )}
-            <Outlet />
+            <ErrorBoundaryWrapper>
+              <React.Suspense fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+                    <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+                  </div>
+                </div>
+              }>
+                <Outlet />
+              </React.Suspense>
+            </ErrorBoundaryWrapper>
           </div>
         </main>
       </div>
