@@ -83,6 +83,7 @@ const SpecialistLevelReport = () => {
     period: '',
     contents: []
   });
+  const [dbConnectionIssue, setDbConnectionIssue] = useState(false);
   
   // Advanced filter states
   const [filters, setFilters] = useState({
@@ -129,6 +130,12 @@ const SpecialistLevelReport = () => {
       const result = await specialistService.getSpecialists();
       if (result.success && result.data) {
         setSpecialists(result.data);
+        
+        // Check if we're using mock data (which indicates a database issue)
+        if (result.data.length > 0 && result.data[0].officer_id === 'SP001') {
+          setDbConnectionIssue(true);
+        }
+        
         if (result.data.length > 0 && !selectedSpecialist) {
           setSelectedSpecialist(result.data[0].officer_id);
         }
@@ -137,7 +144,8 @@ const SpecialistLevelReport = () => {
       }
     } catch (error) {
       console.error('Error fetching specialists:', error);
-              setError('An error occurred while fetching data');
+      setError('An error occurred while fetching data');
+      setDbConnectionIssue(true);
     }
   };
 
@@ -719,6 +727,26 @@ const SpecialistLevelReport = () => {
   return (
     <div className="space-y-6">
       <FilterSidebar />
+      
+      {/* Database Connection Alert */}
+      {dbConnectionIssue && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800">
+            <div className="font-semibold mb-2">Database Connection Issue</div>
+            <div className="text-sm space-y-2">
+              <p>The application is currently using sample data because the database schema is not properly configured.</p>
+              <p className="font-medium">To fix this issue:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Go to your <a href="https://app.supabase.com/project/bzlenegoilnswsbanxgb/settings/api" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Supabase project settings</a></li>
+                <li>In the "Exposed schemas" section, add: <code className="bg-orange-100 px-1 py-0.5 rounded">kastle_banking</code></li>
+                <li>Click "Save" to apply the changes</li>
+                <li>Refresh this page to see real data</li>
+              </ol>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-40">
