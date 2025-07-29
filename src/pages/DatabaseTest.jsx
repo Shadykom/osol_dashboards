@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, DatabaseIcon } from '@/utils/icons';
 import { 
-  supabase, 
   supabaseBanking, 
   supabaseCollection, 
   TABLES
