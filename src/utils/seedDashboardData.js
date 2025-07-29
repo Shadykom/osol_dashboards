@@ -62,10 +62,10 @@ async function seedReferenceData() {
     
     // Currencies - Fix the table name issue
     const currencies = [
-      { currency_code: 'SAR', currency_name: 'Saudi Riyal', symbol: '﷼', is_active: true },
-      { currency_code: 'USD', currency_name: 'US Dollar', symbol: '$', is_active: true },
-      { currency_code: 'EUR', currency_name: 'Euro', symbol: '€', is_active: true },
-      { currency_code: 'GBP', currency_name: 'British Pound', symbol: '£', is_active: true }
+      { currency_code: 'SAR', currency_name: 'Saudi Riyal', currency_symbol: '﷼', is_active: true },
+      { currency_code: 'USD', currency_name: 'US Dollar', currency_symbol: '$', is_active: true },
+      { currency_code: 'EUR', currency_name: 'Euro', currency_symbol: '€', is_active: true },
+      { currency_code: 'GBP', currency_name: 'British Pound', currency_symbol: '£', is_active: true }
     ];
     
     const { error: currencyError } = await supabaseBanking.from(TABLES.CURRENCIES).upsert(currencies, { onConflict: 'currency_code' });
@@ -88,10 +88,10 @@ async function seedReferenceData() {
     
     // Account Types - Use TABLES constant
     const accountTypes = [
-      { type_code: 'SAV', type_name: 'Savings Account', description: 'Regular savings account', min_balance: 1000.00, interest_rate: 2.5 },
-      { type_code: 'CUR', type_name: 'Current Account', description: 'Current account for daily transactions', min_balance: 5000.00, interest_rate: 0.0 },
-      { type_code: 'DEP', type_name: 'Deposit Account', description: 'Fixed deposit account', min_balance: 10000.00, interest_rate: 4.5 },
-      { type_code: 'VIP', type_name: 'VIP Account', description: 'Premium account with special benefits', min_balance: 50000.00, interest_rate: 3.5 }
+      { type_code: 'SAV', type_name: 'Savings Account', account_category: 'SAVINGS', description: 'Regular savings account' },
+      { type_code: 'CUR', type_name: 'Current Account', account_category: 'CURRENT', description: 'Current account for daily transactions' },
+      { type_code: 'DEP', type_name: 'Deposit Account', account_category: 'FIXED_DEPOSIT', description: 'Fixed deposit account' },
+      { type_code: 'VIP', type_name: 'VIP Account', account_category: 'SAVINGS', description: 'Premium account with special benefits' }
     ];
     
     const { error: accountTypeError } = await supabaseBanking.from('account_types').upsert(accountTypes, { onConflict: 'type_code' });
@@ -101,12 +101,12 @@ async function seedReferenceData() {
     
     // Transaction Types - Use TABLES constant
     const transactionTypes = [
-      { type_code: 'DEP', type_name: 'Deposit', description: 'Cash or check deposit', is_debit: false },
-      { type_code: 'WTH', type_name: 'Withdrawal', description: 'Cash withdrawal', is_debit: true },
-      { type_code: 'TRF', type_name: 'Transfer', description: 'Fund transfer', is_debit: true },
-      { type_code: 'PMT', type_name: 'Payment', description: 'Bill payment', is_debit: true },
-      { type_code: 'FEE', type_name: 'Fee', description: 'Service fee', is_debit: true },
-      { type_code: 'INT', type_name: 'Interest', description: 'Interest credit', is_debit: false }
+      { type_code: 'DEP', type_name: 'Deposit', transaction_category: 'CREDIT' },
+      { type_code: 'WTH', type_name: 'Withdrawal', transaction_category: 'DEBIT' },
+      { type_code: 'TRF', type_name: 'Transfer', transaction_category: 'TRANSFER' },
+      { type_code: 'PMT', type_name: 'Payment', transaction_category: 'DEBIT' },
+      { type_code: 'FEE', type_name: 'Fee', transaction_category: 'CHARGE' },
+      { type_code: 'INT', type_name: 'Interest', transaction_category: 'INTEREST' }
     ];
     
     const { error: transactionTypeError } = await supabaseBanking.from('transaction_types').upsert(transactionTypes, { onConflict: 'type_code' });
@@ -133,11 +133,11 @@ async function seedReferenceData() {
   
     // Products
     const products = [
-      { product_code: 'SAV001', product_name: 'Basic Savings', category_id: categoryMap.DEP, description: 'Basic savings account', min_amount: 1000.00, max_amount: 1000000.00, interest_rate: 2.5, is_active: true },
-      { product_code: 'PRL001', product_name: 'Personal Loan', category_id: categoryMap.LON, description: 'Personal loan for individuals', min_amount: 10000.00, max_amount: 500000.00, interest_rate: 8.5, is_active: true },
-      { product_code: 'HML001', product_name: 'Home Loan', category_id: categoryMap.LON, description: 'Home mortgage loan', min_amount: 100000.00, max_amount: 5000000.00, interest_rate: 6.5, is_active: true },
-      { product_code: 'AUL001', product_name: 'Auto Loan', category_id: categoryMap.LON, description: 'Vehicle financing', min_amount: 50000.00, max_amount: 500000.00, interest_rate: 7.5, is_active: true },
-      { product_code: 'CRD001', product_name: 'Credit Card', category_id: categoryMap.CRD, description: 'Standard credit card', min_amount: 5000.00, max_amount: 100000.00, interest_rate: 18.0, is_active: true }
+      { product_code: 'SAV001', product_name: 'Basic Savings', category_id: categoryMap.DEP, min_balance: 1000.00, max_balance: 1000000.00, interest_rate: 2.5, is_active: true },
+      { product_code: 'PRL001', product_name: 'Personal Loan', category_id: categoryMap.LON, min_balance: 10000.00, max_balance: 500000.00, interest_rate: 8.5, is_active: true },
+      { product_code: 'HML001', product_name: 'Home Loan', category_id: categoryMap.LON, min_balance: 100000.00, max_balance: 5000000.00, interest_rate: 6.5, is_active: true },
+      { product_code: 'AUL001', product_name: 'Auto Loan', category_id: categoryMap.LON, min_balance: 50000.00, max_balance: 500000.00, interest_rate: 7.5, is_active: true },
+      { product_code: 'CRD001', product_name: 'Credit Card', category_id: categoryMap.CRD, min_balance: 5000.00, max_balance: 100000.00, interest_rate: 18.0, is_active: true }
     ];
     
     const { error: productError } = await supabaseBanking.from(TABLES.PRODUCTS).upsert(products, { onConflict: 'product_code' });
@@ -147,11 +147,11 @@ async function seedReferenceData() {
   
     // Branches
     const branches = [
-      { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch - Riyadh', branch_type: 'MAIN', address: 'King Fahd Road', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345678', email: 'main@bank.sa', is_active: true },
-      { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Olaya Branch', branch_type: 'URBAN', address: 'Olaya Street', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345679', email: 'olaya@bank.sa', is_active: true },
-      { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'Jeddah Main', branch_type: 'URBAN', address: 'Tahlia Street', city: 'Jeddah', region: 'Western', country_code: 'SA', phone: '+966122345678', email: 'jeddah@bank.sa', is_active: true },
-      { branch_id: 'BR004', branch_code: 'BR004', branch_name: 'Dammam Branch', branch_type: 'URBAN', address: 'King Saud Street', city: 'Dammam', region: 'Eastern', country_code: 'SA', phone: '+966132345678', email: 'dammam@bank.sa', is_active: true },
-      { branch_id: 'BR005', branch_code: 'BR005', branch_name: 'Makkah Branch', branch_type: 'URBAN', address: 'Ibrahim Khalil Road', city: 'Makkah', region: 'Western', country_code: 'SA', phone: '+966125345678', email: 'makkah@bank.sa', is_active: true }
+      { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch - Riyadh', branch_type: 'MAIN', address: 'King Fahd Road', city: 'Riyadh', state: 'Riyadh', country_code: 'SA', phone: '+966112345678', email: 'main@bank.sa', is_active: true },
+      { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Olaya Branch', branch_type: 'URBAN', address: 'Olaya Street', city: 'Riyadh', state: 'Riyadh', country_code: 'SA', phone: '+966112345679', email: 'olaya@bank.sa', is_active: true },
+      { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'Jeddah Main', branch_type: 'URBAN', address: 'Tahlia Street', city: 'Jeddah', state: 'Makkah', country_code: 'SA', phone: '+966122345678', email: 'jeddah@bank.sa', is_active: true },
+      { branch_id: 'BR004', branch_code: 'BR004', branch_name: 'Dammam Branch', branch_type: 'URBAN', address: 'King Saud Street', city: 'Dammam', state: 'Eastern', country_code: 'SA', phone: '+966132345678', email: 'dammam@bank.sa', is_active: true },
+      { branch_id: 'BR005', branch_code: 'BR005', branch_name: 'Makkah Branch', branch_type: 'URBAN', address: 'Ibrahim Khalil Road', city: 'Makkah', state: 'Makkah', country_code: 'SA', phone: '+966125345678', email: 'makkah@bank.sa', is_active: true }
     ];
     
     const { error: branchError } = await supabaseBanking.from(TABLES.BRANCHES).upsert(branches, { onConflict: 'branch_id' });
@@ -178,7 +178,7 @@ async function seedCustomers() {
     // Get customer types with proper error handling
     let { data: customerTypes, error: customerTypesError } = await supabaseBanking
       .from(TABLES.CUSTOMER_TYPES)
-      .select('customer_type_id, type_code');
+      .select('type_id, type_code');
     
     if (customerTypesError || !customerTypes || customerTypes.length === 0) {
       console.error('Could not fetch customer types:', customerTypesError);
@@ -200,7 +200,7 @@ async function seedCustomers() {
       // Retry fetching
       const { data: retryTypes } = await supabaseBanking
         .from(TABLES.CUSTOMER_TYPES)
-        .select('customer_type_id, type_code');
+        .select('type_id, type_code');
       
       if (!retryTypes || retryTypes.length === 0) {
         console.error('Still could not fetch customer types');
@@ -218,8 +218,8 @@ async function seedCustomers() {
       return;
     }
     
-    const indTypeId = indType.customer_type_id;
-    const corpTypeId = corpType ? corpType.customer_type_id : indTypeId;
+    const indTypeId = indType.type_id;
+    const corpTypeId = corpType ? corpType.type_id : indTypeId;
     
     // Get branches with error handling
     const { data: branches, error: branchesError } = await supabaseBanking
@@ -305,7 +305,7 @@ async function seedAccounts() {
   
   // Get reference data
   const { data: customers } = await supabaseBanking.from(TABLES.CUSTOMERS).select('customer_id, branch_id');
-  const { data: accountTypes } = await supabaseBanking.from('account_types').select('account_type_id');
+  const { data: accountTypes } = await supabaseBanking.from('account_types').select('type_id');
   
   const accounts = [];
   let accountNum = count + 1;
@@ -320,7 +320,7 @@ async function seedAccounts() {
       accounts.push({
         account_number: `ACC${String(accountNum++).padStart(10, '0')}`,
         customer_id: customer.customer_id,
-        account_type_id: randomChoice(accountTypes).account_type_id,
+        account_type_id: randomChoice(accountTypes).type_id,
         branch_id: customer.branch_id,
         currency_code: 'SAR',
         current_balance: balance,
