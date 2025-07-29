@@ -217,14 +217,50 @@ export default function DashboardDetail() {
       color: 'text-purple-500',
       service: chartDetailsService,
       isChart: true
+    },
+    // Add more common widget types
+    kpi: {
+      title: 'Key Performance Indicators',
+      icon: BarChart3,
+      color: 'text-blue-500',
+      service: customerDetailsService // Default to customer service for KPIs
+    },
+    chart: {
+      title: 'Chart Analytics',
+      icon: BarChart3,
+      color: 'text-gray-500',
+      service: chartDetailsService,
+      isChart: true
+    },
+    performance: {
+      title: 'Performance Analytics',
+      icon: TrendingUp,
+      color: 'text-green-500',
+      service: branchDetailsService
+    },
+    portfolio: {
+      title: 'Portfolio Analytics',
+      icon: PieChart,
+      color: 'text-purple-500',
+      service: loanDetailsService
+    },
+    // Generic fallback for unknown types
+    default: {
+      title: 'Analytics',
+      icon: BarChart3,
+      color: 'text-gray-500',
+      service: customerDetailsService
     }
   };
 
-  const config = widgetConfigs[type] || {};
+  const config = widgetConfigs[type] || widgetConfigs.default || {};
   const IconComponent = config.icon || BarChart3;
 
+  // Effect to fetch data
   useEffect(() => {
-    fetchData();
+    if (type && widgetId) {
+      fetchData();
+    }
   }, [type, widgetId]);
 
   const fetchData = async () => {
@@ -234,7 +270,11 @@ export default function DashboardDetail() {
     try {
       const service = config.service;
       if (!service) {
-        throw new Error('Invalid widget type');
+        // If no service is configured, try to handle as a generic widget
+        console.warn(`No service configured for widget type: ${type}`);
+        setError(`Widget type "${type}" is not supported`);
+        setLoading(false);
+        return;
       }
 
       // Handle chart widgets differently

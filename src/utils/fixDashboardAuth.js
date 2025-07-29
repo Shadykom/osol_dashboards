@@ -173,14 +173,25 @@ export const seedDashboardData = async () => {
       });
     }
     
+    // Use upsert to avoid duplicate key errors
     const { data: customers, error: customerError } = await bankingClient
       .from(TABLES.CUSTOMERS)
-      .insert(customerData)
+      .upsert(customerData, { onConflict: 'customer_id' })
       .select();
     
     if (customerError) {
       console.error('Error inserting customers:', customerError);
-      return false;
+      // Try to fetch existing customers
+      const { data: existingCustomers, error: fetchError } = await bankingClient
+        .from(TABLES.CUSTOMERS)
+        .select()
+        .limit(50);
+      
+      if (fetchError || !existingCustomers || existingCustomers.length === 0) {
+        console.error('Could not insert or fetch customers');
+        return false;
+      }
+      customers = existingCustomers;
     }
     
     // Insert sample customer contacts

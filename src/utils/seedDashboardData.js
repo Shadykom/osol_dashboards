@@ -44,143 +44,252 @@ export async function seedDashboardData() {
 async function seedReferenceData() {
   console.log('Seeding reference data...');
   
-  // Countries
-  const countries = [
-    { country_code: 'SA', country_name: 'Saudi Arabia', is_active: true },
-    { country_code: 'AE', country_name: 'United Arab Emirates', is_active: true },
-    { country_code: 'KW', country_name: 'Kuwait', is_active: true },
-    { country_code: 'QA', country_name: 'Qatar', is_active: true },
-    { country_code: 'BH', country_name: 'Bahrain', is_active: true },
-    { country_code: 'OM', country_name: 'Oman', is_active: true }
-  ];
+  try {
+    // Countries
+    const countries = [
+      { country_code: 'SA', country_name: 'Saudi Arabia', is_active: true },
+      { country_code: 'AE', country_name: 'United Arab Emirates', is_active: true },
+      { country_code: 'KW', country_name: 'Kuwait', is_active: true },
+      { country_code: 'QA', country_name: 'Qatar', is_active: true },
+      { country_code: 'BH', country_name: 'Bahrain', is_active: true },
+      { country_code: 'OM', country_name: 'Oman', is_active: true }
+    ];
+    
+    const { error: countryError } = await supabaseBanking.from(TABLES.COUNTRIES).upsert(countries, { onConflict: 'country_code' });
+    if (countryError && !countryError.message.includes('duplicate key')) {
+      console.error('Error upserting countries:', countryError);
+    }
+    
+    // Currencies - Fix the table name issue
+    const currencies = [
+      { currency_code: 'SAR', currency_name: 'Saudi Riyal', symbol: '﷼', is_active: true },
+      { currency_code: 'USD', currency_name: 'US Dollar', symbol: '$', is_active: true },
+      { currency_code: 'EUR', currency_name: 'Euro', symbol: '€', is_active: true },
+      { currency_code: 'GBP', currency_name: 'British Pound', symbol: '£', is_active: true }
+    ];
+    
+    const { error: currencyError } = await supabaseBanking.from(TABLES.CURRENCIES).upsert(currencies, { onConflict: 'currency_code' });
+    if (currencyError && !currencyError.message.includes('duplicate key')) {
+      console.error('Error upserting currencies:', currencyError);
+    }
+    
+    // Customer Types
+    const customerTypes = [
+      { type_code: 'IND', type_name: 'Individual', description: 'Individual customers' },
+      { type_code: 'CRP', type_name: 'Corporate', description: 'Corporate customers' },
+      { type_code: 'SME', type_name: 'Small & Medium Enterprise', description: 'SME customers' },
+      { type_code: 'GOV', type_name: 'Government', description: 'Government entities' }
+    ];
+    
+    const { error: customerTypeError } = await supabaseBanking.from(TABLES.CUSTOMER_TYPES).upsert(customerTypes, { onConflict: 'type_code' });
+    if (customerTypeError && !customerTypeError.message.includes('duplicate key')) {
+      console.error('Error upserting customer types:', customerTypeError);
+    }
+    
+    // Account Types - Use TABLES constant
+    const accountTypes = [
+      { type_code: 'SAV', type_name: 'Savings Account', description: 'Regular savings account', min_balance: 1000.00, interest_rate: 2.5 },
+      { type_code: 'CUR', type_name: 'Current Account', description: 'Current account for daily transactions', min_balance: 5000.00, interest_rate: 0.0 },
+      { type_code: 'DEP', type_name: 'Deposit Account', description: 'Fixed deposit account', min_balance: 10000.00, interest_rate: 4.5 },
+      { type_code: 'VIP', type_name: 'VIP Account', description: 'Premium account with special benefits', min_balance: 50000.00, interest_rate: 3.5 }
+    ];
+    
+    const { error: accountTypeError } = await supabaseBanking.from('account_types').upsert(accountTypes, { onConflict: 'type_code' });
+    if (accountTypeError && !accountTypeError.message.includes('duplicate key')) {
+      console.error('Error upserting account types:', accountTypeError);
+    }
+    
+    // Transaction Types - Use TABLES constant
+    const transactionTypes = [
+      { type_code: 'DEP', type_name: 'Deposit', description: 'Cash or check deposit', is_debit: false },
+      { type_code: 'WTH', type_name: 'Withdrawal', description: 'Cash withdrawal', is_debit: true },
+      { type_code: 'TRF', type_name: 'Transfer', description: 'Fund transfer', is_debit: true },
+      { type_code: 'PMT', type_name: 'Payment', description: 'Bill payment', is_debit: true },
+      { type_code: 'FEE', type_name: 'Fee', description: 'Service fee', is_debit: true },
+      { type_code: 'INT', type_name: 'Interest', description: 'Interest credit', is_debit: false }
+    ];
+    
+    const { error: transactionTypeError } = await supabaseBanking.from('transaction_types').upsert(transactionTypes, { onConflict: 'type_code' });
+    if (transactionTypeError && !transactionTypeError.message.includes('duplicate key')) {
+      console.error('Error upserting transaction types:', transactionTypeError);
+    }
   
-  await supabaseBanking.from(TABLES.COUNTRIES).upsert(countries, { onConflict: 'country_code' });
+    // Product Categories
+    const productCategories = [
+      { category_code: 'DEP', category_name: 'Deposits', description: 'Deposit products' },
+      { category_code: 'LON', category_name: 'Loans', description: 'Loan products' },
+      { category_code: 'CRD', category_name: 'Cards', description: 'Credit and debit cards' },
+      { category_code: 'INV', category_name: 'Investments', description: 'Investment products' }
+    ];
+    
+    const { error: productCategoryError } = await supabaseBanking.from(TABLES.PRODUCT_CATEGORIES).upsert(productCategories, { onConflict: 'category_code' });
+    if (productCategoryError && !productCategoryError.message.includes('duplicate key')) {
+      console.error('Error upserting product categories:', productCategoryError);
+    }
   
-  // Currencies
-  const currencies = [
-    { currency_code: 'SAR', currency_name: 'Saudi Riyal', symbol: '﷼', is_active: true },
-    { currency_code: 'USD', currency_name: 'US Dollar', symbol: '$', is_active: true },
-    { currency_code: 'EUR', currency_name: 'Euro', symbol: '€', is_active: true },
-    { currency_code: 'GBP', currency_name: 'British Pound', symbol: '£', is_active: true }
-  ];
+    // Get category IDs for products
+    const { data: categories } = await supabaseBanking.from(TABLES.PRODUCT_CATEGORIES).select('category_id, category_code');
+    const categoryMap = categories.reduce((acc, cat) => ({ ...acc, [cat.category_code]: cat.category_id }), {});
   
-  await supabaseBanking.from(TABLES.CURRENCIES).upsert(currencies, { onConflict: 'currency_code' });
+    // Products
+    const products = [
+      { product_code: 'SAV001', product_name: 'Basic Savings', category_id: categoryMap.DEP, description: 'Basic savings account', min_amount: 1000.00, max_amount: 1000000.00, interest_rate: 2.5, is_active: true },
+      { product_code: 'PRL001', product_name: 'Personal Loan', category_id: categoryMap.LON, description: 'Personal loan for individuals', min_amount: 10000.00, max_amount: 500000.00, interest_rate: 8.5, is_active: true },
+      { product_code: 'HML001', product_name: 'Home Loan', category_id: categoryMap.LON, description: 'Home mortgage loan', min_amount: 100000.00, max_amount: 5000000.00, interest_rate: 6.5, is_active: true },
+      { product_code: 'AUL001', product_name: 'Auto Loan', category_id: categoryMap.LON, description: 'Vehicle financing', min_amount: 50000.00, max_amount: 500000.00, interest_rate: 7.5, is_active: true },
+      { product_code: 'CRD001', product_name: 'Credit Card', category_id: categoryMap.CRD, description: 'Standard credit card', min_amount: 5000.00, max_amount: 100000.00, interest_rate: 18.0, is_active: true }
+    ];
+    
+    const { error: productError } = await supabaseBanking.from(TABLES.PRODUCTS).upsert(products, { onConflict: 'product_code' });
+    if (productError && !productError.message.includes('duplicate key')) {
+      console.error('Error upserting products:', productError);
+    }
   
-  // Customer Types
-  const customerTypes = [
-    { type_code: 'IND', type_name: 'Individual', description: 'Individual customers' },
-    { type_code: 'CRP', type_name: 'Corporate', description: 'Corporate customers' },
-    { type_code: 'SME', type_name: 'Small & Medium Enterprise', description: 'SME customers' },
-    { type_code: 'GOV', type_name: 'Government', description: 'Government entities' }
-  ];
-  
-  await supabaseBanking.from(TABLES.CUSTOMER_TYPES).upsert(customerTypes, { onConflict: 'type_code' });
-  
-  // Account Types
-  const accountTypes = [
-    { type_code: 'SAV', type_name: 'Savings Account', description: 'Regular savings account', min_balance: 1000.00, interest_rate: 2.5 },
-    { type_code: 'CUR', type_name: 'Current Account', description: 'Current account for daily transactions', min_balance: 5000.00, interest_rate: 0.0 },
-    { type_code: 'DEP', type_name: 'Deposit Account', description: 'Fixed deposit account', min_balance: 10000.00, interest_rate: 4.5 },
-    { type_code: 'VIP', type_name: 'VIP Account', description: 'Premium account with special benefits', min_balance: 50000.00, interest_rate: 3.5 }
-  ];
-  
-  await supabaseBanking.from('account_types').upsert(accountTypes, { onConflict: 'type_code' });
-  
-  // Transaction Types
-  const transactionTypes = [
-    { type_code: 'DEP', type_name: 'Deposit', description: 'Cash or check deposit', is_debit: false },
-    { type_code: 'WTH', type_name: 'Withdrawal', description: 'Cash withdrawal', is_debit: true },
-    { type_code: 'TRF', type_name: 'Transfer', description: 'Fund transfer', is_debit: true },
-    { type_code: 'PMT', type_name: 'Payment', description: 'Bill payment', is_debit: true },
-    { type_code: 'FEE', type_name: 'Fee', description: 'Service fee', is_debit: true },
-    { type_code: 'INT', type_name: 'Interest', description: 'Interest credit', is_debit: false }
-  ];
-  
-  await supabaseBanking.from('transaction_types').upsert(transactionTypes, { onConflict: 'type_code' });
-  
-  // Product Categories
-  const productCategories = [
-    { category_code: 'DEP', category_name: 'Deposits', description: 'Deposit products' },
-    { category_code: 'LON', category_name: 'Loans', description: 'Loan products' },
-    { category_code: 'CRD', category_name: 'Cards', description: 'Credit and debit cards' },
-    { category_code: 'INV', category_name: 'Investments', description: 'Investment products' }
-  ];
-  
-  await supabaseBanking.from(TABLES.PRODUCT_CATEGORIES).upsert(productCategories, { onConflict: 'category_code' });
-  
-  // Get category IDs for products
-  const { data: categories } = await supabaseBanking.from(TABLES.PRODUCT_CATEGORIES).select('category_id, category_code');
-  const categoryMap = categories.reduce((acc, cat) => ({ ...acc, [cat.category_code]: cat.category_id }), {});
-  
-  // Products
-  const products = [
-    { product_code: 'SAV001', product_name: 'Basic Savings', category_id: categoryMap.DEP, description: 'Basic savings account', min_amount: 1000.00, max_amount: 1000000.00, interest_rate: 2.5, is_active: true },
-    { product_code: 'PRL001', product_name: 'Personal Loan', category_id: categoryMap.LON, description: 'Personal loan for individuals', min_amount: 10000.00, max_amount: 500000.00, interest_rate: 8.5, is_active: true },
-    { product_code: 'HML001', product_name: 'Home Loan', category_id: categoryMap.LON, description: 'Home mortgage loan', min_amount: 100000.00, max_amount: 5000000.00, interest_rate: 6.5, is_active: true },
-    { product_code: 'AUL001', product_name: 'Auto Loan', category_id: categoryMap.LON, description: 'Vehicle financing', min_amount: 50000.00, max_amount: 500000.00, interest_rate: 7.5, is_active: true },
-    { product_code: 'CRD001', product_name: 'Credit Card', category_id: categoryMap.CRD, description: 'Standard credit card', min_amount: 5000.00, max_amount: 100000.00, interest_rate: 18.0, is_active: true }
-  ];
-  
-  await supabaseBanking.from(TABLES.PRODUCTS).upsert(products, { onConflict: 'product_code' });
-  
-  // Branches
-  const branches = [
-    { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch - Riyadh', branch_type: 'MAIN', address: 'King Fahd Road', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345678', email: 'main@bank.sa', is_active: true },
-    { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Olaya Branch', branch_type: 'URBAN', address: 'Olaya Street', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345679', email: 'olaya@bank.sa', is_active: true },
-    { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'Jeddah Main', branch_type: 'URBAN', address: 'Tahlia Street', city: 'Jeddah', region: 'Western', country_code: 'SA', phone: '+966122345678', email: 'jeddah@bank.sa', is_active: true },
-    { branch_id: 'BR004', branch_code: 'BR004', branch_name: 'Dammam Branch', branch_type: 'URBAN', address: 'King Saud Street', city: 'Dammam', region: 'Eastern', country_code: 'SA', phone: '+966132345678', email: 'dammam@bank.sa', is_active: true },
-    { branch_id: 'BR005', branch_code: 'BR005', branch_name: 'Makkah Branch', branch_type: 'URBAN', address: 'Ibrahim Khalil Road', city: 'Makkah', region: 'Western', country_code: 'SA', phone: '+966125345678', email: 'makkah@bank.sa', is_active: true }
-  ];
-  
-  await supabaseBanking.from(TABLES.BRANCHES).upsert(branches, { onConflict: 'branch_id' });
+    // Branches
+    const branches = [
+      { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch - Riyadh', branch_type: 'MAIN', address: 'King Fahd Road', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345678', email: 'main@bank.sa', is_active: true },
+      { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Olaya Branch', branch_type: 'URBAN', address: 'Olaya Street', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345679', email: 'olaya@bank.sa', is_active: true },
+      { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'Jeddah Main', branch_type: 'URBAN', address: 'Tahlia Street', city: 'Jeddah', region: 'Western', country_code: 'SA', phone: '+966122345678', email: 'jeddah@bank.sa', is_active: true },
+      { branch_id: 'BR004', branch_code: 'BR004', branch_name: 'Dammam Branch', branch_type: 'URBAN', address: 'King Saud Street', city: 'Dammam', region: 'Eastern', country_code: 'SA', phone: '+966132345678', email: 'dammam@bank.sa', is_active: true },
+      { branch_id: 'BR005', branch_code: 'BR005', branch_name: 'Makkah Branch', branch_type: 'URBAN', address: 'Ibrahim Khalil Road', city: 'Makkah', region: 'Western', country_code: 'SA', phone: '+966125345678', email: 'makkah@bank.sa', is_active: true }
+    ];
+    
+    const { error: branchError } = await supabaseBanking.from(TABLES.BRANCHES).upsert(branches, { onConflict: 'branch_id' });
+    if (branchError && !branchError.message.includes('duplicate key')) {
+      console.error('Error upserting branches:', branchError);
+    }
+  } catch (error) {
+    console.error('Error seeding reference data:', error);
+  }
 }
 
 async function seedCustomers() {
   console.log('Seeding customers...');
   
-  // Check existing customers
-  const { count } = await supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true });
-  
-  if (count >= 100) {
-    console.log('Sufficient customers already exist');
-    return;
-  }
-  
-  // Get reference data
-  const { data: customerTypes } = await supabaseBanking.from(TABLES.CUSTOMER_TYPES).select('customer_type_id, type_code');
-  const indTypeId = customerTypes.find(t => t.type_code === 'IND').customer_type_id;
-  
-  const { data: branches } = await supabaseBanking.from(TABLES.BRANCHES).select('branch_id');
-  
-  const customers = [];
-  const numCustomers = 200;
-  
-  for (let i = count + 1; i <= count + numCustomers; i++) {
-    const firstName = randomChoice(firstNames);
-    const lastName = randomChoice(lastNames);
-    const gender = Math.random() > 0.5 ? 'M' : 'F';
+  try {
+    // Check existing customers
+    const { count } = await supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true });
     
-    customers.push({
-      customer_number: `CUS${String(i).padStart(6, '0')}`,
-      customer_type_id: indTypeId,
-      first_name: firstName,
-      last_name: lastName,
-      full_name: `${firstName} ${lastName}`,
-      date_of_birth: new Date(1970 + randomInt(0, 40), randomInt(0, 12), randomInt(1, 28)).toISOString().split('T')[0],
-      gender: gender,
-      nationality: 'SA',
-      national_id: `1${String(randomInt(100000000, 999999999)).padStart(9, '0')}`,
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace('-', '')}${randomInt(100, 999)}@email.com`,
-      mobile_number: `05${String(randomInt(10000000, 99999999)).padStart(8, '0')}`,
-      customer_segment: randomChoice(['BASIC', 'SILVER', 'SILVER', 'GOLD', 'GOLD', 'GOLD', 'PREMIUM']),
-      kyc_status: Math.random() < 0.9 ? 'VERIFIED' : 'PENDING',
-      risk_category: randomChoice(['LOW', 'LOW', 'LOW', 'MEDIUM', 'MEDIUM', 'HIGH']),
-      is_active: true,
-      branch_id: randomChoice(branches).branch_id
-    });
+    if (count >= 100) {
+      console.log('Sufficient customers already exist');
+      return;
+    }
+    
+    // Get customer types with proper error handling
+    let { data: customerTypes, error: customerTypesError } = await supabaseBanking
+      .from(TABLES.CUSTOMER_TYPES)
+      .select('customer_type_id, type_code');
+    
+    if (customerTypesError || !customerTypes || customerTypes.length === 0) {
+      console.error('Could not fetch customer types:', customerTypesError);
+      // Create default customer types if they don't exist
+      const defaultTypes = [
+        { type_code: 'IND', type_name: 'Individual', description: 'Individual customers' },
+        { type_code: 'CRP', type_name: 'Corporate', description: 'Corporate customers' }
+      ];
+      
+      const { error: insertError } = await supabaseBanking
+        .from(TABLES.CUSTOMER_TYPES)
+        .upsert(defaultTypes, { onConflict: 'type_code' });
+      
+      if (insertError) {
+        console.error('Could not create customer types:', insertError);
+        return;
+      }
+      
+      // Retry fetching
+      const { data: retryTypes } = await supabaseBanking
+        .from(TABLES.CUSTOMER_TYPES)
+        .select('customer_type_id, type_code');
+      
+      if (!retryTypes || retryTypes.length === 0) {
+        console.error('Still could not fetch customer types');
+        return;
+      }
+      
+      customerTypes = retryTypes;
+    }
+    
+    const indType = customerTypes.find(t => t.type_code === 'IND');
+    const corpType = customerTypes.find(t => t.type_code === 'CRP' || t.type_code === 'CORP');
+    
+    if (!indType) {
+      console.error('Individual customer type not found');
+      return;
+    }
+    
+    const indTypeId = indType.customer_type_id;
+    const corpTypeId = corpType ? corpType.customer_type_id : indTypeId;
+    
+    // Get branches with error handling
+    const { data: branches, error: branchesError } = await supabaseBanking
+      .from(TABLES.BRANCHES)
+      .select('branch_id');
+    
+    if (branchesError || !branches || branches.length === 0) {
+      console.error('Could not fetch branches:', branchesError);
+      return;
+    }
+    
+    const customers = [];
+    
+    // Create corporate customers
+    for (let i = 1; i <= 20; i++) {
+      customers.push({
+        customer_number: `CRP${String(i).padStart(6, '0')}`,
+        customer_type_id: corpTypeId,
+        first_name: 'Company',
+        last_name: `${i}`,
+        full_name: `Company ${i} Ltd.`,
+        date_of_birth: null,
+        gender: null,
+        nationality: 'SA',
+        national_id: `7${String(randomInt(100000000, 999999999)).padStart(9, '0')}`,
+        email: `info@company${i}.com`,
+        mobile_number: `05${String(randomInt(10000000, 99999999)).padStart(8, '0')}`,
+        customer_segment: randomChoice(['SILVER', 'GOLD', 'PREMIUM']),
+        kyc_status: 'VERIFIED',
+        risk_category: randomChoice(['LOW', 'MEDIUM', 'HIGH']),
+        is_active: true,
+        branch_id: randomChoice(branches).branch_id
+      });
+    }
+    
+    // Create individual customers
+    for (let i = 1; i <= 80; i++) {
+      const firstName = randomChoice(firstNames);
+      const lastName = randomChoice(lastNames);
+      const gender = ['Ahmed', 'Mohammed', 'Abdullah', 'Khalid', 'Fahad', 'Omar', 'Ali', 'Hassan', 'Ibrahim', 'Yousef'].includes(firstName) ? 'M' : 'F';
+      
+      customers.push({
+        customer_number: `CUS${String(i).padStart(6, '0')}`,
+        customer_type_id: indTypeId,
+        first_name: firstName,
+        last_name: lastName,
+        full_name: `${firstName} ${lastName}`,
+        date_of_birth: new Date(1970 + randomInt(0, 40), randomInt(0, 12), randomInt(1, 28)).toISOString().split('T')[0],
+        gender: gender,
+        nationality: 'SA',
+        national_id: `1${String(randomInt(100000000, 999999999)).padStart(9, '0')}`,
+        email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace('-', '')}${randomInt(100, 999)}@email.com`,
+        mobile_number: `05${String(randomInt(10000000, 99999999)).padStart(8, '0')}`,
+        customer_segment: randomChoice(['BASIC', 'SILVER', 'SILVER', 'GOLD', 'GOLD', 'GOLD', 'PREMIUM']),
+        kyc_status: Math.random() < 0.9 ? 'VERIFIED' : 'PENDING',
+        risk_category: randomChoice(['LOW', 'LOW', 'LOW', 'MEDIUM', 'MEDIUM', 'HIGH']),
+        is_active: true,
+        branch_id: randomChoice(branches).branch_id
+      });
+    }
+    
+    const { error: insertError } = await supabaseBanking.from(TABLES.CUSTOMERS).insert(customers);
+    if (insertError) {
+      console.error('Error inserting customers:', insertError);
+    } else {
+      console.log(`Successfully seeded ${customers.length} customers`);
+    }
+  } catch (error) {
+    console.error('Error in seedCustomers:', error);
   }
-  
-  await supabaseBanking.from(TABLES.CUSTOMERS).insert(customers);
 }
 
 async function seedAccounts() {
