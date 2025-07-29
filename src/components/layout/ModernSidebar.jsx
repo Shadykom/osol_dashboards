@@ -6,6 +6,7 @@ import osoulLogo from '@/assets/osol-logo.png';
 import { 
   LayoutDashboard, 
   Users, 
+  User, 
   FileText, 
   TrendingUp, 
   Shield, 
@@ -235,6 +236,12 @@ const ModernSidebar = () => {
           label: t('sidebar.transactions'),
           path: '/transactions',
           icon: FileText
+        },
+        {
+          id: 'customer-footprint',
+          label: t('sidebar.customerFootprint'),
+          path: '/dashboards/customer-footprint',
+          icon: User
         },
         {
           id: 'reports',

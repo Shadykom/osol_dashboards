@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
 import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
 import { OperationsDashboard } from './pages/OperationsDashboard';
+import CustomerFootprintDashboard from './components/dashboard/CustomerFootprintDashboard';
 import { Customers } from './pages/Customers';
 import { Accounts } from './pages/Accounts';
 import { Transactions } from './pages/Transactions';
@@ -193,6 +194,7 @@ function SafeApp() {
             <Route path="/dashboards/custom" element={<CustomDashboard />} />
             <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
             <Route path="/dashboards/operations" element={<OperationsDashboard />} />
+            <Route path="/dashboards/customer-footprint" element={<CustomerFootprintDashboard />} />
             
             {/* Customer Routes */}
             <Route path="/customers" element={<Customers />} />

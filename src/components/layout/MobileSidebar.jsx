@@ -55,6 +55,7 @@ const navigationData = [
     items: [
       { id: 'executive', title: 'Executive Dashboard', href: '/dashboards/executive', icon: Building2 },
       { id: 'operations', title: 'Operations Dashboard', href: '/dashboards/operations', icon: Activity },
+      { id: 'customer-footprint', title: 'Customer Footprint', href: '/dashboards/customer-footprint', icon: User },
       { id: 'custom', title: 'Custom Dashboard', href: '/dashboards/custom', icon: Target }
     ]
   },

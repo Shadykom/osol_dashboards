@@ -29,10 +29,33 @@ import { format, parseISO, differenceInDays, addDays, subMonths } from 'date-fns
 import { ar, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { CustomerService } from '@/services/customerService';
 
 // Mock Service for Customer Data
 const CustomerFootprintService = {
   searchCustomers: async (query) => {
+    // First, attempt to fetch matching customers from the real database (Supabase)
+    try {
+      const resp = await CustomerService.getCustomers({ search: query, page: 1, limit: 20 });
+      if (resp?.success && resp.data?.length) {
+        // Map DB response to the shape expected by the dashboard
+        const mapped = resp.data.map((c) => ({
+          customer_id: c.customer_id,
+          full_name: c.full_name || `${c.first_name || ''} ${c.middle_name || ''} ${c.last_name || ''}`.trim(),
+          national_id: c.national_id || c.customer_id,
+          email: c.email,
+          phone: c.phone,
+          customer_type: c.segment || 'Customer',
+          risk_category: (c.risk_category || 'Low').charAt(0).toUpperCase() + (c.risk_category || 'Low').slice(1).toLowerCase(),
+          created_at: c.created_at,
+          branch: { id: c.branch_id || 'BR001', name: c.branch_name || 'Main Branch' }
+        }));
+        return { success: true, data: mapped };
+      }
+    } catch (err) {
+      console.error('CustomerFootprintService.searchCustomers DB error, falling back to mock:', err);
+    }
+    
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
