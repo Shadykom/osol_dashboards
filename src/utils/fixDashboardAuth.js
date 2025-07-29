@@ -76,9 +76,24 @@ export const seedDashboardData = async () => {
       const { data: insertedBranches, error: branchError } = await bankingClient
         .from(TABLES.BRANCHES)
         .upsert([
-          { branch_id: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN' },
-          { branch_id: 'BR002', branch_name: 'Downtown Branch', branch_type: 'URBAN' },
-          { branch_id: 'BR003', branch_name: 'West Side Branch', branch_type: 'URBAN' }
+          { 
+            branch_id: 'BR001',
+            branch_code: 'BR001', // Required field in database
+            branch_name: 'Main Branch', 
+            branch_type: 'MAIN' 
+          },
+          { 
+            branch_id: 'BR002',
+            branch_code: 'BR002', // Required field in database
+            branch_name: 'Downtown Branch', 
+            branch_type: 'URBAN' 
+          },
+          { 
+            branch_id: 'BR003',
+            branch_code: 'BR003', // Required field in database
+            branch_name: 'West Side Branch', 
+            branch_type: 'URBAN' 
+          }
         ], { onConflict: 'branch_id' })
         .select();
       
@@ -119,19 +134,30 @@ export const seedDashboardData = async () => {
     }
     
     // Insert sample customer types
-    const { error: customerTypeError } = await bankingClient
+    // First check if customer types already exist
+    const { data: existingTypes, error: checkTypesError } = await bankingClient
       .from(TABLES.CUSTOMER_TYPES)
-      .upsert([
-        { type_code: 'IND', type_name: 'Individual', description: 'Individual customers' },
-        { type_code: 'CORP', type_name: 'Corporate', description: 'Corporate customers' },
-        { type_code: 'SME', type_name: 'SME', description: 'Small and Medium Enterprises' }
-      ], { onConflict: 'type_code' });
+      .select('type_code')
+      .in('type_code', ['IND', 'CORP', 'SME']);
     
-    if (customerTypeError) {
-      console.error('Error inserting customer types:', customerTypeError);
+    if (!checkTypesError && (!existingTypes || existingTypes.length === 0)) {
+      // Only insert if they don't exist
+      const { error: customerTypeError } = await bankingClient
+        .from(TABLES.CUSTOMER_TYPES)
+        .insert([
+          { type_code: 'IND', type_name: 'Individual', description: 'Individual customers' },
+          { type_code: 'CORP', type_name: 'Corporate', description: 'Corporate customers' },
+          { type_code: 'SME', type_name: 'SME', description: 'Small and Medium Enterprises' }
+        ]);
+      
+      if (customerTypeError) {
+        console.error('Error inserting customer types:', customerTypeError);
+      }
+    } else {
+      console.log('Customer types already exist, skipping insertion');
     }
     
-    // Insert sample customers
+    // Insert sample customers (without email and phone_number)
     const customerData = [];
     for (let i = 1; i <= 50; i++) {
       customerData.push({
@@ -139,8 +165,6 @@ export const seedDashboardData = async () => {
         first_name: `Customer`,
         last_name: `${i}`,
         full_name: `Customer ${i}`,
-        email: `customer${i}@example.com`,
-        phone_number: `+1234567${String(i).padStart(4, '0')}`,
         customer_type_id: i % 3 === 0 ? 2 : 1, // 1 for IND, 2 for CORP based on typical setup
         onboarding_branch: branches[i % branches.length].branch_id,
         kyc_status: 'VERIFIED',
@@ -157,6 +181,35 @@ export const seedDashboardData = async () => {
     if (customerError) {
       console.error('Error inserting customers:', customerError);
       return false;
+    }
+    
+    // Insert sample customer contacts
+    const customerContactData = [];
+    customers.forEach((customer, index) => {
+      // Add email contact
+      customerContactData.push({
+        customer_id: customer.customer_id,
+        contact_type: 'EMAIL',
+        contact_value: `customer${index + 1}@example.com`,
+        is_primary: true,
+        is_verified: true
+      });
+      // Add phone contact
+      customerContactData.push({
+        customer_id: customer.customer_id,
+        contact_type: 'MOBILE',
+        contact_value: `+1234567${String(index + 1).padStart(4, '0')}`,
+        is_primary: false,
+        is_verified: true
+      });
+    });
+
+    const { error: customerContactError } = await bankingClient
+      .from(TABLES.CUSTOMER_CONTACTS)
+      .insert(customerContactData);
+
+    if (customerContactError) {
+      console.error('Error inserting customer contacts:', customerContactError);
     }
     
     // Insert sample accounts

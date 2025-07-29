@@ -82,6 +82,10 @@ import {
 } from 'recharts';
 import { fixDashboard } from '@/utils/fixDashboardAuth';
 import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelper';
+import { useAuthStore } from '@/store/authStore';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
+import DataSeeder from '@/components/dashboard/DataSeeder';
 
 // Mock Supabase clients for demonstration
 const mockSupabaseBanking = {
@@ -1626,6 +1630,12 @@ export default function EnhancedDashboard() {
     );
   };
 
+  // Add schema test function
+  const handleSchemaTest = async () => {
+    console.log('Running schema test...');
+    await testDatabaseSchema();
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-[1600px] mx-auto">
       {/* Header Section */}
@@ -2033,6 +2043,24 @@ export default function EnhancedDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Data Seeder Component */}
+      <div className="mb-6">
+        <DataSeeder />
+      </div>
+
+      {/* Schema Test Button - Add this for debugging */}
+      <div className="mb-6">
+        <Button 
+          onClick={handleSchemaTest}
+          variant="outline"
+          size="sm"
+          className="gap-2"
+        >
+          <Database className="h-4 w-4" />
+          Test Database Schema
+        </Button>
+      </div>
     </div>
   );
 }
