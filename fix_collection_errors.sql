@@ -53,15 +53,50 @@ CREATE INDEX IF NOT EXISTS idx_daily_collection_summary_date
 ON kastle_collection.daily_collection_summary(summary_date);
 
 -- 5. Fix collection_officers table structure
+-- First check the current structure
+DO $$
+BEGIN
+    -- Check if team_id is INTEGER and needs to be changed
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'kastle_collection' 
+        AND table_name = 'collection_officers' 
+        AND column_name = 'team_id' 
+        AND data_type = 'integer'
+    ) THEN
+        -- Drop any foreign key constraints first
+        ALTER TABLE kastle_collection.collection_officers 
+        DROP CONSTRAINT IF EXISTS collection_officers_team_id_fkey;
+        
+        -- Change team_id to VARCHAR
+        ALTER TABLE kastle_collection.collection_officers 
+        ALTER COLUMN team_id TYPE VARCHAR(50) USING team_id::VARCHAR;
+    END IF;
+END $$;
+
 -- Ensure all required columns exist
 ALTER TABLE kastle_collection.collection_officers
-ADD COLUMN IF NOT EXISTS officer_id VARCHAR(50) PRIMARY KEY,
-ADD COLUMN IF NOT EXISTS officer_name VARCHAR(255) NOT NULL,
+ADD COLUMN IF NOT EXISTS officer_id VARCHAR(50),
+ADD COLUMN IF NOT EXISTS officer_name VARCHAR(255),
 ADD COLUMN IF NOT EXISTS officer_type VARCHAR(50),
 ADD COLUMN IF NOT EXISTS team_id VARCHAR(50),
 ADD COLUMN IF NOT EXISTS contact_number VARCHAR(50),
 ADD COLUMN IF NOT EXISTS email VARCHAR(255),
 ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
+
+-- Add primary key if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE table_schema = 'kastle_collection' 
+        AND table_name = 'collection_officers' 
+        AND constraint_type = 'PRIMARY KEY'
+    ) THEN
+        ALTER TABLE kastle_collection.collection_officers 
+        ADD PRIMARY KEY (officer_id);
+    END IF;
+END $$;
 
 -- 6. Disable Row Level Security on all affected tables
 ALTER TABLE kastle_banking.collection_cases DISABLE ROW LEVEL SECURITY;
@@ -95,6 +130,44 @@ INSERT INTO kastle_collection.collection_officers (
     ('OFF003', 'محمد سالم', 'FIELD', 'TEAM002', '+966503456789', 'mohammed@example.com', 'ACTIVE'),
     ('OFF004', 'نورا خالد', 'CALL_CENTER', 'TEAM002', '+966504567890', 'nora@example.com', 'ACTIVE')
 ON CONFLICT (officer_id) DO NOTHING;
+
+-- Fix collection_teams table structure first
+DO $$
+BEGIN
+    -- Check if team_id is INTEGER and needs to be changed
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'kastle_collection' 
+        AND table_name = 'collection_teams' 
+        AND column_name = 'team_id' 
+        AND data_type = 'integer'
+    ) THEN
+        -- Change team_id to VARCHAR
+        ALTER TABLE kastle_collection.collection_teams 
+        ALTER COLUMN team_id TYPE VARCHAR(50) USING team_id::VARCHAR;
+    END IF;
+END $$;
+
+-- Ensure collection_teams has all required columns
+ALTER TABLE kastle_collection.collection_teams
+ADD COLUMN IF NOT EXISTS team_id VARCHAR(50),
+ADD COLUMN IF NOT EXISTS team_name VARCHAR(255),
+ADD COLUMN IF NOT EXISTS team_type VARCHAR(50),
+ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
+
+-- Add primary key if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE table_schema = 'kastle_collection' 
+        AND table_name = 'collection_teams' 
+        AND constraint_type = 'PRIMARY KEY'
+    ) THEN
+        ALTER TABLE kastle_collection.collection_teams 
+        ADD PRIMARY KEY (team_id);
+    END IF;
+END $$;
 
 -- Insert sample collection teams
 INSERT INTO kastle_collection.collection_teams (
