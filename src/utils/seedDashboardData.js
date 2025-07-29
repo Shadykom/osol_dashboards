@@ -125,14 +125,14 @@ async function seedReferenceData() {
   
   // Branches
   const branches = [
-    { branch_code: 'BR001', branch_name: 'Main Branch - Riyadh', branch_type: 'MAIN', address: 'King Fahd Road', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345678', email: 'main@bank.sa', is_active: true },
-    { branch_code: 'BR002', branch_name: 'Olaya Branch', branch_type: 'BRANCH', address: 'Olaya Street', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345679', email: 'olaya@bank.sa', is_active: true },
-    { branch_code: 'BR003', branch_name: 'Jeddah Main', branch_type: 'BRANCH', address: 'Tahlia Street', city: 'Jeddah', region: 'Western', country_code: 'SA', phone: '+966122345678', email: 'jeddah@bank.sa', is_active: true },
-    { branch_code: 'BR004', branch_name: 'Dammam Branch', branch_type: 'BRANCH', address: 'King Saud Street', city: 'Dammam', region: 'Eastern', country_code: 'SA', phone: '+966132345678', email: 'dammam@bank.sa', is_active: true },
-    { branch_code: 'BR005', branch_name: 'Makkah Branch', branch_type: 'BRANCH', address: 'Ibrahim Khalil Road', city: 'Makkah', region: 'Western', country_code: 'SA', phone: '+966125345678', email: 'makkah@bank.sa', is_active: true }
+    { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch - Riyadh', branch_type: 'MAIN', address: 'King Fahd Road', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345678', email: 'main@bank.sa', is_active: true },
+    { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Olaya Branch', branch_type: 'URBAN', address: 'Olaya Street', city: 'Riyadh', region: 'Central', country_code: 'SA', phone: '+966112345679', email: 'olaya@bank.sa', is_active: true },
+    { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'Jeddah Main', branch_type: 'URBAN', address: 'Tahlia Street', city: 'Jeddah', region: 'Western', country_code: 'SA', phone: '+966122345678', email: 'jeddah@bank.sa', is_active: true },
+    { branch_id: 'BR004', branch_code: 'BR004', branch_name: 'Dammam Branch', branch_type: 'URBAN', address: 'King Saud Street', city: 'Dammam', region: 'Eastern', country_code: 'SA', phone: '+966132345678', email: 'dammam@bank.sa', is_active: true },
+    { branch_id: 'BR005', branch_code: 'BR005', branch_name: 'Makkah Branch', branch_type: 'URBAN', address: 'Ibrahim Khalil Road', city: 'Makkah', region: 'Western', country_code: 'SA', phone: '+966125345678', email: 'makkah@bank.sa', is_active: true }
   ];
   
-  await supabaseBanking.from(TABLES.BRANCHES).upsert(branches, { onConflict: 'branch_code' });
+  await supabaseBanking.from(TABLES.BRANCHES).upsert(branches, { onConflict: 'branch_id' });
 }
 
 async function seedCustomers() {
