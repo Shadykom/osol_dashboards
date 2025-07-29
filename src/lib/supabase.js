@@ -250,7 +250,7 @@ export function getClientForTable(tableName) {
 }
 
 // Diagnostic function for debugging
-window.checkSupabaseConfig = () => {
+window.checkSupabaseConfig = async () => {
   console.log('=== SUPABASE CONFIGURATION CHECK ===');
   console.log('URL:', supabaseUrl);
   console.log('Key:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 30)}...${supabaseAnonKey.slice(-20)}` : 'NOT SET');
@@ -258,14 +258,27 @@ window.checkSupabaseConfig = () => {
   console.log('Is Configured:', isSupabaseConfigured);
   console.log('===================================');
   
-  // Test a simple query
-  supabaseBanking.from('customers').select('*').limit(1).then(({ data, error }) => {
-    if (error) {
-      console.error('Test query failed:', error);
-    } else {
-      console.log('Test query success:', data);
+  // Test a simple query to kastle_banking schema
+  console.log('\n🔍 Testing kastle_banking schema access...');
+  const { data, error } = await supabaseBanking.from('customers').select('*').limit(1);
+  
+  if (error) {
+    console.error('❌ Test query failed:', error);
+    if (error.code === '42P01') {
+      console.error('\n⚠️  SCHEMA NOT EXPOSED!');
+      console.error('Please follow these steps:');
+      console.error('1. Go to: https://app.supabase.com/project/bzlenegoilnswsbanxgb/settings/api');
+      console.error('2. Find "Exposed schemas" section');
+      console.error('3. Add "kastle_banking" to the list');
+      console.error('4. Click Save');
+      console.error('\nCurrent error:', error.message);
     }
-  });
+  } else {
+    console.log('✅ Test query success! Schema is properly exposed.');
+    console.log('Sample data:', data);
+  }
+  
+  return !error;
 };
 
 // Auto-run diagnostic on load
