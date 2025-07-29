@@ -211,7 +211,8 @@ export const TABLES = {
   HARDSHIP_APPLICATIONS: 'hardship_applications',
   OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
   OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
-  CASE_BUCKET_HISTORY: 'case_bucket_history'
+  CASE_BUCKET_HISTORY: 'case_bucket_history',
+  COLLECTION_CAMPAIGNS: 'collection_campaigns'
 };
 
 // Separate table constants for collection schema (without schema prefix)

@@ -626,7 +626,7 @@ const WIDGET_CATALOG = {
           startOfMonth.setHours(0, 0, 0, 0);
           
           const { data: summary, error } = await supabaseCollection
-            .from('daily_collection_summary')
+            .from(TABLES.DAILY_COLLECTION_SUMMARY)
             .select('collection_rate')
             .gte('summary_date', startOfMonth.toISOString())
             .order('summary_date', { ascending: false })

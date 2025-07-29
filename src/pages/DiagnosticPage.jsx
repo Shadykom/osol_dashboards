@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 // Immediate diagnostic logging
 console.log('🔍 DiagnosticPage loaded');
@@ -58,7 +58,7 @@ export default function DiagnosticPage() {
     // Test supabase client (public schema - deprecated)
     try {
       const { data, error } = await supabaseBanking
-        .from('customers')
+        .from(TABLES.CUSTOMERS)
         .select('*')
         .limit(1);
       
@@ -75,7 +75,7 @@ export default function DiagnosticPage() {
     // Test supabaseBanking client
     try {
       const { data, error } = await supabaseBanking
-        .from('customers')
+        .from(TABLES.CUSTOMERS)
         .select('*')
         .limit(1);
       
@@ -91,7 +91,7 @@ export default function DiagnosticPage() {
     // Test supabaseCollection client
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select('*')
         .limit(1);
       

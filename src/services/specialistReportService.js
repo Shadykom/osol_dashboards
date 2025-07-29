@@ -40,7 +40,7 @@ class SpecialistReportService {
         
         if (teamIds.length > 0) {
           const { data: teams, error: teamsError } = await supabaseCollection
-            .from('collection_teams')
+            .from(TABLES.COLLECTION_TEAMS)
             .select('team_id, team_name, team_type')
             .in('team_id', teamIds);
 
@@ -147,7 +147,7 @@ class SpecialistReportService {
   async getSpecialistById(specialistId) {
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select(`
           officer_id,
           officer_name,
@@ -174,7 +174,7 @@ class SpecialistReportService {
         if (error.code === '42703' && error.message.includes('team_lead_id')) {
           console.warn('team_lead_id column not found in collection_teams, retrying without it');
           const { data: retryData, error: retryError } = await supabaseCollection
-            .from('collection_officers')
+            .from(TABLES.COLLECTION_OFFICERS)
             .select(`
               officer_id,
               officer_name,
@@ -233,7 +233,7 @@ class SpecialistReportService {
     try {
       // جلب الحالات المخصصة للأخصائي من جدول collection_cases
       let query = supabaseBanking
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select(`
           case_id,
           case_number,
@@ -423,7 +423,7 @@ class SpecialistReportService {
       
       // جلب تفاعلات الأخصائي
       const { data: interactions, error } = await supabaseCollection
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select(`
           interaction_id,
           interaction_type,
@@ -561,7 +561,7 @@ class SpecialistReportService {
       
       // First try with all columns
       let query = supabaseCollection
-        .from('promise_to_pay')
+        .from(TABLES.PROMISE_TO_PAY)
         .select(`
           ptp_id,
           case_id,
@@ -583,7 +583,7 @@ class SpecialistReportService {
         if (error.code === '42703' && (error.message.includes('actual_payment_date') || error.message.includes('actual_payment_amount'))) {
           console.warn('Some columns not found in promise_to_pay, retrying with basic columns');
           const { data: retryData, error: retryError } = await supabaseCollection
-            .from('promise_to_pay')
+            .from(TABLES.PROMISE_TO_PAY)
             .select(`
               ptp_id,
               case_id,
@@ -619,7 +619,7 @@ class SpecialistReportService {
         const caseIds = [...new Set(data.map(ptp => ptp.case_id))];
         
         const { data: cases, error: casesError } = await supabaseBanking
-          .from('collection_cases')
+          .from(TABLES.COLLECTION_CASES)
           .select(`
             case_id,
             case_number,
@@ -1161,7 +1161,7 @@ class SpecialistReportService {
     try {
       // جلب آخر التفاعلات
       const { data: recentInteractions } = await supabaseCollection
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select(`
           interaction_type,
           interaction_datetime,
@@ -1182,7 +1182,7 @@ class SpecialistReportService {
       
       if (caseIds.length > 0) {
         const { data: cases } = await supabaseBanking
-          .from('collection_cases')
+          .from(TABLES.COLLECTION_CASES)
           .select(`
             case_id,
             customer_id,

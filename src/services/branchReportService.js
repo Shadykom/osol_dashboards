@@ -1,10 +1,6 @@
 // src/services/branchReportService.js
-import { 
-  supabaseCollection, 
-  supabaseBanking,
-  TABLES, 
-  getClientForTable
-} from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
+import { executeWithSchemaFallback } from '@/utils/supabaseHelper';
 
 // Simple API response formatter
 function formatApiResponse(data, error = null, pagination = null) {
@@ -162,7 +158,7 @@ export class BranchReportService {
       
       // Get collection cases first
       let casesQuery = supabaseBanking
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select('*')
         .in('loan_account_number', loanNumbers);
 
@@ -181,7 +177,7 @@ export class BranchReportService {
         let officers = [];
         if (officerIds.length > 0) {
           const { data } = await supabaseCollection
-            .from('collection_officers')
+            .from(TABLES.COLLECTION_OFFICERS)
             .select('officer_id, officer_name')
             .in('officer_id', officerIds);
           officers = data || [];
@@ -191,7 +187,7 @@ export class BranchReportService {
         let interactions = [];
         if (caseIds.length > 0) {
           const { data } = await supabaseCollection
-            .from('collection_interactions')
+            .from(TABLES.COLLECTION_INTERACTIONS)
             .select('case_id, interaction_type, outcome, interaction_datetime')
             .in('case_id', caseIds);
           interactions = data || [];
@@ -201,7 +197,7 @@ export class BranchReportService {
         let ptps = [];
         if (caseIds.length > 0) {
           const { data } = await supabaseCollection
-            .from('promise_to_pay')
+            .from(TABLES.PROMISE_TO_PAY)
             .select('case_id, ptp_amount, ptp_date, status')
             .in('case_id', caseIds);
           ptps = data || [];
@@ -341,7 +337,7 @@ export class BranchReportService {
       const performanceData = await Promise.all((officers || []).map(async (officer) => {
         // Get cases assigned to officer
         const { data: officerCases, error: casesError } = await supabaseBanking
-          .from('collection_cases')
+          .from(TABLES.COLLECTION_CASES)
           .select(`
             case_id,
             total_outstanding,
@@ -363,7 +359,7 @@ export class BranchReportService {
           
           // Get interactions
           const { data: interactions } = await supabaseCollection
-            .from('collection_interactions')
+            .from(TABLES.COLLECTION_INTERACTIONS)
             .select('interaction_type')
             .in('case_id', caseIds)
             .eq('interaction_type', 'CALL');
@@ -372,7 +368,7 @@ export class BranchReportService {
 
           // Get PTPs
           const { data: ptps } = await supabaseCollection
-            .from('promise_to_pay')
+            .from(TABLES.PROMISE_TO_PAY)
             .select('status')
             .in('case_id', caseIds);
           
@@ -519,7 +515,7 @@ export class BranchReportService {
       const caseIds = cases?.map(c => c.case_id) || [];
       
       const { data: interactions, error } = await supabaseCollection
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select('*')
         .in('case_id', caseIds)
         .gte('interaction_datetime', startDate);

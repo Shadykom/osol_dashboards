@@ -34,6 +34,7 @@ DROP VIEW IF EXISTS public.audit_trail CASCADE;
 DROP VIEW IF EXISTS public.auth_user_profiles CASCADE;
 DROP VIEW IF EXISTS public.system_performance CASCADE;
 DROP VIEW IF EXISTS public.hardship_applications CASCADE;
+DROP VIEW IF EXISTS public.collection_campaigns CASCADE;
 
 -- Create views for all kastle_banking tables
 
@@ -130,6 +131,9 @@ SELECT * FROM kastle_banking.system_performance;
 CREATE OR REPLACE VIEW public.hardship_applications AS
 SELECT * FROM kastle_banking.hardship_applications;
 
+CREATE OR REPLACE VIEW public.collection_campaigns AS
+SELECT * FROM kastle_banking.collection_campaigns;
+
 -- Audit and auth tables
 CREATE OR REPLACE VIEW public.audit_trail AS
 SELECT * FROM kastle_banking.audit_trail;
@@ -156,7 +160,7 @@ BEGIN
             'collection_rates', 'delinquencies', 'daily_collection_summary',
             'officer_performance_metrics', 'officer_performance_summary',
             'case_bucket_history', 'system_performance', 'hardship_applications',
-            'audit_trail', 'auth_user_profiles'
+            'audit_trail', 'auth_user_profiles', 'collection_campaigns'
         )
     LOOP
         EXECUTE format('GRANT SELECT ON public.%I TO anon, authenticated', view_name);
