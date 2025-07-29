@@ -53,30 +53,69 @@ export const seedDashboardData = async () => {
     // Check if data already exists
     const accountsCount = await checkTableData(bankingClient, TABLES.ACCOUNTS);
     const customersCount = await checkTableData(bankingClient, TABLES.CUSTOMERS);
+    const branchesCount = await checkTableData(bankingClient, TABLES.BRANCHES);
     
-    console.log('Current data counts:', { accounts: accountsCount, customers: customersCount });
+    console.log('Current data counts:', { 
+      accounts: accountsCount, 
+      customers: customersCount,
+      branches: branchesCount 
+    });
     
     // If data exists, skip seeding
-    if (accountsCount > 0 && customersCount > 0) {
+    if (accountsCount > 0 && customersCount > 0 && branchesCount > 0) {
       console.log('Data already exists, skipping seed');
       return true;
     }
     
     console.log('Seeding sample data...');
     
-    // Insert sample branches
-    const { data: branches, error: branchError } = await bankingClient
-      .from(TABLES.BRANCHES)
-      .upsert([
-        { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', is_active: true },
-        { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'URBAN', is_active: true },
-        { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'West Side Branch', branch_type: 'URBAN', is_active: true }
-      ], { onConflict: 'branch_id' })
-      .select();
+    // Check if branches already exist before inserting
+    let branches = [];
+    if (branchesCount === 0) {
+      // Insert sample branches only if they don't exist
+      const { data: insertedBranches, error: branchError } = await bankingClient
+        .from(TABLES.BRANCHES)
+        .insert([
+          { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', is_active: true },
+          { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'URBAN', is_active: true },
+          { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'West Side Branch', branch_type: 'URBAN', is_active: true }
+        ])
+        .select();
+      
+      if (branchError) {
+        console.error('Error inserting branches:', branchError);
+        // Try to fetch existing branches instead
+        const { data: existingBranches, error: fetchError } = await bankingClient
+          .from(TABLES.BRANCHES)
+          .select()
+          .limit(3);
+        
+        if (fetchError || !existingBranches || existingBranches.length === 0) {
+          console.error('Could not insert or fetch branches');
+          return false;
+        }
+        branches = existingBranches;
+      } else {
+        branches = insertedBranches;
+      }
+    } else {
+      // Fetch existing branches
+      const { data: existingBranches, error: fetchError } = await bankingClient
+        .from(TABLES.BRANCHES)
+        .select()
+        .limit(3);
+      
+      if (fetchError || !existingBranches || existingBranches.length === 0) {
+        console.error('Could not fetch existing branches');
+        return false;
+      }
+      branches = existingBranches;
+    }
     
-    if (branchError) {
-      console.error('Error inserting branches:', branchError);
-      return false;
+    // If we already have customers and accounts, we're done
+    if (customersCount > 0 && accountsCount > 0) {
+      console.log('Customers and accounts already exist, skipping rest of seed');
+      return true;
     }
     
     // Insert sample customer types
@@ -212,7 +251,11 @@ export const seedDashboardData = async () => {
 };
 
 // Export a function to fix dashboard authentication and data
-export const fixDashboard = async () => {
+export const fixDashboard = async (options = {}) => {
+  // Check environment variable to disable seeding
+  const disableSeedingFromEnv = import.meta.env.VITE_DISABLE_SEEDING === 'true';
+  const { skipSeeding = disableSeedingFromEnv } = options;
+  
   console.log('Starting dashboard fix...');
   
   // Step 1: Check authentication
@@ -224,11 +267,15 @@ export const fixDashboard = async () => {
     return true;
   }
   
-  // Step 2: Seed sample data if needed (only if authenticated)
-  const seedSuccess = await seedDashboardData();
-  if (!seedSuccess) {
-    console.error('Failed to seed data');
-    // Don't fail completely if seeding fails
+  // Step 2: Seed sample data if needed (only if authenticated and not skipped)
+  if (!skipSeeding) {
+    const seedSuccess = await seedDashboardData();
+    if (!seedSuccess) {
+      console.error('Failed to seed data');
+      // Don't fail completely if seeding fails
+    }
+  } else {
+    console.log('Skipping data seeding as requested');
   }
   
   console.log('Dashboard fix completed');
