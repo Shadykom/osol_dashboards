@@ -5,6 +5,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import sidebar styles */
+@import './styles/sidebar.css';
+
 @layer base {
   :root {
     --background: 0 0% 100%;

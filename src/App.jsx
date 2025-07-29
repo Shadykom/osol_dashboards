@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Layout } from './components/layout/Layout';
+import { ModernLayout } from './components/layout';
 
 import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
@@ -184,7 +184,7 @@ function SafeApp() {
     <div className="app">
       <Router>
         <RouteRedirect />
-        <Layout>
+        <ModernLayout>
           <Routes>
             {/* Main Routes */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -276,7 +276,7 @@ function SafeApp() {
             {/* 404 Route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Layout>
+        </ModernLayout>
                   <Toaster />
       </Router>
     </div>
