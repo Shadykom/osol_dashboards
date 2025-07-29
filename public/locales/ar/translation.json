@@ -1087,5 +1087,38 @@
     "userSatisfaction": "رضا المستخدم",
     "technicalIssues": "المشكلات التقنية",
     "enhancementOpportunities": "فرص التحسين"
+  },
+  "notifications": {
+    "exportComingSoon": "وظيفة التصدير قادمة قريبًا",
+    "addCustomerComingSoon": "وظيفة إضافة عميل قادمة قريبًا",
+    "filterComingSoon": "وظيفة التصفية قادمة قريبًا",
+    "customerDetailsComingSoon": "تفاصيل العملاء قادمة قريبًا",
+    "scheduleReportComingSoon": "وظيفة جدولة التقرير قادمة قريبًا",
+    "customReportComingSoon": "وظيفة التقرير المخصص قادمة قريبًا",
+    "scheduleComingSoon": "وظيفة الجدولة قادمة قريبًا",
+    "emailComingSoon": "وظيفة البريد الإلكتروني قادمة قريبًا",
+    "newAccountComingSoon": "وظيفة الحساب الجديد قادمة قريبًا",
+    "dataRefreshed": "تم تحديث البيانات",
+    "refreshSuccess": "تم تحديث البيانات بنجاح",
+    "reportGeneratedSuccess": "تم إنشاء {{reportName}} بنجاح",
+    "newTransactionReceived": "تم استلام معاملة جديدة",
+    "analyticsDataRefreshed": "تم تحديث بيانات التحليلات"
+  },
+  "errors": {
+    "failedToLoad": "فشل تحميل {{item}}",
+    "failedToLoadCustomers": "فشل تحميل العملاء",
+    "failedToLoadAccounts": "فشل تحميل الحسابات",
+    "failedToLoadTransactions": "فشل تحميل المعاملات",
+    "failedToLoadTransactionStats": "فشل تحميل إحصائيات المعاملات",
+    "failedToLoadAccountStats": "فشل تحميل إحصائيات الحسابات",
+    "failedToLoadLoans": "فشل تحميل القروض",
+    "failedToLoadLoanStats": "فشل تحميل إحصائيات القروض",
+    "failedToLoadReports": "فشل تحميل التقارير الحديثة",
+    "failedToLoadCompliance": "فشل تحميل بيانات الامتثال",
+    "failedToLoadAnalytics": "فشل تحميل بيانات التحليلات",
+    "errorLoadingData": "خطأ في تحميل البيانات",
+    "connectionError": "خطأ في الاتصال",
+    "somethingWentWrong": "حدث خطأ ما",
+    "tryAgainLater": "يرجى المحاولة مرة أخرى لاحقًا"
   }
 }

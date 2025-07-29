@@ -1138,5 +1138,38 @@
     "userSatisfaction": "User Satisfaction",
     "technicalIssues": "Technical Issues",
     "enhancementOpportunities": "Enhancement Opportunities"
+  },
+  "notifications": {
+    "exportComingSoon": "Export functionality coming soon",
+    "addCustomerComingSoon": "Add customer functionality coming soon",
+    "filterComingSoon": "Filter functionality coming soon",
+    "customerDetailsComingSoon": "Customer details coming soon",
+    "scheduleReportComingSoon": "Schedule report functionality coming soon",
+    "customReportComingSoon": "Custom report functionality coming soon",
+    "scheduleComingSoon": "Schedule functionality coming soon",
+    "emailComingSoon": "Email functionality coming soon",
+    "newAccountComingSoon": "New account functionality coming soon",
+    "dataRefreshed": "Data refreshed",
+    "refreshSuccess": "Data refreshed successfully",
+    "reportGeneratedSuccess": "{{reportName}} generated successfully",
+    "newTransactionReceived": "New transaction received",
+    "analyticsDataRefreshed": "Analytics data refreshed"
+  },
+  "errors": {
+    "failedToLoad": "Failed to load {{item}}",
+    "failedToLoadCustomers": "Failed to load customers",
+    "failedToLoadAccounts": "Failed to load accounts",
+    "failedToLoadTransactions": "Failed to load transactions",
+    "failedToLoadTransactionStats": "Failed to load transaction statistics",
+    "failedToLoadAccountStats": "Failed to load account statistics",
+    "failedToLoadLoans": "Failed to load loans",
+    "failedToLoadLoanStats": "Failed to load loan statistics",
+    "failedToLoadReports": "Failed to load recent reports",
+    "failedToLoadCompliance": "Failed to load compliance data",
+    "failedToLoadAnalytics": "Failed to load analytics data",
+    "errorLoadingData": "Error loading data",
+    "connectionError": "Connection Error",
+    "somethingWentWrong": "Something went wrong",
+    "tryAgainLater": "Please try again later"
   }
 }

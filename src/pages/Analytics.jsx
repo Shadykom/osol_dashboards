@@ -115,7 +115,7 @@ export function Analytics() {
       });
     } catch (error) {
       console.error('Error fetching analytics data:', error);
-      toast.error('Failed to load analytics data');
+      toast.error(t('errors.failedToLoadAnalytics'));
     } finally {
       setLoading(false);
     }
@@ -240,7 +240,7 @@ export function Analytics() {
     setRefreshing(true);
     await fetchAnalyticsData();
     setRefreshing(false);
-    toast.success('Analytics data refreshed');
+    toast.success(t('notifications.analyticsDataRefreshed'));
   };
 
   const containerVariants = {
@@ -335,7 +335,7 @@ export function Analytics() {
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
-          <Button className="gap-2" onClick={() => toast.info('Export functionality coming soon')}>
+          <Button className="gap-2" onClick={() => toast.info(t('notifications.exportComingSoon'))}>
             <Download className="h-4 w-4" />
             {t('analytics.export')}
           </Button>
