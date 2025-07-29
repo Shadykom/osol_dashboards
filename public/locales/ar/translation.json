@@ -756,6 +756,21 @@
       "collectionTrends": "اتجاهات التحصيل",
       "collection": "التحصيل",
       "recovery": "الاستجابة"
+    },
+    "performance": {
+      "contactRate": "معدل الاتصال",
+      "totalCalls": "إجمالي المكالمات",
+      "totalPTPs": "إجمالي الوعود بالدفع",
+      "keepRate": "معدل الالتزام",
+      "totalPromised": "إجمالي المبالغ الموعودة",
+      "fulfillmentRate": "معدل الوفاء",
+      "currentPeriod": "الفترة الحالية",
+      "previousPeriod": "الفترة السابقة",
+      "growth": "النمو",
+      "improvement": "التحسن",
+      "nextMonthProjection": "توقعات الشهر القادم",
+      "quarterTarget": "هدف الربع",
+      "annualGoal": "الهدف السنوي"
     }
   },
   "sidebar": {
