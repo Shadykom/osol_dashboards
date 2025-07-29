@@ -13,11 +13,26 @@
   
   // Pre-define ethereum to prevent conflicts
   try {
-    // Check if ethereum already exists and is not configurable
+    // Check if ethereum already exists
     const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
     
-    if (!descriptor || descriptor.configurable !== false) {
-      // Only define if it doesn't exist or is configurable
+    if (descriptor) {
+      // If ethereum already exists, just track it
+      console.log('Ethereum already defined with descriptor:', descriptor);
+      ethereumDefined = true;
+      
+      // If it has a getter, try to get the value
+      if (descriptor.get) {
+        try {
+          ethereumValue = descriptor.get();
+        } catch (e) {
+          console.warn('Could not get ethereum value:', e);
+        }
+      } else {
+        ethereumValue = window.ethereum;
+      }
+    } else {
+      // Only define if it doesn't exist
       originalDefineProperty.call(Object, window, 'ethereum', {
         get() {
           return ethereumValue;
@@ -34,13 +49,10 @@
         enumerable: true
       });
       ethereumDefined = true;
-    } else {
-      console.log('Ethereum already defined and not configurable, skipping pre-definition');
-      ethereumDefined = true;
-      ethereumValue = window.ethereum;
     }
   } catch(e) {
-    console.warn('Failed to pre-define ethereum property:', e);
+    console.warn('Failed to handle ethereum property:', e);
+    ethereumDefined = true; // Mark as defined to prevent further attempts
   }
   
   // Override Object.defineProperty to intercept ethereum definitions
@@ -50,7 +62,7 @@
       if (ethereumDefined) {
         console.warn('Attempted to redefine window.ethereum, ignoring...');
         // Update the value if we don't have one yet
-        if (!ethereumValue && descriptor.value) {
+        if (!ethereumValue && descriptor && descriptor.value) {
           ethereumValue = descriptor.value;
         }
         return obj;
@@ -69,6 +81,23 @@
       throw e;
     }
   };
+  
+  // Also override setter attempts
+  try {
+    const originalSet = window.__lookupSetter__ ? window.__lookupSetter__.bind(window) : null;
+    if (originalSet) {
+      window.__defineSetter__('ethereum', function(value) {
+        if (!ethereumValue) {
+          ethereumValue = value;
+          console.log('Ethereum provider set via setter');
+        } else {
+          console.warn('Attempted to overwrite ethereum provider via setter, ignoring...');
+        }
+      });
+    }
+  } catch(e) {
+    // Ignore setter override failures
+  }
   
   console.log('Ethereum conflict resolver initialized');
 })();
