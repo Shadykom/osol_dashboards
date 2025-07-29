@@ -22,7 +22,12 @@ import {
   customerDetailsService, 
   accountDetailsService, 
   revenueDetailsService, 
-  transactionDetailsService 
+  transactionDetailsService,
+  loanDetailsService,
+  branchDetailsService,
+  collectionDetailsService,
+  productDetailsService,
+  chartDetailsService
 } from '@/services/dashboardDetailsService';
 import { ChartWidget } from '@/components/widgets/ChartWidget';
 import { cn } from '@/lib/utils';
@@ -150,6 +155,68 @@ export default function DashboardDetail() {
       icon: Activity,
       color: 'text-purple-500',
       service: transactionDetailsService
+    },
+    loans: {
+      title: 'Loan Portfolio Analytics',
+      icon: DollarSign,
+      color: 'text-orange-500',
+      service: loanDetailsService
+    },
+    loan: {
+      title: 'Loan Portfolio Analytics',
+      icon: DollarSign,
+      color: 'text-orange-500',
+      service: loanDetailsService
+    },
+    branches: {
+      title: 'Branch Performance Analytics',
+      icon: BarChart3,
+      color: 'text-indigo-500',
+      service: branchDetailsService
+    },
+    branch: {
+      title: 'Branch Performance Analytics',
+      icon: BarChart3,
+      color: 'text-indigo-500',
+      service: branchDetailsService
+    },
+    collection: {
+      title: 'Collection Analytics',
+      icon: TrendingUp,
+      color: 'text-red-500',
+      service: collectionDetailsService
+    },
+    collections: {
+      title: 'Collection Analytics',
+      icon: TrendingUp,
+      color: 'text-red-500',
+      service: collectionDetailsService
+    },
+    products: {
+      title: 'Product Performance Analytics',
+      icon: PieChart,
+      color: 'text-teal-500',
+      service: productDetailsService
+    },
+    product: {
+      title: 'Product Performance Analytics',
+      icon: PieChart,
+      color: 'text-teal-500',
+      service: productDetailsService
+    },
+    customer: {
+      title: 'Customer Segment Analytics',
+      icon: Users,
+      color: 'text-blue-500',
+      service: chartDetailsService,
+      isChart: true
+    },
+    daily: {
+      title: 'Daily Transaction Analytics',
+      icon: Activity,
+      color: 'text-purple-500',
+      service: chartDetailsService,
+      isChart: true
     }
   };
 
@@ -170,15 +237,29 @@ export default function DashboardDetail() {
         throw new Error('Invalid widget type');
       }
 
-      // Fetch all data in parallel
+      // Handle chart widgets differently
+      if (config.isChart) {
+        const chartResult = await service.getDetailsByChartType(type, widgetId);
+        if (chartResult.error) throw new Error(chartResult.error);
+        setData(chartResult.data);
+        setBreakdown(null);
+        setTrends(null);
+        return;
+      }
+
+      // Fetch all data in parallel for regular widgets
       const [overviewResult, breakdownResult, trendsResult] = await Promise.all([
         service.getOverviewStats(),
         service.getBreakdown ? service.getBreakdown() : Promise.resolve({ data: null }),
         service.getTrends ? service.getTrends(30) : 
           (service.getCustomerTrends ? service.getCustomerTrends(30) : 
           (service.getRevenueTrends ? service.getRevenueTrends(30) : 
+          (service.getLoanTrends ? service.getLoanTrends(30) :
+          (service.getBranchTrends ? service.getBranchTrends(null, 30) :
+          (service.getCollectionTrends ? service.getCollectionTrends(30) :
+          (service.getProductTrends ? service.getProductTrends(null, 30) :
           (service.getHourlyDistribution ? service.getHourlyDistribution() : 
-          Promise.resolve({ data: null }))))
+          Promise.resolve({ data: null })))))))
       ]);
 
       if (overviewResult.error) throw new Error(overviewResult.error);
@@ -384,35 +465,153 @@ export default function DashboardDetail() {
                 </>
               )}
 
-              {type === 'transactions' && (
-                <>
-                  <StatCard
-                    title="Today's Count"
-                    value={data.todayCount?.toLocaleString()}
-                    description="Transactions today"
-                    icon={Activity}
-                  />
-                  <StatCard
-                    title="This Week"
-                    value={data.weekCount?.toLocaleString()}
-                    description="Week to date"
-                    icon={Calendar}
-                  />
-                  <StatCard
-                    title="Today's Volume"
-                    value={`SAR ${(data.todayVolume / 1000000).toFixed(1)}M`}
-                    description="Total transaction value"
-                    icon={DollarSign}
-                  />
-                  <StatCard
-                    title="Success Rate"
-                    value={`${data.successRate}%`}
-                    trend="up"
-                    description="Transaction success rate"
-                    icon={TrendingUp}
-                  />
-                </>
-              )}
+                              {type === 'transactions' && (
+                  <>
+                    <StatCard
+                      title="Today's Count"
+                      value={data.todayCount?.toLocaleString()}
+                      description="Transactions today"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="This Week"
+                      value={data.weekCount?.toLocaleString()}
+                      description="Week to date"
+                      icon={Calendar}
+                    />
+                    <StatCard
+                      title="Today's Volume"
+                      value={`SAR ${(data.todayVolume / 1000000).toFixed(1)}M`}
+                      description="Total transaction value"
+                      icon={DollarSign}
+                    />
+                    <StatCard
+                      title="Success Rate"
+                      value={`${data.successRate}%`}
+                      trend="up"
+                      description="Transaction success rate"
+                      icon={TrendingUp}
+                    />
+                  </>
+                )}
+
+                {(type === 'loans' || type === 'loan') && (
+                  <>
+                    <StatCard
+                      title="Total Loans"
+                      value={data.totalLoans?.toLocaleString()}
+                      description="All loan accounts"
+                      icon={DollarSign}
+                    />
+                    <StatCard
+                      title="Active Loans"
+                      value={data.activeLoans?.toLocaleString()}
+                      description="Currently active"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="Total Outstanding"
+                      value={`SAR ${(data.totalOutstanding / 1000000).toFixed(1)}M`}
+                      description="Total amount outstanding"
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="NPL Ratio"
+                      value={`${data.nplRatio}%`}
+                      trend={parseFloat(data.nplRatio) > 5 ? 'down' : 'up'}
+                      description="Non-performing loans"
+                      icon={TrendingDown}
+                    />
+                  </>
+                )}
+
+                {(type === 'branches' || type === 'branch') && (
+                  <>
+                    <StatCard
+                      title="Total Branches"
+                      value={data.totalBranches?.toLocaleString()}
+                      description="All branch locations"
+                      icon={BarChart3}
+                    />
+                    <StatCard
+                      title="Total Customers"
+                      value={data.totalCustomers?.toLocaleString()}
+                      description="Across all branches"
+                      icon={Users}
+                    />
+                    <StatCard
+                      title="Top Branch"
+                      value={data.topBranch}
+                      description={`SAR ${(data.topBranchBalance / 1000000).toFixed(1)}M`}
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="Avg per Branch"
+                      value={`SAR ${(data.averageBalancePerBranch / 1000000).toFixed(1)}M`}
+                      description="Average balance"
+                      icon={BarChart3}
+                    />
+                  </>
+                )}
+
+                {type === 'collection' || type === 'collections') && (
+                  <>
+                    <StatCard
+                      title="Total Cases"
+                      value={data.totalCases?.toLocaleString()}
+                      description="All collection cases"
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="Active Cases"
+                      value={data.activeCases?.toLocaleString()}
+                      description="Currently being pursued"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="Collection Rate"
+                      value={`${data.collectionRate}%`}
+                      trend="up"
+                      description="Amount collected vs outstanding"
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="Total Collected"
+                      value={`SAR ${(data.totalCollected / 1000000).toFixed(1)}M`}
+                      description="Total amount recovered"
+                      icon={DollarSign}
+                    />
+                  </>
+                )}
+
+                {(type === 'products' || type === 'product') && (
+                  <>
+                    <StatCard
+                      title="Total Products"
+                      value={data.totalProducts?.toLocaleString()}
+                      description="All product offerings"
+                      icon={PieChart}
+                    />
+                    <StatCard
+                      title="Active Products"
+                      value={data.activeProducts?.toLocaleString()}
+                      description="Currently available"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="Top Product"
+                      value={data.topProduct}
+                      description={`SAR ${(data.topProductRevenue / 1000000).toFixed(1)}M revenue`}
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="Avg Interest Rate"
+                      value={`${data.averageInterestRate?.toFixed(2)}%`}
+                      description="Across all products"
+                      icon={BarChart3}
+                    />
+                  </>
+                )}
             </div>
           )}
 
@@ -432,9 +631,87 @@ export default function DashboardDetail() {
                   xAxisKey="segment"
                   yAxisKey="count"
                   showLegend={true}
+                  clickable={false}
                 />
               </CardContent>
             </Card>
+          )}
+
+          {/* Special handling for chart widgets */}
+          {config.isChart && data && (
+            <div className="grid gap-4">
+              {type === 'customer' && data.segments && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Detailed Segment Analysis</CardTitle>
+                    <CardDescription>Customer segments with financial metrics</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {Object.entries(data.segments).map(([segment, info]) => (
+                        <div key={segment} className="border rounded-lg p-4">
+                          <h4 className="font-semibold mb-2">{segment}</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Count:</span>
+                              <span className="ml-2 font-medium">{info.count}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Total Balance:</span>
+                              <span className="ml-2 font-medium">SAR {(info.totalBalance / 1000000).toFixed(1)}M</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Avg Balance:</span>
+                              <span className="ml-2 font-medium">SAR {(info.averageBalance / 1000).toFixed(1)}K</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">New This Month:</span>
+                              <span className="ml-2 font-medium">{info.newThisMonth}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {type === 'daily' && data.typeBreakdown && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Transaction Type Analysis</CardTitle>
+                    <CardDescription>Last 24 hours breakdown by transaction type</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {Object.entries(data.typeBreakdown).map(([txType, info]) => (
+                        <div key={txType} className="border rounded-lg p-4">
+                          <h4 className="font-semibold mb-2">{txType}</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Count:</span>
+                              <span className="ml-2 font-medium">{info.count}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Volume:</span>
+                              <span className="ml-2 font-medium">SAR {(info.volume / 1000000).toFixed(2)}M</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Success:</span>
+                              <span className="ml-2 font-medium text-green-600">{info.successful}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Failed:</span>
+                              <span className="ml-2 font-medium text-red-600">{info.failed}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
         </TabsContent>
 
@@ -471,6 +748,53 @@ export default function DashboardDetail() {
                   <BreakdownCard title="By Channel" data={breakdown.byChannel || {}} type="bar" />
                 </>
               )}
+
+              {(type === 'loans' || type === 'loan') && (
+                <>
+                  <BreakdownCard title="By Product" data={
+                    Object.entries(breakdown.byProduct || {}).reduce((acc, [key, val]) => {
+                      acc[key] = val.count || val;
+                      return acc;
+                    }, {})
+                  } />
+                  <BreakdownCard title="By Status" data={breakdown.byStatus || {}} />
+                  <BreakdownCard title="By Risk Category" data={breakdown.byRiskCategory || {}} type="bar" />
+                  <BreakdownCard title="By Amount Range" data={breakdown.byAmountRange || {}} />
+                </>
+              )}
+
+              {(type === 'branches' || type === 'branch') && (
+                <>
+                  <BreakdownCard title="By Branch Performance" data={
+                    Object.entries(breakdown.byBranch || {}).reduce((acc, [key, val]) => {
+                      acc[key] = val.totalBalance || val;
+                      return acc;
+                    }, {})
+                  } type="bar" />
+                  <BreakdownCard title="By City" data={breakdown.byCity || {}} />
+                </>
+              )}
+
+              {(type === 'collection' || type === 'collections') && (
+                <>
+                  <BreakdownCard title="By Status" data={breakdown.byStatus || {}} />
+                  <BreakdownCard title="By Priority" data={breakdown.byPriority || {}} />
+                  <BreakdownCard title="By Age" data={breakdown.byAge || {}} type="bar" />
+                  <BreakdownCard title="By Method" data={breakdown.byMethod || {}} />
+                </>
+              )}
+
+              {(type === 'products' || type === 'product') && (
+                <>
+                  <BreakdownCard title="By Category" data={breakdown.byCategory || {}} />
+                  <BreakdownCard title="Product Performance" data={
+                    Object.entries(breakdown.byProduct || {}).reduce((acc, [key, val]) => {
+                      acc[key] = val.totalAmount || val;
+                      return acc;
+                    }, {})
+                  } type="bar" />
+                </>
+              )}
             </div>
           )}
         </TabsContent>
@@ -480,7 +804,10 @@ export default function DashboardDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {type === 'transactions' ? 'Hourly Distribution' : '30-Day Trend'}
+                  {type === 'transactions' ? 'Hourly Distribution' : 
+                   (type === 'loans' || type === 'loan') ? 'Loan Disbursements & Collections' :
+                   (type === 'collection' || type === 'collections') ? 'Collection Performance' :
+                   '30-Day Trend'}
                 </CardTitle>
                 <CardDescription>
                   {type === 'transactions' 
@@ -489,19 +816,83 @@ export default function DashboardDetail() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartWidget
-                  data={trends.dates?.map((date, index) => ({
-                    date: date,
-                    value: trends.values[index]
-                  })) || trends.hours?.map((hour, index) => ({
-                    hour: hour,
-                    value: trends.values[index]
-                  }))}
-                  chartType={type === 'transactions' ? 'bar' : 'line'}
-                  xAxisKey={type === 'transactions' ? 'hour' : 'date'}
-                  yAxisKey="value"
-                  height={300}
-                />
+                {(type === 'loans' || type === 'loan') && trends.disbursements ? (
+                  <div className="space-y-4">
+                    <ChartWidget
+                      data={trends.dates?.map((date, index) => ({
+                        date: date,
+                        disbursements: trends.disbursements[index],
+                        collections: trends.collections[index]
+                      }))}
+                      chartType="line"
+                      xAxisKey="date"
+                      yAxisKey="disbursements"
+                      height={300}
+                      clickable={false}
+                    />
+                  </div>
+                ) : (type === 'collection' || type === 'collections') && trends.newCases ? (
+                  <div className="space-y-4">
+                    <ChartWidget
+                      data={trends.dates?.map((date, index) => ({
+                        date: date,
+                        newCases: trends.newCases[index],
+                        resolvedCases: trends.resolvedCases[index],
+                        collections: (trends.collections[index] / 1000000).toFixed(2)
+                      }))}
+                      chartType="line"
+                      xAxisKey="date"
+                      yAxisKey="newCases"
+                      height={300}
+                      clickable={false}
+                    />
+                  </div>
+                ) : (type === 'branches' || type === 'branch') && trends.newCustomers ? (
+                  <div className="space-y-4">
+                    <ChartWidget
+                      data={trends.dates?.map((date, index) => ({
+                        date: date,
+                        customers: trends.newCustomers[index],
+                        accounts: trends.newAccounts[index]
+                      }))}
+                      chartType="line"
+                      xAxisKey="date"
+                      yAxisKey="customers"
+                      height={300}
+                      clickable={false}
+                    />
+                  </div>
+                ) : (type === 'products' || type === 'product') && trends.newLoans ? (
+                  <div className="space-y-4">
+                    <ChartWidget
+                      data={trends.dates?.map((date, index) => ({
+                        date: date,
+                        loans: trends.newLoans[index],
+                        amount: (trends.amounts[index] / 1000000).toFixed(2)
+                      }))}
+                      chartType="bar"
+                      xAxisKey="date"
+                      yAxisKey="amount"
+                      height={300}
+                      clickable={false}
+                    />
+                  </div>
+                ) : (
+                  <ChartWidget
+                    data={trends.dates?.map((date, index) => ({
+                      date: date,
+                      value: trends.values[index]
+                    })) || trends.hours?.map((hour, index) => ({
+                      hour: hour,
+                      value: trends.values[index]
+                    }))}
+                    chartType={type === 'transactions' ? 'bar' : 'line'}
+                    xAxisKey={type === 'transactions' ? 'hour' : 'date'}
+                    yAxisKey="value"
+                    height={300}
+                    clickable={false}
+                  />
+                )}
               </CardContent>
             </Card>
           )}
