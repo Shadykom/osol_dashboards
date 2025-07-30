@@ -227,18 +227,65 @@ const CustomerFootprintDashboard = () => {
 
   // Export report
   const handleExport = async (format) => {
-    if (!selectedCustomer) return;
+    if (!selectedCustomer || !customerData) return;
     
     try {
-      const result = await CustomerFootprintService.exportReport(selectedCustomer.customer_id, format);
-      if (result.success) {
-        // Handle download
-        console.log('Report exported:', result.url);
+      // For now, we'll implement a client-side export
+      if (format === 'excel') {
+        // Create CSV content
+        const csvContent = generateCSVContent(customerData);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `customer_footprint_${selectedCustomer.customer_id}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (format === 'pdf') {
+        // For PDF, we'll print the page
+        window.print();
       }
     } catch (error) {
       console.error('Export error:', error);
     }
     setExportDialogOpen(false);
+  };
+
+  // Generate CSV content
+  const generateCSVContent = (data) => {
+    const lines = [];
+    
+    // Header
+    lines.push('Customer Digital Footprint Report');
+    lines.push(`Generated on: ${new Date().toLocaleString()}`);
+    lines.push('');
+    
+    // Customer Info
+    lines.push('Customer Information');
+    lines.push(`Name,${data.profile.full_name}`);
+    lines.push(`ID,${data.profile.customer_id}`);
+    lines.push(`Segment,${data.profile.customer_segment}`);
+    lines.push(`Risk Level,${data.profile.risk_category}`);
+    lines.push('');
+    
+    // Products
+    lines.push('Products');
+    lines.push('Product Name,Type,Balance,Status');
+    data.products.forEach(product => {
+      lines.push(`${product.product_name},${product.type},${product.balance || product.outstanding || 0},${product.status}`);
+    });
+    lines.push('');
+    
+    // Interactions
+    lines.push('Interaction Summary');
+    lines.push(`Total Interactions,${data.interactions.summary.total}`);
+    lines.push(`Calls,${data.interactions.summary.calls}`);
+    lines.push(`Emails,${data.interactions.summary.emails}`);
+    lines.push(`Digital,${data.interactions.summary.digital}`);
+    
+    return lines.join('\n');
   };
 
   // Format currency
@@ -273,6 +320,35 @@ const CustomerFootprintDashboard = () => {
     return colors[risk] || 'text-gray-600 bg-gray-50';
   };
 
+  // Export customer list to CSV
+  const handleExportCustomerList = async () => {
+    try {
+      const csvContent = generateCSVContentForList(allCustomers);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `all_customers_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting customer list:', error);
+    }
+  };
+
+  // Generate CSV content for customer list
+  const generateCSVContentForList = (customers) => {
+    const lines = [];
+    lines.push('Customer List');
+    lines.push('Customer ID,Name,National ID,Phone,Email,Segment,Risk Level,Loyalty Score,Days with Bank,Total Value');
+    customers.forEach(customer => {
+      lines.push(`${customer.customer_id},${customer.full_name},${customer.national_id},${customer.phone_number},${customer.email},${customer.customer_segment},${customer.risk_category},${customer.loyalty_score},${customer.customer_since_days},${customer.total_relationship_value}`);
+    });
+    return lines.join('\n');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
@@ -299,6 +375,14 @@ const CustomerFootprintDashboard = () => {
               >
                 <Users className="h-4 w-4" />
                 <span className="ml-2">{isRTL ? 'قائمة العملاء' : 'Customer List'}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCustomerList}
+              >
+                <Download className="h-4 w-4" />
+                <span className="ml-2">{isRTL ? 'تصدير القائمة' : 'Export List'}</span>
               </Button>
               {selectedCustomer && (
                 <>
@@ -754,30 +838,39 @@ const CustomerFootprintDashboard = () => {
                       <CardTitle>{isRTL ? 'توزيع المنتجات' : 'Product Distribution'}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={customerData.products.map((p, i) => ({
-                                name: p.product_name,
-                                value: p.outstanding || p.balance || p.amount
-                              }))}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {customerData.products.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(value) => formatCurrency(value)} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
+                      {customerData.products && customerData.products.length > 0 ? (
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={customerData.products.map((p, i) => ({
+                                  name: p.product_name,
+                                  value: p.outstanding || p.balance || p.amount || 1 // Use 1 as minimum to show chart
+                                }))}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                              >
+                                {customerData.products.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip formatter={(value) => formatCurrency(value)} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-80 flex items-center justify-center">
+                          <div className="text-center">
+                            <PieChartIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">{isRTL ? 'لا توجد منتجات نشطة' : 'No active products'}</p>
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -853,20 +946,33 @@ const CustomerFootprintDashboard = () => {
                       <CardTitle>{isRTL ? 'تطور التفاعلات' : 'Interaction Timeline'}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={customerData.interactions.timeline}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            <Area type="monotone" dataKey="calls" stackId="1" stroke="#3b82f6" fill="#3b82f6" name={isRTL ? "مكالمات" : "Calls"} />
-                            <Area type="monotone" dataKey="emails" stackId="1" stroke="#10b981" fill="#10b981" name={isRTL ? "بريد" : "Emails"} />
-                            <Area type="monotone" dataKey="digital" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" name={isRTL ? "رقمي" : "Digital"} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
+                      {customerData.interactions.timeline && customerData.interactions.timeline.length > 0 && 
+                       customerData.interactions.summary.total > 0 ? (
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={customerData.interactions.timeline}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="month" />
+                              <YAxis />
+                              <Tooltip />
+                              <Legend />
+                              <Area type="monotone" dataKey="calls" stackId="1" stroke="#3b82f6" fill="#3b82f6" name={isRTL ? "مكالمات" : "Calls"} />
+                              <Area type="monotone" dataKey="emails" stackId="1" stroke="#10b981" fill="#10b981" name={isRTL ? "بريد" : "Emails"} />
+                              <Area type="monotone" dataKey="digital" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" name={isRTL ? "رقمي" : "Digital"} />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-80 flex items-center justify-center">
+                          <div className="text-center">
+                            <Activity className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">{isRTL ? 'لا توجد تفاعلات مسجلة' : 'No interactions recorded'}</p>
+                            <p className="text-sm text-gray-400 mt-1">
+                              {isRTL ? 'ستظهر التفاعلات هنا عند توفرها' : 'Interactions will appear here when available'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
