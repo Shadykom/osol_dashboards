@@ -1040,7 +1040,10 @@ export function Reports() {
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
         <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Report Preview</DialogTitle>
+            <DialogTitle className="flex items-center gap-3">
+              <img src="/osol-logo.png" alt="OSOL Logo" className="h-8 w-auto" />
+              <span>Report Preview</span>
+            </DialogTitle>
             <DialogDescription>
               {generatedReport?.reportInfo.name} - Generated successfully
             </DialogDescription>
@@ -1048,52 +1051,177 @@ export function Reports() {
           <ScrollArea className="h-[400px] w-full rounded-md border p-4">
             {reportData && (
               <div className="space-y-4">
+                {/* OSOL Branded Header */}
+                <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src="/osol-logo.png" alt="OSOL" className="h-10 w-auto filter brightness-0 invert" />
+                      <div>
+                        <h2 className="text-xl font-bold">OSOL Financial Report</h2>
+                        <p className="text-sm opacity-90">{generatedReport?.reportInfo.name}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm">Generated on</p>
+                      <p className="font-semibold">{format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="font-semibold mb-2">Report Summary</h3>
-                    <div className="space-y-1 text-sm">
+                    <h3 className="font-semibold mb-2 text-[#4A5568]">Report Summary</h3>
+                    <div className="space-y-1 text-sm bg-gray-50 p-3 rounded-lg">
                       <p><span className="font-medium">Type:</span> {generatedReport?.reportInfo.name}</p>
                       <p><span className="font-medium">Period:</span> {format(dateRange.from, 'MMM dd, yyyy')} - {format(dateRange.to, 'MMM dd, yyyy')}</p>
                       <p><span className="font-medium">Generated:</span> {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
                     </div>
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-2">Key Metrics</h3>
-                    <div className="space-y-1 text-sm">
-                      {generatedReport?.data && Object.entries(generatedReport.data).slice(0, 3).map(([key, value]) => (
-                        <p key={key}>
-                          <span className="font-medium">{key}:</span> {
-                            typeof value === 'object' ? JSON.stringify(value).substring(0, 50) + '...' : value
+                    <h3 className="font-semibold mb-2 text-[#4A5568]">Key Metrics</h3>
+                    <div className="space-y-2 text-sm bg-gray-50 p-3 rounded-lg">
+                      {generatedReport?.data && Object.entries(generatedReport.data).slice(0, 5).map(([key, value]) => {
+                        // Format the key to be more readable
+                        const formattedKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim();
+                        
+                        // Format the value based on its type
+                        let formattedValue = value;
+                        if (typeof value === 'object' && value !== null) {
+                          // Handle revenue object
+                          if (key === 'revenue' && value.transactionFees !== undefined && value.interestIncome !== undefined) {
+                            formattedValue = (
+                              <div className="ml-2 space-y-1">
+                                <div>Transaction Fees: ${value.transactionFees?.toLocaleString() || '0'}</div>
+                                <div>Interest Income: ${value.interestIncome?.toLocaleString() || '0'}</div>
+                              </div>
+                            );
                           }
-                        </p>
-                      ))}
+                          // Handle expenses object
+                          else if (key === 'expenses' && value.operatingExpenses !== undefined) {
+                            formattedValue = (
+                              <div className="ml-2 space-y-1">
+                                <div>Operating Expenses: ${value.operatingExpenses?.toLocaleString() || '0'}</div>
+                                <div>Personnel Costs: ${value.personnelCosts?.toLocaleString() || '0'}</div>
+                                {value.provisions !== undefined && (
+                                  <div>Provisions: ${value.provisions?.toLocaleString() || '0'}</div>
+                                )}
+                              </div>
+                            );
+                          }
+                          // Handle other objects
+                          else {
+                            formattedValue = <pre className="text-xs">{JSON.stringify(value, null, 2)}</pre>;
+                          }
+                        } else if (typeof value === 'number') {
+                          formattedValue = `$${value.toLocaleString()}`;
+                        }
+                        
+                        return (
+                          <div key={key} className="border-b pb-1 last:border-0">
+                            <span className="font-medium text-[#4A5568]">{formattedKey}:</span>
+                            {typeof formattedValue === 'string' ? (
+                              <span className="ml-2">{formattedValue}</span>
+                            ) : (
+                              formattedValue
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
+                
                 <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-2">Preview</h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      Full report preview would be displayed here. The report contains detailed analysis and data visualizations.
-                    </p>
+                  <h3 className="font-semibold mb-2 text-[#4A5568]">Report Preview</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="space-y-4">
+                      {/* Financial Summary Section */}
+                      {generatedReport?.data && (
+                        <div className="grid grid-cols-2 gap-4">
+                          {generatedReport.data.revenue && (
+                            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                              <h4 className="font-semibold text-[#E6B800] mb-2">Revenue Breakdown</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Transaction Fees:</span>
+                                  <span className="font-medium">${generatedReport.data.revenue.transactionFees?.toLocaleString() || '0'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Interest Income:</span>
+                                  <span className="font-medium">${generatedReport.data.revenue.interestIncome?.toLocaleString() || '0'}</span>
+                                </div>
+                                <div className="border-t pt-2 flex justify-between font-semibold">
+                                  <span>Total Revenue:</span>
+                                  <span className="text-[#48BB78]">
+                                    ${((generatedReport.data.revenue.transactionFees || 0) + (generatedReport.data.revenue.interestIncome || 0)).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {generatedReport.data.expenses && (
+                            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                              <h4 className="font-semibold text-[#E6B800] mb-2">Expenses Breakdown</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Operating Expenses:</span>
+                                  <span className="font-medium">${generatedReport.data.expenses.operatingExpenses?.toLocaleString() || '0'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Personnel Costs:</span>
+                                  <span className="font-medium">${generatedReport.data.expenses.personnelCosts?.toLocaleString() || '0'}</span>
+                                </div>
+                                {generatedReport.data.expenses.provisions !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Provisions:</span>
+                                    <span className="font-medium">${generatedReport.data.expenses.provisions?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                <div className="border-t pt-2 flex justify-between font-semibold">
+                                  <span>Total Expenses:</span>
+                                  <span className="text-[#F56565]">
+                                    ${((generatedReport.data.expenses.operatingExpenses || 0) + 
+                                       (generatedReport.data.expenses.personnelCosts || 0) + 
+                                       (generatedReport.data.expenses.provisions || 0)).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <p className="text-sm text-muted-foreground text-center mt-4">
+                        Full detailed report with charts and comprehensive analysis will be included in the downloaded file.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
           </ScrollArea>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handleDownload('excel')}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Download Excel
-            </Button>
-            <Button variant="outline" onClick={() => handleDownload('pdf')}>
-              <FileDown className="mr-2 h-4 w-4" />
-              Download PDF
-            </Button>
-            <Button onClick={() => setEmailDialogOpen(true)}>
-              <Mail className="mr-2 h-4 w-4" />
-              Send Email
-            </Button>
+          <DialogFooter className="border-t pt-4">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <img src="/osol-logo.png" alt="OSOL" className="h-5 w-auto opacity-50" />
+                <span>© 2025 OSOL Financial Services</span>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleDownload('excel')}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Download Excel
+                </Button>
+                <Button variant="outline" onClick={() => handleDownload('pdf')}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Download PDF
+                </Button>
+                <Button onClick={() => setEmailDialogOpen(true)} className="bg-[#E6B800] hover:bg-[#CC9900]">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Send Email
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
