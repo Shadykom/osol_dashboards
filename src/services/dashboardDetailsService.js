@@ -101,16 +101,8 @@ const generateMockProductData = () => ({
   productCount: 24
 });
 
-// Check if database is available
-const isDatabaseAvailable = () => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  
-  return supabaseUrl && supabaseAnonKey && 
-         supabaseUrl !== 'https://your-project.supabase.co' && 
-         supabaseAnonKey !== 'your-anon-key' &&
-         supabaseAnonKey !== 'YOUR_ANON_KEY_HERE';
-};
+// Always assume database is available - removed mock data fallbacks
+const isDatabaseAvailable = () => true;
 
 // Customer Details Service
 export const customerDetailsService = {
