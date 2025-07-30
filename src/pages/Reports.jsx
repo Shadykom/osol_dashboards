@@ -183,7 +183,7 @@ const MOCK_REPORT_HISTORY = [
   }
 ];
 
-export default function Reports() {
+export function Reports() {
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState('financial');
   const [selectedReport, setSelectedReport] = useState(null);
