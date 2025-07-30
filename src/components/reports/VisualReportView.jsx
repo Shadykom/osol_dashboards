@@ -15,7 +15,7 @@ const COLORS = {
   secondary: '#CC9900',  // Darker Golden
   success: '#48BB78',    // Green
   danger: '#F56565',     // Red
-  info: '#4299E1',       // Blue
+  info: '#F6AD55',       // Light Orange (replaced blue)
   warning: '#ED8936',    // Orange
   gray: '#718096'
 };
@@ -115,7 +115,7 @@ const VisualReportView = ({ reportData, reportType }) => {
                     {formatPercentage(profitMargin)}
                   </p>
                 </div>
-                <Activity className="h-8 w-8 text-[#4299E1]" />
+                <Activity className="h-8 w-8 text-[#F6AD55]" />
               </div>
             </CardContent>
           </Card>
@@ -396,9 +396,9 @@ const VisualReportView = ({ reportData, reportType }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Avg. Account Value</p>
-                  <p className="text-2xl font-bold text-[#4299E1]">{formatCurrency(customerData.avgAccountValue || 125000)}</p>
+                  <p className="text-2xl font-bold text-[#F6AD55]">{formatCurrency(customerData.avgAccountValue || 125000)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-[#4299E1]" />
+                <DollarSign className="h-8 w-8 text-[#F6AD55]" />
               </div>
             </CardContent>
           </Card>

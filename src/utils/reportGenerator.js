@@ -52,29 +52,36 @@ class ReportGenerator {
     pdf.setFillColor(230, 184, 0); // OSOL Golden Yellow (#E6B800)
     pdf.rect(0, 0, pageWidth, 35, 'F');
     
-    // Add logo - since we can't embed images directly in jsPDF without base64,
-    // we'll create a styled text logo
+    // Add OSOL logo with Arabic text
     pdf.setFillColor(255, 255, 255);
-    pdf.rect(10, 8, 35, 20, 'F');
+    pdf.rect(10, 5, 45, 25, 'F');
+    
+    // Add OSOL text
     pdf.setFillColor(230, 184, 0);
-    pdf.setFontSize(16);
+    pdf.setFontSize(18);
     pdf.setFont(undefined, 'bold');
-    pdf.text('OSOL', 27.5, 20, { align: 'center' });
+    pdf.text('OSOL', 32.5, 15, { align: 'center' });
+    
+    // Add Arabic text below OSOL
+    pdf.setFontSize(10);
+    pdf.setFont(undefined, 'normal');
+    pdf.text('أصول', 32.5, 22, { align: 'center' });
+    pdf.text('الحديثة للتمويل', 32.5, 27, { align: 'center' });
     
     // Add title
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(18);
     pdf.setFont(undefined, 'bold');
-    pdf.text(title, pageWidth / 2, 20, { align: 'center' });
+    pdf.text('OSOL Financial Report', pageWidth / 2, 15, { align: 'center' });
+    
+    // Add subtitle
+    pdf.setFontSize(14);
+    pdf.setFont(undefined, 'normal');
+    pdf.text(title, pageWidth / 2, 23, { align: 'center' });
 
     // Add date
     pdf.setFontSize(10);
-    pdf.setFont(undefined, 'normal');
-    pdf.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - 10, 20, { align: 'right' });
-
-    // Add subtitle line
-    pdf.setFontSize(8);
-    pdf.text('OSOL Financial Services - Professional Banking Report', pageWidth / 2, 28, { align: 'center' });
+    pdf.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - 10, 30, { align: 'right' });
     
     // Reset text color for content
     pdf.setTextColor(0, 0, 0);
@@ -290,7 +297,11 @@ class ReportGenerator {
       head: [['Item', 'Amount (SAR)']],
       body: assetsData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { 
+        fillColor: [230, 184, 0], // OSOL Golden
+        textColor: [255, 255, 255]
+      },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
       styles: { fontSize: 10 }
     });
@@ -315,7 +326,8 @@ class ReportGenerator {
       head: [['Item', 'Amount (SAR)']],
       body: liabilitiesData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { fillColor: [230, 184, 0] , textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
       styles: { fontSize: 10 }
     });
@@ -340,7 +352,8 @@ class ReportGenerator {
       head: [['Item', 'Amount (SAR)']],
       body: equityData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { fillColor: [230, 184, 0] , textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
       styles: { fontSize: 10 }
     });
@@ -387,7 +400,8 @@ class ReportGenerator {
       head: [['Item', 'Amount (SAR)', 'Total (SAR)']],
       body: cashFlowData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { fillColor: [230, 184, 0] , textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
       styles: { fontSize: 10 },
       columnStyles: {
@@ -425,7 +439,11 @@ class ReportGenerator {
       head: [['Metric', 'Value']],
       body: metricsData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { 
+        fillColor: [230, 184, 0], // OSOL Golden
+        textColor: [255, 255, 255]
+      },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
       styles: { fontSize: 10 }
     });
@@ -450,7 +468,8 @@ class ReportGenerator {
       head: [['Risk Category', 'Number of Accounts']],
       body: riskData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { fillColor: [230, 184, 0] , textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
       styles: { fontSize: 10 }
     });
@@ -505,7 +524,8 @@ class ReportGenerator {
       head: [['Segment', 'New Customers']],
       body: segmentData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { fillColor: [230, 184, 0] , textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
       styles: { fontSize: 10 }
     });

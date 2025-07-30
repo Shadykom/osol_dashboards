@@ -81,8 +81,8 @@ const REPORT_CATEGORIES = {
   regulatory: {
     title: 'Regulatory Reports',
     icon: Building2,
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-50',
+            color: 'text-[#E6B800]',
+        bgColor: 'bg-yellow-50',
     reports: [
       { id: 'sama_monthly', name: 'SAMA Monthly Report', frequency: 'Monthly', description: 'Saudi Central Bank compliance report' },
       { id: 'basel_iii', name: 'Basel III Compliance', frequency: 'Quarterly', description: 'Capital adequacy and risk metrics' },
@@ -1112,53 +1112,119 @@ export function Reports() {
                   <div>
                     <h3 className="font-semibold mb-2 text-[#4A5568]">Key Metrics</h3>
                     <div className="space-y-2 text-sm bg-gray-50 p-3 rounded-lg">
-                      {generatedReport?.data && Object.entries(generatedReport.data).slice(0, 5).map(([key, value]) => {
-                        // Format the key to be more readable
-                        const formattedKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim();
-                        
-                        // Format the value based on its type
-                        let formattedValue = value;
-                        if (typeof value === 'object' && value !== null) {
-                          // Handle revenue object
-                          if (key === 'revenue' && value.transactionFees !== undefined && value.interestIncome !== undefined) {
-                            formattedValue = (
-                              <div className="ml-2 space-y-1">
-                                <div>Transaction Fees: ${value.transactionFees?.toLocaleString() || '0'}</div>
-                                <div>Interest Income: ${value.interestIncome?.toLocaleString() || '0'}</div>
-                              </div>
-                            );
-                          }
-                          // Handle expenses object
-                          else if (key === 'expenses' && value.operatingExpenses !== undefined) {
-                            formattedValue = (
-                              <div className="ml-2 space-y-1">
-                                <div>Operating Expenses: ${value.operatingExpenses?.toLocaleString() || '0'}</div>
-                                <div>Personnel Costs: ${value.personnelCosts?.toLocaleString() || '0'}</div>
-                                {value.provisions !== undefined && (
-                                  <div>Provisions: ${value.provisions?.toLocaleString() || '0'}</div>
+                      {generatedReport?.data && (
+                        <>
+                          {/* Period Information */}
+                          {generatedReport.data.period && (
+                            <div className="border-b pb-2">
+                              <span className="font-medium text-[#4A5568]">Period:</span>
+                              <span className="ml-2">
+                                {format(new Date(generatedReport.data.period.startDate), 'MMM dd, yyyy')} - 
+                                {format(new Date(generatedReport.data.period.endDate), 'MMM dd, yyyy')}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Revenue */}
+                          {generatedReport.data.revenue && (
+                            <div className="border-b pb-2">
+                              <span className="font-medium text-[#4A5568]">Revenue:</span>
+                              <div className="ml-4 mt-1 space-y-1">
+                                {generatedReport.data.revenue.transactionFees !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Transaction Fees:</span>
+                                    <span>SAR {generatedReport.data.revenue.transactionFees?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                {generatedReport.data.revenue.interestIncome !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Interest Income:</span>
+                                    <span>SAR {generatedReport.data.revenue.interestIncome?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                {generatedReport.data.revenue.totalRevenue !== undefined && (
+                                  <div className="flex justify-between font-medium">
+                                    <span>Total Revenue:</span>
+                                    <span>SAR {generatedReport.data.revenue.totalRevenue?.toLocaleString() || '0'}</span>
+                                  </div>
                                 )}
                               </div>
-                            );
-                          }
-                          // Handle other objects
-                          else {
-                            formattedValue = <pre className="text-xs">{JSON.stringify(value, null, 2)}</pre>;
-                          }
-                        } else if (typeof value === 'number') {
-                          formattedValue = `$${value.toLocaleString()}`;
-                        }
-                        
-                        return (
-                          <div key={key} className="border-b pb-1 last:border-0">
-                            <span className="font-medium text-[#4A5568]">{formattedKey}:</span>
-                            {typeof formattedValue === 'string' ? (
-                              <span className="ml-2">{formattedValue}</span>
-                            ) : (
-                              formattedValue
-                            )}
-                          </div>
-                        );
-                      })}
+                            </div>
+                          )}
+                          
+                          {/* Expenses */}
+                          {generatedReport.data.expenses && (
+                            <div className="border-b pb-2">
+                              <span className="font-medium text-[#4A5568]">Expenses:</span>
+                              <div className="ml-4 mt-1 space-y-1">
+                                {generatedReport.data.expenses.operatingExpenses !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Operating Expenses:</span>
+                                    <span>SAR {generatedReport.data.expenses.operatingExpenses?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                {generatedReport.data.expenses.personnelCosts !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Personnel Costs:</span>
+                                    <span>SAR {generatedReport.data.expenses.personnelCosts?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                {generatedReport.data.expenses.provisions !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Provisions:</span>
+                                    <span>SAR {generatedReport.data.expenses.provisions?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                {generatedReport.data.expenses.totalExpenses !== undefined && (
+                                  <div className="flex justify-between font-medium">
+                                    <span>Total Expenses:</span>
+                                    <span>SAR {generatedReport.data.expenses.totalExpenses?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Net Income */}
+                          {generatedReport.data.netIncome !== undefined && (
+                            <div className="border-b pb-2">
+                              <div className="flex justify-between">
+                                <span className="font-medium text-[#4A5568]">Net Income:</span>
+                                <span className={`font-medium ${generatedReport.data.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  SAR {generatedReport.data.netIncome?.toLocaleString() || '0'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Additional Metrics */}
+                          {generatedReport.data.metrics && (
+                            <div>
+                              <span className="font-medium text-[#4A5568]">Metrics:</span>
+                              <div className="ml-4 mt-1 space-y-1">
+                                {generatedReport.data.metrics.totalTransactions !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Total Transactions:</span>
+                                    <span>{generatedReport.data.metrics.totalTransactions?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                {generatedReport.data.metrics.activeLoans !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Active Loans:</span>
+                                    <span>{generatedReport.data.metrics.activeLoans?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                                {generatedReport.data.metrics.activeAccounts !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span>Active Accounts:</span>
+                                    <span>{generatedReport.data.metrics.activeAccounts?.toLocaleString() || '0'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
