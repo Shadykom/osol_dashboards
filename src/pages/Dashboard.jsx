@@ -87,6 +87,9 @@ import { useDashboard } from '@/hooks/useDashboard';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { DataSeeder } from '@/components/dashboard/DataSeeder';
 import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
+import { BranchReportService } from '@/services/branchReportService';
+import { ProductReportService } from '@/services/productReportService';
+import { CustomerSegmentService } from '@/services/customerSegmentService';
 
 // Mock Supabase clients for demonstration
 const mockSupabaseBanking = {
@@ -1220,8 +1223,35 @@ export default function EnhancedDashboard() {
     customerSegment: 'all'
   });
   
+  // Filter options from database
+  const [filterOptions, setFilterOptions] = useState({
+    branches: [],
+    products: [],
+    customerSegments: []
+  });
+  
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
+
+  // Fetch filter options from database
+  const fetchFilterOptions = async () => {
+    try {
+      const [branchesResult, productsResult, segmentsResult] = await Promise.all([
+        BranchReportService.getBranches(),
+        ProductReportService.getProducts(),
+        CustomerSegmentService.getCustomerSegments()
+      ]);
+
+      setFilterOptions({
+        branches: branchesResult.data || [],
+        products: productsResult.data || [],
+        customerSegments: segmentsResult.data || []
+      });
+    } catch (error) {
+      console.error('Error fetching filter options:', error);
+      toast.error('Failed to load filter options');
+    }
+  };
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
@@ -1322,6 +1352,9 @@ export default function EnhancedDashboard() {
       
       // Load dashboard configuration first
       await loadDashboardConfig();
+      
+      // Fetch filter options from database
+      await fetchFilterOptions();
       
       // Data will be loaded automatically by useDataRefresh hook with refreshOnMount: true
     };
@@ -1919,9 +1952,11 @@ export default function EnhancedDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Branches</SelectItem>
-                      <SelectItem value="BR001">Main Branch</SelectItem>
-                      <SelectItem value="BR002">Downtown Branch</SelectItem>
-                      <SelectItem value="BR003">West Side Branch</SelectItem>
+                      {filterOptions.branches.map((branch) => (
+                        <SelectItem key={branch.branch_id} value={branch.branch_id}>
+                          {branch.branch_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1934,9 +1969,11 @@ export default function EnhancedDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Products</SelectItem>
-                      <SelectItem value="savings">Savings Account</SelectItem>
-                      <SelectItem value="current">Current Account</SelectItem>
-                      <SelectItem value="loan">Loan</SelectItem>
+                      {filterOptions.products.map((product) => (
+                        <SelectItem key={product.product_id} value={product.product_id}>
+                          {product.product_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1949,9 +1986,11 @@ export default function EnhancedDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Segments</SelectItem>
-                      <SelectItem value="vip">VIP</SelectItem>
-                      <SelectItem value="premium">Premium</SelectItem>
-                      <SelectItem value="standard">Standard</SelectItem>
+                      {filterOptions.customerSegments.map((segment) => (
+                        <SelectItem key={segment.segment_id} value={segment.segment_id}>
+                          {segment.segment_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
