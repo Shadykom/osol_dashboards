@@ -6,10 +6,122 @@ const handleError = (error, defaultData = null) => {
   return { data: defaultData, error: error.message };
 };
 
+// Mock data generators for when database is not available
+const generateMockCustomerData = () => ({
+  totalCustomers: 12847,
+  activeCustomers: 11234,
+  newCustomersMonth: 342,
+  segments: {
+    'Retail': 8234,
+    'Corporate': 2456,
+    'SME': 1789,
+    'VIP': 368
+  },
+  growthRate: '2.74'
+});
+
+const generateMockAccountData = () => ({
+  totalAccounts: 18456,
+  activeAccounts: 16234,
+  dormantAccounts: 2222,
+  accountTypes: {
+    'Savings': 8456,
+    'Current': 5234,
+    'Fixed Deposit': 3456,
+    'Investment': 1310
+  },
+  totalBalance: 4567890123,
+  activeBalance: 4234567890,
+  averageBalance: 260789
+});
+
+const generateMockRevenueData = () => ({
+  currentMonth: 45200000,
+  previousMonth: 41000000,
+  yearToDate: 234567890,
+  growthRate: '10.24',
+  dailyAverage: 1506666
+});
+
+const generateMockTransactionData = () => ({
+  todayCount: 23456,
+  weekCount: 145678,
+  todayVolume: 234567890,
+  averageSize: 10000,
+  successRate: 98.5
+});
+
+const generateMockLoanData = () => ({
+  totalLoans: 5678,
+  activeLoans: 4567,
+  totalLoanAmount: 3456789012,
+  totalOutstanding: 2345678901,
+  totalInterestPaid: 234567890,
+  overdueLoans: 234,
+  nplLoans: 89,
+  nplRatio: '1.57',
+  averageLoanSize: 608901
+});
+
+const generateMockBranchData = () => ({
+  totalBranches: 45,
+  totalCustomers: 12847,
+  totalAccounts: 18456,
+  totalBalance: 4567890123,
+  topBranch: 'Main Branch',
+  topBranchBalance: 567890123,
+  averageBalancePerBranch: 101508669,
+  averageCustomersPerBranch: 285
+});
+
+const generateMockCollectionData = () => ({
+  totalCases: 1234,
+  activeCases: 890,
+  totalOutstanding: 123456789,
+  totalCollected: 45678901,
+  collectionRate: '37.01',
+  ptpCount: 234,
+  buckets: {
+    'Bucket 1 (1-30 days)': 456,
+    'Bucket 2 (31-60 days)': 234,
+    'Bucket 3 (61-90 days)': 123,
+    'Bucket 4 (90+ days)': 421
+  },
+  averageCaseValue: 100047
+});
+
+const generateMockProductData = () => ({
+  totalProducts: 24,
+  activeProducts: 21,
+  totalLoanAmount: 3456789012,
+  totalInterestGenerated: 234567890,
+  topProduct: 'Personal Finance',
+  topProductRevenue: 56789012,
+  averageInterestRate: 12.5,
+  productCount: 24
+});
+
+// Check if database is available
+const isDatabaseAvailable = () => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  return supabaseUrl && supabaseAnonKey && 
+         supabaseUrl !== 'https://your-project.supabase.co' && 
+         supabaseAnonKey !== 'your-anon-key' &&
+         supabaseAnonKey !== 'YOUR_ANON_KEY_HERE';
+};
+
 // Customer Details Service
 export const customerDetailsService = {
   // Get customer overview stats
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      console.log('Database not available, using mock data for customer details');
+      return { data: generateMockCustomerData(), error: null };
+    }
+    
     try {
       // Total customers - get all customers
       const { count: totalCustomers, error: totalError } = await supabaseBanking
@@ -125,6 +237,18 @@ export const customerDetailsService = {
 
   // Get customer breakdown by various dimensions
   async getBreakdown() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { 
+        data: {
+          byBranch: { 'Main Branch': 3456, 'North Branch': 2345, 'South Branch': 2134, 'East Branch': 2456, 'West Branch': 2456 },
+          byAgeGroup: { '18-25': 2345, '26-35': 4567, '36-45': 3456, '46-55': 1789, '56+': 690 },
+          byGender: { 'Male': 7234, 'Female': 5613 }
+        }, 
+        error: null 
+      };
+    }
+    
     try {
       // By branch
       const { data: byBranch } = await supabaseBanking
@@ -181,6 +305,23 @@ export const customerDetailsService = {
 
   // Get customer trend data
   async getCustomerTrends(days = 30) {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      const dates = [];
+      const values = [];
+      const baseValue = 12000;
+      
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toLocaleDateString());
+        // Generate trending data with some variation
+        values.push(baseValue + Math.floor(Math.random() * 500) + (days - i) * 10);
+      }
+      
+      return { data: { dates, values }, error: null };
+    }
+    
     try {
       const dates = [];
       const trends = [];
@@ -216,6 +357,11 @@ export const customerDetailsService = {
 // Account Details Service
 export const accountDetailsService = {
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { data: generateMockAccountData(), error: null };
+    }
+    
     try {
       // Total accounts - get all accounts
       const { count: totalAccounts, error: totalError } = await supabaseBanking
@@ -379,6 +525,11 @@ export const accountDetailsService = {
 // Revenue Details Service
 export const revenueDetailsService = {
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { data: generateMockRevenueData(), error: null };
+    }
+    
     try {
       // Current month revenue
       const startOfMonth = new Date();
@@ -528,6 +679,11 @@ export const revenueDetailsService = {
 // Transaction Details Service
 export const transactionDetailsService = {
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { data: generateMockTransactionData(), error: null };
+    }
+    
     try {
       // Today's transactions
       const today = new Date();
@@ -670,6 +826,11 @@ export const kpiDetailsService = {
 // Loan Details Service
 export const loanDetailsService = {
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { data: generateMockLoanData(), error: null };
+    }
+    
     try {
       // Total loans
       const { count: totalLoans } = await supabaseBanking
@@ -857,6 +1018,11 @@ export const loanDetailsService = {
 // Branch Performance Service
 export const branchDetailsService = {
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { data: generateMockBranchData(), error: null };
+    }
+    
     try {
       // Total branches
       const { count: totalBranches } = await supabaseBanking
@@ -1029,6 +1195,11 @@ export const branchDetailsService = {
 // Collection Details Service
 export const collectionDetailsService = {
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { data: generateMockCollectionData(), error: null };
+    }
+    
     try {
       // Total collection cases
       const { count: totalCases } = await supabaseBanking
@@ -1212,6 +1383,11 @@ export const collectionDetailsService = {
 // Product Performance Service
 export const productDetailsService = {
   async getOverviewStats() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return { data: generateMockProductData(), error: null };
+    }
+    
     try {
       // Total products
       const { count: totalProducts } = await supabaseBanking
@@ -1414,6 +1590,47 @@ export const chartDetailsService = {
   },
 
   async getTotalAssetsDetails() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return {
+        data: {
+          overview: {
+            totalAssets: 6913579134,
+            totalDeposits: 4567890123,
+            totalLoans: 2345689011,
+            depositRatio: '66.08',
+            loanRatio: '33.92'
+          },
+          accountTypes: {
+            '1': { count: 4567, balance: 1234567890 },
+            '2': { count: 3456, balance: 987654321 },
+            '3': { count: 2345, balance: 876543210 },
+            '4': { count: 1234, balance: 765432109 }
+          },
+          loanProducts: {
+            '1': { count: 2345, balance: 987654321 },
+            '2': { count: 1234, balance: 654321098 },
+            '3': { count: 890, balance: 432109876 },
+            '4': { count: 567, balance: 321098765 }
+          },
+          branchDistribution: {
+            '1': { deposits: 987654321, loans: 543210987 },
+            '2': { deposits: 876543210, loans: 432109876 },
+            '3': { deposits: 765432109, loans: 321098765 },
+            '4': { deposits: 654321098, loans: 210987654 },
+            '5': { deposits: 543210987, loans: 109876543 }
+          },
+          metrics: {
+            averageAccountBalance: 280456,
+            averageLoanBalance: 412345,
+            totalAccounts: 16234,
+            totalLoanAccounts: 5678
+          }
+        },
+        error: null
+      };
+    }
+    
     try {
       // Get account balances
       const { data: accounts } = await supabaseBanking
@@ -1551,6 +1768,42 @@ export const chartDetailsService = {
   },
 
   async getCustomerSegmentDetails() {
+    // Check if database is available
+    if (!isDatabaseAvailable()) {
+      return {
+        data: {
+          segments: {
+            'Retail': {
+              count: 8234,
+              totalBalance: 2345678901,
+              averageBalance: 284789,
+              newThisMonth: 234
+            },
+            'Corporate': {
+              count: 2456,
+              totalBalance: 1234567890,
+              averageBalance: 502678,
+              newThisMonth: 45
+            },
+            'SME': {
+              count: 1789,
+              totalBalance: 876543210,
+              averageBalance: 489756,
+              newThisMonth: 56
+            },
+            'VIP': {
+              count: 368,
+              totalBalance: 234567890,
+              averageBalance: 637456,
+              newThisMonth: 7
+            }
+          },
+          totalSegments: 4
+        },
+        error: null
+      };
+    }
+    
     try {
       // Detailed segment analysis - handle missing foreign key gracefully
       let segments;

@@ -1811,7 +1811,13 @@ export default function EnhancedDashboard() {
         exit={{ opacity: 0, scale: 0.9 }}
         className={sizeClasses[widget.size || 'medium']}
       >
-        <Card className="h-full hover:shadow-lg transition-shadow duration-200">
+        <Card 
+          className={cn(
+            "h-full hover:shadow-lg transition-shadow duration-200",
+            !isEditMode && "cursor-pointer"
+          )}
+          onClick={() => !isEditMode && handleWidgetClick(widget)}
+        >
           <CardHeader className="pb-2 sm:pb-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
@@ -1824,7 +1830,10 @@ export default function EnhancedDashboard() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => removeWidget(widget.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeWidget(widget.id);
+                  }}
                   className="h-6 w-6 p-0"
                 >
                   <X className="h-3 w-3" />
