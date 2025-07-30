@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/layout';
 
 import Dashboard from './pages/Dashboard';
@@ -45,6 +45,8 @@ import { useTranslation } from 'react-i18next';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './App.css';
+import { testDatabaseSchema } from '@/utils/testFixes';
+import { testDashboardConsistency } from '@/utils/testDashboardConsistency';
 
 // Route Redirect Component
 function RouteRedirect() {
@@ -293,6 +295,19 @@ function SafeApp() {
 // Main App Component
 function App() {
   const { i18n } = useTranslation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isRTL, setIsRTL] = useState(i18n.language === 'ar');
+
+  // Add test function to window for debugging
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      window.testDashboardConsistency = testDashboardConsistency;
+      console.log('💡 Run window.testDashboardConsistency() in console to test dashboard data consistency');
+    }
+  }, []);
   
   // Ensure document language and direction are set
   useEffect(() => {

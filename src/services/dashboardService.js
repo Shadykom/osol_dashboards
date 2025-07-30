@@ -22,7 +22,7 @@ export class DashboardService {
     try {
       // Use Promise.allSettled to handle partial failures gracefully
       const results = await Promise.allSettled([
-        // Get total customers from banking schema
+        // Get total customers from banking schema - no filter for active
         supabaseBanking
           .from(TABLES.CUSTOMERS)
           .select('customer_id', { count: 'exact', head: true }),
@@ -59,13 +59,13 @@ export class DashboardService {
       const [customersResult, accountsResult, depositsResult, loansResult, transactionsCountResult, recentTransactionsResult] = results;
       
       // Debug logging to see what we're getting from the database
-      console.log('Database query results:');
-      console.log('Customers count:', customersResult.status === 'fulfilled' ? customersResult.value.count : 'FAILED');
+      console.log('Executive KPIs - Database query results:');
+      console.log('Total customers count:', customersResult.status === 'fulfilled' ? customersResult.value.count : 'FAILED');
       console.log('Accounts count:', accountsResult.status === 'fulfilled' ? accountsResult.value.count : 'FAILED');
-      console.log('Deposits data:', depositsResult.status === 'fulfilled' ? depositsResult.value.data : 'FAILED');
-      console.log('Loans data:', loansResult.status === 'fulfilled' ? loansResult.value.data : 'FAILED');
+      console.log('Deposits data length:', depositsResult.status === 'fulfilled' ? depositsResult.value.data?.length : 'FAILED');
+      console.log('Loans data length:', loansResult.status === 'fulfilled' ? loansResult.value.data?.length : 'FAILED');
       console.log('Transactions count:', transactionsCountResult.status === 'fulfilled' ? transactionsCountResult.value.count : 'FAILED');
-      console.log('Recent transactions data:', recentTransactionsResult.status === 'fulfilled' ? recentTransactionsResult.value.data : 'FAILED');
+      console.log('Recent transactions:', recentTransactionsResult.status === 'fulfilled' ? recentTransactionsResult.value.data?.length : 'FAILED');
 
       // If all critical queries failed, return empty data
       if (results.every(result => result.status === 'rejected')) {

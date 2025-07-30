@@ -1040,30 +1040,25 @@ const WIDGET_CATALOG = {
       type: 'kpi',
       query: async () => {
         try {
-          // First try to get all customers count
-          const { count: allCount, error: allError } = await supabaseBanking
+          // Get total count of all customers
+          const { count: totalCount, error: totalError } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
             .select('*', { count: 'exact', head: true });
           
-          console.log('All customers count:', allCount, 'Error:', allError);
+          console.log('Total customers query result:', { totalCount, totalError });
           
-          // Then try active customers
-          const { count, error } = await supabaseBanking
-            .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true })
-            .eq('is_active', true);
+          if (totalError) {
+            console.error('Error fetching total customers:', totalError);
+            throw totalError;
+          }
           
-          console.log('Active customers count:', count, 'Error:', error);
-          
-          if (error) throw error;
-          
-          // Use all count if active count is 0
-          const finalCount = count || allCount || 0;
+          // Calculate growth rate (mock for now, could be calculated from historical data)
+          const growthRate = totalCount > 0 ? 12.5 : 0;
           
           return {
-            value: finalCount,
-            change: 12.5,
-            trend: 'up'
+            value: totalCount || 0,
+            change: growthRate,
+            trend: growthRate > 0 ? 'up' : 'neutral'
           };
         } catch (error) {
           console.error('Error in total_customers query:', error);
@@ -1083,33 +1078,49 @@ const WIDGET_CATALOG = {
       chartType: 'pie',
       query: async () => {
         try {
-          const { data, error } = await supabaseBanking
+          // Get all customers with their segments
+          const { data: customers, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('customer_type, customer_segment')
-            .eq('is_active', true);
+            .select('customer_type, customer_segment, customer_type_id');
           
-          if (error) throw error;
+          console.log('Customer segments query result:', { customers: customers?.length, error });
           
-          const segments = data?.reduce((acc, customer) => {
-            const segment = customer.customer_segment || customer.customer_type || 'Standard';
+          if (error) {
+            console.error('Error fetching customer segments:', error);
+            throw error;
+          }
+          
+          // If no customers, return empty array
+          if (!customers || customers.length === 0) {
+            return [];
+          }
+          
+          // Count customers by segment
+          const segments = customers.reduce((acc, customer) => {
+            // Try customer_segment first, then customer_type, then customer_type_id
+            const segment = customer.customer_segment || 
+                          customer.customer_type || 
+                          (customer.customer_type_id ? `Type ${customer.customer_type_id}` : 'Standard');
             acc[segment] = (acc[segment] || 0) + 1;
             return acc;
           }, {});
           
-          const result = Object.entries(segments || {}).map(([name, value]) => ({
+          console.log('Processed segments:', segments);
+          
+          // Convert to chart format with colors
+          const colors = ['#E6B800', '#4A5568', '#22c55e', '#3b82f6', '#ef4444', '#f97316'];
+          const result = Object.entries(segments).map(([name, value], index) => ({
             name,
-            value
+            value,
+            fill: colors[index % colors.length]
           }));
           
-          return result.length > 0 ? result : getMockChartData('pie');
+          console.log('Final segments data for chart:', result);
+          
+          return result.length > 0 ? result : [];
         } catch (error) {
-          console.log('Using mock data for customer_segments');
-          return [
-            { name: 'VIP', value: 1284 },
-            { name: 'Premium', value: 3854 },
-            { name: 'Standard', value: 5139 },
-            { name: 'Basic', value: 2570 }
-          ];
+          console.error('Error in customer_segments query:', error);
+          return [];
         }
       }
     }

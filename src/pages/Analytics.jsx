@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
@@ -55,6 +55,7 @@ import {
   ComposedChart,
   Scatter
 } from 'recharts';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#8DD1E1'];
 
@@ -165,12 +166,47 @@ export function Analytics() {
   };
 
   const fetchCustomerSegments = async () => {
-    return [
-      { name: 'Premium', value: 15234, growth: 12.5, revenue: 45000000 },
-      { name: 'Regular', value: 25432, growth: 8.2, revenue: 35000000 },
-      { name: 'Basic', value: 5012, growth: -2.1, revenue: 10000000 },
-      { name: 'VIP', value: 234, growth: 25.3, revenue: 35000000 }
-    ];
+    try {
+      // Get all customers with their segments
+      const { data: customers, error } = await supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('customer_type, customer_segment, customer_type_id');
+      
+      if (error) {
+        console.error('Error fetching customer segments:', error);
+        throw error;
+      }
+      
+      // If no customers, return empty array
+      if (!customers || customers.length === 0) {
+        return [];
+      }
+      
+      // Count customers by segment
+      const segments = customers.reduce((acc, customer) => {
+        // Try customer_segment first, then customer_type, then customer_type_id
+        const segment = customer.customer_segment || 
+                      customer.customer_type || 
+                      (customer.customer_type_id ? `Type ${customer.customer_type_id}` : 'Standard');
+        acc[segment] = (acc[segment] || 0) + 1;
+        return acc;
+      }, {});
+      
+      // Convert to analytics format with mock financial data
+      // In a real app, this would come from actual financial data
+      const result = Object.entries(segments).map(([name, count]) => ({
+        name,
+        value: count,
+        growth: Math.random() * 30 - 5, // Mock growth rate
+        revenue: count * (Math.random() * 2000 + 1000) // Mock revenue per customer
+      }));
+      
+      return result;
+    } catch (error) {
+      console.error('Error in fetchCustomerSegments:', error);
+      // Return empty array on error
+      return [];
+    }
   };
 
   const fetchProductPerformance = async () => {
