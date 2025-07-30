@@ -97,7 +97,7 @@ export function Accounts() {
       }
       
       if (filterType !== 'all') {
-        query = query.eq('account_type', filterType.toUpperCase());
+                      query = query.eq('account_type_id', filterType.toUpperCase());
       }
 
       const { data, error } = await query;

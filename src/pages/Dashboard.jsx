@@ -559,7 +559,7 @@ const WIDGET_CATALOG = {
         try {
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('*', { count: 'exact', head: true })
+            .select('*, account_types!inner(account_category)', { count: 'exact', head: true })
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter
@@ -574,9 +574,9 @@ const WIDGET_CATALOG = {
               'current': 'CURRENT',
               'loan': 'LOAN'
             };
-            const accountType = productTypeMap[filters.productType];
-            if (accountType) {
-              query = query.eq('account_type', accountType);
+            const accountCategory = productTypeMap[filters.productType];
+            if (accountCategory) {
+              query = query.eq('account_types.account_category', accountCategory);
             }
           }
           
@@ -641,7 +641,11 @@ const WIDGET_CATALOG = {
         try {
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_type, branch_id')
+            .select(`
+              account_type_id,
+              branch_id,
+              account_types!inner(type_code, type_name, account_category)
+            `)
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter
@@ -656,9 +660,9 @@ const WIDGET_CATALOG = {
               'current': 'CURRENT',
               'loan': 'LOAN'
             };
-            const accountType = productTypeMap[filters.productType];
-            if (accountType) {
-              query = query.eq('account_type', accountType);
+            const accountCategory = productTypeMap[filters.productType];
+            if (accountCategory) {
+              query = query.eq('account_types.account_category', accountCategory);
             }
           }
           
@@ -667,8 +671,9 @@ const WIDGET_CATALOG = {
           if (error) throw error;
           
           const distribution = data?.reduce((acc, item) => {
-            const type = item.account_type || 'Other';
-            acc[type] = (acc[type] || 0) + 1;
+            const typeName = item.account_types?.type_name || 'Other';
+            const category = item.account_types?.account_category || 'Other';
+            acc[category] = (acc[category] || 0) + 1;
             return acc;
           }, {});
           
