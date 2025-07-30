@@ -15,7 +15,7 @@ const COLORS = {
   secondary: '#CC9900',  // Darker Golden
   success: '#48BB78',    // Green
   danger: '#F56565',     // Red
-  info: '#4299E1',       // Blue
+  info: '#F6AD55',       // Light Orange (replaced blue)
   warning: '#ED8936',    // Orange
   gray: '#718096'
 };
@@ -52,84 +52,84 @@ const VisualReportView = ({ reportData, reportType }) => {
     const expenseData = [
       { name: 'Operating', value: expenses?.operatingExpenses || 0 },
       { name: 'Personnel', value: expenses?.personnelCosts || 0 },
-      { name: 'Provisions', value: expenses?.provisions || expenses?.provisionForLosses || 0 },
+      { name: 'Provisions', value: expenses?.provisions || 0 },
       { name: 'Other', value: expenses?.otherExpenses || 0 }
     ];
 
-    const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
-    const totalExpenses = expenseData.reduce((sum, item) => sum + item.value, 0);
+    const totalRevenue = revenue?.totalRevenue || 0;
+    const totalExpenses = expenses?.totalExpenses || 0;
     const calculatedNetIncome = netIncome || (totalRevenue - totalExpenses);
-    const profitMargin = totalRevenue > 0 ? (calculatedNetIncome / totalRevenue) * 100 : 0;
+    const profitMargin = totalRevenue > 0 ? (calculatedNetIncome / totalRevenue * 100) : 0;
 
     return (
-      <div className="space-y-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="space-y-4 sm:space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold text-[#E6B800]">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-lg sm:text-2xl font-bold text-[#48BB78]">{formatCurrency(totalRevenue)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-[#E6B800]" />
+                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Expenses</p>
-                  <p className="text-2xl font-bold text-red-500">{formatCurrency(totalExpenses)}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Total Expenses</p>
+                  <p className="text-lg sm:text-2xl font-bold text-[#F56565]">{formatCurrency(totalExpenses)}</p>
                 </div>
-                <CreditCard className="h-8 w-8 text-red-500" />
+                <TrendingDown className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Net Income</p>
-                  <p className={`text-2xl font-bold ${calculatedNetIncome >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Net Income</p>
+                  <p className={`text-lg sm:text-2xl font-bold ${calculatedNetIncome >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {formatCurrency(calculatedNetIncome)}
                   </p>
                 </div>
                 {calculatedNetIncome >= 0 ? 
-                  <TrendingUp className="h-8 w-8 text-green-500" /> : 
-                  <TrendingDown className="h-8 w-8 text-red-500" />
+                  <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" /> : 
+                  <TrendingDown className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
                 }
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Profit Margin</p>
-                  <p className={`text-2xl font-bold ${profitMargin >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Profit Margin</p>
+                  <p className={`text-lg sm:text-2xl font-bold ${profitMargin >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {formatPercentage(profitMargin)}
                   </p>
                 </div>
-                <Activity className="h-8 w-8 text-[#4299E1]" />
+                <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-[#F6AD55]" />
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Revenue Breakdown */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-[#4A5568]">Revenue Breakdown</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-sm sm:text-base text-[#4A5568]">Revenue Breakdown</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                 <PieChart>
                   <Pie
                     data={revenueData}
@@ -154,15 +154,15 @@ const VisualReportView = ({ reportData, reportType }) => {
 
           {/* Expense Breakdown */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-[#4A5568]">Expense Breakdown</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-sm sm:text-base text-[#4A5568]">Expense Breakdown</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                 <BarChart data={expenseData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis tickFormatter={(value) => `${value / 1000}k`} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={(value) => `${value / 1000}k`} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(value) => formatCurrency(value)} />
                   <Bar dataKey="value" fill={COLORS.warning} />
                 </BarChart>
@@ -173,11 +173,11 @@ const VisualReportView = ({ reportData, reportType }) => {
 
         {/* Revenue vs Expenses Comparison */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-[#4A5568]">Revenue vs Expenses Comparison</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-sm sm:text-base text-[#4A5568]">Revenue vs Expenses Comparison</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
               <BarChart
                 data={[
                   { name: 'Revenue', value: totalRevenue, fill: COLORS.success },
@@ -186,8 +186,8 @@ const VisualReportView = ({ reportData, reportType }) => {
                 ]}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis tickFormatter={(value) => `${value / 1000}k`} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={(value) => `${value / 1000}k`} tick={{ fontSize: 12 }} />
                 <Tooltip formatter={(value) => formatCurrency(value)} />
                 <Bar dataKey="value" fill={(entry) => entry.fill} />
               </BarChart>
@@ -396,9 +396,9 @@ const VisualReportView = ({ reportData, reportType }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Avg. Account Value</p>
-                  <p className="text-2xl font-bold text-[#4299E1]">{formatCurrency(customerData.avgAccountValue || 125000)}</p>
+                  <p className="text-2xl font-bold text-[#F6AD55]">{formatCurrency(customerData.avgAccountValue || 125000)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-[#4299E1]" />
+                <DollarSign className="h-8 w-8 text-[#F6AD55]" />
               </div>
             </CardContent>
           </Card>
@@ -515,23 +515,23 @@ const VisualReportView = ({ reportData, reportType }) => {
   return (
     <div className="w-full">
       {/* Report Header with OSOL Branding */}
-      <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-6 rounded-t-lg">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-4 sm:p-6 rounded-t-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold">Financial Report Analysis</h2>
-            <p className="text-sm opacity-90">
+            <h2 className="text-xl sm:text-2xl font-bold">Financial Report Analysis</h2>
+            <p className="text-xs sm:text-sm opacity-90">
               {reportData.period ? 
                 `Period: ${format(new Date(reportData.period.startDate), 'MMM dd, yyyy')} - ${format(new Date(reportData.period.endDate), 'MMM dd, yyyy')}` :
                 `As of: ${format(new Date(), 'MMM dd, yyyy')}`
               }
             </p>
           </div>
-          <img src="/osol-logo.png" alt="OSOL" className="h-12 w-auto filter brightness-0 invert" />
+          <img src="/osol-logo.png" alt="OSOL" className="h-10 sm:h-12 w-auto filter brightness-0 invert" />
         </div>
       </div>
 
       {/* Report Content */}
-      <div className="bg-gray-50 p-6 rounded-b-lg">
+      <div className="bg-gray-50 p-4 sm:p-6 rounded-b-lg">
         {renderReportContent()}
       </div>
     </div>
