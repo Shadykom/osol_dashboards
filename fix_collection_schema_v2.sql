@@ -1,6 +1,6 @@
--- Fix Collection Schema Issues
+-- Fix Collection Schema Issues (Version 2)
 -- This script creates the kastle_collection schema and all required tables
--- Note: collection_cases already exists in kastle_banking, but app expects it in kastle_collection
+-- Fixed: Removed priority_level from collection_buckets table
 
 -- 1. Create kastle_collection schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS kastle_collection;
@@ -34,21 +34,19 @@ CREATE TABLE IF NOT EXISTS kastle_collection.collection_officers (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Create collection_buckets table
+-- 5. Create collection_buckets table (without priority_level)
 CREATE TABLE IF NOT EXISTS kastle_collection.collection_buckets (
     bucket_id VARCHAR(50) PRIMARY KEY,
     bucket_name VARCHAR(100) NOT NULL,
     bucket_code VARCHAR(20) UNIQUE,
     min_days INTEGER NOT NULL,
     max_days INTEGER NOT NULL,
-    priority_level VARCHAR(20),
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. Create collection_cases table (simplified version that references kastle_banking data)
--- This is a bridge table that connects to the existing collection_cases in kastle_banking
+-- 6. Create collection_cases table
 CREATE TABLE IF NOT EXISTS kastle_collection.collection_cases (
     case_id VARCHAR(50) PRIMARY KEY,
     case_number VARCHAR(50) UNIQUE NOT NULL,
@@ -146,7 +144,7 @@ ALTER TABLE kastle_collection.officer_performance_summary DISABLE ROW LEVEL SECU
 
 -- 13. Insert sample data
 
--- Insert buckets
+-- Insert buckets (without priority_level)
 INSERT INTO kastle_collection.collection_buckets (bucket_id, bucket_name, bucket_code, min_days, max_days) VALUES
     ('BUCKET_1', '1-30 Days', 'B1', 1, 30),
     ('BUCKET_2', '31-60 Days', 'B2', 31, 60),
@@ -173,46 +171,65 @@ INSERT INTO kastle_collection.collection_officers (officer_id, officer_code, off
     ('OFF006', 'O006', 'Sara Ahmed', 'JUNIOR', 3, '+966506789012', 'sara@example.com')
 ON CONFLICT (officer_id) DO NOTHING;
 
--- Migrate collection cases from kastle_banking to kastle_collection
--- Only migrate if kastle_collection.collection_cases is empty
+-- Insert sample collection cases
+-- First, try to migrate from existing kastle_banking.collection_cases
+DO $$
+BEGIN
+    -- Check if kastle_banking.collection_cases exists and has data
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.tables 
+        WHERE table_schema = 'kastle_banking' 
+        AND table_name = 'collection_cases'
+    ) THEN
+        -- Migrate existing cases
+        INSERT INTO kastle_collection.collection_cases (
+            case_id, case_number, loan_account_number, customer_id, 
+            total_outstanding, days_past_due, case_status, priority, 
+            bucket_id, assigned_to, created_at, updated_at
+        )
+        SELECT 
+            'CASE' || LPAD(cc.case_id::TEXT, 6, '0'),
+            cc.case_number,
+            COALESCE(cc.loan_account_number, cc.account_number),
+            cc.customer_id,
+            cc.total_outstanding,
+            cc.days_past_due,
+            cc.case_status,
+            cc.priority,
+            CASE 
+                WHEN cc.days_past_due > 120 THEN 'BUCKET_5'
+                WHEN cc.days_past_due > 90 THEN 'BUCKET_4'
+                WHEN cc.days_past_due > 60 THEN 'BUCKET_3'
+                WHEN cc.days_past_due > 30 THEN 'BUCKET_2'
+                ELSE 'BUCKET_1'
+            END,
+            CASE 
+                WHEN cc.assigned_to IN ('OFF001', 'OFF002', 'OFF003', 'OFF004', 'OFF005', 'OFF006') 
+                THEN cc.assigned_to
+                ELSE 'OFF001'
+            END,
+            cc.created_at,
+            cc.updated_at
+        FROM kastle_banking.collection_cases cc
+        WHERE NOT EXISTS (
+            SELECT 1 FROM kastle_collection.collection_cases kcc 
+            WHERE kcc.case_number = cc.case_number
+        )
+        LIMIT 50
+        ON CONFLICT (case_id) DO NOTHING;
+    END IF;
+END $$;
+
+-- If no cases exist, create sample cases from loan accounts
 INSERT INTO kastle_collection.collection_cases (
     case_id, case_number, loan_account_number, customer_id, 
     total_outstanding, days_past_due, case_status, priority, 
-    bucket_id, assigned_to, created_at, updated_at
+    bucket_id, assigned_to
 )
 SELECT 
-    'CASE' || LPAD(cc.case_id::TEXT, 6, '0'),
-    cc.case_number,
-    COALESCE(cc.loan_account_number, cc.account_number),
-    cc.customer_id,
-    cc.total_outstanding,
-    cc.days_past_due,
-    cc.case_status,
-    cc.priority,
-    CASE 
-        WHEN cc.days_past_due > 120 THEN 'BUCKET_5'
-        WHEN cc.days_past_due > 90 THEN 'BUCKET_4'
-        WHEN cc.days_past_due > 60 THEN 'BUCKET_3'
-        WHEN cc.days_past_due > 30 THEN 'BUCKET_2'
-        ELSE 'BUCKET_1'
-    END,
-    CASE 
-        WHEN cc.assigned_to IN ('OFF001', 'OFF002', 'OFF003', 'OFF004', 'OFF005', 'OFF006') 
-        THEN cc.assigned_to
-        ELSE 'OFF001'  -- Default assignment
-    END,
-    cc.created_at,
-    cc.updated_at
-FROM kastle_banking.collection_cases cc
-WHERE NOT EXISTS (SELECT 1 FROM kastle_collection.collection_cases)
-LIMIT 100
-ON CONFLICT (case_id) DO NOTHING;
-
--- If no cases were migrated, create sample cases from loan accounts
-INSERT INTO kastle_collection.collection_cases (case_id, case_number, loan_account_number, customer_id, total_outstanding, days_past_due, case_status, priority, bucket_id, assigned_to)
-SELECT 
-    'CASE' || LPAD(ROW_NUMBER() OVER()::TEXT, 6, '0'),
-    'CC-2024-' || LPAD(ROW_NUMBER() OVER()::TEXT, 6, '0'),
+    'CASE' || LPAD((ROW_NUMBER() OVER() + 1000)::TEXT, 6, '0'),
+    'CC-2024-' || LPAD((ROW_NUMBER() OVER() + 1000)::TEXT, 6, '0'),
     la.loan_account_number,
     la.customer_id,
     la.outstanding_balance,
@@ -246,11 +263,14 @@ SELECT
 FROM kastle_banking.loan_accounts la
 WHERE la.loan_status IN ('DEFAULTED', 'DELINQUENT', 'WRITTEN_OFF')
 AND la.outstanding_balance > 0
-AND NOT EXISTS (SELECT 1 FROM kastle_collection.collection_cases WHERE loan_account_number = la.loan_account_number)
-LIMIT 50
+AND NOT EXISTS (
+    SELECT 1 FROM kastle_collection.collection_cases cc 
+    WHERE cc.loan_account_number = la.loan_account_number
+)
+LIMIT 20
 ON CONFLICT (case_id) DO NOTHING;
 
--- Insert daily collection summary data for the last 30 days
+-- Insert daily collection summary data
 INSERT INTO kastle_collection.daily_collection_summary (
     summary_date, total_cases, total_outstanding, total_collected, 
     collection_rate, accounts_due, accounts_collected, calls_made, 
