@@ -88,6 +88,12 @@ export function Accounts() {
             last_name,
             email,
             phone_number
+          ),
+          kastle_banking.account_types!account_type_id (
+            type_id,
+            type_code,
+            type_name,
+            account_category
           )
         `)
         .order('created_at', { ascending: false });
@@ -97,7 +103,7 @@ export function Accounts() {
       }
       
       if (filterType !== 'all') {
-        query = query.eq('account_type', filterType.toUpperCase());
+        query = query.eq('kastle_banking.account_types.account_category', filterType.toUpperCase());
       }
 
       const { data, error } = await query;
@@ -158,11 +164,18 @@ export function Accounts() {
       // Get account type distribution
       const { data: typeData } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
-        .select('account_type')
+        .select(`
+          account_type_id,
+          kastle_banking.account_types!account_type_id (
+            type_name,
+            account_category
+          )
+        `)
         .eq('account_status', 'ACTIVE');
 
       const typeCounts = typeData?.reduce((acc, curr) => {
-        acc[curr.account_type] = (acc[curr.account_type] || 0) + 1;
+        const typeName = curr.kastle_banking?.account_types?.type_name || 'Unknown';
+        acc[typeName] = (acc[typeName] || 0) + 1;
         return acc;
       }, {});
 
@@ -490,7 +503,7 @@ export function Accounts() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {account.account_type?.replace('_', ' ')}
+                            {account.kastle_banking?.account_types?.type_name || account.account_type?.replace('_', ' ')}
                           </Badge>
                         </TableCell>
                         <TableCell>SAR {parseFloat(account.current_balance).toLocaleString()}</TableCell>

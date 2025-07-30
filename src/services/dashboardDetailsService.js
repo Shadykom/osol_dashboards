@@ -1336,7 +1336,11 @@ export const chartDetailsService = {
       // Get loan balances
       const { data: loans } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
-        .select('product_id, outstanding_balance, branch_id')
+        .select(`
+          product_id, 
+          outstanding_balance,
+          loan_applications!inner(branch_id)
+        `)
         .eq('loan_status', 'ACTIVE');
       
       // Calculate totals by type
