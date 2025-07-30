@@ -62,6 +62,7 @@ import comprehensiveReportService from '@/services/comprehensiveReportService';
 import reportGenerator from '@/utils/reportGenerator';
 import emailService from '@/services/emailService';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import VisualReportView from '@/components/reports/VisualReportView';
 
 const REPORT_CATEGORIES = {
   financial: {
@@ -1038,7 +1039,7 @@ export function Reports() {
 
       {/* Preview Dialog */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
+        <DialogContent className="sm:max-w-[95vw] max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <img src="/osol-logo.png" alt="OSOL Logo" className="h-8 w-auto" />
@@ -1048,7 +1049,7 @@ export function Reports() {
               {generatedReport?.reportInfo.name} - Generated successfully
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+          <ScrollArea className="h-[calc(90vh-200px)] w-full rounded-md border p-4">
             {reportData && (
               <div className="space-y-4">
                 {/* OSOL Branded Header */}
@@ -1134,68 +1135,13 @@ export function Reports() {
                 <div className="border-t pt-4">
                   <h3 className="font-semibold mb-2 text-[#4A5568]">Report Preview</h3>
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <div className="space-y-4">
-                      {/* Financial Summary Section */}
-                      {generatedReport?.data && (
-                        <div className="grid grid-cols-2 gap-4">
-                          {generatedReport.data.revenue && (
-                            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                              <h4 className="font-semibold text-[#E6B800] mb-2">Revenue Breakdown</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span>Transaction Fees:</span>
-                                  <span className="font-medium">${generatedReport.data.revenue.transactionFees?.toLocaleString() || '0'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Interest Income:</span>
-                                  <span className="font-medium">${generatedReport.data.revenue.interestIncome?.toLocaleString() || '0'}</span>
-                                </div>
-                                <div className="border-t pt-2 flex justify-between font-semibold">
-                                  <span>Total Revenue:</span>
-                                  <span className="text-[#48BB78]">
-                                    ${((generatedReport.data.revenue.transactionFees || 0) + (generatedReport.data.revenue.interestIncome || 0)).toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {generatedReport.data.expenses && (
-                            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                              <h4 className="font-semibold text-[#E6B800] mb-2">Expenses Breakdown</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span>Operating Expenses:</span>
-                                  <span className="font-medium">${generatedReport.data.expenses.operatingExpenses?.toLocaleString() || '0'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Personnel Costs:</span>
-                                  <span className="font-medium">${generatedReport.data.expenses.personnelCosts?.toLocaleString() || '0'}</span>
-                                </div>
-                                {generatedReport.data.expenses.provisions !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Provisions:</span>
-                                    <span className="font-medium">${generatedReport.data.expenses.provisions?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                <div className="border-t pt-2 flex justify-between font-semibold">
-                                  <span>Total Expenses:</span>
-                                  <span className="text-[#F56565]">
-                                    ${((generatedReport.data.expenses.operatingExpenses || 0) + 
-                                       (generatedReport.data.expenses.personnelCosts || 0) + 
-                                       (generatedReport.data.expenses.provisions || 0)).toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      <p className="text-sm text-muted-foreground text-center mt-4">
-                        Full detailed report with charts and comprehensive analysis will be included in the downloaded file.
-                      </p>
-                    </div>
+                    {/* Visual Report View */}
+                    {generatedReport?.data && (
+                      <VisualReportView 
+                        reportData={generatedReport.data} 
+                        reportType={selectedReport}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
