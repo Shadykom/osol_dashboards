@@ -1,5 +1,4 @@
 import { 
-  supabaseBanking, 
   supabaseBanking,
   TABLES,
   COLLECTION_TABLES, 
