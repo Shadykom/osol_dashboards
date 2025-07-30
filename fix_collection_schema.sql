@@ -1,310 +1,267 @@
--- Fix Collection Schema Issues
--- This script creates the kastle_collection schema and all required tables
--- Note: collection_cases already exists in kastle_banking, but app expects it in kastle_collection
+-- Fix for missing kastle_collection schema and tables
+-- This script creates the kastle_collection schema and essential tables
+-- Merged version combining fixes from both branches
 
--- 1. Create kastle_collection schema if it doesn't exist
+-- Create kastle_collection schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS kastle_collection;
 
--- 2. Grant permissions on the schema
+-- Grant permissions on the schema
 GRANT USAGE ON SCHEMA kastle_collection TO anon, authenticated, service_role;
 
--- 3. Create collection_teams table
+-- Create collection_teams table
 CREATE TABLE IF NOT EXISTS kastle_collection.collection_teams (
-    team_id INTEGER PRIMARY KEY,
-    team_code VARCHAR(20) UNIQUE,
+    team_id SERIAL PRIMARY KEY,
+    team_code VARCHAR(50) NOT NULL UNIQUE,
     team_name VARCHAR(100) NOT NULL,
-    team_type VARCHAR(50) NOT NULL,
+    team_type VARCHAR(50) CHECK (team_type IN ('CALL_CENTER', 'FIELD', 'LEGAL', 'DIGITAL', 'RECOVERY')),
+    branch_id VARCHAR(50),
     manager_id VARCHAR(50),
     status VARCHAR(20) DEFAULT 'ACTIVE',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Create collection_officers table
+-- Create collection_officers table
 CREATE TABLE IF NOT EXISTS kastle_collection.collection_officers (
     officer_id VARCHAR(50) PRIMARY KEY,
-    officer_code VARCHAR(20) UNIQUE,
+    employee_id VARCHAR(50),
     officer_name VARCHAR(100) NOT NULL,
-    officer_type VARCHAR(50) NOT NULL,
+    officer_type VARCHAR(50) CHECK (officer_type IN ('CALL_AGENT', 'FIELD_AGENT', 'LEGAL_OFFICER', 'SENIOR_COLLECTOR', 'TEAM_LEAD')),
     team_id INTEGER REFERENCES kastle_collection.collection_teams(team_id),
     contact_number VARCHAR(20),
     email VARCHAR(100),
+    language_skills VARCHAR(100),
+    collection_limit NUMERIC(15,2),
+    commission_rate NUMERIC(5,2),
     status VARCHAR(20) DEFAULT 'ACTIVE',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    joining_date DATE,
+    last_active TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Create collection_buckets table
+-- Create collection_buckets table (if not exists in kastle_banking)
 CREATE TABLE IF NOT EXISTS kastle_collection.collection_buckets (
-    bucket_id VARCHAR(50) PRIMARY KEY,
-    bucket_name VARCHAR(100) NOT NULL,
+    bucket_id SERIAL PRIMARY KEY,
+    bucket_name VARCHAR(50) NOT NULL,
     bucket_code VARCHAR(20) UNIQUE,
-    min_days INTEGER NOT NULL,
-    max_days INTEGER NOT NULL,
-    priority_level VARCHAR(20),
+    min_days INTEGER,
+    max_days INTEGER,
+    min_dpd INTEGER NOT NULL DEFAULT 0,
+    max_dpd INTEGER NOT NULL DEFAULT 9999,
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    priority_order INTEGER,
+    priority_level INTEGER NOT NULL DEFAULT 1,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Create collection_cases table (simplified version that references kastle_banking data)
--- This is a bridge table that connects to the existing collection_cases in kastle_banking
+-- Create collection_cases table
 CREATE TABLE IF NOT EXISTS kastle_collection.collection_cases (
-    case_id VARCHAR(50) PRIMARY KEY,
-    case_number VARCHAR(50) UNIQUE NOT NULL,
-    loan_account_number VARCHAR(50) NOT NULL,
-    customer_id VARCHAR(50) NOT NULL,
-    total_outstanding DECIMAL(15,2) DEFAULT 0,
-    days_past_due INTEGER DEFAULT 0,
+    case_id SERIAL PRIMARY KEY,
+    case_number VARCHAR(50) UNIQUE,
+    customer_id VARCHAR(50),
+    loan_account_number VARCHAR(50),
+    total_outstanding NUMERIC(15,2),
+    days_past_due INTEGER,
+    bucket_id INTEGER,
     case_status VARCHAR(50) DEFAULT 'ACTIVE',
-    priority VARCHAR(20) DEFAULT 'MEDIUM',
-    bucket_id VARCHAR(50) REFERENCES kastle_collection.collection_buckets(bucket_id),
+    priority VARCHAR(20) DEFAULT 'NORMAL',
     assigned_to VARCHAR(50) REFERENCES kastle_collection.collection_officers(officer_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    resolved_at TIMESTAMP,
-    resolution_type VARCHAR(50),
-    resolution_amount DECIMAL(15,2)
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. Create collection_interactions table
+-- Create collection_interactions table
 CREATE TABLE IF NOT EXISTS kastle_collection.collection_interactions (
-    interaction_id VARCHAR(50) PRIMARY KEY,
-    case_id VARCHAR(50) REFERENCES kastle_collection.collection_cases(case_id),
-    officer_id VARCHAR(50) REFERENCES kastle_collection.collection_officers(officer_id),
-    interaction_type VARCHAR(50) NOT NULL,
-    interaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    interaction_id SERIAL PRIMARY KEY,
+    case_id INTEGER,
+    customer_id VARCHAR(50),
+    interaction_date TIMESTAMPTZ DEFAULT NOW(),
+    interaction_type VARCHAR(50) CHECK (interaction_type IN ('CALL', 'SMS', 'EMAIL', 'LETTER', 'VISIT', 'LEGAL_NOTICE', 'WHATSAPP', 'IVR')),
     channel VARCHAR(50),
-    outcome VARCHAR(50),
+    officer_id VARCHAR(50) REFERENCES kastle_collection.collection_officers(officer_id),
+    department VARCHAR(50),
+    purpose VARCHAR(100),
+    duration_minutes INTEGER,
+    outcome VARCHAR(100),
+    satisfaction_score INTEGER,
     notes TEXT,
-    next_action VARCHAR(100),
-    next_action_date DATE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. Create promise_to_pay table
+-- Create promise_to_pay table
 CREATE TABLE IF NOT EXISTS kastle_collection.promise_to_pay (
-    ptp_id VARCHAR(50) PRIMARY KEY,
-    case_id VARCHAR(50) REFERENCES kastle_collection.collection_cases(case_id),
-    promised_amount DECIMAL(15,2) NOT NULL,
-    promise_date DATE NOT NULL,
+    ptp_id SERIAL PRIMARY KEY,
+    case_id INTEGER,
+    customer_id VARCHAR(50),
+    amount NUMERIC(15,2),
+    promise_date DATE,
     status VARCHAR(50) DEFAULT 'PENDING',
-    created_by VARCHAR(50) REFERENCES kastle_collection.collection_officers(officer_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    kept_amount DECIMAL(15,2),
-    kept_date DATE,
-    broken_reason VARCHAR(200)
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. Create daily_collection_summary table
+-- Create daily_collection_summary table
 CREATE TABLE IF NOT EXISTS kastle_collection.daily_collection_summary (
     summary_id SERIAL PRIMARY KEY,
-    summary_date DATE NOT NULL UNIQUE,
-    total_cases INTEGER DEFAULT 0,
-    total_outstanding DECIMAL(15,2) DEFAULT 0,
-    total_collected DECIMAL(15,2) DEFAULT 0,
-    collection_rate DECIMAL(5,2) DEFAULT 0,
-    accounts_due INTEGER DEFAULT 0,
-    accounts_collected INTEGER DEFAULT 0,
-    calls_made INTEGER DEFAULT 0,
-    ptps_created INTEGER DEFAULT 0,
-    ptps_kept INTEGER DEFAULT 0,
-    new_cases INTEGER DEFAULT 0,
-    closed_cases INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 10. Create officer_performance_summary table
-CREATE TABLE IF NOT EXISTS kastle_collection.officer_performance_summary (
-    summary_id SERIAL PRIMARY KEY,
-    officer_id VARCHAR(50) NOT NULL REFERENCES kastle_collection.collection_officers(officer_id),
     summary_date DATE NOT NULL,
     total_cases INTEGER DEFAULT 0,
-    total_collected DECIMAL(15,2) DEFAULT 0,
-    total_calls INTEGER DEFAULT 0,
-    contact_rate DECIMAL(5,2) DEFAULT 0,
-    ptp_rate DECIMAL(5,2) DEFAULT 0,
-    quality_score DECIMAL(5,2) DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_outstanding NUMERIC(15,2) DEFAULT 0,
+    total_collected NUMERIC(15,2) DEFAULT 0,
+    collection_rate NUMERIC(5,2) DEFAULT 0,
+    new_cases INTEGER DEFAULT 0,
+    closed_cases INTEGER DEFAULT 0,
+    active_officers INTEGER DEFAULT 0,
+    total_interactions INTEGER DEFAULT 0,
+    successful_contacts INTEGER DEFAULT 0,
+    promises_made INTEGER DEFAULT 0,
+    promises_kept INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(summary_date)
+);
+
+-- Create officer_performance_summary table
+CREATE TABLE IF NOT EXISTS kastle_collection.officer_performance_summary (
+    performance_id SERIAL PRIMARY KEY,
+    officer_id VARCHAR(50) REFERENCES kastle_collection.collection_officers(officer_id),
+    summary_date DATE NOT NULL,
+    cases_handled INTEGER DEFAULT 0,
+    amount_collected NUMERIC(15,2) DEFAULT 0,
+    interactions_count INTEGER DEFAULT 0,
+    successful_contacts INTEGER DEFAULT 0,
+    promises_secured INTEGER DEFAULT 0,
+    average_call_time NUMERIC(5,2) DEFAULT 0,
+    productivity_score NUMERIC(5,2) DEFAULT 0,
+    quality_score NUMERIC(5,2) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(officer_id, summary_date)
 );
 
--- 11. Grant permissions on all tables
-GRANT ALL ON ALL TABLES IN SCHEMA kastle_collection TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA kastle_collection TO anon, authenticated, service_role;
-
--- 12. Disable RLS on all tables
-ALTER TABLE kastle_collection.collection_teams DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_collection.collection_officers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_collection.collection_buckets DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_collection.collection_cases DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_collection.collection_interactions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_collection.promise_to_pay DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_collection.daily_collection_summary DISABLE ROW LEVEL SECURITY;
-ALTER TABLE kastle_collection.officer_performance_summary DISABLE ROW LEVEL SECURITY;
-
--- 13. Insert sample data
-
--- Insert buckets
-INSERT INTO kastle_collection.collection_buckets (bucket_id, bucket_name, bucket_code, min_days, max_days) VALUES
-    ('BUCKET_1', '1-30 Days', 'B1', 1, 30),
-    ('BUCKET_2', '31-60 Days', 'B2', 31, 60),
-    ('BUCKET_3', '61-90 Days', 'B3', 61, 90),
-    ('BUCKET_4', '91-120 Days', 'B4', 91, 120),
-    ('BUCKET_5', '120+ Days', 'B5', 121, 9999)
-ON CONFLICT (bucket_id) DO NOTHING;
-
--- Insert teams
-INSERT INTO kastle_collection.collection_teams (team_id, team_code, team_name, team_type) VALUES
-    (1, 'TEAM_A', 'Field Collection Team', 'FIELD'),
-    (2, 'TEAM_B', 'Call Center Team', 'CALL_CENTER'),
-    (3, 'TEAM_C', 'Digital Collection Team', 'DIGITAL'),
-    (4, 'TEAM_D', 'Legal Team', 'LEGAL')
-ON CONFLICT (team_id) DO NOTHING;
-
--- Insert officers
-INSERT INTO kastle_collection.collection_officers (officer_id, officer_code, officer_name, officer_type, team_id, contact_number, email) VALUES
-    ('OFF001', 'O001', 'Ahmed Mohammed', 'SENIOR', 1, '+966501234567', 'ahmed@example.com'),
-    ('OFF002', 'O002', 'Fatima Ali', 'JUNIOR', 1, '+966502345678', 'fatima@example.com'),
-    ('OFF003', 'O003', 'Mohammed Salem', 'FIELD', 2, '+966503456789', 'mohammed@example.com'),
-    ('OFF004', 'O004', 'Nora Khalid', 'CALL_CENTER', 2, '+966504567890', 'nora@example.com'),
-    ('OFF005', 'O005', 'Omar Hassan', 'SENIOR', 3, '+966505678901', 'omar@example.com'),
-    ('OFF006', 'O006', 'Sara Ahmed', 'JUNIOR', 3, '+966506789012', 'sara@example.com')
-ON CONFLICT (officer_id) DO NOTHING;
-
--- Migrate collection cases from kastle_banking to kastle_collection
--- Only migrate if kastle_collection.collection_cases is empty
-INSERT INTO kastle_collection.collection_cases (
-    case_id, case_number, loan_account_number, customer_id, 
-    total_outstanding, days_past_due, case_status, priority, 
-    bucket_id, assigned_to, created_at, updated_at
-)
-SELECT 
-    'CASE' || LPAD(cc.case_id::TEXT, 6, '0'),
-    cc.case_number,
-    COALESCE(cc.loan_account_number, cc.account_number),
-    cc.customer_id,
-    cc.total_outstanding,
-    cc.days_past_due,
-    cc.case_status,
-    cc.priority,
-    CASE 
-        WHEN cc.days_past_due > 120 THEN 'BUCKET_5'
-        WHEN cc.days_past_due > 90 THEN 'BUCKET_4'
-        WHEN cc.days_past_due > 60 THEN 'BUCKET_3'
-        WHEN cc.days_past_due > 30 THEN 'BUCKET_2'
-        ELSE 'BUCKET_1'
-    END,
-    CASE 
-        WHEN cc.assigned_to IN ('OFF001', 'OFF002', 'OFF003', 'OFF004', 'OFF005', 'OFF006') 
-        THEN cc.assigned_to
-        ELSE 'OFF001'  -- Default assignment
-    END,
-    cc.created_at,
-    cc.updated_at
-FROM kastle_banking.collection_cases cc
-WHERE NOT EXISTS (SELECT 1 FROM kastle_collection.collection_cases)
-LIMIT 100
-ON CONFLICT (case_id) DO NOTHING;
-
--- If no cases were migrated, create sample cases from loan accounts
-INSERT INTO kastle_collection.collection_cases (case_id, case_number, loan_account_number, customer_id, total_outstanding, days_past_due, case_status, priority, bucket_id, assigned_to)
-SELECT 
-    'CASE' || LPAD(ROW_NUMBER() OVER()::TEXT, 6, '0'),
-    'CC-2024-' || LPAD(ROW_NUMBER() OVER()::TEXT, 6, '0'),
-    la.loan_account_number,
-    la.customer_id,
-    la.outstanding_balance,
-    COALESCE(la.overdue_days, 0),
-    CASE 
-        WHEN la.loan_status = 'DEFAULTED' THEN 'ACTIVE'
-        WHEN la.loan_status = 'WRITTEN_OFF' THEN 'WRITTEN_OFF'
-        ELSE 'ACTIVE'
-    END,
-    CASE 
-        WHEN COALESCE(la.overdue_days, 0) > 90 THEN 'CRITICAL'
-        WHEN COALESCE(la.overdue_days, 0) > 60 THEN 'HIGH'
-        WHEN COALESCE(la.overdue_days, 0) > 30 THEN 'MEDIUM'
-        ELSE 'LOW'
-    END,
-    CASE 
-        WHEN COALESCE(la.overdue_days, 0) > 120 THEN 'BUCKET_5'
-        WHEN COALESCE(la.overdue_days, 0) > 90 THEN 'BUCKET_4'
-        WHEN COALESCE(la.overdue_days, 0) > 60 THEN 'BUCKET_3'
-        WHEN COALESCE(la.overdue_days, 0) > 30 THEN 'BUCKET_2'
-        ELSE 'BUCKET_1'
-    END,
-    CASE (ROW_NUMBER() OVER() % 6)
-        WHEN 1 THEN 'OFF001'
-        WHEN 2 THEN 'OFF002'
-        WHEN 3 THEN 'OFF003'
-        WHEN 4 THEN 'OFF004'
-        WHEN 5 THEN 'OFF005'
-        ELSE 'OFF006'
-    END
-FROM kastle_banking.loan_accounts la
-WHERE la.loan_status IN ('DEFAULTED', 'DELINQUENT', 'WRITTEN_OFF')
-AND la.outstanding_balance > 0
-AND NOT EXISTS (SELECT 1 FROM kastle_collection.collection_cases WHERE loan_account_number = la.loan_account_number)
-LIMIT 50
-ON CONFLICT (case_id) DO NOTHING;
-
--- Insert daily collection summary data for the last 30 days
-INSERT INTO kastle_collection.daily_collection_summary (
-    summary_date, total_cases, total_outstanding, total_collected, 
-    collection_rate, accounts_due, accounts_collected, calls_made, 
-    ptps_created, ptps_kept, new_cases, closed_cases
-)
-SELECT 
-    CURRENT_DATE - (n || ' days')::INTERVAL,
-    150 + (RANDOM() * 50)::INT,
-    2500000 + (RANDOM() * 1000000)::DECIMAL,
-    100000 + (RANDOM() * 100000)::DECIMAL,
-    3 + (RANDOM() * 4)::DECIMAL,
-    100 + (RANDOM() * 50)::INT,
-    20 + (RANDOM() * 20)::INT,
-    200 + (RANDOM() * 100)::INT,
-    30 + (RANDOM() * 20)::INT,
-    20 + (RANDOM() * 10)::INT,
-    5 + (RANDOM() * 10)::INT,
-    3 + (RANDOM() * 7)::INT
-FROM generate_series(0, 30) n
-ON CONFLICT (summary_date) DO NOTHING;
-
--- Insert officer performance data
-INSERT INTO kastle_collection.officer_performance_summary (
-    officer_id, summary_date, total_cases, total_collected, 
-    total_calls, contact_rate, ptp_rate, quality_score
-)
-SELECT 
-    o.officer_id,
-    CURRENT_DATE - (n || ' days')::INTERVAL,
-    10 + (RANDOM() * 10)::INT,
-    50000 + (RANDOM() * 50000)::DECIMAL,
-    20 + (RANDOM() * 20)::INT,
-    70 + (RANDOM() * 25)::DECIMAL,
-    60 + (RANDOM() * 30)::DECIMAL,
-    75 + (RANDOM() * 20)::DECIMAL
-FROM kastle_collection.collection_officers o
-CROSS JOIN generate_series(0, 7) n
-ON CONFLICT (officer_id, summary_date) DO NOTHING;
-
--- 14. Create indexes for performance
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_collection_cases_customer_id ON kastle_collection.collection_cases(customer_id);
 CREATE INDEX IF NOT EXISTS idx_collection_cases_status ON kastle_collection.collection_cases(case_status);
-CREATE INDEX IF NOT EXISTS idx_collection_cases_bucket ON kastle_collection.collection_cases(bucket_id);
-CREATE INDEX IF NOT EXISTS idx_collection_cases_officer ON kastle_collection.collection_cases(assigned_to);
-CREATE INDEX IF NOT EXISTS idx_collection_cases_customer ON kastle_collection.collection_cases(customer_id);
+CREATE INDEX IF NOT EXISTS idx_collection_interactions_customer_id ON kastle_collection.collection_interactions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_collection_interactions_date ON kastle_collection.collection_interactions(interaction_date);
 CREATE INDEX IF NOT EXISTS idx_daily_summary_date ON kastle_collection.daily_collection_summary(summary_date);
 CREATE INDEX IF NOT EXISTS idx_officer_performance_date ON kastle_collection.officer_performance_summary(summary_date);
-CREATE INDEX IF NOT EXISTS idx_officer_performance_officer ON kastle_collection.officer_performance_summary(officer_id);
 
--- 15. Verify the setup
+-- Grant permissions on all tables
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA kastle_collection TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA kastle_collection TO anon, authenticated, service_role;
+
+-- Insert sample data for collection teams
+INSERT INTO kastle_collection.collection_teams (team_code, team_name, team_type, status)
+VALUES 
+    ('CALL_TEAM_01', 'Call Center Team 1', 'CALL_CENTER', 'ACTIVE'),
+    ('FIELD_TEAM_01', 'Field Collection Team 1', 'FIELD', 'ACTIVE'),
+    ('LEGAL_TEAM_01', 'Legal Team 1', 'LEGAL', 'ACTIVE'),
+    ('DIGITAL_TEAM_01', 'Digital Collection Team', 'DIGITAL', 'ACTIVE')
+ON CONFLICT (team_code) DO NOTHING;
+
+-- Insert sample data for collection officers
+INSERT INTO kastle_collection.collection_officers (officer_id, officer_name, officer_type, team_id, email, contact_number, status)
 SELECT 
-    'Schema Created Successfully!' as status,
-    (SELECT COUNT(*) FROM kastle_collection.collection_teams) as teams_count,
-    (SELECT COUNT(*) FROM kastle_collection.collection_officers) as officers_count,
-    (SELECT COUNT(*) FROM kastle_collection.collection_buckets) as buckets_count,
-    (SELECT COUNT(*) FROM kastle_collection.collection_cases) as cases_count,
-    (SELECT COUNT(*) FROM kastle_collection.daily_collection_summary) as daily_summaries_count,
-    (SELECT COUNT(*) FROM kastle_collection.officer_performance_summary) as officer_performance_count;
+    'OFF_' || LPAD(generate_series::text, 3, '0'),
+    'Officer ' || generate_series,
+    CASE 
+        WHEN generate_series % 4 = 0 THEN 'TEAM_LEAD'
+        WHEN generate_series % 4 = 1 THEN 'SENIOR_COLLECTOR'
+        WHEN generate_series % 4 = 2 THEN 'CALL_AGENT'
+        ELSE 'FIELD_AGENT'
+    END,
+    (generate_series % 4) + 1,
+    'officer' || generate_series || '@osol.com',
+    '+966' || (500000000 + generate_series),
+    'ACTIVE'
+FROM generate_series(1, 20)
+ON CONFLICT (officer_id) DO NOTHING;
+
+-- Insert sample collection buckets with all required fields
+INSERT INTO kastle_collection.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd, priority_order, priority_level)
+VALUES 
+    ('CURRENT', 'Current', 0, 0, 0, 0, 1, 1),
+    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30, 2, 2),
+    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60, 3, 3),
+    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90, 4, 4),
+    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120, 5, 5),
+    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180, 6, 6),
+    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999, 7, 7)
+ON CONFLICT (bucket_code) DO NOTHING;
+
+-- Insert sample daily collection summary for the last 30 days
+INSERT INTO kastle_collection.daily_collection_summary (
+    summary_date,
+    total_cases,
+    total_outstanding,
+    total_collected,
+    collection_rate,
+    new_cases,
+    closed_cases,
+    active_officers,
+    total_interactions,
+    successful_contacts,
+    promises_made,
+    promises_kept
+)
+SELECT 
+    CURRENT_DATE - INTERVAL '1 day' * generate_series,
+    100 + (random() * 50)::int,
+    1000000 + (random() * 500000)::numeric,
+    50000 + (random() * 50000)::numeric,
+    5 + (random() * 10)::numeric,
+    5 + (random() * 10)::int,
+    3 + (random() * 7)::int,
+    15 + (random() * 5)::int,
+    200 + (random() * 100)::int,
+    150 + (random() * 50)::int,
+    20 + (random() * 20)::int,
+    15 + (random() * 15)::int
+FROM generate_series(0, 29)
+ON CONFLICT (summary_date) DO NOTHING;
+
+-- Create a function to handle missing foreign key references
+CREATE OR REPLACE FUNCTION kastle_collection.ensure_valid_references()
+RETURNS void AS $$
+BEGIN
+    -- Update any invalid customer_id references in collection tables
+    UPDATE kastle_collection.collection_cases 
+    SET customer_id = NULL 
+    WHERE customer_id IS NOT NULL 
+    AND NOT EXISTS (SELECT 1 FROM kastle_banking.customers WHERE customers.customer_id = collection_cases.customer_id);
+    
+    UPDATE kastle_collection.collection_interactions 
+    SET customer_id = NULL 
+    WHERE customer_id IS NOT NULL 
+    AND NOT EXISTS (SELECT 1 FROM kastle_banking.customers WHERE customers.customer_id = collection_interactions.customer_id);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Run the function to clean up invalid references
+SELECT kastle_collection.ensure_valid_references();
+
+-- Create views for easier querying
+CREATE OR REPLACE VIEW kastle_collection.v_collection_overview AS
+SELECT 
+    COUNT(DISTINCT cc.case_id) as total_cases,
+    SUM(cc.total_outstanding) as total_outstanding,
+    COUNT(DISTINCT cc.customer_id) as unique_customers,
+    AVG(cc.days_past_due) as avg_dpd,
+    COUNT(DISTINCT CASE WHEN cc.case_status = 'ACTIVE' THEN cc.case_id END) as active_cases,
+    COUNT(DISTINCT cc.assigned_to) as assigned_officers
+FROM kastle_collection.collection_cases cc
+WHERE cc.case_status = 'ACTIVE';
+
+-- Grant permissions on views
+GRANT SELECT ON kastle_collection.v_collection_overview TO anon, authenticated, service_role;
+
+-- Verify the setup
+DO $$
+BEGIN
+    RAISE NOTICE 'Collection schema setup completed';
+    RAISE NOTICE 'Teams created: %', (SELECT COUNT(*) FROM kastle_collection.collection_teams);
+    RAISE NOTICE 'Officers created: %', (SELECT COUNT(*) FROM kastle_collection.collection_officers);
+    RAISE NOTICE 'Buckets created: %', (SELECT COUNT(*) FROM kastle_collection.collection_buckets);
+    RAISE NOTICE 'Daily summaries created: %', (SELECT COUNT(*) FROM kastle_collection.daily_collection_summary);
+END $$;
