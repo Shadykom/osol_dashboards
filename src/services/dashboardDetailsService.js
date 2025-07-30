@@ -217,35 +217,78 @@ export const customerDetailsService = {
 export const accountDetailsService = {
   async getOverviewStats() {
     try {
-      // Total accounts
-      const { count: totalAccounts } = await supabaseBanking
+      // Total accounts - get all accounts
+      const { count: totalAccounts, error: totalError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true });
 
+      if (totalError) {
+        console.error('Error fetching total accounts:', totalError);
+      }
+
       // Active accounts
-      const { count: activeAccounts } = await supabaseBanking
+      const { count: activeAccounts, error: activeError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .eq('account_status', 'ACTIVE');
 
-      // Account types breakdown
+      if (activeError) {
+        console.error('Error fetching active accounts:', activeError);
+      }
+
+      // Get all accounts with types for breakdown
+      const { data: accounts, error: accountsError } = await supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('account_type_id, account_type, current_balance, account_status');
+
+      if (accountsError) {
+        console.error('Error fetching accounts:', accountsError);
+      }
+
+      // Try to get account type names
       const { data: accountTypes } = await supabaseBanking
-        .from(TABLES.ACCOUNTS)
-        .select('account_type_id, account_types!inner(type_name)');
+        .from('account_types')
+        .select('type_id, type_name, account_category');
+      
+      // Create type map
+      const typeMap = {};
+      if (accountTypes) {
+        accountTypes.forEach(type => {
+          typeMap[type.type_id] = {
+            name: type.type_name,
+            category: type.account_category
+          };
+        });
+      }
 
-      const typeBreakdown = accountTypes?.reduce((acc, curr) => {
-        const typeName = curr.account_types?.type_name || 'Unknown';
-        acc[typeName] = (acc[typeName] || 0) + 1;
-        return acc;
-      }, {}) || {};
+      // Account types breakdown
+      const typeBreakdown = {};
+      if (accounts) {
+        accounts.forEach(account => {
+          let typeName = 'Other';
+          
+          if (account.account_type_id && typeMap[account.account_type_id]) {
+            typeName = typeMap[account.account_type_id].name || typeMap[account.account_type_id].category;
+          } else if (account.account_type) {
+            typeName = account.account_type.replace(/_/g, ' ');
+          }
+          
+          typeBreakdown[typeName] = (typeBreakdown[typeName] || 0) + 1;
+        });
+      }
 
-      // Total balance
-      const { data: balances } = await supabaseBanking
-        .from(TABLES.ACCOUNTS)
-        .select('current_balance')
-        .eq('account_status', 'ACTIVE');
+      // Total balance from all accounts
+      const totalBalance = accounts?.reduce((sum, acc) => {
+        return sum + (parseFloat(acc.current_balance) || 0);
+      }, 0) || 0;
 
-      const totalBalance = balances?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
+      // Active accounts balance
+      const activeBalance = accounts?.reduce((sum, acc) => {
+        if (acc.account_status === 'ACTIVE') {
+          return sum + (parseFloat(acc.current_balance) || 0);
+        }
+        return sum;
+      }, 0) || 0;
 
       return {
         data: {
@@ -254,12 +297,21 @@ export const accountDetailsService = {
           dormantAccounts: (totalAccounts || 0) - (activeAccounts || 0),
           accountTypes: typeBreakdown,
           totalBalance: totalBalance,
-          averageBalance: totalBalance / (activeAccounts || 1)
+          activeBalance: activeBalance,
+          averageBalance: activeAccounts > 0 ? activeBalance / activeAccounts : 0
         },
         error: null
       };
     } catch (error) {
-      return handleError(error, {});
+      return handleError(error, {
+        totalAccounts: 0,
+        activeAccounts: 0,
+        dormantAccounts: 0,
+        accountTypes: {},
+        totalBalance: 0,
+        activeBalance: 0,
+        averageBalance: 0
+      });
     }
   },
 

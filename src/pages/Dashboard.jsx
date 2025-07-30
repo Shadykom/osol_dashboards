@@ -553,43 +553,125 @@ const WIDGET_CATALOG = {
           suffix: '%'
         };
       }
-    }
-  },
-  
-  banking: {
-    active_accounts: {
-      name: 'الحسابات النشطة',
-      nameEn: 'Active Accounts',
+    },
+    total_accounts: {
+      name: 'إجمالي الحسابات',
+      nameEn: 'Total Accounts',
       icon: CreditCard,
       type: 'kpi',
       query: async (filters) => {
         try {
-          // First check if we have account_types table
-          const { data: accountTypes } = await supabaseBanking
-            .from('account_types')
-            .select('type_id')
-            .limit(1);
-          
-          if (!accountTypes || accountTypes.length === 0) {
-            // No account types, just count accounts
-            const { count, error } = await supabaseBanking
-              .from(TABLES.ACCOUNTS)
-              .select('*', { count: 'exact', head: true })
-              .eq('account_status', 'ACTIVE');
-            
-            if (error) throw error;
-            
-            return {
-              value: count || 0,
-              change: 8.2,
-              trend: 'up'
-            };
-          }
-          
-          // Account types exist, do the full query
+          // Get total count of all accounts
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('*, account_types!inner(account_category)', { count: 'exact', head: true })
+            .select('*', { count: 'exact', head: true });
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { count: totalCount, error: totalError } = await query;
+          
+          console.log('Total accounts query result:', { totalCount, totalError });
+          
+          if (totalError) {
+            console.error('Error fetching total accounts:', totalError);
+            throw totalError;
+          }
+          
+          // Get active accounts for percentage calculation
+          const { count: activeCount } = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('*', { count: 'exact', head: true })
+            .eq('account_status', 'ACTIVE');
+          
+          const activePercentage = totalCount > 0 ? ((activeCount / totalCount) * 100).toFixed(1) : 0;
+          
+          return {
+            value: totalCount || 0,
+            change: parseFloat(activePercentage),
+            trend: activePercentage > 50 ? 'up' : 'down',
+            suffix: '% active'
+          };
+        } catch (error) {
+          console.error('Error in total_accounts query:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral'
+          };
+        }
+      }
+    },
+    total_deposits: {
+      name: 'إجمالي الودائع',
+      nameEn: 'Total Deposits',
+      icon: DollarSign,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get all accounts with their balances
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('current_balance, account_status, branch_id');
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: accounts, error } = await query;
+          
+          console.log('Deposits query result:', { accountsCount: accounts?.length, error });
+          
+          if (error) {
+            console.error('Error fetching deposits:', error);
+            throw error;
+          }
+          
+          // Calculate total deposits from all accounts
+          const totalDeposits = accounts?.reduce((sum, account) => {
+            return sum + (parseFloat(account.current_balance) || 0);
+          }, 0) || 0;
+          
+          // Calculate active deposits for growth indicator
+          const activeDeposits = accounts?.reduce((sum, account) => {
+            if (account.account_status === 'ACTIVE') {
+              return sum + (parseFloat(account.current_balance) || 0);
+            }
+            return sum;
+          }, 0) || 0;
+          
+          // Mock growth rate (in real app, compare with previous period)
+          const growthRate = totalDeposits > 0 ? 15.3 : 0;
+          
+          return {
+            value: totalDeposits,
+            change: growthRate,
+            trend: growthRate > 0 ? 'up' : 'neutral'
+          };
+        } catch (error) {
+          console.error('Error in total_deposits query:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral'
+          };
+        }
+      }
+    },
+    active_accounts: {
+      name: 'الحسابات النشطة',
+      nameEn: 'Active Accounts',
+      icon: Activity,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Count only active accounts
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('*', { count: 'exact', head: true })
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter
@@ -597,33 +679,13 @@ const WIDGET_CATALOG = {
             query = query.eq('branch_id', filters.branch);
           }
           
-          // Apply product type filter
-          if (filters?.productType && filters.productType !== 'all') {
-            const productTypeMap = {
-              'savings': 'SAVINGS',
-              'current': 'CURRENT',
-              'loan': 'LOAN'
-            };
-            const accountCategory = productTypeMap[filters.productType];
-            if (accountCategory) {
-              query = query.eq('account_types.account_category', accountCategory);
-            }
-          }
-          
           const { count, error } = await query;
           
+          console.log('Active accounts query result:', { count, error });
+          
           if (error) {
-            // If join fails, try simple count
-            const { count: simpleCount } = await supabaseBanking
-              .from(TABLES.ACCOUNTS)
-              .select('*', { count: 'exact', head: true })
-              .eq('account_status', 'ACTIVE');
-            
-            return {
-              value: simpleCount || 0,
-              change: 8.2,
-              trend: 'up'
-            };
+            console.error('Error fetching active accounts:', error);
+            throw error;
           }
           
           return {
@@ -632,8 +694,7 @@ const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.log('Error in active_accounts:', error);
-          // Return 0 instead of mock data to show real state
+          console.error('Error in active_accounts query:', error);
           return {
             value: 0,
             change: 0,
@@ -652,24 +713,49 @@ const WIDGET_CATALOG = {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
           const { count, error } = await supabaseBanking
             .from(TABLES.TRANSACTIONS)
             .select('*', { count: 'exact', head: true })
-            .gte('transaction_date', today.toISOString());
+            .gte('transaction_date', today.toISOString())
+            .lt('transaction_date', tomorrow.toISOString());
           
-          if (error) throw error;
+          console.log('Daily transactions query result:', { count, error, date: today.toISOString() });
+          
+          if (error) {
+            console.error('Error fetching daily transactions:', error);
+            throw error;
+          }
+          
+          // Get yesterday's count for comparison
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          
+          const { count: yesterdayCount } = await supabaseBanking
+            .from(TABLES.TRANSACTIONS)
+            .select('*', { count: 'exact', head: true })
+            .gte('transaction_date', yesterday.toISOString())
+            .lt('transaction_date', today.toISOString());
+          
+          // Calculate change percentage
+          let change = 0;
+          if (yesterdayCount && yesterdayCount > 0) {
+            change = ((count - yesterdayCount) / yesterdayCount * 100).toFixed(1);
+          }
           
           return {
-            value: count || 8547,
-            change: -2.4,
-            trend: 'down'
+            value: count || 0,
+            change: parseFloat(change),
+            trend: change > 0 ? 'up' : change < 0 ? 'down' : 'neutral'
           };
         } catch (error) {
-          console.log('Using mock data for daily_transactions');
+          console.error('Error in daily_transactions query:', error);
           return {
-            value: 8547,
-            change: -2.4,
-            trend: 'down'
+            value: 0,
+            change: 0,
+            trend: 'neutral'
           };
         }
       }
@@ -682,43 +768,67 @@ const WIDGET_CATALOG = {
       chartType: 'pie',
       query: async (filters) => {
         try {
+          // Get all accounts with their types
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select(`
-              account_type_id,
-              branch_id,
-              account_types!inner(type_code, type_name, account_category)
-            `)
-            .eq('account_status', 'ACTIVE');
+            .select('account_type_id, account_type, branch_id');
           
           // Apply branch filter
           if (filters?.branch && filters.branch !== 'all') {
             query = query.eq('branch_id', filters.branch);
           }
           
-          // Apply product type filter
-          if (filters?.productType && filters.productType !== 'all') {
-            const productTypeMap = {
-              'savings': 'SAVINGS',
-              'current': 'CURRENT',
-              'loan': 'LOAN'
-            };
-            const accountCategory = productTypeMap[filters.productType];
-            if (accountCategory) {
-              query = query.eq('account_types.account_category', accountCategory);
-            }
+          const { data: accounts, error } = await query;
+          
+          console.log('Account types distribution query result:', { accountsCount: accounts?.length, error });
+          
+          if (error) {
+            console.error('Error fetching account types:', error);
+            throw error;
           }
           
-          const { data, error } = await query;
+          // If no accounts, return empty array
+          if (!accounts || accounts.length === 0) {
+            return [];
+          }
           
-          if (error) throw error;
+          // Try to get account type names if available
+          const { data: accountTypes } = await supabaseBanking
+            .from('account_types')
+            .select('type_id, type_name, account_category');
           
-          const distribution = data?.reduce((acc, item) => {
-            const typeName = item.account_types?.type_name || 'Other';
-            const category = item.account_types?.account_category || 'Other';
-            acc[category] = (acc[category] || 0) + 1;
+          // Create a map of type_id to type details
+          const typeMap = {};
+          if (accountTypes) {
+            accountTypes.forEach(type => {
+              typeMap[type.type_id] = {
+                name: type.type_name,
+                category: type.account_category
+              };
+            });
+          }
+          
+          // Count accounts by type
+          const distribution = accounts.reduce((acc, account) => {
+            let typeName = 'Other';
+            
+            // Try to get type name from map
+            if (account.account_type_id && typeMap[account.account_type_id]) {
+              typeName = typeMap[account.account_type_id].category || typeMap[account.account_type_id].name;
+            } else if (account.account_type) {
+              // Fallback to account_type field
+              typeName = account.account_type.replace(/_/g, ' ');
+            }
+            
+            acc[typeName] = (acc[typeName] || 0) + 1;
             return acc;
           }, {});
+          
+          console.log('Account types distribution:', distribution);
+          
+          // Validate that total matches
+          const distributionTotal = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+          console.log(`Account types total: ${distributionTotal}, Accounts count: ${accounts.length}`);
           
           const colorMap = {
             'SAVINGS': '#E6B800',
@@ -728,16 +838,16 @@ const WIDGET_CATALOG = {
             'Other': '#F687B3'
           };
           
-          const result = Object.entries(distribution || {}).map(([name, value]) => ({
-            name: name.replace(/_/g, ' '),
+          const result = Object.entries(distribution).map(([name, value]) => ({
+            name: name,
             value,
             fill: colorMap[name] || '#9F7AEA'
           }));
           
-          return result.length > 0 ? result : getMockChartData('pie');
+          return result.length > 0 ? result : [];
         } catch (error) {
-          console.log('Using mock data for account_types_distribution');
-          return getMockChartData('pie');
+          console.error('Error in account_types_distribution query:', error);
+          return [];
         }
       }
     },
