@@ -1,10 +1,9 @@
 import { 
+  supabaseCollection, 
   supabaseBanking,
-  TABLES,
-  COLLECTION_TABLES, 
+  TABLES, 
   getClientForTable
 } from '@/lib/supabase';
-import { executeWithSchemaFallback } from '@/utils/supabaseHelper';
 
 // Simple API response formatter
 function formatApiResponse(data, error = null, pagination = null) {
@@ -29,26 +28,6 @@ function formatApiResponse(data, error = null, pagination = null) {
   };
 }
 
-/**
- * Helper function to ensure proper column aliases in select queries
- */
-function buildSelectQuery(columns) {
-  if (Array.isArray(columns)) {
-    return columns.map(col => {
-      if (typeof col === 'string' && col.includes(' as ')) {
-        // Ensure proper spacing around 'as'
-        return col.replace(/\s*as\s*/g, ' as ');
-      }
-      return col;
-    }).join(', ');
-  }
-  if (typeof columns === 'string') {
-    // Fix any missing spaces around 'as' keyword
-    return columns.replace(/(\w+)as(\w+)/g, '$1 as $2');
-  }
-  return columns;
-}
-
 export class CollectionService {
   /**
    * Get collection cases with filtering and pagination
@@ -71,31 +50,37 @@ export class CollectionService {
         dateTo = null
       } = params;
 
-      // Build query - all tables are now in kastle_banking schema
-      let query = supabaseBanking
-        .from(TABLES.COLLECTION_CASES)
+      // Build query
+      let query = supabaseCollection
+        .from('kastle_collection.collection_cases')
         .select(`
           *,
-          loan_accounts!loan_account_number (
+          kastle_banking.loan_accounts!loan_account_number (
             loan_amount,
             outstanding_balance,
             overdue_amount,
             overdue_days,
             product_id,
-            products!product_id (
+            kastle_banking.products!product_id (
               product_name,
               product_type
             )
           ),
-          customers!customer_id (
+          kastle_banking.customers!customer_id (
             full_name,
             customer_type,
-            customer_contacts!customer_id (
+            kastle_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
           ),
-          collection_buckets!bucket_id (
+          kastle_collection.collection_officers!assigned_to (
+            officer_name,
+            officer_type,
+            team_id,
+            contact_number
+          ),
+          kastle_collection.collection_buckets!bucket_id (
             bucket_name,
             min_days,
             max_days
@@ -104,7 +89,7 @@ export class CollectionService {
 
       // Apply filters
       if (search) {
-        query = query.or(`case_number.ilike.%${search}%,loan_account_number.ilike.%${search}%`);
+        query = query.or(`case_number.ilike.%${search}%,kastle_banking.customers.full_name.ilike.%${search}%,loan_account_number.ilike.%${search}%`);
       }
 
       if (status && status !== 'all') {
@@ -119,7 +104,7 @@ export class CollectionService {
         query = query.eq('bucket_id', bucket);
       }
 
-      if (assignedTo) {
+      if (assignedTo && assignedTo !== 'all') {
         query = query.eq('assigned_to', assignedTo);
       }
 
@@ -132,11 +117,11 @@ export class CollectionService {
       }
 
       if (minDpd) {
-        query = query.gte('dpd', minDpd);
+        query = query.gte('days_past_due', minDpd);
       }
 
       if (maxDpd) {
-        query = query.lte('dpd', maxDpd);
+        query = query.lte('days_past_due', maxDpd);
       }
 
       if (dateFrom) {
@@ -147,51 +132,71 @@ export class CollectionService {
         query = query.lte('created_at', dateTo);
       }
 
-      // Pagination
-      const offset = (page - 1) * limit;
-      query = query
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+      // Apply pagination
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+
+      // Order by priority and days past due
+      query = query.order('priority', { ascending: false })
+                   .order('days_past_due', { ascending: false });
 
       const { data, error, count } = await query;
 
       if (error) throw error;
 
-      // Get officer details - now also in kastle_banking schema
-      let casesWithOfficers = data || [];
-      if (data && data.length > 0) {
-        const officerIds = [...new Set(data.map(c => c.assigned_to).filter(id => id))];
-        
-        if (officerIds.length > 0) {
-          const { data: officers, error: officersError } = await supabaseBanking
-            .from('collection_officers')
-            .select('officer_id, officer_name, officer_type, team_id, contact_number')
-            .in('officer_id', officerIds);
+      // Get additional statistics for each case
+      const enrichedData = await Promise.all((data || []).map(async (caseItem) => {
+        // Get interaction count for this case
+        const { count: interactionCount } = await supabaseCollection
+          .from('kastle_collection.collection_interactions')
+          .select('interaction_id', { count: 'exact', head: true })
+          .eq('case_id', caseItem.case_id);
 
-          if (!officersError && officers) {
-            const officersMap = officers.reduce((acc, officer) => {
-              acc[officer.officer_id] = officer;
-              return acc;
-            }, {});
+        // Get promise to pay status
+        const { data: activePTP } = await supabaseCollection
+          .from('kastle_collection.promise_to_pay')
+          .select('ptp_id, ptp_date, ptp_amount')
+          .eq('case_id', caseItem.case_id)
+          .eq('status', 'ACTIVE')
+          .single();
 
-            casesWithOfficers = data.map(caseData => ({
-              ...caseData,
-              collection_officers: officersMap[caseData.assigned_to] || null
-            }));
-          }
-        }
-      }
+        return {
+          caseId: caseItem.case_id,
+          caseNumber: caseItem.case_number,
+          customerName: caseItem.kastle_banking?.customers?.full_name || 'Unknown',
+          customerPhone: caseItem.kastle_banking?.customers?.customer_contacts?.find(c => c.contact_type === 'MOBILE')?.contact_value || 'N/A',
+          customerId: caseItem.customer_id,
+          accountNumber: caseItem.account_number,
+          loanAccountNumber: caseItem.loan_account_number,
+          totalOutstanding: caseItem.total_outstanding || 0,
+          daysPastDue: caseItem.days_past_due || 0,
+          priority: caseItem.priority,
+          status: caseItem.case_status,
+          assignedTo: caseItem.kastle_collection?.collection_officers?.officer_name || 'Unassigned',
+          assignedOfficerId: caseItem.assigned_to,
+          delinquencyBucket: caseItem.kastle_collection?.collection_buckets?.bucket_name || 'Unknown',
+          lastContactDate: caseItem.last_contact_date,
+          nextActionDate: caseItem.next_action_date,
+          hasPromiseToPay: !!activePTP,
+          ptpDetails: activePTP,
+          totalInteractions: interactionCount || 0,
+          productType: caseItem.kastle_banking?.loan_accounts?.kastle_banking?.products?.product_type || 'Unknown',
+          createdAt: caseItem.created_at,
+          updatedAt: caseItem.updated_at
+        };
+      }));
 
-      const pagination = {
+      const paginationInfo = {
         page,
         limit,
         total: count || 0,
         totalPages: Math.ceil((count || 0) / limit)
       };
 
-      return formatApiResponse(casesWithOfficers, null, pagination);
+      return formatApiResponse(enrichedData, null, paginationInfo);
     } catch (error) {
-      console.error('Error fetching collection cases:', error);
+      console.error('Collection cases error:', error);
       return formatApiResponse(null, error);
     }
   }
@@ -201,95 +206,35 @@ export class CollectionService {
    */
   static async getCaseDetails(caseId) {
     try {
-      // Get case info from banking schema
-      const { data: caseData, error: caseError } = await supabaseBanking
-        .from(TABLES.COLLECTION_CASES)
-        .select('*')
+      // Get case info with all related data
+      const { data: caseData, error: caseError } = await supabaseCollection
+        .from('kastle_collection.collection_cases')
+        .select(`
+          *,
+          kastle_banking.loan_accounts!loan_account_number (
+            *,
+            kastle_banking.products!product_id (*)
+          ),
+          kastle_banking.customers!customer_id (
+            *,
+            kastle_banking.customer_contacts!customer_id (*),
+            kastle_banking.customer_addresses!customer_id (*)
+          ),
+          kastle_collection.collection_officers!assigned_to (*),
+          kastle_collection.collection_strategies!strategy_id (*),
+          kastle_collection.collection_buckets!bucket_id (*)
+        `)
         .eq('case_id', caseId)
         .single();
 
       if (caseError) throw caseError;
 
-      // Get related data separately
-      let enrichedCase = { ...caseData };
-
-      // Get loan account details
-      if (caseData.loan_account_number) {
-        const { data: loanAccount } = await supabaseBanking
-          .from(TABLES.LOAN_ACCOUNTS)
-          .select(`
-            *,
-            products!product_id (*)
-          `)
-          .eq('loan_account_number', caseData.loan_account_number)
-          .single();
-        enrichedCase.loan_accounts = loanAccount;
-      }
-
-      // Get customer details
-      if (caseData.customer_id) {
-        const { data: customer } = await supabaseBanking
-          .from(TABLES.CUSTOMERS)
-          .select('*')
-          .eq('customer_id', caseData.customer_id)
-          .single();
-        
-        if (customer) {
-          // Get customer contacts and addresses
-          const { data: contacts } = await supabaseBanking
-            .from(TABLES.CUSTOMER_CONTACTS)
-            .select('*')
-            .eq('customer_id', caseData.customer_id);
-          
-          const { data: addresses } = await supabaseBanking
-            .from(TABLES.CUSTOMER_ADDRESSES)
-            .select('*')
-            .eq('customer_id', caseData.customer_id);
-          
-          enrichedCase.customers = {
-            ...customer,
-            customer_contacts: contacts || [],
-            customer_addresses: addresses || []
-          };
-        }
-      }
-
-      // Get officer details
-      if (caseData.assigned_to) {
-        const { data: officer } = await supabaseBanking
-          .from('collection_officers')
-          .select('*')
-          .eq('officer_id', caseData.assigned_to)
-          .single();
-        enrichedCase.collection_officers = officer;
-      }
-
-      // Get strategy details
-      if (caseData.strategy_id) {
-const { data: strategy } = await supabaseBanking
-          .from('collection_strategies')
-          .select('*')
-          .eq('strategy_id', caseData.strategy_id)
-          .single();
-        enrichedCase.collection_strategies = strategy;
-      }
-
-      // Get bucket details
-      if (caseData.bucket_id) {
-        const { data: bucket } = await supabaseBanking
-          .from(TABLES.COLLECTION_BUCKETS)
-          .select('*')
-          .eq('bucket_id', caseData.bucket_id)
-          .single();
-        enrichedCase.collection_buckets = bucket;
-      }
-
       // Get interactions
-      const { data: interactions, error: interactionsError } = await supabaseBanking
-        .from('collection_interactions')
+      const { data: interactions, error: interactionsError } = await supabaseCollection
+        .from('kastle_collection.collection_interactions')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name,
             officer_type
           )
@@ -298,11 +243,11 @@ const { data: strategy } = await supabaseBanking
         .order('interaction_datetime', { ascending: false });
 
       // Get promises to pay
-      const { data: promisesToPay, error: ptpError } = await supabaseBanking
-        .from('promise_to_pay')
+      const { data: promisesToPay, error: ptpError } = await supabaseCollection
+        .from('kastle_collection.promise_to_pay')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name
           )
         `)
@@ -310,11 +255,11 @@ const { data: strategy } = await supabaseBanking
         .order('created_at', { ascending: false });
 
       // Get field visits
-const { data: fieldVisits, error: visitsError } = await supabaseBanking
-        .from('field_visits')
+      const { data: fieldVisits, error: visitsError } = await supabaseCollection
+        .from('kastle_collection.field_visits')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name
           )
         `)
@@ -322,31 +267,31 @@ const { data: fieldVisits, error: visitsError } = await supabaseBanking
         .order('visit_date', { ascending: false });
 
       // Get legal case if exists
-const { data: legalCase, error: legalError } = await supabaseBanking
-        .from('legal_cases')
+      const { data: legalCase, error: legalError } = await supabaseCollection
+        .from('kastle_collection.legal_cases')
         .select('*')
         .eq('case_id', caseId)
         .single();
 
       // Get payment history
       const { data: payments, error: paymentsError } = await supabaseBanking
-        .from(TABLES.TRANSACTIONS)
+        .from('kastle_banking.transactions')
         .select('*')
-        .eq('account_number', enrichedCase?.account_number)
+        .eq('account_number', caseData?.account_number)
         .eq('transaction_type_id', 'LOAN_REPAYMENT')
         .order('transaction_date', { ascending: false })
         .limit(10);
 
       // Get collection score history
-const { data: scoreHistory, error: scoreError } = await supabaseBanking
-        .from('collection_scores')
+      const { data: scoreHistory, error: scoreError } = await supabaseCollection
+        .from('kastle_collection.collection_scores')
         .select('*')
         .eq('case_id', caseId)
         .order('score_date', { ascending: false })
         .limit(30);
 
       return formatApiResponse({
-        caseInfo: enrichedCase,
+        caseInfo: caseData,
         interactions: interactions || [],
         promisesToPay: promisesToPay || [],
         fieldVisits: fieldVisits || [],
@@ -376,9 +321,9 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
     try {
       const { branch, team, status, dateFrom, dateTo } = filters;
 
-      // Build base query for cases - collection_cases is in kastle_banking schema
-      let casesQuery = supabaseBanking
-        .from(TABLES.COLLECTION_CASES)
+      // Build base query for cases
+      let casesQuery = supabaseCollection
+        .from('kastle_collection.collection_cases')
         .select('case_id, total_outstanding, days_past_due, case_status, priority, bucket_id, assigned_to');
 
       // Apply filters
@@ -401,8 +346,8 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
       // Filter by team if needed
       let filteredCases = cases || [];
       if (team && team !== 'all') {
-        const { data: teamOfficers } = await supabaseBanking
-          .from('collection_officers')
+        const { data: teamOfficers } = await supabaseCollection
+          .from('kastle_collection.collection_officers')
           .select('officer_id')
           .eq('team_id', team);
         
@@ -420,17 +365,17 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { data: monthlyRecovery } = await supabaseBanking
-        .from('daily_collection_summary')
+      const { data: monthlyRecovery } = await supabaseCollection
+        .from('kastle_collection.daily_collection_summary')
         .select('total_collected')
         .gte('summary_date', startOfMonth.toISOString().split('T')[0]);
 
       const totalMonthlyRecovery = monthlyRecovery?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
       const collectionRate = totalOutstanding > 0 ? (totalMonthlyRecovery / totalOutstanding) * 100 : 0;
 
-      // Get bucket distribution - collection_buckets is in banking schema
-      const { data: buckets } = await supabaseBanking
-        .from(TABLES.COLLECTION_BUCKETS)
+      // Get bucket distribution
+      const { data: buckets } = await supabaseCollection
+        .from('kastle_collection.collection_buckets')
         .select('bucket_id, bucket_name, min_days, max_days');
 
       const bucketDistribution = buckets?.map(bucket => {
@@ -478,29 +423,27 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
       });
 
       // Get team performance
-      const { data: teams } = await supabaseBanking
-        .from('collection_teams')
+      const { data: teams } = await supabaseCollection
+        .from('kastle_collection.collection_teams')
         .select(`
           team_id,
           team_name,
-          collection_officers!collection_officers_team_id_fkey (
+          kastle_collection.collection_officers!team_id (
             officer_id,
             officer_name
           )
         `);
 
       const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-        const teamOfficerIds = team.collection_officers?.map(o => o.officer_id) || [];
+        const teamOfficerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
         const teamCases = filteredCases.filter(c => teamOfficerIds.includes(c.assigned_to));
         
         // Get team recovery
-        const { data: teamRecovery } = teamOfficerIds.length > 0
-          ? await supabaseBanking
-              .from('officer_performance_summary')
-              .select('total_collected')
-              .in('officer_id', teamOfficerIds)
-              .gte('summary_date', startOfMonth.toISOString().split('T')[0])
-          : { data: [] };
+        const { data: teamRecovery } = await supabaseCollection
+          .from('kastle_collection.officer_performance_summary')
+          .select('total_collected')
+          .in('officer_id', teamOfficerIds)
+          .gte('summary_date', startOfMonth.toISOString().split('T')[0]);
 
         const totalTeamRecovery = teamRecovery?.reduce((sum, r) => sum + (r.total_collected || 0), 0) || 0;
 
@@ -542,49 +485,6 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
       });
     } catch (error) {
       console.error('Collection overview error:', error);
-      
-      // If table doesn't exist, return mock data
-      if (error.message?.includes('does not exist') || error.code === '42P01') {
-        console.log('Collection tables not found, returning mock data');
-        return formatApiResponse({
-          totalCases: 150,
-          activeCases: 120,
-          totalOutstanding: 2500000,
-          monthlyRecovery: 125000,
-          collectionRate: 5.0,
-          distribution: {
-            byBucket: [
-              { bucketId: 1, bucketName: '0-30 days', minDays: 0, maxDays: 30, count: 40, amount: 500000, percentage: 26.7 },
-              { bucketId: 2, bucketName: '31-60 days', minDays: 31, maxDays: 60, count: 35, amount: 600000, percentage: 23.3 },
-              { bucketId: 3, bucketName: '61-90 days', minDays: 61, maxDays: 90, count: 30, amount: 550000, percentage: 20.0 },
-              { bucketId: 4, bucketName: '91-180 days', minDays: 91, maxDays: 180, count: 25, amount: 450000, percentage: 16.7 },
-              { bucketId: 5, bucketName: '180+ days', minDays: 181, maxDays: 999999, count: 20, amount: 400000, percentage: 13.3 }
-            ],
-            byStatus: [
-              { status: 'ACTIVE', count: 120, percentage: 80 },
-              { status: 'RESOLVED', count: 15, percentage: 10 },
-              { status: 'LEGAL', count: 10, percentage: 6.7 },
-              { status: 'WRITTEN_OFF', count: 5, percentage: 3.3 }
-            ],
-            byPriority: [
-              { priority: 'CRITICAL', count: 20, percentage: 13.3 },
-              { priority: 'HIGH', count: 40, percentage: 26.7 },
-              { priority: 'MEDIUM', count: 60, percentage: 40 },
-              { priority: 'LOW', count: 30, percentage: 20 }
-            ]
-          },
-          teamPerformance: [
-            { teamId: 1, teamName: 'Team Alpha', totalCases: 50, totalCollected: 45000, collectionRate: 6.0 },
-            { teamId: 2, teamName: 'Team Beta', totalCases: 45, totalCollected: 40000, collectionRate: 5.5 },
-            { teamId: 3, teamName: 'Team Gamma', totalCases: 55, totalCollected: 40000, collectionRate: 4.5 }
-          ],
-          trends: {
-            newCasesThisMonth: 25,
-            closedCasesThisMonth: 15
-          }
-        });
-      }
-      
       return formatApiResponse(null, error);
     }
   }
@@ -614,8 +514,8 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
       }
 
       // Get daily summaries
-      const { data: dailySummaries, error: summaryError } = await supabaseBanking
-        .from('daily_collection_summary')
+      const { data: dailySummaries, error: summaryError } = await supabaseCollection
+        .from('kastle_collection.daily_collection_summary')
         .select('*')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -624,11 +524,11 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
       if (summaryError) throw summaryError;
 
       // Get top officers performance
-      const { data: officerPerformance, error: officersError } = await supabaseBanking
-        .from('officer_performance_summary')
+      const { data: officerPerformance, error: officersError } = await supabaseCollection
+        .from('kastle_collection.officer_performance_summary')
         .select(`
           *,
-          collection_officers!officer_id (
+          kastle_collection.collection_officers!officer_id (
             officer_name,
             officer_type,
             team_id,
@@ -642,18 +542,18 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
         .limit(10);
 
       // Get team comparison
-      const { data: teams, error: teamsError } = await supabaseBanking
-        .from('collection_teams')
+      const { data: teams, error: teamsError } = await supabaseCollection
+        .from('kastle_collection.collection_teams')
         .select('*');
 
       const teamComparison = await Promise.all((teams || []).map(async (team) => {
-        const { data: teamData } = await supabaseBanking
-          .from('officer_performance_summary')
+        const { data: teamData } = await supabaseCollection
+          .from('kastle_collection.officer_performance_summary')
           .select('total_collected, total_cases, contact_rate')
           .eq('summary_date', endDate.toISOString().split('T')[0])
           .in('officer_id', 
-            supabaseBanking
-              .from('collection_officers')
+            supabaseCollection
+              .from('kastle_collection.collection_officers')
               .select('officer_id')
               .eq('team_id', team.team_id)
           );
@@ -675,16 +575,16 @@ const { data: scoreHistory, error: scoreError } = await supabaseBanking
       }));
 
       // Get campaign effectiveness
-const { data: campaigns, error: campaignsError } = await supabaseBanking
-        .from('collection_campaigns')
+      const { data: campaigns, error: campaignsError } = await supabaseCollection
+        .from('kastle_collection.collection_campaigns')
         .select('*')
         .in('status', ['ACTIVE', 'COMPLETED'])
         .order('created_at', { ascending: false })
         .limit(5);
 
       // Get channel performance
-const { data: channelPerformance } = await supabaseBanking
-        .from('digital_collection_attempts')
+      const { data: channelPerformance } = await supabaseCollection
+        .from('kastle_collection.digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -721,9 +621,9 @@ const { data: channelPerformance } = await supabaseBanking
 
       const topOfficers = officerPerformance?.map(o => ({
         officerId: o.officer_id,
-        officerName: o.collection_officers?.officer_name || 'Unknown',
-        officerType: o.collection_officers?.officer_type || 'Unknown',
-        teamName: o.collection_officers?.collection_teams?.team_name || 'Unknown',
+        officerName: o.kastle_collection?.collection_officers?.officer_name || 'Unknown',
+        officerType: o.kastle_collection?.collection_officers?.officer_type || 'Unknown',
+        teamName: o.kastle_collection?.collection_officers?.kastle_collection?.collection_teams?.team_name || 'Unknown',
         totalCollected: o.total_collected || 0,
         totalCases: o.total_cases || 0,
         totalCalls: o.total_calls || 0,
@@ -764,80 +664,6 @@ const { data: channelPerformance } = await supabaseBanking
       });
     } catch (error) {
       console.error('Collection performance error:', error);
-      
-      // If table doesn't exist, return mock data
-      if (error.message?.includes('does not exist') || error.code === '42P01') {
-        console.log('Collection tables not found, returning mock performance data');
-        
-        // Generate mock daily trends for the requested period
-        const endDate = new Date();
-        const startDate = new Date();
-        let days = 7;
-        
-        switch (period) {
-          case 'daily':
-            days = 7;
-            break;
-          case 'weekly':
-            days = 28;
-            break;
-          case 'monthly':
-            days = 180;
-            break;
-          case 'yearly':
-            days = 365 * 3;
-            break;
-        }
-        
-        const dailyTrends = [];
-        for (let i = 0; i < Math.min(days, 30); i++) {
-          const date = new Date(endDate);
-          date.setDate(date.getDate() - i);
-          dailyTrends.push({
-            summaryDate: date.toISOString().split('T')[0],
-            totalCases: 150 + Math.floor(Math.random() * 20),
-            totalOutstanding: 2500000 + Math.floor(Math.random() * 200000),
-            totalCollected: 100000 + Math.floor(Math.random() * 50000),
-            collectionRate: 4 + Math.random() * 2,
-            newCases: Math.floor(Math.random() * 10) + 5,
-            closedCases: Math.floor(Math.random() * 8) + 3,
-            accountsCollected: Math.floor(Math.random() * 20) + 10,
-            callsMade: Math.floor(Math.random() * 200) + 100,
-            ptpCreated: Math.floor(Math.random() * 30) + 20,
-            ptpKept: Math.floor(Math.random() * 20) + 10
-          });
-        }
-        
-        return formatApiResponse({
-          dailyTrends: dailyTrends.reverse(),
-          topOfficers: [
-            { officerId: 1, officerName: 'John Doe', officerType: 'FIELD', teamName: 'Team Alpha', 
-              totalCollected: 150000, totalCases: 25, totalCalls: 120, contactRate: 75, ptpRate: 60, collectionRate: 6.5 },
-            { officerId: 2, officerName: 'Jane Smith', officerType: 'CALL_CENTER', teamName: 'Team Beta', 
-              totalCollected: 140000, totalCases: 30, totalCalls: 180, contactRate: 80, ptpRate: 65, collectionRate: 5.8 },
-            { officerId: 3, officerName: 'Bob Johnson', officerType: 'DIGITAL', teamName: 'Team Gamma', 
-              totalCollected: 130000, totalCases: 28, totalCalls: 150, contactRate: 70, ptpRate: 55, collectionRate: 5.5 }
-          ],
-          teamComparison: [
-            { teamId: 1, teamName: 'Team Alpha', totalCases: 50, totalCollected: 450000, 
-              collectionRate: 6.0, avgCasesPerOfficer: 12.5, avgCollectedPerOfficer: 112500 },
-            { teamId: 2, teamName: 'Team Beta', totalCases: 45, totalCollected: 400000, 
-              collectionRate: 5.5, avgCasesPerOfficer: 11.25, avgCollectedPerOfficer: 100000 },
-            { teamId: 3, teamName: 'Team Gamma', totalCases: 55, totalCollected: 380000, 
-              collectionRate: 4.8, avgCasesPerOfficer: 13.75, avgCollectedPerOfficer: 95000 }
-          ],
-          summary: {
-            totalCollected: 1250000,
-            totalCases: 150,
-            avgCollectionRate: 5.2,
-            totalCalls: 1500,
-            avgContactRate: 75,
-            avgPTPRate: 60,
-            ptpKeptRate: 65
-          }
-        });
-      }
-      
       return formatApiResponse(null, error);
     }
   }
@@ -852,9 +678,9 @@ const { data: channelPerformance } = await supabaseBanking
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - (period === 'daily' ? 1 : period === 'weekly' ? 3 : 12));
 
-      const { data: trends, error: trendsError } = await supabaseBanking
-        .from('daily_collection_summary')
-        .select('summary_date, total_collected, collection_rate, calls_made')
+      const { data: trends, error: trendsError } = await supabaseCollection
+        .from('kastle_collection.daily_collection_summary')
+        .select('summary_date, total_collected, collection_rate, calls_made, ptps_created, ptps_kept')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
         .order('summary_date', { ascending: true });
@@ -862,15 +688,15 @@ const { data: channelPerformance } = await supabaseBanking
       if (trendsError) throw trendsError;
 
       // Get bucket movement analysis
-const { data: bucketMovements, error: bucketError } = await supabaseBanking
-        .from('case_bucket_history')
+      const { data: bucketMovements, error: bucketError } = await supabaseCollection
+        .from('kastle_collection.case_bucket_history')
         .select(`
           from_bucket_id,
           to_bucket_id,
           movement_date,
           case_count,
           total_amount,
-          collection_buckets!from_bucket_id (
+          kastle_collection.collection_buckets!from_bucket_id (
             bucket_name
           )
         `)
@@ -878,8 +704,8 @@ const { data: bucketMovements, error: bucketError } = await supabaseBanking
         .order('movement_date', { ascending: false });
 
       // Get PTP analysis
-      const { data: ptpData, error: ptpError } = await supabaseBanking
-        .from('promise_to_pay')
+      const { data: ptpData, error: ptpError } = await supabaseCollection
+        .from('kastle_collection.promise_to_pay')
         .select('status, ptp_amount, created_at, kept_date, broken_date')
         .gte('created_at', startDate.toISOString());
 
@@ -889,13 +715,13 @@ const { data: bucketMovements, error: bucketError } = await supabaseBanking
         totalCollected: t.total_collected || 0,
         collectionRate: t.collection_rate || 0,
         callsPerCollection: t.total_collected > 0 ? (t.calls_made / t.total_collected) : 0,
-        ptpConversionRate: 0, // Placeholder since ptps_created column doesn't exist
-        ptpFulfillmentRate: 0 // Placeholder since ptps_kept column doesn't exist
+        ptpConversionRate: t.calls_made > 0 ? (t.ptps_created / t.calls_made) * 100 : 0,
+        ptpFulfillmentRate: t.ptps_created > 0 ? (t.ptps_kept / t.ptps_created) * 100 : 0
       })) || [];
 
       // Channel effectiveness from digital attempts
-const { data: digitalAttempts } = await supabaseBanking
-        .from('digital_collection_attempts')
+      const { data: digitalAttempts } = await supabaseCollection
+        .from('kastle_collection.digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount, response_received')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -1001,8 +827,8 @@ const { data: digitalAttempts } = await supabaseBanking
       switch (reportType) {
         case 'summary':
           // Get overall collection summary
-          const { data: summary } = await supabaseBanking
-            .from('daily_collection_summary')
+          const { data: summary } = await supabaseCollection
+            .from('kastle_collection.daily_collection_summary')
             .select('*')
             .gte('summary_date', startDate.toISOString().split('T')[0])
             .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -1025,8 +851,8 @@ const { data: digitalAttempts } = await supabaseBanking
 
         case 'detailed':
           // Get detailed collection data by officer
-          const { data: officerData } = await supabaseBanking
-            .from('officer_performance_summary')
+          const { data: officerData } = await supabaseCollection
+            .from('kastle_collection.officer_performance_summary')
             .select(`
               *,
               collection_officers (
@@ -1049,8 +875,8 @@ const { data: digitalAttempts } = await supabaseBanking
 
         case 'bucket':
           // Get collection by bucket
-const { data: bucketData } = await supabaseBanking
-            .from('collection_cases')
+          const { data: bucketData } = await supabaseCollection
+            .from('kastle_collection.collection_cases')
             .select(`
               bucket_id,
               total_outstanding,
@@ -1096,27 +922,25 @@ const { data: bucketData } = await supabaseBanking
 
         case 'team':
           // Get collection by team
-          const { data: teams } = await supabaseBanking
-            .from('collection_teams')
+          const { data: teams } = await supabaseCollection
+            .from('kastle_collection.collection_teams')
             .select(`
               *,
-              collection_officers!collection_officers_team_id_fkey (
+              collection_officers (
                 officer_id,
                 officer_name
               )
             `);
 
           const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-            const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
+            const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
             
-            const { data: teamData } = officerIds.length > 0
-              ? await supabaseBanking
-                  .from('officer_performance_summary')
-                  .select('total_collected, total_cases, contact_rate')
-                  .in('officer_id', officerIds)
-                  .gte('summary_date', startDate.toISOString().split('T')[0])
-                  .lte('summary_date', endDate.toISOString().split('T')[0])
-              : { data: [] };
+            const { data: teamData } = await supabaseCollection
+              .from('kastle_collection.officer_performance_summary')
+              .select('total_collected, total_cases, contact_rate')
+              .in('officer_id', officerIds)
+              .gte('summary_date', startDate.toISOString().split('T')[0])
+              .lte('summary_date', endDate.toISOString().split('T')[0]);
 
             const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
             const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
@@ -1176,11 +1000,11 @@ const { data: bucketData } = await supabaseBanking
           break;
       }
 
-      const { data: officerPerformance, error: officersError } = await supabaseBanking
-        .from('officer_performance_summary')
+      const { data: officerPerformance, error: officersError } = await supabaseCollection
+        .from('kastle_collection.officer_performance_summary')
         .select(`
           *,
-          collection_officers!officer_id (
+          collection_officers (
             officer_name,
             officer_type,
             team_id
@@ -1194,21 +1018,8 @@ const { data: bucketData } = await supabaseBanking
 
       const totalOfficers = new Set(officerPerformance?.map(d => d.officer_id)).size || 0;
 
-      // Format the data for the component
-      const formattedPerformance = (officerPerformance || []).map(officer => ({
-        officerId: officer.officer_id,
-        officerName: officer.collection_officers?.officer_name || 'Unknown',
-        officerType: officer.collection_officers?.officer_type || 'Unknown',
-        teamId: officer.collection_officers?.team_id,
-        totalCollected: officer.total_collected || 0,
-        totalCases: officer.total_cases || 0,
-        contactRate: officer.contact_rate || 0,
-        ptpRate: officer.ptp_rate || 0,
-        summaryDate: officer.summary_date
-      }));
-
       return formatApiResponse({
-        officerPerformance: formattedPerformance,
+        officerPerformance: officerPerformance || [],
         totalOfficers
       });
     } catch (error) {
@@ -1240,11 +1051,11 @@ const { data: bucketData } = await supabaseBanking
           break;
       }
 
-      const { data: teams, error: teamsError } = await supabaseBanking
-        .from('collection_teams')
+      const { data: teams, error: teamsError } = await supabaseCollection
+        .from('kastle_collection.collection_teams')
         .select(`
           *,
-          collection_officers!collection_officers_team_id_fkey (
+          collection_officers (
             officer_id,
             officer_name
           )
@@ -1253,16 +1064,14 @@ const { data: bucketData } = await supabaseBanking
       if (teamsError) throw teamsError;
 
       const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-        const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
+        const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
         
-        const { data: teamData } = officerIds.length > 0
-          ? await supabaseBanking
-              .from('officer_performance_summary')
-              .select('total_collected, total_cases, contact_rate, ptp_rate')
-              .in('officer_id', officerIds)
-              .gte('summary_date', startDate.toISOString().split('T')[0])
-              .lte('summary_date', endDate.toISOString().split('T')[0])
-          : { data: [] };
+        const { data: teamData } = await supabaseCollection
+          .from('kastle_collection.officer_performance_summary')
+          .select('total_collected, total_cases, contact_rate, ptp_rate')
+          .in('officer_id', officerIds)
+          .gte('summary_date', startDate.toISOString().split('T')[0])
+          .lte('summary_date', endDate.toISOString().split('T')[0]);
 
         const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
         const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
@@ -1302,11 +1111,11 @@ const { data: bucketData } = await supabaseBanking
     try {
       const { teamId, officerType, status = 'ACTIVE' } = filters;
 
-      let query = supabaseBanking
-        .from('collection_officers')
+      let query = supabaseCollection
+        .from('kastle_collection.collection_officers')
         .select(`
           *,
-          collection_teams!collection_officers_team_id_fkey (
+          collection_teams (
             team_name,
             team_lead
           )
@@ -1340,54 +1149,27 @@ const { data: bucketData } = await supabaseBanking
    */
   static async getSpecialists() {
     try {
-      // First get the officers
-      const { data: officers, error: officersError } = await supabaseBanking
-        .from('collection_officers')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_officers')
         .select(`
           officer_id, 
           officer_name, 
           officer_type, 
           team_id, 
           email, 
-          contact_number
+          contact_number,
+          collection_teams!team_id (
+            team_name,
+            team_type
+          )
         `)
         .eq('status', 'ACTIVE')
         .in('officer_type', ['CALL_AGENT', 'FIELD_AGENT', 'SENIOR_COLLECTOR', 'TEAM_LEAD'])
         .order('officer_name');
 
-      if (officersError) throw officersError;
+      if (error) throw error;
 
-      // If we have officers, get the teams separately
-      if (officers && officers.length > 0) {
-        const teamIds = [...new Set(officers.map(o => o.team_id).filter(id => id))];
-        
-        if (teamIds.length > 0) {
-          const { data: teams, error: teamsError } = await supabaseBanking
-            .from('collection_teams')
-            .select('team_id, team_name, team_type')
-            .in('team_id', teamIds);
-
-          if (teamsError) {
-            console.error('Error fetching teams:', teamsError);
-            // Continue without teams data
-          } else if (teams) {
-            // Create a map for quick lookup
-            const teamsMap = teams.reduce((acc, team) => {
-              acc[team.team_id] = team;
-              return acc;
-            }, {});
-
-            // Merge team data with officers
-            officers.forEach(officer => {
-              if (officer.team_id && teamsMap[officer.team_id]) {
-                officer.collection_teams = teamsMap[officer.team_id];
-              }
-            });
-          }
-        }
-      }
-
-      return formatApiResponse(officers || []);
+      return formatApiResponse(data || []);
     } catch (error) {
       console.error('Get specialists error:', error);
       return formatApiResponse(null, error);
@@ -1409,8 +1191,8 @@ const { data: bucketData } = await supabaseBanking
       } = filters;
 
       // Get specialist info
-      const { data: specialist, error: specialistError } = await supabaseBanking
-        .from('collection_officers')
+      const { data: specialist, error: specialistError } = await supabaseCollection
+        .from('kastle_collection.collection_officers')
         .select('*')
         .eq('officer_id', specialistId)
         .single();
@@ -1418,17 +1200,17 @@ const { data: bucketData } = await supabaseBanking
       if (specialistError) throw specialistError;
 
       // Get cases assigned to specialist with all loan details
-let casesQuery = supabaseBanking
-        .from('collection_cases')
+      let casesQuery = supabaseCollection
+        .from('kastle_collection.collection_cases')
         .select(`
           *,
-          loan_accounts!loan_account_number (
+          kastle_banking.loan_accounts!loan_account_number (
             *,
-            products!product_id (
+            kastle_banking.products!product_id (
               product_name,
               product_type
             ),
-            loan_schedules!loan_account_number (
+            kastle_banking.loan_schedules!loan_account_number (
               installment_number,
               due_date,
               principal_amount,
@@ -1438,11 +1220,11 @@ let casesQuery = supabaseBanking
               status
             )
           ),
-          customers!customer_id (
+          kastle_banking.customers!customer_id (
             full_name,
             customer_type,
             national_id,
-            customer_contacts!customer_id (
+            kastle_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
@@ -1462,11 +1244,11 @@ let casesQuery = supabaseBanking
       if (casesError) throw casesError;
 
       // Get communication logs for the specialist
-      const { data: communicationLogs, error: commError } = await supabaseBanking
-        .from('collection_interactions')
+      const { data: communicationLogs, error: commError } = await supabaseCollection
+        .from('kastle_collection.collection_interactions')
         .select(`
           *,
-          collection_cases!case_id (
+          kastle_collection.collection_cases!case_id (
             loan_account_number,
             customer_id
           )
@@ -1476,14 +1258,14 @@ let casesQuery = supabaseBanking
         .order('interaction_datetime', { ascending: false });
 
       // Get promises to pay
-      const { data: promisesToPay, error: ptpError } = await supabaseBanking
-        .from('promise_to_pay')
+      const { data: promisesToPay, error: ptpError } = await supabaseCollection
+        .from('kastle_collection.promise_to_pay')
         .select(`
           *,
-          collection_cases!case_id (
+          kastle_collection.collection_cases!case_id (
             loan_account_number,
             customer_id,
-            customers!customer_id (
+            kastle_banking.customers!customer_id (
               full_name
             )
           )
@@ -1658,8 +1440,8 @@ let casesQuery = supabaseBanking
    */
   static async createCollectionCase(caseData) {
     try {
-const { data, error } = await supabaseBanking
-        .from('collection_cases')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_cases')
         .insert([{
           ...caseData,
           case_number: `CASE-${Date.now()}`,
@@ -1672,8 +1454,8 @@ const { data, error } = await supabaseBanking
       if (error) throw error;
 
       // Create initial collection score
-await supabaseBanking
-        .from('collection_scores')
+      await supabaseCollection
+        .from('kastle_collection.collection_scores')
         .insert([{
           case_id: data.case_id,
           score_date: new Date().toISOString(),
@@ -1694,8 +1476,8 @@ await supabaseBanking
    */
   static async updateCollectionCase(caseId, updates) {
     try {
-const { data, error } = await supabaseBanking
-        .from('collection_cases')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_cases')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -1718,8 +1500,8 @@ const { data, error } = await supabaseBanking
    */
   static async logInteraction(interactionData) {
     try {
-      const { data, error } = await supabaseBanking
-        .from('collection_interactions')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_interactions')
         .insert([{
           ...interactionData,
           interaction_datetime: new Date().toISOString()
@@ -1746,8 +1528,8 @@ const { data, error } = await supabaseBanking
    */
   static async createPromiseToPay(ptpData) {
     try {
-      const { data, error } = await supabaseBanking
-        .from('promise_to_pay')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.promise_to_pay')
         .insert([{
           ...ptpData,
           status: 'ACTIVE',
@@ -1781,8 +1563,8 @@ const { data, error } = await supabaseBanking
         updateData.broken_date = new Date().toISOString();
       }
 
-      const { data, error } = await supabaseBanking
-        .from('promise_to_pay')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.promise_to_pay')
         .update(updateData)
         .eq('ptp_id', ptpId)
         .select()
@@ -1802,8 +1584,8 @@ const { data, error } = await supabaseBanking
    */
   static async scheduleFieldVisit(visitData) {
     try {
-const { data, error } = await supabaseBanking
-        .from('field_visits')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.field_visits')
         .insert([{
           ...visitData,
           status: 'SCHEDULED',
@@ -1978,8 +1760,8 @@ const { data, error } = await supabaseBanking
    */
   static async getTeams() {
     try {
-      const { data, error } = await supabaseBanking
-        .from('collection_teams')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_teams')
         .select('*')
         .order('team_name');
 
@@ -1997,8 +1779,8 @@ const { data, error } = await supabaseBanking
    */
   static async getStrategies() {
     try {
-const { data, error } = await supabaseBanking
-        .from('collection_strategies')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_strategies')
         .select('*')
         .eq('is_active', true)
         .order('strategy_name');
@@ -2017,8 +1799,8 @@ const { data, error } = await supabaseBanking
    */
   static async getBuckets() {
     try {
-const { data, error } = await supabaseBanking
-        .from('collection_buckets')
+      const { data, error } = await supabaseCollection
+        .from('kastle_collection.collection_buckets')
         .select('*')
         .order('min_days');
 
