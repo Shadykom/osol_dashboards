@@ -27,7 +27,8 @@ import {
   Languages,
   Moon,
   Sun,
-  Zap
+  Zap,
+  User
 } from 'lucide-react';
 
 const ModernSidebar = () => {
@@ -219,6 +220,12 @@ const ModernSidebar = () => {
           icon: Users
         },
         {
+          id: 'customer-footprint',
+          label: t('sidebar.customerFootprint'),
+          path: '/customer-footprint',
+          icon: User
+        },
+        {
           id: 'accounts',
           label: t('sidebar.accounts'),
           path: '/accounts',
@@ -316,7 +323,7 @@ const ModernSidebar = () => {
             </div>
             <div className={`flex flex-col ${isRTL && 'text-right'}`}>
               <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                OSOL Collection
+                KONAN Pro
               </span>
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Zap className="h-3 w-3" />

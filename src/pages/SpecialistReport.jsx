@@ -13,7 +13,7 @@ class SpecialistReportService {
     try {
       // جلب البيانات من جدول collection_officers
       const { data, error } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select(`
           officer_id,
           officer_name,
@@ -171,7 +171,7 @@ class SpecialistReportService {
     try {
       // جلب الحالات المخصصة للأخصائي من جدول collection_cases
       let query = supabaseBanking
-        .from('collection_cases')
+        .from(TABLES.COLLECTION_CASES)
         .select(`
           case_id,
           case_number,
@@ -361,7 +361,7 @@ class SpecialistReportService {
       
       // جلب تفاعلات الأخصائي
       const { data: interactions, error } = await supabaseBanking
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select(`
           interaction_id,
           interaction_type,
@@ -1067,7 +1067,7 @@ class SpecialistReportService {
     try {
       // جلب آخر التفاعلات
       const { data: recentInteractions } = await supabaseBanking
-        .from('collection_interactions')
+        .from(TABLES.COLLECTION_INTERACTIONS)
         .select(`
           interaction_type,
           interaction_datetime,

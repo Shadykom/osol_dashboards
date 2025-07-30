@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { supabase, supabaseBanking, supabaseCollection } from '@/lib/supabase';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 // Immediate diagnostic logging
 console.log('🔍 DiagnosticPage loaded');
@@ -55,17 +55,18 @@ export default function DiagnosticPage() {
       results.directFetch = { error: error.message };
     }
 
-    // Test supabase client
+    // Test supabase client (public schema - deprecated)
     try {
-      const { data, error } = await supabase
-        .from('customers')
+      const { data, error } = await supabaseBanking
+        .from(TABLES.CUSTOMERS)
         .select('*')
         .limit(1);
       
       results.supabaseClient = {
         success: !error,
         error: error?.message,
-        dataCount: data?.length || 0
+        dataCount: data?.length || 0,
+        note: 'Using kastle_banking schema'
       };
     } catch (error) {
       results.supabaseClient = { error: error.message };
@@ -74,7 +75,7 @@ export default function DiagnosticPage() {
     // Test supabaseBanking client
     try {
       const { data, error } = await supabaseBanking
-        .from('customers')
+        .from(TABLES.CUSTOMERS)
         .select('*')
         .limit(1);
       
@@ -90,7 +91,7 @@ export default function DiagnosticPage() {
     // Test supabaseCollection client
     try {
       const { data, error } = await supabaseCollection
-        .from('collection_officers')
+        .from(TABLES.COLLECTION_OFFICERS)
         .select('*')
         .limit(1);
       

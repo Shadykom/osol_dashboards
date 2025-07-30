@@ -91,10 +91,23 @@ const getAuthToken = () => {
 // Custom fetch function to ensure proper headers
 const customFetch = (url, options = {}) => {
   const token = getAuthToken();
+  
+  // Determine if this is a data-modifying request
+  const isDataRequest = ['POST', 'PUT', 'PATCH'].includes(options.method?.toUpperCase());
+  
   const headers = {
     ...options.headers,
     'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${token}`,
+    // Add Content-Type for data requests if not already set
+    ...(isDataRequest && !options.headers?.['Content-Type'] && {
+      'Content-Type': 'application/json'
+    }),
+    // Add schema headers if this is a request to the REST API
+    ...(url.includes('/rest/v1/') && {
+      'Accept-Profile': 'kastle_banking',
+      'Content-Profile': 'kastle_banking'
+    })
   };
   return fetch(url, { ...options, headers });
 };
@@ -102,6 +115,9 @@ const customFetch = (url, options = {}) => {
 // Create main Supabase client or mock if not configured
 export const supabase = isSupabaseConfigured 
   ? createClient(supabaseUrl, supabaseAnonKey, {
+      db: {
+        schema: 'kastle_banking'
+      },
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -126,34 +142,9 @@ export const supabase = isSupabaseConfigured
 // Create a client specifically for kastle_banking schema
 export const supabaseBanking = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        storage: window.localStorage,
-        storageKey: 'osol-auth'
-      },
       db: {
         schema: 'kastle_banking'
       },
-      realtime: {
-        params: {
-          eventsPerSecond: 10
-        }
-      },
-      global: {
-        headers: {
-          'apikey': supabaseAnonKey,
-          'Prefer': 'return=representation'
-        },
-        fetch: customFetch
-      }
-    })
-  : createMockClient();
-
-// Create a client specifically for kastle_collection schema
-export const supabaseCollection = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -161,9 +152,6 @@ export const supabaseCollection = isSupabaseConfigured
         storage: window.localStorage,
         storageKey: 'osol-auth'
       },
-      db: {
-        schema: 'kastle_collection'
-      },
       realtime: {
         params: {
           eventsPerSecond: 10
@@ -172,16 +160,22 @@ export const supabaseCollection = isSupabaseConfigured
       global: {
         headers: {
           'apikey': supabaseAnonKey,
-          'Prefer': 'return=representation'
+          'Prefer': 'return=representation',
+          'Accept-Profile': 'kastle_banking',
+          'Content-Profile': 'kastle_banking'
         },
         fetch: customFetch
       }
     })
   : createMockClient();
 
-// Database schema constants - using schema-qualified table names
+// The supabaseCollection client now also points to kastle_banking schema
+// This maintains backward compatibility while using the unified schema
+export const supabaseCollection = supabaseBanking;
+
+// Database schema constants - all tables now in kastle_banking schema
 export const TABLES = {
-  // kastle_banking schema tables
+  // Core banking tables
   CUSTOMERS: 'customers',
   ACCOUNTS: 'accounts',
   TRANSACTIONS: 'transactions',
@@ -202,37 +196,67 @@ export const TABLES = {
   COLLECTION_CASES: 'collection_cases',
   COLLECTION_BUCKETS: 'collection_buckets',
   COLLECTION_RATES: 'collection_rates',
+  DELINQUENCIES: 'delinquencies',
   
   // All collection tables are now in kastle_banking schema
+  COLLECTION_AUDIT_TRAIL: 'audit_trail',
+  COLLECTION_AUTH_USER_PROFILES: 'auth_user_profiles',
+  COLLECTION_CALL_ATTEMPTS: 'call_attempts',
+  COLLECTION_CASES_COLL: 'collection_cases',
+  COLLECTION_INTERACTIONS: 'collection_interactions',
+  COLLECTION_OFFICERS: 'collection_officers',
+  COLLECTION_SCORES: 'collection_scores',
+  COLLECTION_STRATEGIES: 'collection_strategies',
+  COLLECTION_SYSTEM_PERFORMANCE: 'system_performance',
+  COLLECTION_TEAMS: 'collection_teams',
+  PROMISE_TO_PAY: 'promise_to_pay',
+  LEGAL_CASES: 'legal_cases',
+  DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
+  DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
+  FIELD_VISITS: 'field_visits',
+  HARDSHIP_APPLICATIONS: 'hardship_applications',
+  OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
+  OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
+  CASE_BUCKET_HISTORY: 'case_bucket_history',
+  COLLECTION_CAMPAIGNS: 'collection_campaigns'
+};
+
+// Separate table constants for collection schema (without schema prefix)
+// These are now the same as the main TABLES but kept for backward compatibility
+export const COLLECTION_TABLES = {
+  AUDIT_TRAIL: 'audit_trail',
+  AUTH_USER_PROFILES: 'auth_user_profiles',
+  CALL_ATTEMPTS: 'call_attempts',
+  COLLECTION_CASES: 'collection_cases',
+  COLLECTION_INTERACTIONS: 'collection_interactions',
   COLLECTION_OFFICERS: 'collection_officers',
   COLLECTION_TEAMS: 'collection_teams',
-  COLLECTION_INTERACTIONS: 'collection_interactions',
+  COLLECTION_SCORES: 'collection_scores',
+  COLLECTION_STRATEGIES: 'collection_strategies',
+  COLLECTION_SYSTEM_PERFORMANCE: 'system_performance',
   PROMISE_TO_PAY: 'promise_to_pay',
+  LEGAL_CASES: 'legal_cases',
   DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
+  DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
+  FIELD_VISITS: 'field_visits',
+  HARDSHIP_APPLICATIONS: 'hardship_applications',
+  OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
   OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
   CASE_BUCKET_HISTORY: 'case_bucket_history'
 };
 
 // Helper function to get the appropriate client for a table
 export function getClientForTable(tableName) {
-  // Determine which client to use based on the table name
-  if (tableName.startsWith('kastle_banking.') || 
-      ['customers', 'accounts', 'transactions', 'loan_accounts', 'branches', 
-       'products', 'collection_cases', 'collection_buckets'].includes(tableName)) {
-    return supabaseBanking;
-  } else if (tableName.startsWith('kastle_collection.') || 
-             ['collection_officers', 'collection_teams', 'collection_interactions',
-              'promise_to_pay', 'officer_performance_metrics'].includes(tableName)) {
-    return supabaseCollection;
-  } else if (tableName.startsWith('auth.')) {
+  // All tables now use the kastle_banking client
+  if (tableName.startsWith('auth.')) {
     return supabase;
   }
-  // Default to the main client
-  return supabase;
+  // Everything else uses the banking client
+  return supabaseBanking;
 }
 
 // Diagnostic function for debugging
-window.checkSupabaseConfig = () => {
+window.checkSupabaseConfig = async () => {
   console.log('=== SUPABASE CONFIGURATION CHECK ===');
   console.log('URL:', supabaseUrl);
   console.log('Key:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 30)}...${supabaseAnonKey.slice(-20)}` : 'NOT SET');
@@ -240,15 +264,49 @@ window.checkSupabaseConfig = () => {
   console.log('Is Configured:', isSupabaseConfigured);
   console.log('===================================');
   
-  // Test a simple query
-  supabase.from('customers').select('*').limit(1).then(({ data, error }) => {
-    if (error) {
-      console.error('Test query failed:', error);
-    } else {
-      console.log('Test query success:', data);
+  // Test a simple query to kastle_banking schema
+  console.log('\n🔍 Testing kastle_banking schema access...');
+  const { data, error } = await supabaseBanking.from('customers').select('*').limit(1);
+  
+  if (error) {
+    console.error('❌ Test query failed:', error);
+    if (error.code === '42P01') {
+      console.error('\n⚠️  SCHEMA NOT EXPOSED!');
+      console.error('Please follow these steps:');
+      console.error('1. Go to: https://app.supabase.com/project/bzlenegoilnswsbanxgb/settings/api');
+      console.error('2. Find "Exposed schemas" section');
+      console.error('3. Add "kastle_banking" to the list');
+      console.error('4. Click Save');
+      console.error('\nCurrent error:', error.message);
     }
-  });
+  } else {
+    console.log('✅ Test query success! Schema is properly exposed.');
+    console.log('Sample data:', data);
+  }
+  
+  return !error;
 };
+
+// Export checkSchemaAccess function
+export async function checkSchemaAccess() {
+  try {
+    // Try a simple query to test access
+    const { data, error } = await supabaseBanking
+      .from('customers')
+      .select('customer_id')
+      .limit(1);
+    
+    if (error && error.code === '42P01') {
+      console.error('kastle_banking schema is not exposed!');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error checking schema access:', error);
+    return false;
+  }
+}
 
 // Auto-run diagnostic on load
 if (import.meta.env.DEV) {

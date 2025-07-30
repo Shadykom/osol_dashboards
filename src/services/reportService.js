@@ -41,7 +41,7 @@ class ReportService {
 
       // جلب بيانات التحصيل
       const collectionQuery = supabaseCollection
-        .from('daily_collection_summary')
+        .from(TABLES.DAILY_COLLECTION_SUMMARY)
         .select('*')
         .gte('collection_date', startDate)
         .lte('collection_date', endDate);
@@ -86,7 +86,7 @@ class ReportService {
 
       // جلب بيانات القروض
       let loansQuery = supabaseBanking
-        .from('loan_accounts')
+        .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           *,
           customers!inner(
@@ -172,7 +172,7 @@ class ReportService {
 
       // جلب بيانات الأداء التاريخية
       const trendsQuery = supabaseCollection
-        .from('officer_performance_summary')
+        .from(TABLES.OFFICER_PERFORMANCE_SUMMARY)
         .select('*')
         .gte('summary_date', startDate.toISOString())
         .lte('summary_date', endDate.toISOString())

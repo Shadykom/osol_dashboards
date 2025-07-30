@@ -28,13 +28,16 @@ import DelinquencyExecutiveDashboard from './pages/DelinquencyExecutiveDashboard
 import SpecialistLevelReport from './pages/SpecialistLevelReport';
 import DatabaseTest from './pages/DatabaseTest';
 import DiagnosticPage from './pages/DiagnosticPage';
+import DatabaseDiagnostic from './pages/DatabaseDiagnostic';
 import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
+import CustomerFootprintDashboard from './components/dashboard/CustomerFootprintDashboard';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
 import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
 import { BasicSidebarTest } from './pages/BasicSidebarTest';
 import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
+import DashboardDetail from './pages/DashboardDetail';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -171,16 +174,11 @@ function NotFound() {
 function SafeApp() {
   const { i18n } = useTranslation();
   
-  // Database connection status logging
+  // Ensure document language and direction are set
   useEffect(() => {
-    console.log('Database connection status:', {
-      isConnected: window.db !== undefined,
-      hasDatabase: !!window.db
-    });
-
-    // Ensure document language is set
     const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
+    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
   }, [i18n.language]);
   
   return (
@@ -192,6 +190,7 @@ function SafeApp() {
             {/* Main Routes */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
             
             {/* Dashboard Routes */}
             <Route path="/dashboards/custom" element={<CustomDashboard />} />
@@ -203,6 +202,7 @@ function SafeApp() {
             <Route path="/customers/new" element={<Customers />} />
             <Route path="/customers/kyc-pending" element={<Customers />} />
             <Route path="/customers/risk" element={<Customers />} />
+            <Route path="/customer-footprint" element={<CustomerFootprintDashboard />} />
             
             {/* Account Routes */}
             <Route path="/accounts" element={<Accounts />} />
@@ -242,6 +242,7 @@ function SafeApp() {
             <Route path="/compliance" element={<Compliance />} />
             <Route path="/database-test" element={<DatabaseTest />} />
             <Route path="/diagnostic" element={<DiagnosticPage />} />
+            <Route path="/db-diagnostic" element={<DatabaseDiagnostic />} />
             <Route path="/new-sidebar-demo" element={<NewSidebarDemo />} />
             <Route path="/simple-sidebar-demo" element={<SimpleSidebarDemo />} />
             <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
@@ -293,16 +294,11 @@ function SafeApp() {
 function App() {
   const { i18n } = useTranslation();
   
-  // Database connection status logging
+  // Ensure document language and direction are set
   useEffect(() => {
-    console.log('Database connection status:', {
-      isConnected: window.db !== undefined,
-      hasDatabase: !!window.db
-    });
-
-    // Ensure document language is set
     const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
+    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
   }, [i18n.language]);
   
   return (

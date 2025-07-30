@@ -22,6 +22,9 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
+  },
+  db: {
+    schema: 'kastle_banking'
   }
 });
 
@@ -63,16 +66,16 @@ async function seedDashboardData() {
     // Seed branches
     console.log('Seeding branches...');
     const branches = [
-      { branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', status: 'ACTIVE' },
-      { branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'BRANCH', status: 'ACTIVE' },
-      { branch_code: 'BR003', branch_name: 'West Side Branch', branch_type: 'BRANCH', status: 'ACTIVE' },
-      { branch_code: 'BR004', branch_name: 'Airport Branch', branch_type: 'BRANCH', status: 'ACTIVE' },
-      { branch_code: 'BR005', branch_name: 'Mall Branch', branch_type: 'KIOSK', status: 'ACTIVE' }
+      { branch_id: 'BR001', branch_code: 'BR001', branch_name: 'Main Branch', branch_type: 'MAIN', is_active: true },
+      { branch_id: 'BR002', branch_code: 'BR002', branch_name: 'Downtown Branch', branch_type: 'URBAN', is_active: true },
+      { branch_id: 'BR003', branch_code: 'BR003', branch_name: 'West Side Branch', branch_type: 'URBAN', is_active: true },
+      { branch_id: 'BR004', branch_code: 'BR004', branch_name: 'Airport Branch', branch_type: 'URBAN', is_active: true },
+      { branch_id: 'BR005', branch_code: 'BR005', branch_name: 'Mall Branch', branch_type: 'SUB', is_active: true }
     ];
     
     const { data: insertedBranches, error: branchError } = await supabase
       .from('branches')
-      .upsert(branches, { onConflict: 'branch_code' })
+      .upsert(branches, { onConflict: 'branch_id' })
       .select();
     
     if (branchError) {

@@ -1,6 +1,14 @@
 // src/services/mockDashboardService.js
 import { mockData } from '@/lib/supabaseConfig';
-import { formatApiResponse } from '@/lib/supabase';
+
+// Simple API response formatter
+function formatApiResponse(data, error = null) {
+  return {
+    data: data || null,
+    error: error,
+    success: !error
+  };
+}
 
 export class MockDashboardService {
   /**
