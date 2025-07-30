@@ -81,7 +81,12 @@ const CustomerFootprintDashboard = () => {
 
   // Search customers
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    // Allow search without query if a branch is selected
+    if (!searchQuery.trim() && filters.branch === 'all') {
+      // If no search query and no specific branch selected, don't search
+      setSearchResults([]);
+      return;
+    }
     
     setSearching(true);
     try {
@@ -245,7 +250,14 @@ const CustomerFootprintDashboard = () => {
                 </div>
               </div>
               
-              <Button onClick={handleSearch} disabled={searching}>
+              <Button 
+                onClick={handleSearch} 
+                disabled={searching || (!searchQuery.trim() && filters.branch === 'all')}
+                title={!searchQuery.trim() && filters.branch === 'all' ? 
+                  (isRTL ? 'أدخل نص البحث أو اختر فرع' : 'Enter search text or select a branch') : 
+                  ''
+                }
+              >
                 {searching ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -314,11 +326,26 @@ const CustomerFootprintDashboard = () => {
             </div>
           </div>
 
+          {/* Search Help Text */}
+          {!searchQuery.trim() && filters.branch === 'all' && searchResults.length === 0 && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                <p className="text-sm text-blue-800">
+                  {isRTL ? 
+                    'يمكنك البحث عن العملاء بالاسم أو رقم الهوية أو رقم الجوال. أو اختر فرعًا لعرض جميع عملاء ذلك الفرع.' : 
+                    'You can search for customers by name, ID, or mobile number. Or select a branch to view all customers in that branch.'
+                  }
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Search Results */}
           {searchResults.length > 0 && (
             <div className="mt-4 space-y-2">
               <h3 className="text-sm font-medium text-gray-700">
-                {isRTL ? 'نتائج البحث' : 'Search Results'}
+                {isRTL ? 'نتائج البحث' : 'Search Results'} ({searchResults.length})
               </h3>
               {searchResults.map((customer) => (
                 <div
@@ -350,6 +377,19 @@ const CustomerFootprintDashboard = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* No Results Message */}
+          {searching === false && searchResults.length === 0 && (searchQuery.trim() || filters.branch !== 'all') && (
+            <div className="mt-4 p-8 bg-gray-50 rounded-lg text-center">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600">
+                {isRTL ? 'لم يتم العثور على نتائج' : 'No results found'}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                {isRTL ? 'حاول تغيير معايير البحث' : 'Try adjusting your search criteria'}
+              </p>
             </div>
           )}
         </div>
@@ -394,7 +434,7 @@ const CustomerFootprintDashboard = () => {
                   </div>
                   <div className="flex flex-wrap items-center gap-2 mt-3">
                     <Badge variant="outline">{customerData.profile.customer_type}</Badge>
-                    <Badge variant="outline">{customerData.profile.segment}</Badge>
+                    <Badge variant="outline">{customerData.profile.customer_segment}</Badge>
                     <Badge className={cn(getRiskColor(customerData.profile.risk_category))}>
                       {customerData.profile.risk_category} Risk
                     </Badge>

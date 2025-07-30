@@ -57,7 +57,7 @@ export class CustomerFootprintService {
           tax_id,
           email,
           customer_type_id,
-          segment,
+          customer_segment,
           risk_category,
           created_at,
           onboarding_branch,
@@ -126,7 +126,7 @@ export class CustomerFootprintService {
               tax_id,
               email,
               customer_type_id,
-              segment,
+              customer_segment,
               risk_category,
               created_at,
               onboarding_branch
@@ -188,7 +188,7 @@ export class CustomerFootprintService {
           national_id: customer.tax_id || customer.nationality || 'N/A',
           email: customer.email || 'N/A',
           phone_number: customer.phone_number || mobileContact?.contact_value || 'N/A',
-          customer_type: customer.segment || 'RETAIL',
+          customer_type: customer.customer_segment || 'RETAIL',
           risk_category: customer.risk_category || 'LOW',
           created_at: customer.created_at,
           branch: branchMap[customer.onboarding_branch] || {
