@@ -1382,9 +1382,10 @@ export default function EnhancedDashboard() {
       console.log('Database status:', status);
       
       // If database has no data, show the data seeder
-      if (status.isConnected && !status.hasData) {
-        setShowDataSeeder(true);
-      }
+      // Commented out to prevent automatic popup - user can click button instead
+      // if (status.isConnected && !status.hasData) {
+      //   setShowDataSeeder(true);
+      // }
       
       // Initialize database with proper reference data
       try {
