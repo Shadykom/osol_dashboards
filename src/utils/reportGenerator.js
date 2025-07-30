@@ -15,7 +15,7 @@ class ReportGenerator {
 
     // Add header
     this.addPDFHeader(pdf, reportTitle, pageWidth);
-    yPosition = 60;
+    yPosition = 45; // Adjusted for new header height
 
     // Add report content based on type
     switch (reportType) {
@@ -48,26 +48,36 @@ class ReportGenerator {
    * Add PDF Header
    */
   addPDFHeader(pdf, title, pageWidth) {
-    // Add logo placeholder
-    pdf.setFillColor(0, 102, 204);
-    pdf.rect(10, 10, 30, 15, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(10);
-    pdf.text('OSOL', 20, 20);
-
+    // Add OSOL branded header background
+    pdf.setFillColor(230, 184, 0); // OSOL Golden Yellow (#E6B800)
+    pdf.rect(0, 0, pageWidth, 35, 'F');
+    
+    // Add logo - since we can't embed images directly in jsPDF without base64,
+    // we'll create a styled text logo
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(10, 8, 35, 20, 'F');
+    pdf.setFillColor(230, 184, 0);
+    pdf.setFontSize(16);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('OSOL', 27.5, 20, { align: 'center' });
+    
     // Add title
-    pdf.setTextColor(0, 0, 0);
+    pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(18);
+    pdf.setFont(undefined, 'bold');
     pdf.text(title, pageWidth / 2, 20, { align: 'center' });
 
     // Add date
     pdf.setFontSize(10);
+    pdf.setFont(undefined, 'normal');
     pdf.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - 10, 20, { align: 'right' });
 
-    // Add line
-    pdf.setDrawColor(0, 102, 204);
-    pdf.setLineWidth(0.5);
-    pdf.line(10, 30, pageWidth - 10, 30);
+    // Add subtitle line
+    pdf.setFontSize(8);
+    pdf.text('OSOL Financial Services - Professional Banking Report', pageWidth / 2, 28, { align: 'center' });
+    
+    // Reset text color for content
+    pdf.setTextColor(0, 0, 0);
   }
 
   /**
@@ -78,10 +88,23 @@ class ReportGenerator {
     
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
+      
+      // Add footer background
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(0, pageHeight - 20, pdf.internal.pageSize.width, 20, 'F');
+      
+      // Add footer content
       pdf.setFontSize(10);
-      pdf.setTextColor(128, 128, 128);
+      pdf.setTextColor(74, 85, 104); // OSOL Secondary color
       pdf.text(`Page ${i} of ${pageCount}`, pdf.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
-      pdf.text('Confidential - OSOL Banking System', 10, pageHeight - 10);
+      pdf.text('© 2025 OSOL Financial Services - Confidential', 10, pageHeight - 10);
+      
+      // Add OSOL branding
+      pdf.setFillColor(230, 184, 0);
+      pdf.rect(pdf.internal.pageSize.width - 40, pageHeight - 15, 30, 8, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(8);
+      pdf.text('OSOL', pdf.internal.pageSize.width - 25, pageHeight - 10, { align: 'center' });
     }
   }
 
@@ -100,24 +123,48 @@ class ReportGenerator {
     // Revenue Section
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
+    pdf.setTextColor(230, 184, 0); // OSOL Golden
     pdf.text('Revenue', 10, y);
+    pdf.setTextColor(0, 0, 0);
     y += 10;
 
-    const revenueData = [
-      ['Transaction Fees', this.formatCurrency(data.revenue.transactionFees)],
-      ['Interest Income', this.formatCurrency(data.revenue.interestIncome)],
-      ['Other Income', this.formatCurrency(data.revenue.otherIncome)],
-      ['Total Revenue', this.formatCurrency(data.revenue.totalRevenue)]
-    ];
+    // Handle revenue object properly
+    const revenueData = [];
+    if (data.revenue && typeof data.revenue === 'object') {
+      if (data.revenue.transactionFees !== undefined) {
+        revenueData.push(['Transaction Fees', this.formatCurrency(data.revenue.transactionFees)]);
+      }
+      if (data.revenue.interestIncome !== undefined) {
+        revenueData.push(['Interest Income', this.formatCurrency(data.revenue.interestIncome)]);
+      }
+      if (data.revenue.otherIncome !== undefined) {
+        revenueData.push(['Other Income', this.formatCurrency(data.revenue.otherIncome)]);
+      }
+      
+      // Calculate total revenue
+      const totalRevenue = (data.revenue.transactionFees || 0) + 
+                          (data.revenue.interestIncome || 0) + 
+                          (data.revenue.otherIncome || 0);
+      revenueData.push(['Total Revenue', this.formatCurrency(totalRevenue)]);
+    }
 
     autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)']],
       body: revenueData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { 
+        fillColor: [230, 184, 0], // OSOL Golden
+        textColor: [255, 255, 255]
+      },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
-      styles: { fontSize: 10 }
+      styles: { fontSize: 10 },
+      footStyles: { 
+        fillColor: [245, 245, 245],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold'
+      }
     });
 
     y = pdf.lastAutoTable.finalY + 15;
@@ -125,36 +172,84 @@ class ReportGenerator {
     // Expenses Section
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
+    pdf.setTextColor(230, 184, 0); // OSOL Golden
     pdf.text('Expenses', 10, y);
+    pdf.setTextColor(0, 0, 0);
     y += 10;
 
-    const expensesData = [
-      ['Operating Expenses', this.formatCurrency(data.expenses.operatingExpenses)],
-      ['Personnel Costs', this.formatCurrency(data.expenses.personnelCosts)],
-      ['Provision for Losses', this.formatCurrency(data.expenses.provisionForLosses)],
-      ['Other Expenses', this.formatCurrency(data.expenses.otherExpenses)],
-      ['Total Expenses', this.formatCurrency(data.expenses.totalExpenses)]
-    ];
+    // Handle expenses object properly
+    const expensesData = [];
+    if (data.expenses && typeof data.expenses === 'object') {
+      if (data.expenses.operatingExpenses !== undefined) {
+        expensesData.push(['Operating Expenses', this.formatCurrency(data.expenses.operatingExpenses)]);
+      }
+      if (data.expenses.personnelCosts !== undefined) {
+        expensesData.push(['Personnel Costs', this.formatCurrency(data.expenses.personnelCosts)]);
+      }
+      if (data.expenses.provisions !== undefined) {
+        expensesData.push(['Provisions', this.formatCurrency(data.expenses.provisions)]);
+      }
+      if (data.expenses.provisionForLosses !== undefined) {
+        expensesData.push(['Provision for Losses', this.formatCurrency(data.expenses.provisionForLosses)]);
+      }
+      if (data.expenses.otherExpenses !== undefined) {
+        expensesData.push(['Other Expenses', this.formatCurrency(data.expenses.otherExpenses)]);
+      }
+      
+      // Calculate total expenses
+      const totalExpenses = (data.expenses.operatingExpenses || 0) + 
+                           (data.expenses.personnelCosts || 0) + 
+                           (data.expenses.provisions || 0) +
+                           (data.expenses.provisionForLosses || 0) +
+                           (data.expenses.otherExpenses || 0);
+      expensesData.push(['Total Expenses', this.formatCurrency(totalExpenses)]);
+    }
 
     autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)']],
       body: expensesData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 102, 204] },
+      headStyles: { 
+        fillColor: [230, 184, 0], // OSOL Golden
+        textColor: [255, 255, 255]
+      },
+      alternateRowStyles: { fillColor: [252, 248, 227] }, // Light golden
       margin: { left: 10, right: 10 },
-      styles: { fontSize: 10 }
+      styles: { fontSize: 10 },
+      footStyles: { 
+        fillColor: [245, 245, 245],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold'
+      }
     });
 
     y = pdf.lastAutoTable.finalY + 15;
 
     // Net Income
-    pdf.setFillColor(240, 240, 240);
+    pdf.setFillColor(230, 184, 0, 0.1); // Light OSOL Golden
     pdf.rect(10, y - 5, pdf.internal.pageSize.width - 20, 20, 'F');
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
+    pdf.setTextColor(74, 85, 104); // OSOL Secondary
     pdf.text('Net Income', 15, y + 5);
-    pdf.text(this.formatCurrency(data.netIncome), pdf.internal.pageSize.width - 15, y + 5, { align: 'right' });
+    
+    // Calculate net income if not provided
+    let netIncome = data.netIncome;
+    if (netIncome === undefined && data.revenue && data.expenses) {
+      const totalRevenue = (data.revenue.transactionFees || 0) + 
+                          (data.revenue.interestIncome || 0) + 
+                          (data.revenue.otherIncome || 0);
+      const totalExpenses = (data.expenses.operatingExpenses || 0) + 
+                           (data.expenses.personnelCosts || 0) + 
+                           (data.expenses.provisions || 0) +
+                           (data.expenses.provisionForLosses || 0) +
+                           (data.expenses.otherExpenses || 0);
+      netIncome = totalRevenue - totalExpenses;
+    }
+    
+    pdf.setTextColor(netIncome >= 0 ? 72, 187, 120 : 245, 101, 101); // Green for profit, red for loss
+    pdf.text(this.formatCurrency(netIncome), pdf.internal.pageSize.width - 15, y + 5, { align: 'right' });
 
     return y + 25;
   }

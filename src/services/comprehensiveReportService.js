@@ -34,46 +34,122 @@ class ComprehensiveReportService {
    */
   async getIncomeStatement(startDate, endDate) {
     try {
-      // Get transaction data for revenue
-      const { data: revenueData, error: revenueError } = await supabaseBanking
+      // Get transaction data for revenue with more detailed breakdown
+      const { data: creditTransactions, error: creditError } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
-        .select('transaction_amount, transaction_type_id, transaction_date')
+        .select(`
+          transaction_amount,
+          transaction_type_id,
+          transaction_date,
+          transaction_types!inner(type_name)
+        `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate)
         .in('transaction_type_id', [1, 2, 3]); // Credit transactions
 
-      if (revenueError) throw revenueError;
+      if (creditError) throw creditError;
+
+      // Get debit transactions for expenses
+      const { data: debitTransactions, error: debitError } = await supabaseBanking
+        .from(TABLES.TRANSACTIONS)
+        .select(`
+          transaction_amount,
+          transaction_type_id,
+          transaction_date,
+          transaction_types!inner(type_name)
+        `)
+        .gte('transaction_date', startDate)
+        .lte('transaction_date', endDate)
+        .in('transaction_type_id', [4, 5, 6]); // Debit transactions
+
+      if (debitError) throw debitError;
 
       // Get loan interest income
       const { data: loanData, error: loanError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
-        .select('interest_rate, outstanding_balance, loan_status')
-        .eq('loan_status', 'ACTIVE');
+        .select(`
+          interest_rate, 
+          outstanding_balance, 
+          loan_status,
+          loan_amount,
+          disbursement_date
+        `)
+        .eq('loan_status', 'ACTIVE')
+        .lte('disbursement_date', endDate);
 
       if (loanError) throw loanError;
 
-      // Calculate totals
-      const totalRevenue = revenueData?.reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
-      const interestIncome = loanData?.reduce((sum, loan) => {
-        return sum + ((loan.outstanding_balance * loan.interest_rate / 100 / 12) || 0);
+      // Get fee income from accounts
+      const { data: accountFees, error: feeError } = await supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select(`
+          account_type_id,
+          current_balance,
+          account_status,
+          created_at,
+          account_types!inner(
+            monthly_fee,
+            transaction_fee,
+            minimum_balance
+          )
+        `)
+        .eq('account_status', 'ACTIVE');
+
+      if (feeError) throw feeError;
+
+      // Calculate revenue components
+      const transactionFees = creditTransactions?.reduce((sum, t) => 
+        sum + (t.transaction_amount * 0.02), 0) || 0;
+
+      const monthlyInterestIncome = loanData?.reduce((sum, loan) => {
+        const monthlyInterest = (loan.outstanding_balance * loan.interest_rate / 100 / 12) || 0;
+        return sum + monthlyInterest;
       }, 0) || 0;
 
+      const accountMonthlyFees = accountFees?.reduce((sum, account) => 
+        sum + (account.account_types?.monthly_fee || 0), 0) || 0;
+
+      const otherIncome = (transactionFees + monthlyInterestIncome) * 0.15; // 15% other income
+
+      // Calculate expense components
+      const totalDebitAmount = debitTransactions?.reduce((sum, t) => 
+        sum + (t.transaction_amount || 0), 0) || 0;
+
+      const operatingExpenses = totalDebitAmount * 0.35;
+      const personnelCosts = (transactionFees + monthlyInterestIncome + accountMonthlyFees) * 0.40;
+      const provisions = loanData?.reduce((sum, loan) => 
+        sum + (loan.outstanding_balance * 0.02), 0) || 0; // 2% provision on loans
+      const otherExpenses = totalDebitAmount * 0.15;
+
+      const totalRevenue = transactionFees + monthlyInterestIncome + accountMonthlyFees + otherIncome;
+      const totalExpenses = operatingExpenses + personnelCosts + provisions + otherExpenses;
+
       return {
-        period: { startDate, endDate },
+        period: { 
+          startDate, 
+          endDate 
+        },
         revenue: {
-          transactionFees: totalRevenue * 0.02,
-          interestIncome: interestIncome,
-          otherIncome: totalRevenue * 0.05,
-          totalRevenue: totalRevenue + interestIncome
+          transactionFees: Math.round(transactionFees),
+          interestIncome: Math.round(monthlyInterestIncome),
+          accountFees: Math.round(accountMonthlyFees),
+          otherIncome: Math.round(otherIncome),
+          totalRevenue: Math.round(totalRevenue)
         },
         expenses: {
-          operatingExpenses: totalRevenue * 0.3,
-          personnelCosts: totalRevenue * 0.25,
-          provisionForLosses: totalRevenue * 0.05,
-          otherExpenses: totalRevenue * 0.1,
-          totalExpenses: totalRevenue * 0.7
+          operatingExpenses: Math.round(operatingExpenses),
+          personnelCosts: Math.round(personnelCosts),
+          provisions: Math.round(provisions),
+          otherExpenses: Math.round(otherExpenses),
+          totalExpenses: Math.round(totalExpenses)
         },
-        netIncome: (totalRevenue + interestIncome) * 0.3
+        netIncome: Math.round(totalRevenue - totalExpenses),
+        metrics: {
+          totalTransactions: creditTransactions?.length + debitTransactions?.length || 0,
+          activeLoans: loanData?.length || 0,
+          activeAccounts: accountFees?.length || 0,
+          profitMargin: totalRevenue > 0 ? ((totalRevenue - totalExpenses) / totalRevenue * 100).toFixed(2) : 0
+        }
       };
     } catch (error) {
       console.error('Error generating income statement:', error);
@@ -86,46 +162,119 @@ class ComprehensiveReportService {
    */
   async getBalanceSheet(asOfDate) {
     try {
-      // Get account balances
+      // Get account balances with types
       const { data: accountData, error: accountError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
-        .select('current_balance, account_status')
-        .eq('account_status', 'ACTIVE');
+        .select(`
+          current_balance, 
+          account_status,
+          account_type_id,
+          created_at,
+          account_types!inner(
+            type_name,
+            account_category
+          )
+        `)
+        .eq('account_status', 'ACTIVE')
+        .lte('created_at', asOfDate);
 
       if (accountError) throw accountError;
 
-      // Get loan balances
+      // Get loan balances with details
       const { data: loanData, error: loanError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
-        .select('outstanding_balance, loan_status')
-        .in('loan_status', ['ACTIVE', 'DISBURSED']);
+        .select(`
+          outstanding_balance, 
+          loan_status,
+          loan_amount,
+          disbursement_date,
+          loan_types!inner(
+            type_name,
+            max_amount
+          )
+        `)
+        .in('loan_status', ['ACTIVE', 'DISBURSED'])
+        .lte('disbursement_date', asOfDate);
 
       if (loanError) throw loanError;
 
-      const totalDeposits = accountData?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
-      const totalLoans = loanData?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
+      // Get investment data (simulated from high-value accounts)
+      const investmentAccounts = accountData?.filter(acc => 
+        acc.current_balance > 100000 && acc.account_types?.account_category === 'SAVINGS'
+      ) || [];
+
+      // Calculate asset components
+      const cashAndEquivalents = accountData?.reduce((sum, acc) => {
+        if (acc.account_types?.account_category === 'CHECKING') {
+          return sum + (acc.current_balance * 0.2 || 0); // 20% of checking is cash
+        }
+        return sum;
+      }, 0) || 0;
+
+      const totalLoans = loanData?.reduce((sum, loan) => 
+        sum + (loan.outstanding_balance || 0), 0) || 0;
+
+      const investments = investmentAccounts.reduce((sum, acc) => 
+        sum + (acc.current_balance * 0.7 || 0), 0) || 0;
+
+      const fixedAssets = (cashAndEquivalents + totalLoans) * 0.05; // 5% of total
+      const otherAssets = (cashAndEquivalents + totalLoans) * 0.03; // 3% of total
+
+      // Calculate liability components
+      const totalDeposits = accountData?.reduce((sum, acc) => 
+        sum + (acc.current_balance || 0), 0) || 0;
+
+      const savingsDeposits = accountData?.reduce((sum, acc) => {
+        if (acc.account_types?.account_category === 'SAVINGS') {
+          return sum + (acc.current_balance || 0);
+        }
+        return sum;
+      }, 0) || 0;
+
+      const checkingDeposits = accountData?.reduce((sum, acc) => {
+        if (acc.account_types?.account_category === 'CHECKING') {
+          return sum + (acc.current_balance || 0);
+        }
+        return sum;
+      }, 0) || 0;
+
+      const borrowings = totalLoans * 0.2; // Bank borrowings to fund loans
+      const otherLiabilities = totalDeposits * 0.05; // 5% other liabilities
+
+      // Calculate total assets and liabilities
+      const totalAssets = cashAndEquivalents + totalLoans + investments + fixedAssets + otherAssets;
+      const totalLiabilities = totalDeposits + borrowings + otherLiabilities;
+      const totalEquity = totalAssets - totalLiabilities;
 
       return {
         asOfDate,
         assets: {
-          cash: totalDeposits * 0.1,
-          loans: totalLoans,
-          investments: totalDeposits * 0.3,
-          fixedAssets: totalDeposits * 0.05,
-          otherAssets: totalDeposits * 0.05,
-          totalAssets: totalDeposits * 0.5 + totalLoans
+          cash: Math.round(cashAndEquivalents),
+          loans: Math.round(totalLoans),
+          investments: Math.round(investments),
+          fixedAssets: Math.round(fixedAssets),
+          otherAssets: Math.round(otherAssets),
+          totalAssets: Math.round(totalAssets)
         },
         liabilities: {
-          deposits: totalDeposits,
-          borrowings: totalLoans * 0.2,
-          otherLiabilities: totalDeposits * 0.1,
-          totalLiabilities: totalDeposits + totalLoans * 0.2
+          deposits: Math.round(totalDeposits),
+          savingsDeposits: Math.round(savingsDeposits),
+          checkingDeposits: Math.round(checkingDeposits),
+          borrowings: Math.round(borrowings),
+          otherLiabilities: Math.round(otherLiabilities),
+          totalLiabilities: Math.round(totalLiabilities)
         },
         equity: {
-          paidUpCapital: totalDeposits * 0.2,
-          reserves: totalDeposits * 0.1,
-          retainedEarnings: totalDeposits * 0.15,
-          totalEquity: totalDeposits * 0.45
+          paidInCapital: Math.round(totalEquity * 0.6),
+          retainedEarnings: Math.round(totalEquity * 0.35),
+          otherEquity: Math.round(totalEquity * 0.05),
+          totalEquity: Math.round(totalEquity)
+        },
+        metrics: {
+          totalAccounts: accountData?.length || 0,
+          totalLoans: loanData?.length || 0,
+          debtToEquityRatio: totalEquity > 0 ? (totalLiabilities / totalEquity).toFixed(2) : 0,
+          currentRatio: totalLiabilities > 0 ? (cashAndEquivalents / totalLiabilities).toFixed(2) : 0
         }
       };
     } catch (error) {
@@ -211,35 +360,134 @@ class ComprehensiveReportService {
    */
   async getCustomerAcquisitionReport(startDate, endDate) {
     try {
-      const { data: customers, error } = await supabaseBanking
+      // Get new customers in the period
+      const { data: newCustomers, error: newError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
-        .select('customer_id, created_at, customer_type_id, customer_segment')
+        .select(`
+          customer_id, 
+          created_at, 
+          customer_type_id,
+          customer_segment,
+          date_of_birth,
+          customer_types!inner(type_name)
+        `)
         .gte('created_at', startDate)
         .lte('created_at', endDate);
 
-      if (error) throw error;
+      if (newError) throw newError;
 
-      // Group by date
-      const acquisitionByDate = customers?.reduce((acc, customer) => {
-        const date = format(new Date(customer.created_at), 'yyyy-MM-dd');
-        acc[date] = (acc[date] || 0) + 1;
+      // Get all active customers
+      const { data: allCustomers, error: allError } = await supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('customer_id, created_at, customer_segment')
+        .lte('created_at', endDate);
+
+      if (allError) throw allError;
+
+      // Get customer accounts for value calculation
+      const { data: customerAccounts, error: accountError } = await supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select(`
+          customer_id,
+          current_balance,
+          account_status,
+          created_at
+        `)
+        .eq('account_status', 'ACTIVE');
+
+      if (accountError) throw accountError;
+
+      // Calculate monthly trends
+      const monthlyTrend = [];
+      const currentDate = new Date(endDate);
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = new Date(currentDate);
+        monthDate.setMonth(monthDate.getMonth() - i);
+        const monthStart = startOfMonth(monthDate);
+        const monthEnd = endOfMonth(monthDate);
+        
+        const newInMonth = newCustomers?.filter(c => {
+          const createdDate = new Date(c.created_at);
+          return createdDate >= monthStart && createdDate <= monthEnd;
+        }).length || 0;
+
+        const activeInMonth = allCustomers?.filter(c => {
+          const createdDate = new Date(c.created_at);
+          return createdDate <= monthEnd;
+        }).length || 0;
+
+        // Simulate churned customers (2-3% monthly churn)
+        const churnedInMonth = Math.floor(activeInMonth * (0.02 + Math.random() * 0.01));
+
+        monthlyTrend.push({
+          month: format(monthDate, 'MMM'),
+          new: newInMonth,
+          active: activeInMonth,
+          churned: churnedInMonth
+        });
+      }
+
+      // Calculate age distribution
+      const ageDistribution = newCustomers?.reduce((acc, customer) => {
+        if (customer.date_of_birth) {
+          const age = new Date().getFullYear() - new Date(customer.date_of_birth).getFullYear();
+          if (age < 26) acc['18-25'] = (acc['18-25'] || 0) + 1;
+          else if (age < 36) acc['26-35'] = (acc['26-35'] || 0) + 1;
+          else if (age < 46) acc['36-45'] = (acc['36-45'] || 0) + 1;
+          else if (age < 56) acc['46-55'] = (acc['46-55'] || 0) + 1;
+          else acc['56+'] = (acc['56+'] || 0) + 1;
+        }
         return acc;
       }, {}) || {};
 
-      // Group by segment
-      const acquisitionBySegment = customers?.reduce((acc, customer) => {
-        const segment = customer.customer_segment || 'Unknown';
+      // Calculate segment distribution
+      const segmentDistribution = newCustomers?.reduce((acc, customer) => {
+        const segment = customer.customer_segment || 'Retail';
         acc[segment] = (acc[segment] || 0) + 1;
         return acc;
       }, {}) || {};
 
+      // Calculate average account value
+      const customerBalances = {};
+      customerAccounts?.forEach(account => {
+        if (!customerBalances[account.customer_id]) {
+          customerBalances[account.customer_id] = 0;
+        }
+        customerBalances[account.customer_id] += account.current_balance;
+      });
+
+      const avgAccountValue = Object.values(customerBalances).reduce((sum, balance) => 
+        sum + balance, 0) / Object.keys(customerBalances).length || 0;
+
+      // Calculate growth rate
+      const previousPeriodStart = new Date(startDate);
+      previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 1);
+      const previousPeriodEnd = new Date(endDate);
+      previousPeriodEnd.setMonth(previousPeriodEnd.getMonth() - 1);
+
+      const previousCustomers = allCustomers?.filter(c => {
+        const createdDate = new Date(c.created_at);
+        return createdDate >= previousPeriodStart && createdDate <= previousPeriodEnd;
+      }).length || 1;
+
+      const growthRate = ((newCustomers?.length || 0) - previousCustomers) / previousCustomers * 100;
+
       return {
         period: { startDate, endDate },
-        totalNewCustomers: customers?.length || 0,
-        acquisitionByDate,
-        acquisitionBySegment,
-        averagePerDay: (customers?.length || 0) / 30,
-        growthRate: 15.5 // Mock growth rate
+        totalCustomers: allCustomers?.length || 0,
+        newCustomers: newCustomers?.length || 0,
+        churnRate: '2.5%',
+        avgAccountValue: Math.round(avgAccountValue),
+        monthlyTrend,
+        customerMetrics: {
+          totalCustomers: allCustomers?.length || 0,
+          newCustomers: newCustomers?.length || 0,
+          churnRate: '2.5%',
+          avgAccountValue: Math.round(avgAccountValue)
+        },
+        ageDistribution,
+        segmentDistribution,
+        growthRate: growthRate.toFixed(2)
       };
     } catch (error) {
       console.error('Error generating customer acquisition report:', error);
