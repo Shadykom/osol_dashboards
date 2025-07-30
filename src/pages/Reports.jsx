@@ -493,110 +493,110 @@ export function Reports() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Reports Center</h1>
-          <p className="text-muted-foreground mt-1">Generate, schedule, and manage all banking reports</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Reports Center</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Generate, schedule, and manage all banking reports</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setActiveTab('history')}>
-            <Clock className="w-4 h-4 mr-2" />
-            History
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setActiveTab('history')}>
+            <Clock className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">History</span>
           </Button>
-          <Button variant="outline" onClick={() => setActiveTab('scheduled')}>
-            <Calendar className="w-4 h-4 mr-2" />
-            Scheduled
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setActiveTab('scheduled')}>
+            <Calendar className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Scheduled</span>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Reports Generated</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Reports</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">156</div>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">156</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reports</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Pending</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">3</div>
             <p className="text-xs text-muted-foreground">In queue</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Scheduled Reports</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Scheduled</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">Active schedules</p>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">12</div>
+            <p className="text-xs text-muted-foreground">Active</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed Reports</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Failed</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">Require attention</p>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">2</div>
+            <p className="text-xs text-muted-foreground">Attention</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="generate">Generate Report</TabsTrigger>
-          <TabsTrigger value="scheduled">Scheduled Reports</TabsTrigger>
-          <TabsTrigger value="history">Report History</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="generate" className="text-xs sm:text-sm">Generate</TabsTrigger>
+          <TabsTrigger value="scheduled" className="text-xs sm:text-sm">Scheduled</TabsTrigger>
+          <TabsTrigger value="history" className="text-xs sm:text-sm">History</TabsTrigger>
         </TabsList>
 
         {/* Generate Report Tab */}
         <TabsContent value="generate" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Report Categories */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-3 sm:space-y-4">
               {Object.entries(REPORT_CATEGORIES).map(([key, category]) => (
                 <Card key={key} className={selectedCategory === key ? 'ring-2 ring-primary' : ''}>
                   <CardHeader 
-                    className="cursor-pointer"
+                    className="cursor-pointer p-3 sm:p-6"
                     onClick={() => setSelectedCategory(key)}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${category.bgColor}`}>
-                          <category.icon className={`h-5 w-5 ${category.color}`} />
+                      <div className="flex items-center space-x-2 sm:space-x-3">
+                        <div className={`p-1.5 sm:p-2 rounded-lg ${category.bgColor}`}>
+                          <category.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${category.color}`} />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{category.title}</CardTitle>
-                          <CardDescription>{category.reports.length} reports available</CardDescription>
+                          <CardTitle className="text-base sm:text-lg">{category.title}</CardTitle>
+                          <CardDescription className="text-xs sm:text-sm">{category.reports.length} reports available</CardDescription>
                         </div>
                       </div>
-                      <Badge variant={selectedCategory === key ? 'default' : 'outline'}>
-                        {selectedCategory === key ? 'Selected' : 'Click to select'}
+                      <Badge variant={selectedCategory === key ? 'default' : 'outline'} className="text-xs">
+                        {selectedCategory === key ? 'Selected' : 'Select'}
                       </Badge>
                     </div>
                   </CardHeader>
                   {selectedCategory === key && (
-                    <CardContent>
+                    <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                       <div className="space-y-2">
                         {category.reports.map((report) => (
                           <div
                             key={report.id}
-                            className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                            className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-colors ${
                               selectedReport === report.id 
                                 ? 'bg-primary/10 border-primary' 
                                 : 'hover:bg-muted'
@@ -604,12 +604,12 @@ export function Reports() {
                             onClick={() => setSelectedReport(report.id)}
                           >
                             <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-medium">{report.name}</h4>
-                                <p className="text-sm text-muted-foreground">{report.description}</p>
+                              <div className="flex-1">
+                                <h4 className="font-medium text-sm sm:text-base">{report.name}</h4>
+                                <p className="text-xs sm:text-sm text-muted-foreground">{report.description}</p>
                               </div>
-                              <div className="text-right">
-                                <Badge variant="secondary">{report.frequency}</Badge>
+                              <div className="ml-2">
+                                <Badge variant="secondary" className="text-xs">{report.frequency}</Badge>
                               </div>
                             </div>
                           </div>
@@ -624,14 +624,14 @@ export function Reports() {
             {/* Report Configuration */}
             <div className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Report Configuration</CardTitle>
-                  <CardDescription>Configure report parameters</CardDescription>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-xl">Report Configuration</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Configure report parameters</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 p-3 sm:p-6">
                   {/* Date Range */}
                   <div className="space-y-2">
-                    <Label>Date Range</Label>
+                    <Label className="text-sm">Date Range</Label>
                     <DatePickerWithRange
                       date={dateRange}
                       setDate={setDateRange}
@@ -640,9 +640,9 @@ export function Reports() {
 
                   {/* Filters */}
                   <div className="space-y-2">
-                    <Label>Branch</Label>
+                    <Label className="text-sm">Branch</Label>
                     <Select value={filters.branch} onValueChange={(value) => setFilters({...filters, branch: value})}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-sm">
                         <SelectValue placeholder="Select branch" />
                       </SelectTrigger>
                       <SelectContent>
@@ -655,9 +655,9 @@ export function Reports() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Product</Label>
+                    <Label className="text-sm">Product</Label>
                     <Select value={filters.product} onValueChange={(value) => setFilters({...filters, product: value})}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-sm">
                         <SelectValue placeholder="Select product" />
                       </SelectTrigger>
                       <SelectContent>
@@ -671,9 +671,9 @@ export function Reports() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Customer Segment</Label>
+                    <Label className="text-sm">Customer Segment</Label>
                     <Select value={filters.segment} onValueChange={(value) => setFilters({...filters, segment: value})}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-sm">
                         <SelectValue placeholder="Select segment" />
                       </SelectTrigger>
                       <SelectContent>
@@ -689,7 +689,7 @@ export function Reports() {
                   {/* Actions */}
                   <div className="pt-4 space-y-2">
                     <Button 
-                      className="w-full" 
+                      className="w-full text-sm" 
                       onClick={handleGenerateReport}
                       disabled={!selectedReport || isGenerating}
                     >
@@ -1070,198 +1070,214 @@ export function Reports() {
 
       {/* Preview Dialog */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="sm:max-w-[95vw] max-h-[90vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <img src="/osol-logo.png" alt="OSOL Logo" className="h-8 w-auto" />
+        <DialogContent className="w-[95vw] max-w-6xl h-[90vh] max-h-[900px] p-0 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-6 pb-0">
+            <DialogTitle className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
+              <img src="/osol-logo.png" alt="OSOL Logo" className="h-6 sm:h-8 w-auto" />
               <span>Report Preview</span>
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm">
               {generatedReport?.reportInfo.name} - Generated successfully
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="h-[calc(90vh-200px)] w-full rounded-md border p-4">
-            {reportData && (
-              <div className="space-y-4">
-                {/* OSOL Branded Header */}
-                <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-4 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img src="/osol-logo.png" alt="OSOL" className="h-10 w-auto filter brightness-0 invert" />
-                      <div>
-                        <h2 className="text-xl font-bold">OSOL Financial Report</h2>
-                        <p className="text-sm opacity-90">{generatedReport?.reportInfo.name}</p>
+          <ScrollArea className="h-[calc(100%-120px)] w-full">
+            <div className="p-4 sm:p-6">
+              {reportData && (
+                <div className="space-y-4">
+                  {/* OSOL Branded Header */}
+                  <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-3 sm:p-4 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <img src="/osol-logo.png" alt="OSOL" className="h-8 sm:h-10 w-auto filter brightness-0 invert" />
+                        <div>
+                          <h2 className="text-base sm:text-xl font-bold">OSOL Financial Report</h2>
+                          <p className="text-xs sm:text-sm opacity-90">{generatedReport?.reportInfo.name}</p>
+                        </div>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <p className="text-xs sm:text-sm">Generated on</p>
+                        <p className="font-semibold text-sm sm:text-base">{format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm">Generated on</p>
-                      <p className="font-semibold">{format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
-                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-semibold mb-2 text-[#4A5568]">Report Summary</h3>
-                    <div className="space-y-1 text-sm bg-gray-50 p-3 rounded-lg">
-                      <p><span className="font-medium">Type:</span> {generatedReport?.reportInfo.name}</p>
-                      <p><span className="font-medium">Period:</span> {format(dateRange.from, 'MMM dd, yyyy')} - {format(dateRange.to, 'MMM dd, yyyy')}</p>
-                      <p><span className="font-medium">Generated:</span> {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-semibold mb-2 text-[#4A5568] text-sm sm:text-base">Report Summary</h3>
+                      <div className="space-y-1 text-xs sm:text-sm bg-gray-50 p-2 sm:p-3 rounded-lg">
+                        <p><span className="font-medium">Type:</span> {generatedReport?.reportInfo.name}</p>
+                        <p><span className="font-medium">Period:</span> {format(dateRange.from, 'MMM dd, yyyy')} - {format(dateRange.to, 'MMM dd, yyyy')}</p>
+                        <p><span className="font-medium">Generated:</span> {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2 text-[#4A5568]">Key Metrics</h3>
-                    <div className="space-y-2 text-sm bg-gray-50 p-3 rounded-lg">
-                      {generatedReport?.data && (
-                        <>
-                          {/* Period Information */}
-                          {generatedReport.data.period && (
-                            <div className="border-b pb-2">
-                              <span className="font-medium text-[#4A5568]">Period:</span>
-                              <span className="ml-2">
-                                {format(new Date(generatedReport.data.period.startDate), 'MMM dd, yyyy')} - 
-                                {format(new Date(generatedReport.data.period.endDate), 'MMM dd, yyyy')}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {/* Revenue */}
-                          {generatedReport.data.revenue && (
-                            <div className="border-b pb-2">
-                              <span className="font-medium text-[#4A5568]">Revenue:</span>
-                              <div className="ml-4 mt-1 space-y-1">
-                                {generatedReport.data.revenue.transactionFees !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Transaction Fees:</span>
-                                    <span>SAR {generatedReport.data.revenue.transactionFees?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                {generatedReport.data.revenue.interestIncome !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Interest Income:</span>
-                                    <span>SAR {generatedReport.data.revenue.interestIncome?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                {generatedReport.data.revenue.totalRevenue !== undefined && (
-                                  <div className="flex justify-between font-medium">
-                                    <span>Total Revenue:</span>
-                                    <span>SAR {generatedReport.data.revenue.totalRevenue?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Expenses */}
-                          {generatedReport.data.expenses && (
-                            <div className="border-b pb-2">
-                              <span className="font-medium text-[#4A5568]">Expenses:</span>
-                              <div className="ml-4 mt-1 space-y-1">
-                                {generatedReport.data.expenses.operatingExpenses !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Operating Expenses:</span>
-                                    <span>SAR {generatedReport.data.expenses.operatingExpenses?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                {generatedReport.data.expenses.personnelCosts !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Personnel Costs:</span>
-                                    <span>SAR {generatedReport.data.expenses.personnelCosts?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                {generatedReport.data.expenses.provisions !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Provisions:</span>
-                                    <span>SAR {generatedReport.data.expenses.provisions?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                {generatedReport.data.expenses.totalExpenses !== undefined && (
-                                  <div className="flex justify-between font-medium">
-                                    <span>Total Expenses:</span>
-                                    <span>SAR {generatedReport.data.expenses.totalExpenses?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Net Income */}
-                          {generatedReport.data.netIncome !== undefined && (
-                            <div className="border-b pb-2">
-                              <div className="flex justify-between">
-                                <span className="font-medium text-[#4A5568]">Net Income:</span>
-                                <span className={`font-medium ${generatedReport.data.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  SAR {generatedReport.data.netIncome?.toLocaleString() || '0'}
+                    <div>
+                      <h3 className="font-semibold mb-2 text-[#4A5568] text-sm sm:text-base">Key Metrics</h3>
+                      <div className="space-y-2 text-xs sm:text-sm bg-gray-50 p-2 sm:p-3 rounded-lg max-h-[300px] overflow-y-auto">
+                        {generatedReport?.data && (
+                          <>
+                            {/* Period Information */}
+                            {generatedReport.data.period && (
+                              <div className="border-b pb-2">
+                                <span className="font-medium text-[#4A5568]">Period:</span>
+                                <span className="ml-2">
+                                  {format(new Date(generatedReport.data.period.startDate), 'MMM dd, yyyy')} - 
+                                  {format(new Date(generatedReport.data.period.endDate), 'MMM dd, yyyy')}
                                 </span>
                               </div>
-                            </div>
-                          )}
-                          
-                          {/* Additional Metrics */}
-                          {generatedReport.data.metrics && (
-                            <div>
-                              <span className="font-medium text-[#4A5568]">Metrics:</span>
-                              <div className="ml-4 mt-1 space-y-1">
-                                {generatedReport.data.metrics.totalTransactions !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Total Transactions:</span>
-                                    <span>{generatedReport.data.metrics.totalTransactions?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                {generatedReport.data.metrics.activeLoans !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Active Loans:</span>
-                                    <span>{generatedReport.data.metrics.activeLoans?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
-                                {generatedReport.data.metrics.activeAccounts !== undefined && (
-                                  <div className="flex justify-between">
-                                    <span>Active Accounts:</span>
-                                    <span>{generatedReport.data.metrics.activeAccounts?.toLocaleString() || '0'}</span>
-                                  </div>
-                                )}
+                            )}
+                            
+                            {/* Revenue */}
+                            {generatedReport.data.revenue && (
+                              <div className="border-b pb-2">
+                                <span className="font-medium text-[#4A5568]">Revenue:</span>
+                                <div className="ml-4 mt-1 space-y-1">
+                                  {generatedReport.data.revenue.transactionFees !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Transaction Fees:</span>
+                                      <span>SAR {generatedReport.data.revenue.transactionFees?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                  {generatedReport.data.revenue.interestIncome !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Interest Income:</span>
+                                      <span>SAR {generatedReport.data.revenue.interestIncome?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                  {generatedReport.data.revenue.totalRevenue !== undefined && (
+                                    <div className="flex justify-between font-medium">
+                                      <span>Total Revenue:</span>
+                                      <span>SAR {generatedReport.data.revenue.totalRevenue?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </>
+                            )}
+                            
+                            {/* Expenses */}
+                            {generatedReport.data.expenses && (
+                              <div className="border-b pb-2">
+                                <span className="font-medium text-[#4A5568]">Expenses:</span>
+                                <div className="ml-4 mt-1 space-y-1">
+                                  {generatedReport.data.expenses.operatingExpenses !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Operating Expenses:</span>
+                                      <span>SAR {generatedReport.data.expenses.operatingExpenses?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                  {generatedReport.data.expenses.personnelCosts !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Personnel Costs:</span>
+                                      <span>SAR {generatedReport.data.expenses.personnelCosts?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                  {generatedReport.data.expenses.provisions !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Provisions:</span>
+                                      <span>SAR {generatedReport.data.expenses.provisions?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                  {generatedReport.data.expenses.totalExpenses !== undefined && (
+                                    <div className="flex justify-between font-medium">
+                                      <span>Total Expenses:</span>
+                                      <span>SAR {generatedReport.data.expenses.totalExpenses?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Net Income */}
+                            {generatedReport.data.netIncome !== undefined && (
+                              <div className="border-b pb-2">
+                                <div className="flex justify-between">
+                                  <span className="font-medium text-[#4A5568]">Net Income:</span>
+                                  <span className={`font-medium ${generatedReport.data.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    SAR {generatedReport.data.netIncome?.toLocaleString() || '0'}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Additional Metrics */}
+                            {generatedReport.data.metrics && (
+                              <div>
+                                <span className="font-medium text-[#4A5568]">Metrics:</span>
+                                <div className="ml-4 mt-1 space-y-1">
+                                  {generatedReport.data.metrics.totalTransactions !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Total Transactions:</span>
+                                      <span>{generatedReport.data.metrics.totalTransactions?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                  {generatedReport.data.metrics.activeLoans !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Active Loans:</span>
+                                      <span>{generatedReport.data.metrics.activeLoans?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                  {generatedReport.data.metrics.activeAccounts !== undefined && (
+                                    <div className="flex justify-between">
+                                      <span>Active Accounts:</span>
+                                      <span>{generatedReport.data.metrics.activeAccounts?.toLocaleString() || '0'}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-2 text-[#4A5568]">Report Preview</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      {/* Visual Report View */}
+                      {generatedReport?.data && (
+                        <VisualReportView 
+                          reportData={generatedReport.data} 
+                          reportType={selectedReport}
+                        />
                       )}
                     </div>
                   </div>
                 </div>
-                
-                <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-2 text-[#4A5568]">Report Preview</h3>
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    {/* Visual Report View */}
-                    {generatedReport?.data && (
-                      <VisualReportView 
-                        reportData={generatedReport.data} 
-                        reportType={selectedReport}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </ScrollArea>
-          <DialogFooter className="border-t pt-4">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <img src="/osol-logo.png" alt="OSOL" className="h-5 w-auto opacity-50" />
+          <DialogFooter className="border-t p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
+              <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+                <img src="/osol-logo.png" alt="OSOL" className="h-4 w-auto opacity-50" />
                 <span>© 2025 OSOL Financial Services</span>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => handleDownload('excel')}>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleDownload('excel')}
+                  className="w-full sm:w-auto text-sm"
+                >
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Download Excel
+                  <span className="sm:hidden">Excel</span>
+                  <span className="hidden sm:inline">Download Excel</span>
                 </Button>
-                <Button variant="outline" onClick={() => handleDownload('pdf')}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleDownload('pdf')}
+                  className="w-full sm:w-auto text-sm"
+                >
                   <FileDown className="mr-2 h-4 w-4" />
-                  Download PDF
+                  <span className="sm:hidden">PDF</span>
+                  <span className="hidden sm:inline">Download PDF</span>
                 </Button>
-                <Button onClick={() => setEmailDialogOpen(true)} className="bg-[#E6B800] hover:bg-[#CC9900]">
+                <Button 
+                  onClick={() => setEmailDialogOpen(true)} 
+                  className="bg-[#E6B800] hover:bg-[#CC9900] w-full sm:w-auto text-sm"
+                >
                   <Mail className="mr-2 h-4 w-4" />
-                  Send Email
+                  <span className="sm:hidden">Email</span>
+                  <span className="hidden sm:inline">Send Email</span>
                 </Button>
               </div>
             </div>
