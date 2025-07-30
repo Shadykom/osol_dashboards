@@ -43,6 +43,8 @@ CREATE ROLE supabase_replication_admin;
 ALTER ROLE supabase_replication_admin WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB LOGIN REPLICATION NOBYPASSRLS;
 CREATE ROLE supabase_storage_admin;
 ALTER ROLE supabase_storage_admin WITH NOSUPERUSER NOINHERIT CREATEROLE NOCREATEDB LOGIN NOREPLICATION NOBYPASSRLS;
+CREATE ROLE web_anon;
+ALTER ROLE web_anon WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS;
 
 --
 -- User Configurations
@@ -118,6 +120,7 @@ GRANT pg_signal_backend TO postgres WITH ADMIN OPTION, INHERIT TRUE GRANTED BY s
 GRANT service_role TO authenticator WITH INHERIT FALSE GRANTED BY supabase_admin;
 GRANT service_role TO postgres WITH ADMIN OPTION, INHERIT TRUE GRANTED BY supabase_admin;
 GRANT supabase_realtime_admin TO postgres WITH INHERIT TRUE GRANTED BY supabase_admin;
+GRANT web_anon TO postgres WITH ADMIN OPTION, INHERIT FALSE, SET FALSE GRANTED BY supabase_admin;
 
 
 
@@ -226,15 +229,6 @@ CREATE SCHEMA kastle_banking;
 
 
 ALTER SCHEMA kastle_banking OWNER TO postgres;
-
---
--- Name: kastle_collection; Type: SCHEMA; Schema: -; Owner: postgres
---
-
-CREATE SCHEMA kastle_collection;
-
-
-ALTER SCHEMA kastle_collection OWNER TO postgres;
 
 --
 -- Name: pgbouncer; Type: SCHEMA; Schema: -; Owner: pgbouncer
@@ -880,6 +874,223 @@ COMMENT ON FUNCTION extensions.set_graphql_placeholder() IS 'Reintroduces placeh
 
 
 --
+-- Name: api_get_case_details(integer); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE FUNCTION kastle_banking.api_get_case_details(p_case_id integer) RETURNS jsonb
+    LANGUAGE plpgsql
+    AS $$DECLARE
+    v_result jsonb;
+BEGIN
+    SELECT jsonb_build_object(
+        'case_info', to_jsonb(cc),
+        'customer_info', to_jsonb(c),
+        'bucket_info', to_jsonb(b),
+        'assigned_officer', to_jsonb(o),
+        'recent_contacts', (
+            SELECT jsonb_agg(to_jsonb(ca))
+            FROM kastle_collection.collection_contact_attempts ca
+            WHERE ca.case_id = cc.case_id
+            ORDER BY ca.attempt_datetime DESC
+            LIMIT 10
+        ),
+        'risk_assessment', (
+            SELECT to_jsonb(ra)
+            FROM kastle_collection.collection_risk_assessment ra
+            WHERE ra.case_id = cc.case_id
+            ORDER BY ra.assessment_date DESC
+            LIMIT 1
+        ),
+        'settlement_offers', (
+            SELECT jsonb_agg(to_jsonb(so))
+            FROM kastle_collection.collection_settlement_offers so
+            WHERE so.case_id = cc.case_id
+            ORDER BY so.offer_date DESC
+        )
+    ) INTO v_result
+    FROM kastle_banking.collection_cases cc
+    LEFT JOIN kastle_banking.customers c ON cc.customer_id = c.customer_id
+    LEFT JOIN kastle_banking.collection_buckets b ON cc.bucket_id = b.bucket_id
+    LEFT JOIN kastle_collection.collection_officers o ON cc.assigned_officer_id = o.officer_id
+    WHERE cc.case_id = p_case_id;
+    
+    RETURN v_result;
+END;$$;
+
+
+ALTER FUNCTION kastle_banking.api_get_case_details(p_case_id integer) OWNER TO postgres;
+
+--
+-- Name: archive_old_data(integer); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE FUNCTION kastle_banking.archive_old_data(p_days_to_keep integer DEFAULT 365) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_archive_date date;
+    v_archived_count integer;
+BEGIN
+    v_archive_date := CURRENT_DATE - p_days_to_keep;
+    
+    -- Archive old contact attempts
+    WITH archived AS (
+        DELETE FROM kastle_collection.collection_contact_attempts
+        WHERE created_at < v_archive_date
+        RETURNING *
+    )
+    SELECT COUNT(*) INTO v_archived_count FROM archived;
+    
+    PERFORM kastle_collection.log_performance_metric(
+        'archived_contact_attempts', 
+        v_archived_count, 
+        'records',
+        jsonb_build_object('archive_date', v_archive_date)
+    );
+    
+    -- Archive old audit logs
+    WITH archived AS (
+        DELETE FROM kastle_collection.audit_log
+        WHERE created_at < v_archive_date
+        RETURNING *
+    )
+    SELECT COUNT(*) INTO v_archived_count FROM archived;
+    
+    PERFORM kastle_collection.log_performance_metric(
+        'archived_audit_logs', 
+        v_archived_count, 
+        'records',
+        jsonb_build_object('archive_date', v_archive_date)
+    );
+END;
+$$;
+
+
+ALTER FUNCTION kastle_banking.archive_old_data(p_days_to_keep integer) OWNER TO postgres;
+
+--
+-- Name: audit_trigger_function(); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE FUNCTION kastle_banking.audit_trigger_function() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    audit_user character varying;
+    old_data jsonb;
+    new_data jsonb;
+    changed_fields jsonb = '{}';
+    field text;
+BEGIN
+    -- Get current user (customize based on your auth system)
+    audit_user := COALESCE(current_setting('app.current_user', true), session_user);
+    
+    IF TG_OP = 'DELETE' THEN
+        old_data := to_jsonb(OLD);
+        INSERT INTO kastle_collection.audit_log (
+            table_name, operation, record_id, user_id, old_values
+        ) VALUES (
+            TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME, 
+            TG_OP, 
+            OLD.id::text, -- Adjust based on your primary key column name
+            audit_user, 
+            old_data
+        );
+        RETURN OLD;
+    ELSIF TG_OP = 'UPDATE' THEN
+        old_data := to_jsonb(OLD);
+        new_data := to_jsonb(NEW);
+        
+        -- Find changed fields
+        FOR field IN SELECT jsonb_object_keys(old_data) LOOP
+            IF old_data->field IS DISTINCT FROM new_data->field THEN
+                changed_fields := changed_fields || jsonb_build_object(field, true);
+            END IF;
+        END LOOP;
+        
+        INSERT INTO kastle_collection.audit_log (
+            table_name, operation, record_id, user_id, 
+            changed_fields, old_values, new_values
+        ) VALUES (
+            TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME, 
+            TG_OP, 
+            NEW.id::text, -- Adjust based on your primary key column name
+            audit_user, 
+            changed_fields, 
+            old_data, 
+            new_data
+        );
+        RETURN NEW;
+    ELSIF TG_OP = 'INSERT' THEN
+        new_data := to_jsonb(NEW);
+        INSERT INTO kastle_collection.audit_log (
+            table_name, operation, record_id, user_id, new_values
+        ) VALUES (
+            TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME, 
+            TG_OP, 
+            NEW.id::text, -- Adjust based on your primary key column name
+            audit_user, 
+            new_data
+        );
+        RETURN NEW;
+    END IF;
+    
+    RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION kastle_banking.audit_trigger_function() OWNER TO postgres;
+
+--
+-- Name: calculate_collection_forecast(integer, integer); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE FUNCTION kastle_banking.calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer DEFAULT 30) RETURNS TABLE(forecast_date date, expected_collections numeric, confidence_level numeric, lower_bound numeric, upper_bound numeric)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_historical_rate numeric;
+    v_volatility numeric;
+    v_current_exposure numeric;
+BEGIN
+    -- Calculate historical collection rate
+    SELECT 
+        AVG(collection_rate),
+        STDDEV(collection_rate)
+    INTO v_historical_rate, v_volatility
+    FROM (
+        SELECT 
+            DATE_TRUNC('month', movement_date) as month,
+            SUM(amount_at_movement) / NULLIF(LAG(SUM(amount_at_movement)) OVER (ORDER BY DATE_TRUNC('month', movement_date)), 0) as collection_rate
+        FROM kastle_collection.collection_bucket_movement
+        WHERE from_bucket_id = p_bucket_id
+        AND movement_date >= CURRENT_DATE - INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', movement_date)
+    ) hist;
+    
+    -- Get current exposure
+    SELECT SUM(outstanding_amount)
+    INTO v_current_exposure
+    FROM kastle_banking.collection_cases
+    WHERE bucket_id = p_bucket_id;
+    
+    -- Generate forecast
+    RETURN QUERY
+    SELECT 
+        CURRENT_DATE + i as forecast_date,
+        ROUND(v_current_exposure * v_historical_rate / 30, 2) as expected_collections,
+        ROUND(GREATEST(50, 100 - (v_volatility * 100)), 2) as confidence_level,
+        ROUND(v_current_exposure * (v_historical_rate - v_volatility) / 30, 2) as lower_bound,
+        ROUND(v_current_exposure * (v_historical_rate + v_volatility) / 30, 2) as upper_bound
+    FROM generate_series(1, p_forecast_days) i;
+END;
+$$;
+
+
+ALTER FUNCTION kastle_banking.calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer) OWNER TO postgres;
+
+--
 -- Name: check_data_lengths(); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
 --
 
@@ -1088,6 +1299,43 @@ $$;
 ALTER FUNCTION kastle_banking.generate_transaction_ref() OWNER TO postgres;
 
 --
+-- Name: get_collection_efficiency_report(date, date); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE FUNCTION kastle_banking.get_collection_efficiency_report(p_start_date date, p_end_date date) RETURNS TABLE(report_date date, total_cases integer, total_amount numeric, collected_amount numeric, collection_rate numeric, avg_days_to_collect numeric, contact_attempts integer, successful_contacts integer, contact_success_rate numeric, settlements_offered integer, settlements_accepted integer, settlement_acceptance_rate numeric)
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        DATE(ca.attempt_datetime) as report_date,
+        COUNT(DISTINCT cc.case_id)::integer as total_cases,
+        SUM(cc.total_amount) as total_amount,
+        SUM(CASE WHEN cc.case_status = 'CLOSED' THEN cc.total_amount - cc.outstanding_amount ELSE 0 END) as collected_amount,
+        ROUND(SUM(CASE WHEN cc.case_status = 'CLOSED' THEN cc.total_amount - cc.outstanding_amount ELSE 0 END) / 
+              NULLIF(SUM(cc.total_amount), 0) * 100, 2) as collection_rate,
+        AVG(CASE WHEN cc.case_status = 'CLOSED' THEN cc.dpd ELSE NULL END) as avg_days_to_collect,
+        COUNT(ca.attempt_id)::integer as contact_attempts,
+        COUNT(CASE WHEN ca.contact_result = 'CONNECTED' THEN 1 END)::integer as successful_contacts,
+        ROUND(COUNT(CASE WHEN ca.contact_result = 'CONNECTED' THEN 1 END)::numeric / 
+              NULLIF(COUNT(ca.attempt_id), 0) * 100, 2) as contact_success_rate,
+        COUNT(DISTINCT so.offer_id)::integer as settlements_offered,
+        COUNT(DISTINCT CASE WHEN so.offer_status = 'ACCEPTED' THEN so.offer_id END)::integer as settlements_accepted,
+        ROUND(COUNT(DISTINCT CASE WHEN so.offer_status = 'ACCEPTED' THEN so.offer_id END)::numeric / 
+              NULLIF(COUNT(DISTINCT so.offer_id), 0) * 100, 2) as settlement_acceptance_rate
+    FROM kastle_banking.collection_cases cc
+    LEFT JOIN kastle_collection.collection_contact_attempts ca ON cc.case_id = ca.case_id
+    LEFT JOIN kastle_collection.collection_settlement_offers so ON cc.case_id = so.case_id
+    WHERE DATE(ca.attempt_datetime) BETWEEN p_start_date AND p_end_date
+    GROUP BY DATE(ca.attempt_datetime)
+    ORDER BY report_date;
+END;
+$$;
+
+
+ALTER FUNCTION kastle_banking.get_collection_efficiency_report(p_start_date date, p_end_date date) OWNER TO postgres;
+
+--
 -- Name: get_current_customer_id(); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
 --
 
@@ -1159,304 +1407,10 @@ $$;
 ALTER FUNCTION kastle_banking.is_bank_employee() OWNER TO postgres;
 
 --
--- Name: update_customer_full_name(); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+-- Name: log_performance_metric(character varying, numeric, character varying, jsonb); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE FUNCTION kastle_banking.update_customer_full_name() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.full_name = TRIM(CONCAT(
-        NEW.first_name, 
-        ' ', 
-        COALESCE(NEW.middle_name, ''), 
-        ' ', 
-        NEW.last_name
-    ));
-    -- Remove extra spaces
-    NEW.full_name = REGEXP_REPLACE(NEW.full_name, '\s+', ' ', 'g');
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION kastle_banking.update_customer_full_name() OWNER TO postgres;
-
---
--- Name: update_updated_at_column(); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
---
-
-CREATE FUNCTION kastle_banking.update_updated_at_column() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION kastle_banking.update_updated_at_column() OWNER TO postgres;
-
---
--- Name: api_get_case_details(integer); Type: FUNCTION; Schema: kastle_collection; Owner: postgres
---
-
-CREATE FUNCTION kastle_collection.api_get_case_details(p_case_id integer) RETURNS jsonb
-    LANGUAGE plpgsql
-    AS $$DECLARE
-    v_result jsonb;
-BEGIN
-    SELECT jsonb_build_object(
-        'case_info', to_jsonb(cc),
-        'customer_info', to_jsonb(c),
-        'bucket_info', to_jsonb(b),
-        'assigned_officer', to_jsonb(o),
-        'recent_contacts', (
-            SELECT jsonb_agg(to_jsonb(ca))
-            FROM kastle_collection.collection_contact_attempts ca
-            WHERE ca.case_id = cc.case_id
-            ORDER BY ca.attempt_datetime DESC
-            LIMIT 10
-        ),
-        'risk_assessment', (
-            SELECT to_jsonb(ra)
-            FROM kastle_collection.collection_risk_assessment ra
-            WHERE ra.case_id = cc.case_id
-            ORDER BY ra.assessment_date DESC
-            LIMIT 1
-        ),
-        'settlement_offers', (
-            SELECT jsonb_agg(to_jsonb(so))
-            FROM kastle_collection.collection_settlement_offers so
-            WHERE so.case_id = cc.case_id
-            ORDER BY so.offer_date DESC
-        )
-    ) INTO v_result
-    FROM kastle_banking.collection_cases cc
-    LEFT JOIN kastle_banking.customers c ON cc.customer_id = c.customer_id
-    LEFT JOIN kastle_banking.collection_buckets b ON cc.bucket_id = b.bucket_id
-    LEFT JOIN kastle_collection.collection_officers o ON cc.assigned_officer_id = o.officer_id
-    WHERE cc.case_id = p_case_id;
-    
-    RETURN v_result;
-END;$$;
-
-
-ALTER FUNCTION kastle_collection.api_get_case_details(p_case_id integer) OWNER TO postgres;
-
---
--- Name: archive_old_data(integer); Type: FUNCTION; Schema: kastle_collection; Owner: postgres
---
-
-CREATE FUNCTION kastle_collection.archive_old_data(p_days_to_keep integer DEFAULT 365) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    v_archive_date date;
-    v_archived_count integer;
-BEGIN
-    v_archive_date := CURRENT_DATE - p_days_to_keep;
-    
-    -- Archive old contact attempts
-    WITH archived AS (
-        DELETE FROM kastle_collection.collection_contact_attempts
-        WHERE created_at < v_archive_date
-        RETURNING *
-    )
-    SELECT COUNT(*) INTO v_archived_count FROM archived;
-    
-    PERFORM kastle_collection.log_performance_metric(
-        'archived_contact_attempts', 
-        v_archived_count, 
-        'records',
-        jsonb_build_object('archive_date', v_archive_date)
-    );
-    
-    -- Archive old audit logs
-    WITH archived AS (
-        DELETE FROM kastle_collection.audit_log
-        WHERE created_at < v_archive_date
-        RETURNING *
-    )
-    SELECT COUNT(*) INTO v_archived_count FROM archived;
-    
-    PERFORM kastle_collection.log_performance_metric(
-        'archived_audit_logs', 
-        v_archived_count, 
-        'records',
-        jsonb_build_object('archive_date', v_archive_date)
-    );
-END;
-$$;
-
-
-ALTER FUNCTION kastle_collection.archive_old_data(p_days_to_keep integer) OWNER TO postgres;
-
---
--- Name: audit_trigger_function(); Type: FUNCTION; Schema: kastle_collection; Owner: postgres
---
-
-CREATE FUNCTION kastle_collection.audit_trigger_function() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    audit_user character varying;
-    old_data jsonb;
-    new_data jsonb;
-    changed_fields jsonb = '{}';
-    field text;
-BEGIN
-    -- Get current user (customize based on your auth system)
-    audit_user := COALESCE(current_setting('app.current_user', true), session_user);
-    
-    IF TG_OP = 'DELETE' THEN
-        old_data := to_jsonb(OLD);
-        INSERT INTO kastle_collection.audit_log (
-            table_name, operation, record_id, user_id, old_values
-        ) VALUES (
-            TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME, 
-            TG_OP, 
-            OLD.id::text, -- Adjust based on your primary key column name
-            audit_user, 
-            old_data
-        );
-        RETURN OLD;
-    ELSIF TG_OP = 'UPDATE' THEN
-        old_data := to_jsonb(OLD);
-        new_data := to_jsonb(NEW);
-        
-        -- Find changed fields
-        FOR field IN SELECT jsonb_object_keys(old_data) LOOP
-            IF old_data->field IS DISTINCT FROM new_data->field THEN
-                changed_fields := changed_fields || jsonb_build_object(field, true);
-            END IF;
-        END LOOP;
-        
-        INSERT INTO kastle_collection.audit_log (
-            table_name, operation, record_id, user_id, 
-            changed_fields, old_values, new_values
-        ) VALUES (
-            TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME, 
-            TG_OP, 
-            NEW.id::text, -- Adjust based on your primary key column name
-            audit_user, 
-            changed_fields, 
-            old_data, 
-            new_data
-        );
-        RETURN NEW;
-    ELSIF TG_OP = 'INSERT' THEN
-        new_data := to_jsonb(NEW);
-        INSERT INTO kastle_collection.audit_log (
-            table_name, operation, record_id, user_id, new_values
-        ) VALUES (
-            TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME, 
-            TG_OP, 
-            NEW.id::text, -- Adjust based on your primary key column name
-            audit_user, 
-            new_data
-        );
-        RETURN NEW;
-    END IF;
-    
-    RETURN NULL;
-END;
-$$;
-
-
-ALTER FUNCTION kastle_collection.audit_trigger_function() OWNER TO postgres;
-
---
--- Name: calculate_collection_forecast(integer, integer); Type: FUNCTION; Schema: kastle_collection; Owner: postgres
---
-
-CREATE FUNCTION kastle_collection.calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer DEFAULT 30) RETURNS TABLE(forecast_date date, expected_collections numeric, confidence_level numeric, lower_bound numeric, upper_bound numeric)
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    v_historical_rate numeric;
-    v_volatility numeric;
-    v_current_exposure numeric;
-BEGIN
-    -- Calculate historical collection rate
-    SELECT 
-        AVG(collection_rate),
-        STDDEV(collection_rate)
-    INTO v_historical_rate, v_volatility
-    FROM (
-        SELECT 
-            DATE_TRUNC('month', movement_date) as month,
-            SUM(amount_at_movement) / NULLIF(LAG(SUM(amount_at_movement)) OVER (ORDER BY DATE_TRUNC('month', movement_date)), 0) as collection_rate
-        FROM kastle_collection.collection_bucket_movement
-        WHERE from_bucket_id = p_bucket_id
-        AND movement_date >= CURRENT_DATE - INTERVAL '6 months'
-        GROUP BY DATE_TRUNC('month', movement_date)
-    ) hist;
-    
-    -- Get current exposure
-    SELECT SUM(outstanding_amount)
-    INTO v_current_exposure
-    FROM kastle_banking.collection_cases
-    WHERE bucket_id = p_bucket_id;
-    
-    -- Generate forecast
-    RETURN QUERY
-    SELECT 
-        CURRENT_DATE + i as forecast_date,
-        ROUND(v_current_exposure * v_historical_rate / 30, 2) as expected_collections,
-        ROUND(GREATEST(50, 100 - (v_volatility * 100)), 2) as confidence_level,
-        ROUND(v_current_exposure * (v_historical_rate - v_volatility) / 30, 2) as lower_bound,
-        ROUND(v_current_exposure * (v_historical_rate + v_volatility) / 30, 2) as upper_bound
-    FROM generate_series(1, p_forecast_days) i;
-END;
-$$;
-
-
-ALTER FUNCTION kastle_collection.calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer) OWNER TO postgres;
-
---
--- Name: get_collection_efficiency_report(date, date); Type: FUNCTION; Schema: kastle_collection; Owner: postgres
---
-
-CREATE FUNCTION kastle_collection.get_collection_efficiency_report(p_start_date date, p_end_date date) RETURNS TABLE(report_date date, total_cases integer, total_amount numeric, collected_amount numeric, collection_rate numeric, avg_days_to_collect numeric, contact_attempts integer, successful_contacts integer, contact_success_rate numeric, settlements_offered integer, settlements_accepted integer, settlement_acceptance_rate numeric)
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        DATE(ca.attempt_datetime) as report_date,
-        COUNT(DISTINCT cc.case_id)::integer as total_cases,
-        SUM(cc.total_amount) as total_amount,
-        SUM(CASE WHEN cc.case_status = 'CLOSED' THEN cc.total_amount - cc.outstanding_amount ELSE 0 END) as collected_amount,
-        ROUND(SUM(CASE WHEN cc.case_status = 'CLOSED' THEN cc.total_amount - cc.outstanding_amount ELSE 0 END) / 
-              NULLIF(SUM(cc.total_amount), 0) * 100, 2) as collection_rate,
-        AVG(CASE WHEN cc.case_status = 'CLOSED' THEN cc.dpd ELSE NULL END) as avg_days_to_collect,
-        COUNT(ca.attempt_id)::integer as contact_attempts,
-        COUNT(CASE WHEN ca.contact_result = 'CONNECTED' THEN 1 END)::integer as successful_contacts,
-        ROUND(COUNT(CASE WHEN ca.contact_result = 'CONNECTED' THEN 1 END)::numeric / 
-              NULLIF(COUNT(ca.attempt_id), 0) * 100, 2) as contact_success_rate,
-        COUNT(DISTINCT so.offer_id)::integer as settlements_offered,
-        COUNT(DISTINCT CASE WHEN so.offer_status = 'ACCEPTED' THEN so.offer_id END)::integer as settlements_accepted,
-        ROUND(COUNT(DISTINCT CASE WHEN so.offer_status = 'ACCEPTED' THEN so.offer_id END)::numeric / 
-              NULLIF(COUNT(DISTINCT so.offer_id), 0) * 100, 2) as settlement_acceptance_rate
-    FROM kastle_banking.collection_cases cc
-    LEFT JOIN kastle_collection.collection_contact_attempts ca ON cc.case_id = ca.case_id
-    LEFT JOIN kastle_collection.collection_settlement_offers so ON cc.case_id = so.case_id
-    WHERE DATE(ca.attempt_datetime) BETWEEN p_start_date AND p_end_date
-    GROUP BY DATE(ca.attempt_datetime)
-    ORDER BY report_date;
-END;
-$$;
-
-
-ALTER FUNCTION kastle_collection.get_collection_efficiency_report(p_start_date date, p_end_date date) OWNER TO postgres;
-
---
--- Name: log_performance_metric(character varying, numeric, character varying, jsonb); Type: FUNCTION; Schema: kastle_collection; Owner: postgres
---
-
-CREATE FUNCTION kastle_collection.log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying DEFAULT NULL::character varying, p_additional_info jsonb DEFAULT NULL::jsonb) RETURNS void
+CREATE FUNCTION kastle_banking.log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying DEFAULT NULL::character varying, p_additional_info jsonb DEFAULT NULL::jsonb) RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1469,13 +1423,13 @@ END;
 $$;
 
 
-ALTER FUNCTION kastle_collection.log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying, p_additional_info jsonb) OWNER TO postgres;
+ALTER FUNCTION kastle_banking.log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying, p_additional_info jsonb) OWNER TO postgres;
 
 --
--- Name: refresh_officer_performance_summary(character varying, date); Type: FUNCTION; Schema: kastle_collection; Owner: postgres
+-- Name: refresh_officer_performance_summary(character varying, date); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE FUNCTION kastle_collection.refresh_officer_performance_summary(p_officer_id character varying DEFAULT NULL::character varying, p_date date DEFAULT CURRENT_DATE) RETURNS void
+CREATE FUNCTION kastle_banking.refresh_officer_performance_summary(p_officer_id character varying DEFAULT NULL::character varying, p_date date DEFAULT CURRENT_DATE) RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1556,7 +1510,47 @@ END;
 $$;
 
 
-ALTER FUNCTION kastle_collection.refresh_officer_performance_summary(p_officer_id character varying, p_date date) OWNER TO postgres;
+ALTER FUNCTION kastle_banking.refresh_officer_performance_summary(p_officer_id character varying, p_date date) OWNER TO postgres;
+
+--
+-- Name: update_customer_full_name(); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE FUNCTION kastle_banking.update_customer_full_name() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.full_name = TRIM(CONCAT(
+        NEW.first_name, 
+        ' ', 
+        COALESCE(NEW.middle_name, ''), 
+        ' ', 
+        NEW.last_name
+    ));
+    -- Remove extra spaces
+    NEW.full_name = REGEXP_REPLACE(NEW.full_name, '\s+', ' ', 'g');
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION kastle_banking.update_customer_full_name() OWNER TO postgres;
+
+--
+-- Name: update_updated_at_column(); Type: FUNCTION; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE FUNCTION kastle_banking.update_updated_at_column() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION kastle_banking.update_updated_at_column() OWNER TO postgres;
 
 --
 -- Name: get_auth(text); Type: FUNCTION; Schema: pgbouncer; Owner: supabase_admin
@@ -3117,6 +3111,47 @@ COMMENT ON COLUMN auth.users.is_sso_user IS 'Auth: Set this column to true when 
 
 
 --
+-- Name: access_log; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.access_log (
+    access_id bigint NOT NULL,
+    user_id character varying NOT NULL,
+    resource_type character varying NOT NULL,
+    resource_id character varying,
+    action character varying NOT NULL,
+    access_granted boolean DEFAULT true,
+    denial_reason character varying,
+    ip_address inet,
+    session_id character varying,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.access_log OWNER TO postgres;
+
+--
+-- Name: access_log_access_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.access_log_access_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.access_log_access_id_seq OWNER TO postgres;
+
+--
+-- Name: access_log_access_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.access_log_access_id_seq OWNED BY kastle_banking.access_log.access_id;
+
+
+--
 -- Name: account_types; Type: TABLE; Schema: kastle_banking; Owner: postgres
 --
 
@@ -3296,6 +3331,49 @@ CREATE VIEW kastle_banking.aging_distribution AS
 ALTER VIEW kastle_banking.aging_distribution OWNER TO postgres;
 
 --
+-- Name: audit_log; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.audit_log (
+    audit_id bigint NOT NULL,
+    table_name character varying NOT NULL,
+    operation character varying,
+    record_id character varying NOT NULL,
+    user_id character varying NOT NULL,
+    changed_fields jsonb,
+    old_values jsonb,
+    new_values jsonb,
+    ip_address inet,
+    user_agent text,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT audit_log_operation_check CHECK (((operation)::text = ANY (ARRAY[('INSERT'::character varying)::text, ('UPDATE'::character varying)::text, ('DELETE'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.audit_log OWNER TO postgres;
+
+--
+-- Name: audit_log_audit_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.audit_log_audit_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.audit_log_audit_id_seq OWNER TO postgres;
+
+--
+-- Name: audit_log_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.audit_log_audit_id_seq OWNED BY kastle_banking.audit_log.audit_id;
+
+
+--
 -- Name: audit_trail; Type: TABLE; Schema: kastle_banking; Owner: postgres
 --
 
@@ -3459,11 +3537,189 @@ CREATE TABLE kastle_banking.branches (
     is_active boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT branches_branch_type_check CHECK (((branch_type)::text = ANY (ARRAY[('HEAD_OFFICE'::character varying)::text, ('MAIN'::character varying)::text, ('SUB'::character varying)::text, ('RURAL'::character varying)::text, ('URBAN'::character varying)::text])))
+    branch_code character varying NOT NULL,
+    status character varying DEFAULT 'ACTIVE'::character varying,
+    CONSTRAINT branches_branch_type_check CHECK (((branch_type)::text = ANY (ARRAY[('HEAD_OFFICE'::character varying)::text, ('MAIN'::character varying)::text, ('SUB'::character varying)::text, ('RURAL'::character varying)::text, ('URBAN'::character varying)::text]))),
+    CONSTRAINT branches_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'CLOSED'::character varying])::text[])))
 );
 
 
 ALTER TABLE kastle_banking.branches OWNER TO postgres;
+
+--
+-- Name: collection_audit_trail; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_audit_trail (
+    audit_id integer NOT NULL,
+    user_id character varying(20),
+    action_type character varying(50),
+    entity_type character varying(50),
+    entity_id character varying(100),
+    old_values jsonb,
+    new_values jsonb,
+    ip_address character varying(45),
+    user_agent text,
+    action_timestamp timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_audit_trail OWNER TO postgres;
+
+--
+-- Name: collection_audit_trail_audit_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_audit_trail_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq OWNED BY kastle_banking.collection_audit_trail.audit_id;
+
+
+--
+-- Name: collection_automation_metrics; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_automation_metrics (
+    metric_id integer NOT NULL,
+    metric_date date NOT NULL,
+    automation_type character varying,
+    total_attempts integer,
+    successful_contacts integer,
+    payments_collected integer,
+    amount_collected numeric,
+    cost_saved numeric,
+    efficiency_gain numeric,
+    error_rate numeric,
+    customer_satisfaction_score numeric,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_automation_metrics_automation_type_check CHECK (((automation_type)::text = ANY (ARRAY[('AUTO_DIALER'::character varying)::text, ('SMS_CAMPAIGN'::character varying)::text, ('EMAIL_CAMPAIGN'::character varying)::text, ('CHATBOT'::character varying)::text, ('IVR'::character varying)::text, ('PREDICTIVE_DIALER'::character varying)::text, ('AI_SCORING'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_automation_metrics OWNER TO postgres;
+
+--
+-- Name: collection_automation_metrics_metric_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_automation_metrics_metric_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq OWNED BY kastle_banking.collection_automation_metrics.metric_id;
+
+
+--
+-- Name: collection_benchmarks; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_benchmarks (
+    benchmark_id integer NOT NULL,
+    benchmark_date date NOT NULL,
+    benchmark_type character varying,
+    metric_name character varying NOT NULL,
+    internal_value numeric,
+    industry_average numeric,
+    best_in_class numeric,
+    percentile_rank numeric,
+    gap_to_average numeric,
+    gap_to_best numeric,
+    source character varying,
+    notes text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_benchmarks OWNER TO postgres;
+
+--
+-- Name: collection_benchmarks_benchmark_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_benchmarks_benchmark_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq OWNED BY kastle_banking.collection_benchmarks.benchmark_id;
+
+
+--
+-- Name: collection_bucket_movement; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_bucket_movement (
+    movement_id integer NOT NULL,
+    case_id integer,
+    from_bucket_id integer,
+    to_bucket_id integer,
+    movement_date date NOT NULL,
+    movement_reason character varying,
+    days_in_previous_bucket integer,
+    amount_at_movement numeric,
+    officer_id character varying,
+    automated_movement boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_bucket_movement OWNER TO postgres;
+
+--
+-- Name: collection_bucket_movement_movement_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_bucket_movement_movement_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq OWNED BY kastle_banking.collection_bucket_movement.movement_id;
+
 
 --
 -- Name: collection_buckets; Type: TABLE; Schema: kastle_banking; Owner: postgres
@@ -3479,7 +3735,9 @@ CREATE TABLE kastle_banking.collection_buckets (
     collection_strategy character varying(50),
     description text,
     is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    min_days integer,
+    max_days integer
 );
 
 
@@ -3505,6 +3763,148 @@ ALTER SEQUENCE kastle_banking.collection_buckets_bucket_id_seq OWNER TO postgres
 --
 
 ALTER SEQUENCE kastle_banking.collection_buckets_bucket_id_seq OWNED BY kastle_banking.collection_buckets.bucket_id;
+
+
+--
+-- Name: collection_call_records; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_call_records (
+    call_id integer NOT NULL,
+    interaction_id integer,
+    phone_number character varying(20),
+    officer_id character varying(20),
+    call_datetime timestamp with time zone,
+    call_duration_seconds integer,
+    wait_time_seconds integer,
+    hold_time_seconds integer,
+    call_type character varying(20),
+    call_disposition character varying(50),
+    recording_url character varying(500),
+    ivr_path character varying(200),
+    transfer_count integer,
+    quality_monitored boolean DEFAULT false,
+    quality_score numeric(5,2),
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_call_records OWNER TO postgres;
+
+--
+-- Name: collection_call_records_call_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_call_records_call_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_call_records_call_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_call_records_call_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_call_records_call_id_seq OWNED BY kastle_banking.collection_call_records.call_id;
+
+
+--
+-- Name: collection_campaigns; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_campaigns (
+    campaign_id integer NOT NULL,
+    campaign_name character varying(200) NOT NULL,
+    campaign_type character varying(30),
+    target_bucket integer,
+    target_segment character varying(50),
+    start_date date,
+    end_date date,
+    budget_amount numeric(18,2),
+    target_recovery numeric(18,2),
+    actual_recovery numeric(18,2),
+    total_contacts integer,
+    success_rate numeric(5,2),
+    roi numeric(5,2),
+    status character varying(20) DEFAULT 'ACTIVE'::character varying,
+    created_by character varying(20),
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_campaigns OWNER TO postgres;
+
+--
+-- Name: collection_campaigns_campaign_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_campaigns_campaign_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq OWNED BY kastle_banking.collection_campaigns.campaign_id;
+
+
+--
+-- Name: collection_case_details; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_case_details (
+    case_detail_id integer NOT NULL,
+    case_id integer,
+    delinquency_reason character varying(50),
+    customer_segment character varying(30),
+    risk_score integer,
+    collection_strategy character varying(50),
+    skip_trace_status character varying(30),
+    legal_status character varying(30),
+    settlement_offered boolean DEFAULT false,
+    settlement_amount numeric(18,2),
+    restructure_requested boolean DEFAULT false,
+    hardship_flag boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_case_details OWNER TO postgres;
+
+--
+-- Name: collection_case_details_case_detail_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_case_details_case_detail_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq OWNED BY kastle_banking.collection_case_details.case_detail_id;
 
 
 --
@@ -3536,6 +3936,10 @@ CREATE TABLE kastle_banking.collection_cases (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     total_amount bigint,
+    total_overdue numeric(18,2) DEFAULT 0,
+    dpd integer DEFAULT 0,
+    last_contact_date date,
+    next_action_date date,
     CONSTRAINT collection_cases_account_type_check CHECK (((account_type)::text = ANY (ARRAY[('LOAN'::character varying)::text, ('CREDIT_CARD'::character varying)::text, ('OVERDRAFT'::character varying)::text, ('OTHER'::character varying)::text]))),
     CONSTRAINT collection_cases_case_status_check CHECK (((case_status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('RESOLVED'::character varying)::text, ('LEGAL'::character varying)::text, ('WRITTEN_OFF'::character varying)::text, ('SETTLED'::character varying)::text, ('CLOSED'::character varying)::text]))),
     CONSTRAINT collection_cases_priority_check CHECK (((priority)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('CRITICAL'::character varying)::text])))
@@ -3564,6 +3968,361 @@ ALTER SEQUENCE kastle_banking.collection_cases_case_id_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE kastle_banking.collection_cases_case_id_seq OWNED BY kastle_banking.collection_cases.case_id;
+
+
+--
+-- Name: collection_compliance_violations; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_compliance_violations (
+    violation_id integer NOT NULL,
+    violation_date date NOT NULL,
+    violation_type character varying,
+    severity character varying,
+    officer_id character varying,
+    case_id integer,
+    description text,
+    corrective_action text,
+    action_taken boolean DEFAULT false,
+    action_date date,
+    reviewed_by character varying,
+    fine_amount numeric,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_compliance_violations_severity_check CHECK (((severity)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('CRITICAL'::character varying)::text]))),
+    CONSTRAINT collection_compliance_violations_violation_type_check CHECK (((violation_type)::text = ANY (ARRAY[('SAMA_REGULATION'::character varying)::text, ('SHARIA_COMPLIANCE'::character varying)::text, ('CUSTOMER_PROTECTION'::character varying)::text, ('DATA_PRIVACY'::character varying)::text, ('COLLECTION_PRACTICE'::character varying)::text, ('DOCUMENTATION'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_compliance_violations OWNER TO postgres;
+
+--
+-- Name: collection_compliance_violations_violation_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_compliance_violations_violation_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq OWNED BY kastle_banking.collection_compliance_violations.violation_id;
+
+
+--
+-- Name: collection_contact_attempts; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_contact_attempts (
+    attempt_id integer NOT NULL,
+    case_id integer,
+    customer_id character varying,
+    contact_type character varying,
+    contact_number character varying,
+    contact_result character varying,
+    attempt_datetime timestamp with time zone,
+    officer_id character varying,
+    best_time_to_contact character varying,
+    contact_quality_score integer,
+    is_valid boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    outstanding_amount bigint,
+    CONSTRAINT collection_contact_attempts_contact_result_check CHECK (((contact_result)::text = ANY (ARRAY[('CONNECTED'::character varying)::text, ('NO_ANSWER'::character varying)::text, ('BUSY'::character varying)::text, ('WRONG_NUMBER'::character varying)::text, ('DISCONNECTED'::character varying)::text, ('VOICEMAIL'::character varying)::text]))),
+    CONSTRAINT collection_contact_attempts_contact_type_check CHECK (((contact_type)::text = ANY (ARRAY[('PRIMARY'::character varying)::text, ('SECONDARY'::character varying)::text, ('EMERGENCY'::character varying)::text, ('WORK'::character varying)::text, ('REFERENCE'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_contact_attempts OWNER TO postgres;
+
+--
+-- Name: collection_contact_attempts_attempt_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_contact_attempts_attempt_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq OWNED BY kastle_banking.collection_contact_attempts.attempt_id;
+
+
+--
+-- Name: collection_customer_segments; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_customer_segments (
+    segment_id integer NOT NULL,
+    segment_name character varying NOT NULL,
+    segment_code character varying,
+    segment_criteria jsonb NOT NULL,
+    risk_profile character varying,
+    collection_strategy character varying,
+    target_recovery_rate numeric,
+    actual_recovery_rate numeric,
+    customers_count integer,
+    total_exposure numeric,
+    avg_ticket_size numeric,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_customer_segments OWNER TO postgres;
+
+--
+-- Name: collection_customer_segments_segment_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_customer_segments_segment_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq OWNED BY kastle_banking.collection_customer_segments.segment_id;
+
+
+--
+-- Name: collection_forecasts; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_forecasts (
+    forecast_id integer NOT NULL,
+    forecast_date date NOT NULL,
+    forecast_period character varying,
+    forecast_type character varying,
+    product_id integer,
+    bucket_id integer,
+    predicted_amount numeric,
+    confidence_level numeric,
+    lower_bound numeric,
+    upper_bound numeric,
+    actual_amount numeric,
+    variance numeric,
+    model_used character varying,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_forecasts_forecast_period_check CHECK (((forecast_period)::text = ANY (ARRAY[('DAILY'::character varying)::text, ('WEEKLY'::character varying)::text, ('MONTHLY'::character varying)::text, ('QUARTERLY'::character varying)::text, ('YEARLY'::character varying)::text]))),
+    CONSTRAINT collection_forecasts_forecast_type_check CHECK (((forecast_type)::text = ANY (ARRAY[('RECOVERY'::character varying)::text, ('DEFAULT'::character varying)::text, ('ROLL_RATE'::character varying)::text, ('PROVISION'::character varying)::text, ('WRITE_OFF'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_forecasts OWNER TO postgres;
+
+--
+-- Name: collection_forecasts_forecast_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_forecasts_forecast_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq OWNED BY kastle_banking.collection_forecasts.forecast_id;
+
+
+--
+-- Name: collection_interactions; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_interactions (
+    interaction_id integer NOT NULL,
+    case_id integer,
+    customer_id character varying(20),
+    interaction_type character varying(30),
+    interaction_direction character varying(10),
+    officer_id character varying(20),
+    contact_number character varying(20),
+    interaction_status character varying(30),
+    duration_seconds integer,
+    outcome character varying(50),
+    promise_to_pay boolean DEFAULT false,
+    ptp_amount numeric(18,2),
+    ptp_date date,
+    notes text,
+    recording_reference character varying(100),
+    interaction_datetime timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_interactions_interaction_direction_check CHECK (((interaction_direction)::text = ANY (ARRAY[('INBOUND'::character varying)::text, ('OUTBOUND'::character varying)::text]))),
+    CONSTRAINT collection_interactions_interaction_type_check CHECK (((interaction_type)::text = ANY (ARRAY[('CALL'::character varying)::text, ('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('LETTER'::character varying)::text, ('VISIT'::character varying)::text, ('LEGAL_NOTICE'::character varying)::text, ('WHATSAPP'::character varying)::text, ('IVR'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_interactions OWNER TO postgres;
+
+--
+-- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_interactions_interaction_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_interactions_interaction_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_interactions_interaction_id_seq OWNED BY kastle_banking.collection_interactions.interaction_id;
+
+
+--
+-- Name: collection_officers; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_officers (
+    officer_id character varying(20) NOT NULL,
+    officer_name character varying(100) NOT NULL,
+    officer_type character varying(50),
+    team_id integer,
+    contact_number character varying(20),
+    email character varying(100),
+    status character varying(20) DEFAULT 'ACTIVE'::character varying,
+    language_skills text,
+    collection_limit numeric(18,2),
+    commission_rate numeric(5,2),
+    joining_date date,
+    last_active timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_officers OWNER TO postgres;
+
+--
+-- Name: collection_provisions; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_provisions (
+    provision_id integer NOT NULL,
+    provision_date date NOT NULL,
+    bucket_id integer,
+    provision_rate numeric NOT NULL,
+    total_exposure numeric,
+    provision_amount numeric NOT NULL,
+    ifrs9_stage character varying,
+    ecl_amount numeric,
+    regulatory_provision numeric,
+    additional_provision numeric,
+    provision_coverage_ratio numeric,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_provisions_ifrs9_stage_check CHECK (((ifrs9_stage)::text = ANY (ARRAY[('STAGE1'::character varying)::text, ('STAGE2'::character varying)::text, ('STAGE3'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_provisions OWNER TO postgres;
+
+--
+-- Name: collection_provisions_provision_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_provisions_provision_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_provisions_provision_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_provisions_provision_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_provisions_provision_id_seq OWNED BY kastle_banking.collection_provisions.provision_id;
+
+
+--
+-- Name: collection_queue_management; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_queue_management (
+    queue_id integer NOT NULL,
+    queue_name character varying NOT NULL,
+    queue_type character varying,
+    priority_level integer,
+    filter_criteria jsonb,
+    assigned_officer_id character varying,
+    assigned_team_id integer,
+    cases_count integer DEFAULT 0,
+    total_amount numeric DEFAULT 0,
+    avg_dpd integer,
+    last_refreshed timestamp with time zone,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_queue_management_queue_type_check CHECK (((queue_type)::text = ANY (ARRAY[('PRIORITY'::character varying)::text, ('NORMAL'::character varying)::text, ('AUTOMATED'::character varying)::text, ('MANUAL'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_queue_management OWNER TO postgres;
+
+--
+-- Name: collection_queue_management_queue_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_queue_management_queue_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_queue_management_queue_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_queue_management_queue_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_queue_management_queue_id_seq OWNED BY kastle_banking.collection_queue_management.queue_id;
 
 
 --
@@ -3605,6 +4364,415 @@ ALTER SEQUENCE kastle_banking.collection_rates_id_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE kastle_banking.collection_rates_id_seq OWNED BY kastle_banking.collection_rates.id;
+
+
+--
+-- Name: collection_risk_assessment; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_risk_assessment (
+    assessment_id integer NOT NULL,
+    customer_id character varying,
+    case_id integer,
+    assessment_date date NOT NULL,
+    risk_category character varying,
+    default_probability numeric,
+    loss_given_default numeric,
+    expected_loss numeric,
+    early_warning_flags jsonb,
+    behavioral_score integer,
+    payment_pattern_score integer,
+    external_risk_factors jsonb,
+    recommended_strategy character varying,
+    next_review_date date,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_risk_assessment_risk_category_check CHECK (((risk_category)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('CRITICAL'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_risk_assessment OWNER TO postgres;
+
+--
+-- Name: collection_risk_assessment_assessment_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_risk_assessment_assessment_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq OWNED BY kastle_banking.collection_risk_assessment.assessment_id;
+
+
+--
+-- Name: collection_scores; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_scores (
+    score_id integer NOT NULL,
+    customer_id character varying(20),
+    score_date date NOT NULL,
+    payment_behavior_score integer,
+    contact_score integer,
+    response_score integer,
+    risk_score integer,
+    recovery_probability numeric(5,2),
+    recommended_action character varying(100),
+    score_factors jsonb,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_scores OWNER TO postgres;
+
+--
+-- Name: collection_scores_score_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_scores_score_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_scores_score_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_scores_score_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_scores_score_id_seq OWNED BY kastle_banking.collection_scores.score_id;
+
+
+--
+-- Name: collection_settlement_offers; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_settlement_offers (
+    offer_id integer NOT NULL,
+    case_id integer,
+    customer_id character varying,
+    offer_date date NOT NULL,
+    original_amount numeric NOT NULL,
+    settlement_amount numeric NOT NULL,
+    discount_percentage numeric,
+    payment_terms character varying,
+    installments integer,
+    offer_valid_until date,
+    offer_status character varying,
+    approval_level character varying,
+    approved_by character varying,
+    customer_response character varying,
+    response_date date,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT collection_settlement_offers_offer_status_check CHECK (((offer_status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('REJECTED'::character varying)::text, ('EXPIRED'::character varying)::text, ('WITHDRAWN'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.collection_settlement_offers OWNER TO postgres;
+
+--
+-- Name: collection_settlement_offers_offer_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_settlement_offers_offer_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq OWNED BY kastle_banking.collection_settlement_offers.offer_id;
+
+
+--
+-- Name: collection_strategies; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_strategies (
+    strategy_id integer NOT NULL,
+    strategy_code character varying(30) NOT NULL,
+    strategy_name character varying(100) NOT NULL,
+    bucket_id integer,
+    customer_segment character varying(30),
+    risk_category character varying(20),
+    min_amount numeric(18,2),
+    max_amount numeric(18,2),
+    actions jsonb NOT NULL,
+    escalation_days integer,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_strategies OWNER TO postgres;
+
+--
+-- Name: collection_strategies_strategy_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_strategies_strategy_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_strategies_strategy_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_strategies_strategy_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_strategies_strategy_id_seq OWNED BY kastle_banking.collection_strategies.strategy_id;
+
+
+--
+-- Name: collection_system_performance; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_system_performance (
+    log_id integer NOT NULL,
+    log_timestamp timestamp with time zone DEFAULT now(),
+    system_component character varying(50),
+    response_time_ms integer,
+    cpu_usage_percent numeric(5,2),
+    memory_usage_percent numeric(5,2),
+    active_users integer,
+    error_count integer,
+    warning_count integer,
+    api_calls integer,
+    database_connections integer
+);
+
+
+ALTER TABLE kastle_banking.collection_system_performance OWNER TO postgres;
+
+--
+-- Name: collection_system_performance_log_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_system_performance_log_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_system_performance_log_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_system_performance_log_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_system_performance_log_id_seq OWNED BY kastle_banking.collection_system_performance.log_id;
+
+
+--
+-- Name: collection_teams; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_teams (
+    team_id integer NOT NULL,
+    team_name character varying(100) NOT NULL,
+    team_type character varying(50),
+    team_lead_id character varying(20),
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_teams OWNER TO postgres;
+
+--
+-- Name: collection_teams_team_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_teams_team_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_teams_team_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_teams_team_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_teams_team_id_seq OWNED BY kastle_banking.collection_teams.team_id;
+
+
+--
+-- Name: collection_vintage_analysis; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_vintage_analysis (
+    vintage_id integer NOT NULL,
+    origination_month character varying(7) NOT NULL,
+    product_id integer,
+    months_on_book integer NOT NULL,
+    original_accounts integer,
+    original_amount numeric,
+    current_outstanding numeric,
+    dpd_0_30_count integer,
+    dpd_31_60_count integer,
+    dpd_61_90_count integer,
+    dpd_90_plus_count integer,
+    written_off_count integer,
+    written_off_amount numeric,
+    recovery_amount numeric,
+    flow_rate_30 numeric,
+    flow_rate_60 numeric,
+    flow_rate_90 numeric,
+    loss_rate numeric,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_vintage_analysis OWNER TO postgres;
+
+--
+-- Name: collection_vintage_analysis_vintage_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_vintage_analysis_vintage_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq OWNED BY kastle_banking.collection_vintage_analysis.vintage_id;
+
+
+--
+-- Name: collection_workflow_templates; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_workflow_templates (
+    template_id integer NOT NULL,
+    template_name character varying NOT NULL,
+    workflow_type character varying,
+    bucket_id integer,
+    customer_segment character varying,
+    workflow_steps jsonb NOT NULL,
+    escalation_matrix jsonb,
+    sla_hours integer,
+    is_automated boolean DEFAULT false,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_workflow_templates OWNER TO postgres;
+
+--
+-- Name: collection_workflow_templates_template_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_workflow_templates_template_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq OWNED BY kastle_banking.collection_workflow_templates.template_id;
+
+
+--
+-- Name: collection_write_offs; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.collection_write_offs (
+    write_off_id integer NOT NULL,
+    case_id integer,
+    account_number character varying,
+    customer_id character varying,
+    write_off_date date NOT NULL,
+    write_off_amount numeric NOT NULL,
+    principal_amount numeric,
+    interest_amount numeric,
+    penalty_amount numeric,
+    write_off_reason character varying,
+    approval_level character varying,
+    approved_by character varying,
+    recovery_attempts integer,
+    last_payment_date date,
+    documentation jsonb,
+    is_recoverable boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.collection_write_offs OWNER TO postgres;
+
+--
+-- Name: collection_write_offs_write_off_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq OWNER TO postgres;
+
+--
+-- Name: collection_write_offs_write_off_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq OWNED BY kastle_banking.collection_write_offs.write_off_id;
 
 
 --
@@ -3832,7 +5000,7 @@ CREATE TABLE kastle_banking.customers (
     employer_name character varying(200),
     employment_type character varying(50),
     preferred_language character varying(20) DEFAULT 'ENGLISH'::character varying,
-    segment character varying(30),
+    customer_segment character varying(30),
     relationship_manager character varying(20),
     onboarding_branch character varying(10),
     onboarding_date date DEFAULT CURRENT_DATE,
@@ -3842,14 +5010,112 @@ CREATE TABLE kastle_banking.customers (
     is_pep boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
+    customer_type character varying(50),
+    national_id character varying(50),
+    branch_id text,
+    email character varying,
+    mobile_number text,
     CONSTRAINT customers_gender_check CHECK (((gender)::text = ANY (ARRAY[('MALE'::character varying)::text, ('FEMALE'::character varying)::text, ('OTHER'::character varying)::text]))),
     CONSTRAINT customers_marital_status_check CHECK (((marital_status)::text = ANY (ARRAY[('SINGLE'::character varying)::text, ('MARRIED'::character varying)::text, ('DIVORCED'::character varying)::text, ('WIDOWED'::character varying)::text]))),
     CONSTRAINT customers_risk_category_check CHECK (((risk_category)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('VERY_HIGH'::character varying)::text]))),
-    CONSTRAINT customers_segment_check CHECK (((segment)::text = ANY (ARRAY[('RETAIL'::character varying)::text, ('PREMIUM'::character varying)::text, ('HNI'::character varying)::text, ('CORPORATE'::character varying)::text, ('SME'::character varying)::text])))
+    CONSTRAINT customers_segment_check CHECK (((customer_segment)::text = ANY (ARRAY[('RETAIL'::character varying)::text, ('PREMIUM'::character varying)::text, ('HNI'::character varying)::text, ('CORPORATE'::character varying)::text, ('SME'::character varying)::text])))
 );
 
 
 ALTER TABLE kastle_banking.customers OWNER TO postgres;
+
+--
+-- Name: daily_collection_summary; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.daily_collection_summary (
+    summary_id integer NOT NULL,
+    summary_date date NOT NULL,
+    branch_id character varying(10),
+    team_id integer,
+    total_due_amount numeric(18,2),
+    total_collected numeric(18,2),
+    collection_rate numeric(5,2),
+    accounts_due integer,
+    accounts_collected integer,
+    calls_made integer,
+    contacts_successful integer,
+    ptps_obtained integer,
+    ptps_kept integer,
+    field_visits_done integer,
+    legal_notices_sent integer,
+    digital_payments integer,
+    created_at timestamp with time zone DEFAULT now(),
+    total_cases integer DEFAULT 0,
+    total_outstanding numeric(15,2) DEFAULT 0,
+    ptps_created integer DEFAULT 0
+);
+
+
+ALTER TABLE kastle_banking.daily_collection_summary OWNER TO postgres;
+
+--
+-- Name: daily_collection_summary_summary_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq OWNER TO postgres;
+
+--
+-- Name: daily_collection_summary_summary_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq OWNED BY kastle_banking.daily_collection_summary.summary_id;
+
+
+--
+-- Name: data_masking_rules; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.data_masking_rules (
+    rule_id integer NOT NULL,
+    table_name character varying NOT NULL,
+    column_name character varying NOT NULL,
+    masking_type character varying,
+    masking_pattern character varying,
+    role_exceptions text[],
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT data_masking_rules_masking_type_check CHECK (((masking_type)::text = ANY (ARRAY[('PARTIAL'::character varying)::text, ('FULL'::character varying)::text, ('HASH'::character varying)::text, ('RANDOM'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.data_masking_rules OWNER TO postgres;
+
+--
+-- Name: data_masking_rules_rule_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.data_masking_rules_rule_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.data_masking_rules_rule_id_seq OWNER TO postgres;
+
+--
+-- Name: data_masking_rules_rule_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.data_masking_rules_rule_id_seq OWNED BY kastle_banking.data_masking_rules.rule_id;
+
 
 --
 -- Name: delinquencies_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
@@ -3914,6 +5180,55 @@ ALTER SEQUENCE kastle_banking.delinquency_history_id_seq OWNED BY kastle_banking
 
 
 --
+-- Name: digital_collection_attempts; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.digital_collection_attempts (
+    attempt_id integer NOT NULL,
+    case_id integer,
+    customer_id character varying(20),
+    channel_type character varying(30),
+    campaign_id integer,
+    message_template character varying(100),
+    sent_datetime timestamp with time zone,
+    delivered_datetime timestamp with time zone,
+    read_datetime timestamp with time zone,
+    response_datetime timestamp with time zone,
+    response_type character varying(50),
+    payment_made boolean DEFAULT false,
+    payment_amount numeric(18,2),
+    click_through_rate numeric(5,2),
+    cost_per_message numeric(10,4),
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT digital_collection_attempts_channel_type_check CHECK (((channel_type)::text = ANY (ARRAY[('IVR'::character varying)::text, ('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('WHATSAPP'::character varying)::text, ('MOBILE_APP'::character varying)::text, ('WEB_PORTAL'::character varying)::text, ('CHATBOT'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.digital_collection_attempts OWNER TO postgres;
+
+--
+-- Name: digital_collection_attempts_attempt_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq OWNER TO postgres;
+
+--
+-- Name: digital_collection_attempts_attempt_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq OWNED BY kastle_banking.digital_collection_attempts.attempt_id;
+
+
+--
 -- Name: portfolio_summary; Type: TABLE; Schema: kastle_banking; Owner: postgres
 --
 
@@ -3954,6 +5269,204 @@ CREATE VIEW kastle_banking.executive_delinquency_summary AS
 ALTER VIEW kastle_banking.executive_delinquency_summary OWNER TO postgres;
 
 --
+-- Name: field_visits; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.field_visits (
+    visit_id integer NOT NULL,
+    case_id integer,
+    customer_id character varying(20),
+    officer_id character varying(20),
+    visit_date date NOT NULL,
+    scheduled_time time without time zone,
+    actual_time time without time zone,
+    visit_address text,
+    visit_status character varying(30),
+    customer_met character varying(100),
+    amount_collected numeric(18,2),
+    collection_mode character varying(30),
+    receipt_number character varying(50),
+    customer_behavior character varying(50),
+    follow_up_required boolean DEFAULT false,
+    geo_location point,
+    distance_traveled numeric(10,2),
+    expenses_claimed numeric(18,2),
+    safety_concern boolean DEFAULT false,
+    notes text,
+    photo_references jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT field_visits_visit_status_check CHECK (((visit_status)::text = ANY (ARRAY[('SCHEDULED'::character varying)::text, ('COMPLETED'::character varying)::text, ('CUSTOMER_NOT_AVAILABLE'::character varying)::text, ('WRONG_ADDRESS'::character varying)::text, ('REFUSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.field_visits OWNER TO postgres;
+
+--
+-- Name: field_visits_visit_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.field_visits_visit_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.field_visits_visit_id_seq OWNER TO postgres;
+
+--
+-- Name: field_visits_visit_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.field_visits_visit_id_seq OWNED BY kastle_banking.field_visits.visit_id;
+
+
+--
+-- Name: hardship_applications; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.hardship_applications (
+    application_id integer NOT NULL,
+    customer_id character varying(20),
+    case_id integer,
+    hardship_type character varying(50),
+    application_date date,
+    supporting_documents jsonb,
+    requested_relief character varying(50),
+    review_status character varying(30),
+    approved_by character varying(20),
+    approval_date date,
+    relief_granted character varying(100),
+    relief_start_date date,
+    relief_end_date date,
+    monitoring_required boolean DEFAULT true,
+    notes text,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT hardship_applications_hardship_type_check CHECK (((hardship_type)::text = ANY (ARRAY[('JOB_LOSS'::character varying)::text, ('MEDICAL'::character varying)::text, ('BUSINESS_CLOSURE'::character varying)::text, ('SALARY_REDUCTION'::character varying)::text, ('COVID_IMPACT'::character varying)::text, ('NATURAL_DISASTER'::character varying)::text, ('DEATH_IN_FAMILY'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.hardship_applications OWNER TO postgres;
+
+--
+-- Name: hardship_applications_application_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.hardship_applications_application_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.hardship_applications_application_id_seq OWNER TO postgres;
+
+--
+-- Name: hardship_applications_application_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.hardship_applications_application_id_seq OWNED BY kastle_banking.hardship_applications.application_id;
+
+
+--
+-- Name: ivr_payment_attempts; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.ivr_payment_attempts (
+    attempt_id integer NOT NULL,
+    customer_id character varying(20),
+    account_number character varying(20),
+    call_datetime timestamp with time zone,
+    ivr_menu_path character varying(500),
+    payment_amount numeric(18,2),
+    payment_method character varying(30),
+    transaction_status character varying(30),
+    failure_reason character varying(100),
+    transaction_reference character varying(100),
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.ivr_payment_attempts OWNER TO postgres;
+
+--
+-- Name: ivr_payment_attempts_attempt_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq OWNER TO postgres;
+
+--
+-- Name: ivr_payment_attempts_attempt_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq OWNED BY kastle_banking.ivr_payment_attempts.attempt_id;
+
+
+--
+-- Name: legal_cases; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.legal_cases (
+    legal_case_id integer NOT NULL,
+    case_id integer,
+    case_number character varying(50),
+    court_name character varying(200),
+    case_type character varying(50),
+    filing_date date,
+    lawyer_name character varying(200),
+    lawyer_firm character varying(200),
+    current_stage character varying(50),
+    next_hearing_date date,
+    judgment_date date,
+    judgment_amount numeric(18,2),
+    execution_status character varying(30),
+    legal_costs numeric(18,2),
+    recovered_amount numeric(18,2),
+    case_status character varying(30) DEFAULT 'ACTIVE'::character varying,
+    documents jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.legal_cases OWNER TO postgres;
+
+--
+-- Name: legal_cases_legal_case_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.legal_cases_legal_case_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.legal_cases_legal_case_id_seq OWNER TO postgres;
+
+--
+-- Name: legal_cases_legal_case_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.legal_cases_legal_case_id_seq OWNED BY kastle_banking.legal_cases.legal_case_id;
+
+
+--
 -- Name: loan_accounts; Type: TABLE; Schema: kastle_banking; Owner: postgres
 --
 
@@ -3983,6 +5496,8 @@ CREATE TABLE kastle_banking.loan_accounts (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     outstanding_balance bigint,
+    loan_amount numeric(18,2),
+    loan_start_date date,
     CONSTRAINT loan_accounts_loan_status_check CHECK (((loan_status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('CLOSED'::character varying)::text, ('NPA'::character varying)::text, ('WRITTEN_OFF'::character varying)::text, ('RESTRUCTURED'::character varying)::text, ('FORECLOSED'::character varying)::text])))
 );
 
@@ -4064,6 +5579,261 @@ ALTER SEQUENCE kastle_banking.loan_applications_application_id_seq OWNER TO post
 --
 
 ALTER SEQUENCE kastle_banking.loan_applications_application_id_seq OWNED BY kastle_banking.loan_applications.application_id;
+
+
+--
+-- Name: loan_restructuring; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.loan_restructuring (
+    restructure_id integer NOT NULL,
+    loan_account_number character varying(20),
+    customer_id character varying(20),
+    original_loan_amount numeric(18,2),
+    outstanding_amount numeric(18,2),
+    original_tenure integer,
+    remaining_tenure integer,
+    original_interest_rate numeric(5,2),
+    new_interest_rate numeric(5,2),
+    new_tenure integer,
+    new_emi numeric(18,2),
+    moratorium_months integer,
+    restructure_date date,
+    restructure_reason character varying(100),
+    approval_level character varying(50),
+    impact_on_provision numeric(18,2),
+    status character varying(30) DEFAULT 'ACTIVE'::character varying,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.loan_restructuring OWNER TO postgres;
+
+--
+-- Name: loan_restructuring_restructure_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq OWNER TO postgres;
+
+--
+-- Name: loan_restructuring_restructure_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq OWNED BY kastle_banking.loan_restructuring.restructure_id;
+
+
+--
+-- Name: officer_performance_metrics; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.officer_performance_metrics (
+    id integer NOT NULL,
+    officer_id character varying(20) NOT NULL,
+    metric_date date NOT NULL,
+    calls_made integer DEFAULT 0,
+    calls_answered integer DEFAULT 0,
+    promises_made integer DEFAULT 0,
+    promises_kept integer DEFAULT 0,
+    amount_collected numeric(18,2) DEFAULT 0,
+    cases_resolved integer DEFAULT 0,
+    avg_call_duration integer,
+    customer_satisfaction_score numeric(3,2),
+    created_at timestamp with time zone DEFAULT now(),
+    contacts_successful integer DEFAULT 0,
+    ptps_obtained integer DEFAULT 0,
+    ptps_kept integer DEFAULT 0,
+    ptps_kept_rate numeric DEFAULT 0,
+    accounts_worked integer DEFAULT 0,
+    talk_time_minutes numeric DEFAULT 0,
+    quality_score numeric
+);
+
+
+ALTER TABLE kastle_banking.officer_performance_metrics OWNER TO postgres;
+
+--
+-- Name: officer_performance_metrics_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.officer_performance_metrics_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.officer_performance_metrics_id_seq OWNER TO postgres;
+
+--
+-- Name: officer_performance_metrics_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.officer_performance_metrics_id_seq OWNED BY kastle_banking.officer_performance_metrics.id;
+
+
+--
+-- Name: officer_performance_metrics_view; Type: VIEW; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE VIEW kastle_banking.officer_performance_metrics_view AS
+ SELECT id,
+    officer_id,
+    metric_date,
+    calls_made,
+    calls_answered AS contacts_successful,
+    promises_made AS ptps_obtained,
+    promises_kept AS ptps_kept,
+        CASE
+            WHEN (promises_made > 0) THEN (((promises_kept)::numeric / (promises_made)::numeric) * (100)::numeric)
+            ELSE (0)::numeric
+        END AS ptps_kept_rate,
+    amount_collected,
+    cases_resolved AS accounts_worked,
+        CASE
+            WHEN (avg_call_duration IS NOT NULL) THEN ((avg_call_duration)::numeric / 60.0)
+            ELSE (0)::numeric
+        END AS talk_time_minutes,
+    customer_satisfaction_score AS quality_score,
+    created_at
+   FROM kastle_banking.officer_performance_metrics;
+
+
+ALTER VIEW kastle_banking.officer_performance_metrics_view OWNER TO postgres;
+
+--
+-- Name: officer_performance_summary; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.officer_performance_summary (
+    summary_id integer NOT NULL,
+    officer_id character varying,
+    summary_date date NOT NULL,
+    total_cases integer DEFAULT 0,
+    total_portfolio_value numeric DEFAULT 0,
+    total_collected numeric DEFAULT 0,
+    collection_rate numeric DEFAULT 0,
+    total_calls integer DEFAULT 0,
+    total_messages integer DEFAULT 0,
+    successful_contacts integer DEFAULT 0,
+    contact_rate numeric DEFAULT 0,
+    total_ptps integer DEFAULT 0,
+    ptps_kept integer DEFAULT 0,
+    ptp_keep_rate numeric DEFAULT 0,
+    avg_response_time numeric DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.officer_performance_summary OWNER TO postgres;
+
+--
+-- Name: officer_performance_summary_summary_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.officer_performance_summary_summary_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.officer_performance_summary_summary_id_seq OWNER TO postgres;
+
+--
+-- Name: officer_performance_summary_summary_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.officer_performance_summary_summary_id_seq OWNED BY kastle_banking.officer_performance_summary.summary_id;
+
+
+--
+-- Name: payments; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.payments (
+    payment_id integer NOT NULL,
+    case_id integer,
+    payment_date date NOT NULL,
+    payment_amount numeric(15,2) NOT NULL,
+    payment_method character varying,
+    reference_number character varying,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE kastle_banking.payments OWNER TO postgres;
+
+--
+-- Name: payments_payment_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.payments_payment_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.payments_payment_id_seq OWNER TO postgres;
+
+--
+-- Name: payments_payment_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.payments_payment_id_seq OWNED BY kastle_banking.payments.payment_id;
+
+
+--
+-- Name: performance_metrics; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.performance_metrics (
+    metric_id bigint NOT NULL,
+    metric_name character varying NOT NULL,
+    metric_value numeric NOT NULL,
+    metric_unit character varying,
+    metric_timestamp timestamp with time zone DEFAULT now(),
+    additional_info jsonb
+);
+
+
+ALTER TABLE kastle_banking.performance_metrics OWNER TO postgres;
+
+--
+-- Name: performance_metrics_metric_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.performance_metrics_metric_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.performance_metrics_metric_id_seq OWNER TO postgres;
+
+--
+-- Name: performance_metrics_metric_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.performance_metrics_metric_id_seq OWNED BY kastle_banking.performance_metrics.metric_id;
 
 
 --
@@ -4178,6 +5948,48 @@ ALTER SEQUENCE kastle_banking.products_product_id_seq OWNED BY kastle_banking.pr
 
 
 --
+-- Name: promise_to_pay; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.promise_to_pay (
+    ptp_id integer NOT NULL,
+    case_id integer,
+    officer_id character varying(20),
+    ptp_date date NOT NULL,
+    ptp_amount numeric(18,2) NOT NULL,
+    status character varying(30) DEFAULT 'PENDING'::character varying,
+    actual_payment_date date,
+    actual_payment_amount numeric(18,2),
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.promise_to_pay OWNER TO postgres;
+
+--
+-- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.promise_to_pay_ptp_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.promise_to_pay_ptp_id_seq OWNER TO postgres;
+
+--
+-- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.promise_to_pay_ptp_id_seq OWNED BY kastle_banking.promise_to_pay.ptp_id;
+
+
+--
 -- Name: realtime_notifications; Type: TABLE; Schema: kastle_banking; Owner: postgres
 --
 
@@ -4194,6 +6006,104 @@ CREATE TABLE kastle_banking.realtime_notifications (
 
 
 ALTER TABLE kastle_banking.realtime_notifications OWNER TO postgres;
+
+--
+-- Name: repossessed_assets; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.repossessed_assets (
+    asset_id integer NOT NULL,
+    case_id integer,
+    asset_type character varying(30),
+    asset_description text,
+    repossession_date date,
+    storage_location character varying(200),
+    estimated_value numeric(18,2),
+    valuation_date date,
+    valuation_agency character varying(200),
+    auction_date date,
+    sale_amount numeric(18,2),
+    buyer_details jsonb,
+    storage_costs numeric(18,2),
+    legal_costs numeric(18,2),
+    net_recovery numeric(18,2),
+    asset_condition character varying(50),
+    documents jsonb,
+    photos jsonb,
+    status character varying(30) DEFAULT 'IN_POSSESSION'::character varying,
+    created_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT repossessed_assets_asset_type_check CHECK (((asset_type)::text = ANY (ARRAY[('VEHICLE'::character varying)::text, ('PROPERTY'::character varying)::text, ('EQUIPMENT'::character varying)::text, ('OTHERS'::character varying)::text])))
+);
+
+
+ALTER TABLE kastle_banking.repossessed_assets OWNER TO postgres;
+
+--
+-- Name: repossessed_assets_asset_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.repossessed_assets_asset_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.repossessed_assets_asset_id_seq OWNER TO postgres;
+
+--
+-- Name: repossessed_assets_asset_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.repossessed_assets_asset_id_seq OWNED BY kastle_banking.repossessed_assets.asset_id;
+
+
+--
+-- Name: sharia_compliance_log; Type: TABLE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE TABLE kastle_banking.sharia_compliance_log (
+    compliance_id integer NOT NULL,
+    case_id integer,
+    compliance_type character varying(50),
+    late_payment_charges numeric(18,2),
+    charity_amount numeric(18,2),
+    charity_name character varying(200),
+    distribution_date date,
+    distribution_receipt character varying(100),
+    compliance_status character varying(30),
+    reviewed_by character varying(100),
+    review_date date,
+    notes text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE kastle_banking.sharia_compliance_log OWNER TO postgres;
+
+--
+-- Name: sharia_compliance_log_compliance_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq OWNER TO postgres;
+
+--
+-- Name: sharia_compliance_log_compliance_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq OWNED BY kastle_banking.sharia_compliance_log.compliance_id;
+
 
 --
 -- Name: top_delinquent_customers; Type: VIEW; Schema: kastle_banking; Owner: postgres
@@ -4280,1902 +6190,10 @@ ALTER SEQUENCE kastle_banking.transactions_transaction_id_seq OWNED BY kastle_ba
 
 
 --
--- Name: vw_customer_dashboard; Type: VIEW; Schema: kastle_banking; Owner: postgres
+-- Name: user_role_assignments; Type: TABLE; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_banking.vw_customer_dashboard AS
- SELECT c.customer_id,
-    c.full_name,
-    c.segment,
-    count(DISTINCT a.account_number) AS total_accounts,
-    count(DISTINCT la.loan_account_number) AS total_loans,
-    sum(
-        CASE
-            WHEN ((at.account_category)::text = ANY (ARRAY[('SAVINGS'::character varying)::text, ('CURRENT'::character varying)::text])) THEN a.current_balance
-            ELSE (0)::numeric
-        END) AS total_deposits,
-    sum(
-        CASE
-            WHEN ((la.loan_status)::text = 'ACTIVE'::text) THEN la.outstanding_principal
-            ELSE (0)::numeric
-        END) AS total_loans_outstanding,
-    max(t.transaction_date) AS last_transaction_date
-   FROM ((((kastle_banking.customers c
-     LEFT JOIN kastle_banking.accounts a ON (((c.customer_id)::text = (a.customer_id)::text)))
-     LEFT JOIN kastle_banking.account_types at ON ((a.account_type_id = at.type_id)))
-     LEFT JOIN kastle_banking.loan_accounts la ON (((c.customer_id)::text = (la.customer_id)::text)))
-     LEFT JOIN kastle_banking.transactions t ON (((a.account_number)::text = (t.account_number)::text)))
-  WHERE ((c.customer_id)::text = (kastle_banking.get_current_customer_id())::text)
-  GROUP BY c.customer_id, c.full_name, c.segment;
-
-
-ALTER VIEW kastle_banking.vw_customer_dashboard OWNER TO postgres;
-
---
--- Name: vw_recent_transactions; Type: VIEW; Schema: kastle_banking; Owner: postgres
---
-
-CREATE VIEW kastle_banking.vw_recent_transactions AS
- SELECT t.transaction_id,
-    t.transaction_date,
-    t.account_number,
-    a.customer_id,
-    t.debit_credit,
-    t.transaction_amount,
-    t.narration,
-    t.running_balance,
-    t.channel,
-    t.status
-   FROM (kastle_banking.transactions t
-     JOIN kastle_banking.accounts a ON (((t.account_number)::text = (a.account_number)::text)))
-  WHERE ((a.customer_id)::text = (kastle_banking.get_current_customer_id())::text)
-  ORDER BY t.transaction_date DESC
- LIMIT 50;
-
-
-ALTER VIEW kastle_banking.vw_recent_transactions OWNER TO postgres;
-
---
--- Name: access_log; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.access_log (
-    access_id bigint NOT NULL,
-    user_id character varying NOT NULL,
-    resource_type character varying NOT NULL,
-    resource_id character varying,
-    action character varying NOT NULL,
-    access_granted boolean DEFAULT true,
-    denial_reason character varying,
-    ip_address inet,
-    session_id character varying,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.access_log OWNER TO postgres;
-
---
--- Name: access_log_access_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.access_log_access_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.access_log_access_id_seq OWNER TO postgres;
-
---
--- Name: access_log_access_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.access_log_access_id_seq OWNED BY kastle_collection.access_log.access_id;
-
-
---
--- Name: audit_log; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.audit_log (
-    audit_id bigint NOT NULL,
-    table_name character varying NOT NULL,
-    operation character varying,
-    record_id character varying NOT NULL,
-    user_id character varying NOT NULL,
-    changed_fields jsonb,
-    old_values jsonb,
-    new_values jsonb,
-    ip_address inet,
-    user_agent text,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT audit_log_operation_check CHECK (((operation)::text = ANY (ARRAY[('INSERT'::character varying)::text, ('UPDATE'::character varying)::text, ('DELETE'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.audit_log OWNER TO postgres;
-
---
--- Name: audit_log_audit_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.audit_log_audit_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.audit_log_audit_id_seq OWNER TO postgres;
-
---
--- Name: audit_log_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.audit_log_audit_id_seq OWNED BY kastle_collection.audit_log.audit_id;
-
-
---
--- Name: collection_audit_trail; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_audit_trail (
-    audit_id integer NOT NULL,
-    user_id character varying(20),
-    action_type character varying(50),
-    entity_type character varying(50),
-    entity_id character varying(100),
-    old_values jsonb,
-    new_values jsonb,
-    ip_address character varying(45),
-    user_agent text,
-    action_timestamp timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_audit_trail OWNER TO postgres;
-
---
--- Name: collection_audit_trail_audit_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_audit_trail_audit_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_audit_trail_audit_id_seq OWNER TO postgres;
-
---
--- Name: collection_audit_trail_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_audit_trail_audit_id_seq OWNED BY kastle_collection.collection_audit_trail.audit_id;
-
-
---
--- Name: collection_automation_metrics; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_automation_metrics (
-    metric_id integer NOT NULL,
-    metric_date date NOT NULL,
-    automation_type character varying,
-    total_attempts integer,
-    successful_contacts integer,
-    payments_collected integer,
-    amount_collected numeric,
-    cost_saved numeric,
-    efficiency_gain numeric,
-    error_rate numeric,
-    customer_satisfaction_score numeric,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_automation_metrics_automation_type_check CHECK (((automation_type)::text = ANY (ARRAY[('AUTO_DIALER'::character varying)::text, ('SMS_CAMPAIGN'::character varying)::text, ('EMAIL_CAMPAIGN'::character varying)::text, ('CHATBOT'::character varying)::text, ('IVR'::character varying)::text, ('PREDICTIVE_DIALER'::character varying)::text, ('AI_SCORING'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_automation_metrics OWNER TO postgres;
-
---
--- Name: collection_automation_metrics_metric_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_automation_metrics_metric_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_automation_metrics_metric_id_seq OWNER TO postgres;
-
---
--- Name: collection_automation_metrics_metric_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_automation_metrics_metric_id_seq OWNED BY kastle_collection.collection_automation_metrics.metric_id;
-
-
---
--- Name: collection_benchmarks; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_benchmarks (
-    benchmark_id integer NOT NULL,
-    benchmark_date date NOT NULL,
-    benchmark_type character varying,
-    metric_name character varying NOT NULL,
-    internal_value numeric,
-    industry_average numeric,
-    best_in_class numeric,
-    percentile_rank numeric,
-    gap_to_average numeric,
-    gap_to_best numeric,
-    source character varying,
-    notes text,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_benchmarks OWNER TO postgres;
-
---
--- Name: collection_benchmarks_benchmark_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_benchmarks_benchmark_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_benchmarks_benchmark_id_seq OWNER TO postgres;
-
---
--- Name: collection_benchmarks_benchmark_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_benchmarks_benchmark_id_seq OWNED BY kastle_collection.collection_benchmarks.benchmark_id;
-
-
---
--- Name: collection_bucket_movement; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_bucket_movement (
-    movement_id integer NOT NULL,
-    case_id integer,
-    from_bucket_id integer,
-    to_bucket_id integer,
-    movement_date date NOT NULL,
-    movement_reason character varying,
-    days_in_previous_bucket integer,
-    amount_at_movement numeric,
-    officer_id character varying,
-    automated_movement boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_bucket_movement OWNER TO postgres;
-
---
--- Name: collection_bucket_movement_movement_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_bucket_movement_movement_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_bucket_movement_movement_id_seq OWNER TO postgres;
-
---
--- Name: collection_bucket_movement_movement_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_bucket_movement_movement_id_seq OWNED BY kastle_collection.collection_bucket_movement.movement_id;
-
-
---
--- Name: collection_call_records; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_call_records (
-    call_id integer NOT NULL,
-    interaction_id integer,
-    phone_number character varying(20),
-    officer_id character varying(20),
-    call_datetime timestamp with time zone,
-    call_duration_seconds integer,
-    wait_time_seconds integer,
-    hold_time_seconds integer,
-    call_type character varying(20),
-    call_disposition character varying(50),
-    recording_url character varying(500),
-    ivr_path character varying(200),
-    transfer_count integer,
-    quality_monitored boolean DEFAULT false,
-    quality_score numeric(5,2),
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_call_records OWNER TO postgres;
-
---
--- Name: collection_call_records_call_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_call_records_call_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_call_records_call_id_seq OWNER TO postgres;
-
---
--- Name: collection_call_records_call_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_call_records_call_id_seq OWNED BY kastle_collection.collection_call_records.call_id;
-
-
---
--- Name: collection_campaigns; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_campaigns (
-    campaign_id integer NOT NULL,
-    campaign_name character varying(200) NOT NULL,
-    campaign_type character varying(30),
-    target_bucket integer,
-    target_segment character varying(50),
-    start_date date,
-    end_date date,
-    budget_amount numeric(18,2),
-    target_recovery numeric(18,2),
-    actual_recovery numeric(18,2),
-    total_contacts integer,
-    success_rate numeric(5,2),
-    roi numeric(5,2),
-    status character varying(20) DEFAULT 'ACTIVE'::character varying,
-    created_by character varying(20),
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_campaigns OWNER TO postgres;
-
---
--- Name: collection_campaigns_campaign_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_campaigns_campaign_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_campaigns_campaign_id_seq OWNER TO postgres;
-
---
--- Name: collection_campaigns_campaign_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_campaigns_campaign_id_seq OWNED BY kastle_collection.collection_campaigns.campaign_id;
-
-
---
--- Name: collection_case_details; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_case_details (
-    case_detail_id integer NOT NULL,
-    case_id integer,
-    delinquency_reason character varying(50),
-    customer_segment character varying(30),
-    risk_score integer,
-    collection_strategy character varying(50),
-    skip_trace_status character varying(30),
-    legal_status character varying(30),
-    settlement_offered boolean DEFAULT false,
-    settlement_amount numeric(18,2),
-    restructure_requested boolean DEFAULT false,
-    hardship_flag boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_case_details OWNER TO postgres;
-
---
--- Name: collection_case_details_case_detail_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_case_details_case_detail_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_case_details_case_detail_id_seq OWNER TO postgres;
-
---
--- Name: collection_case_details_case_detail_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_case_details_case_detail_id_seq OWNED BY kastle_collection.collection_case_details.case_detail_id;
-
-
---
--- Name: collection_compliance_violations; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_compliance_violations (
-    violation_id integer NOT NULL,
-    violation_date date NOT NULL,
-    violation_type character varying,
-    severity character varying,
-    officer_id character varying,
-    case_id integer,
-    description text,
-    corrective_action text,
-    action_taken boolean DEFAULT false,
-    action_date date,
-    reviewed_by character varying,
-    fine_amount numeric,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_compliance_violations_severity_check CHECK (((severity)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('CRITICAL'::character varying)::text]))),
-    CONSTRAINT collection_compliance_violations_violation_type_check CHECK (((violation_type)::text = ANY (ARRAY[('SAMA_REGULATION'::character varying)::text, ('SHARIA_COMPLIANCE'::character varying)::text, ('CUSTOMER_PROTECTION'::character varying)::text, ('DATA_PRIVACY'::character varying)::text, ('COLLECTION_PRACTICE'::character varying)::text, ('DOCUMENTATION'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_compliance_violations OWNER TO postgres;
-
---
--- Name: collection_compliance_violations_violation_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_compliance_violations_violation_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_compliance_violations_violation_id_seq OWNER TO postgres;
-
---
--- Name: collection_compliance_violations_violation_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_compliance_violations_violation_id_seq OWNED BY kastle_collection.collection_compliance_violations.violation_id;
-
-
---
--- Name: collection_contact_attempts; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_contact_attempts (
-    attempt_id integer NOT NULL,
-    case_id integer,
-    customer_id character varying,
-    contact_type character varying,
-    contact_number character varying,
-    contact_result character varying,
-    attempt_datetime timestamp with time zone,
-    officer_id character varying,
-    best_time_to_contact character varying,
-    contact_quality_score integer,
-    is_valid boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now(),
-    outstanding_amount bigint,
-    CONSTRAINT collection_contact_attempts_contact_result_check CHECK (((contact_result)::text = ANY (ARRAY[('CONNECTED'::character varying)::text, ('NO_ANSWER'::character varying)::text, ('BUSY'::character varying)::text, ('WRONG_NUMBER'::character varying)::text, ('DISCONNECTED'::character varying)::text, ('VOICEMAIL'::character varying)::text]))),
-    CONSTRAINT collection_contact_attempts_contact_type_check CHECK (((contact_type)::text = ANY (ARRAY[('PRIMARY'::character varying)::text, ('SECONDARY'::character varying)::text, ('EMERGENCY'::character varying)::text, ('WORK'::character varying)::text, ('REFERENCE'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_contact_attempts OWNER TO postgres;
-
---
--- Name: collection_contact_attempts_attempt_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_contact_attempts_attempt_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_contact_attempts_attempt_id_seq OWNER TO postgres;
-
---
--- Name: collection_contact_attempts_attempt_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_contact_attempts_attempt_id_seq OWNED BY kastle_collection.collection_contact_attempts.attempt_id;
-
-
---
--- Name: collection_customer_segments; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_customer_segments (
-    segment_id integer NOT NULL,
-    segment_name character varying NOT NULL,
-    segment_code character varying,
-    segment_criteria jsonb NOT NULL,
-    risk_profile character varying,
-    collection_strategy character varying,
-    target_recovery_rate numeric,
-    actual_recovery_rate numeric,
-    customers_count integer,
-    total_exposure numeric,
-    avg_ticket_size numeric,
-    is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_customer_segments OWNER TO postgres;
-
---
--- Name: collection_customer_segments_segment_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_customer_segments_segment_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_customer_segments_segment_id_seq OWNER TO postgres;
-
---
--- Name: collection_customer_segments_segment_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_customer_segments_segment_id_seq OWNED BY kastle_collection.collection_customer_segments.segment_id;
-
-
---
--- Name: collection_forecasts; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_forecasts (
-    forecast_id integer NOT NULL,
-    forecast_date date NOT NULL,
-    forecast_period character varying,
-    forecast_type character varying,
-    product_id integer,
-    bucket_id integer,
-    predicted_amount numeric,
-    confidence_level numeric,
-    lower_bound numeric,
-    upper_bound numeric,
-    actual_amount numeric,
-    variance numeric,
-    model_used character varying,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_forecasts_forecast_period_check CHECK (((forecast_period)::text = ANY (ARRAY[('DAILY'::character varying)::text, ('WEEKLY'::character varying)::text, ('MONTHLY'::character varying)::text, ('QUARTERLY'::character varying)::text, ('YEARLY'::character varying)::text]))),
-    CONSTRAINT collection_forecasts_forecast_type_check CHECK (((forecast_type)::text = ANY (ARRAY[('RECOVERY'::character varying)::text, ('DEFAULT'::character varying)::text, ('ROLL_RATE'::character varying)::text, ('PROVISION'::character varying)::text, ('WRITE_OFF'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_forecasts OWNER TO postgres;
-
---
--- Name: collection_forecasts_forecast_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_forecasts_forecast_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_forecasts_forecast_id_seq OWNER TO postgres;
-
---
--- Name: collection_forecasts_forecast_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_forecasts_forecast_id_seq OWNED BY kastle_collection.collection_forecasts.forecast_id;
-
-
---
--- Name: collection_interactions; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_interactions (
-    interaction_id integer NOT NULL,
-    case_id integer,
-    customer_id character varying(20),
-    interaction_type character varying(30),
-    interaction_direction character varying(10),
-    officer_id character varying(20),
-    contact_number character varying(20),
-    interaction_status character varying(30),
-    duration_seconds integer,
-    outcome character varying(50),
-    promise_to_pay boolean DEFAULT false,
-    ptp_amount numeric(18,2),
-    ptp_date date,
-    notes text,
-    recording_reference character varying(100),
-    interaction_datetime timestamp with time zone DEFAULT now(),
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_interactions_interaction_direction_check CHECK (((interaction_direction)::text = ANY (ARRAY[('INBOUND'::character varying)::text, ('OUTBOUND'::character varying)::text]))),
-    CONSTRAINT collection_interactions_interaction_type_check CHECK (((interaction_type)::text = ANY (ARRAY[('CALL'::character varying)::text, ('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('LETTER'::character varying)::text, ('VISIT'::character varying)::text, ('LEGAL_NOTICE'::character varying)::text, ('WHATSAPP'::character varying)::text, ('IVR'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_interactions OWNER TO postgres;
-
---
--- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_interactions_interaction_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_interactions_interaction_id_seq OWNER TO postgres;
-
---
--- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_interactions_interaction_id_seq OWNED BY kastle_collection.collection_interactions.interaction_id;
-
-
---
--- Name: collection_officers; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_officers (
-    officer_id character varying(20) NOT NULL,
-    employee_id character varying(20),
-    officer_name character varying(200) NOT NULL,
-    team_id integer,
-    officer_type character varying(30),
-    contact_number character varying(20),
-    email character varying(100),
-    language_skills character varying(100),
-    collection_limit numeric(18,2),
-    commission_rate numeric(5,2),
-    status character varying(20) DEFAULT 'ACTIVE'::character varying,
-    joining_date date,
-    last_active timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_officers_officer_type_check CHECK (((officer_type)::text = ANY (ARRAY[('CALL_AGENT'::character varying)::text, ('FIELD_AGENT'::character varying)::text, ('LEGAL_OFFICER'::character varying)::text, ('SENIOR_COLLECTOR'::character varying)::text, ('TEAM_LEAD'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_officers OWNER TO postgres;
-
---
--- Name: collection_provisions; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_provisions (
-    provision_id integer NOT NULL,
-    provision_date date NOT NULL,
-    bucket_id integer,
-    provision_rate numeric NOT NULL,
-    total_exposure numeric,
-    provision_amount numeric NOT NULL,
-    ifrs9_stage character varying,
-    ecl_amount numeric,
-    regulatory_provision numeric,
-    additional_provision numeric,
-    provision_coverage_ratio numeric,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_provisions_ifrs9_stage_check CHECK (((ifrs9_stage)::text = ANY (ARRAY[('STAGE1'::character varying)::text, ('STAGE2'::character varying)::text, ('STAGE3'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_provisions OWNER TO postgres;
-
---
--- Name: collection_provisions_provision_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_provisions_provision_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_provisions_provision_id_seq OWNER TO postgres;
-
---
--- Name: collection_provisions_provision_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_provisions_provision_id_seq OWNED BY kastle_collection.collection_provisions.provision_id;
-
-
---
--- Name: collection_queue_management; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_queue_management (
-    queue_id integer NOT NULL,
-    queue_name character varying NOT NULL,
-    queue_type character varying,
-    priority_level integer,
-    filter_criteria jsonb,
-    assigned_officer_id character varying,
-    assigned_team_id integer,
-    cases_count integer DEFAULT 0,
-    total_amount numeric DEFAULT 0,
-    avg_dpd integer,
-    last_refreshed timestamp with time zone,
-    is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_queue_management_queue_type_check CHECK (((queue_type)::text = ANY (ARRAY[('PRIORITY'::character varying)::text, ('NORMAL'::character varying)::text, ('AUTOMATED'::character varying)::text, ('MANUAL'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_queue_management OWNER TO postgres;
-
---
--- Name: collection_queue_management_queue_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_queue_management_queue_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_queue_management_queue_id_seq OWNER TO postgres;
-
---
--- Name: collection_queue_management_queue_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_queue_management_queue_id_seq OWNED BY kastle_collection.collection_queue_management.queue_id;
-
-
---
--- Name: collection_risk_assessment; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_risk_assessment (
-    assessment_id integer NOT NULL,
-    customer_id character varying,
-    case_id integer,
-    assessment_date date NOT NULL,
-    risk_category character varying,
-    default_probability numeric,
-    loss_given_default numeric,
-    expected_loss numeric,
-    early_warning_flags jsonb,
-    behavioral_score integer,
-    payment_pattern_score integer,
-    external_risk_factors jsonb,
-    recommended_strategy character varying,
-    next_review_date date,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_risk_assessment_risk_category_check CHECK (((risk_category)::text = ANY (ARRAY[('LOW'::character varying)::text, ('MEDIUM'::character varying)::text, ('HIGH'::character varying)::text, ('CRITICAL'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_risk_assessment OWNER TO postgres;
-
---
--- Name: collection_risk_assessment_assessment_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_risk_assessment_assessment_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_risk_assessment_assessment_id_seq OWNER TO postgres;
-
---
--- Name: collection_risk_assessment_assessment_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_risk_assessment_assessment_id_seq OWNED BY kastle_collection.collection_risk_assessment.assessment_id;
-
-
---
--- Name: collection_scores; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_scores (
-    score_id integer NOT NULL,
-    customer_id character varying(20),
-    score_date date NOT NULL,
-    payment_behavior_score integer,
-    contact_score integer,
-    response_score integer,
-    risk_score integer,
-    recovery_probability numeric(5,2),
-    recommended_action character varying(100),
-    score_factors jsonb,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_scores OWNER TO postgres;
-
---
--- Name: collection_scores_score_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_scores_score_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_scores_score_id_seq OWNER TO postgres;
-
---
--- Name: collection_scores_score_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_scores_score_id_seq OWNED BY kastle_collection.collection_scores.score_id;
-
-
---
--- Name: collection_settlement_offers; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_settlement_offers (
-    offer_id integer NOT NULL,
-    case_id integer,
-    customer_id character varying,
-    offer_date date NOT NULL,
-    original_amount numeric NOT NULL,
-    settlement_amount numeric NOT NULL,
-    discount_percentage numeric,
-    payment_terms character varying,
-    installments integer,
-    offer_valid_until date,
-    offer_status character varying,
-    approval_level character varying,
-    approved_by character varying,
-    customer_response character varying,
-    response_date date,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_settlement_offers_offer_status_check CHECK (((offer_status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('REJECTED'::character varying)::text, ('EXPIRED'::character varying)::text, ('WITHDRAWN'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_settlement_offers OWNER TO postgres;
-
---
--- Name: collection_settlement_offers_offer_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_settlement_offers_offer_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_settlement_offers_offer_id_seq OWNER TO postgres;
-
---
--- Name: collection_settlement_offers_offer_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_settlement_offers_offer_id_seq OWNED BY kastle_collection.collection_settlement_offers.offer_id;
-
-
---
--- Name: collection_strategies; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_strategies (
-    strategy_id integer NOT NULL,
-    strategy_code character varying(30) NOT NULL,
-    strategy_name character varying(100) NOT NULL,
-    bucket_id integer,
-    customer_segment character varying(30),
-    risk_category character varying(20),
-    min_amount numeric(18,2),
-    max_amount numeric(18,2),
-    actions jsonb NOT NULL,
-    escalation_days integer,
-    is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_strategies OWNER TO postgres;
-
---
--- Name: collection_strategies_strategy_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_strategies_strategy_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_strategies_strategy_id_seq OWNER TO postgres;
-
---
--- Name: collection_strategies_strategy_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_strategies_strategy_id_seq OWNED BY kastle_collection.collection_strategies.strategy_id;
-
-
---
--- Name: collection_system_performance; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_system_performance (
-    log_id integer NOT NULL,
-    log_timestamp timestamp with time zone DEFAULT now(),
-    system_component character varying(50),
-    response_time_ms integer,
-    cpu_usage_percent numeric(5,2),
-    memory_usage_percent numeric(5,2),
-    active_users integer,
-    error_count integer,
-    warning_count integer,
-    api_calls integer,
-    database_connections integer
-);
-
-
-ALTER TABLE kastle_collection.collection_system_performance OWNER TO postgres;
-
---
--- Name: collection_system_performance_log_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_system_performance_log_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_system_performance_log_id_seq OWNER TO postgres;
-
---
--- Name: collection_system_performance_log_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_system_performance_log_id_seq OWNED BY kastle_collection.collection_system_performance.log_id;
-
-
---
--- Name: collection_teams; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_teams (
-    team_id integer NOT NULL,
-    team_code character varying(20) NOT NULL,
-    team_name character varying(100) NOT NULL,
-    team_type character varying(30),
-    branch_id character varying(10),
-    manager_id character varying(20),
-    is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT collection_teams_team_type_check CHECK (((team_type)::text = ANY (ARRAY[('CALL_CENTER'::character varying)::text, ('FIELD'::character varying)::text, ('LEGAL'::character varying)::text, ('DIGITAL'::character varying)::text, ('RECOVERY'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.collection_teams OWNER TO postgres;
-
---
--- Name: collection_teams_team_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_teams_team_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_teams_team_id_seq OWNER TO postgres;
-
---
--- Name: collection_teams_team_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_teams_team_id_seq OWNED BY kastle_collection.collection_teams.team_id;
-
-
---
--- Name: collection_vintage_analysis; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_vintage_analysis (
-    vintage_id integer NOT NULL,
-    origination_month character varying(7) NOT NULL,
-    product_id integer,
-    months_on_book integer NOT NULL,
-    original_accounts integer,
-    original_amount numeric,
-    current_outstanding numeric,
-    dpd_0_30_count integer,
-    dpd_31_60_count integer,
-    dpd_61_90_count integer,
-    dpd_90_plus_count integer,
-    written_off_count integer,
-    written_off_amount numeric,
-    recovery_amount numeric,
-    flow_rate_30 numeric,
-    flow_rate_60 numeric,
-    flow_rate_90 numeric,
-    loss_rate numeric,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_vintage_analysis OWNER TO postgres;
-
---
--- Name: collection_vintage_analysis_vintage_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_vintage_analysis_vintage_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_vintage_analysis_vintage_id_seq OWNER TO postgres;
-
---
--- Name: collection_vintage_analysis_vintage_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_vintage_analysis_vintage_id_seq OWNED BY kastle_collection.collection_vintage_analysis.vintage_id;
-
-
---
--- Name: collection_workflow_templates; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_workflow_templates (
-    template_id integer NOT NULL,
-    template_name character varying NOT NULL,
-    workflow_type character varying,
-    bucket_id integer,
-    customer_segment character varying,
-    workflow_steps jsonb NOT NULL,
-    escalation_matrix jsonb,
-    sla_hours integer,
-    is_automated boolean DEFAULT false,
-    is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_workflow_templates OWNER TO postgres;
-
---
--- Name: collection_workflow_templates_template_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_workflow_templates_template_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_workflow_templates_template_id_seq OWNER TO postgres;
-
---
--- Name: collection_workflow_templates_template_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_workflow_templates_template_id_seq OWNED BY kastle_collection.collection_workflow_templates.template_id;
-
-
---
--- Name: collection_write_offs; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.collection_write_offs (
-    write_off_id integer NOT NULL,
-    case_id integer,
-    account_number character varying,
-    customer_id character varying,
-    write_off_date date NOT NULL,
-    write_off_amount numeric NOT NULL,
-    principal_amount numeric,
-    interest_amount numeric,
-    penalty_amount numeric,
-    write_off_reason character varying,
-    approval_level character varying,
-    approved_by character varying,
-    recovery_attempts integer,
-    last_payment_date date,
-    documentation jsonb,
-    is_recoverable boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.collection_write_offs OWNER TO postgres;
-
---
--- Name: collection_write_offs_write_off_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.collection_write_offs_write_off_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.collection_write_offs_write_off_id_seq OWNER TO postgres;
-
---
--- Name: collection_write_offs_write_off_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.collection_write_offs_write_off_id_seq OWNED BY kastle_collection.collection_write_offs.write_off_id;
-
-
---
--- Name: daily_collection_summary; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.daily_collection_summary (
-    summary_id integer NOT NULL,
-    summary_date date NOT NULL,
-    branch_id character varying(10),
-    team_id integer,
-    total_due_amount numeric(18,2),
-    total_collected numeric(18,2),
-    collection_rate numeric(5,2),
-    accounts_due integer,
-    accounts_collected integer,
-    calls_made integer,
-    contacts_successful integer,
-    ptps_obtained integer,
-    ptps_kept integer,
-    field_visits_done integer,
-    legal_notices_sent integer,
-    digital_payments integer,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.daily_collection_summary OWNER TO postgres;
-
---
--- Name: daily_collection_summary_summary_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.daily_collection_summary_summary_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.daily_collection_summary_summary_id_seq OWNER TO postgres;
-
---
--- Name: daily_collection_summary_summary_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.daily_collection_summary_summary_id_seq OWNED BY kastle_collection.daily_collection_summary.summary_id;
-
-
---
--- Name: data_masking_rules; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.data_masking_rules (
-    rule_id integer NOT NULL,
-    table_name character varying NOT NULL,
-    column_name character varying NOT NULL,
-    masking_type character varying,
-    masking_pattern character varying,
-    role_exceptions text[],
-    is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT data_masking_rules_masking_type_check CHECK (((masking_type)::text = ANY (ARRAY[('PARTIAL'::character varying)::text, ('FULL'::character varying)::text, ('HASH'::character varying)::text, ('RANDOM'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.data_masking_rules OWNER TO postgres;
-
---
--- Name: data_masking_rules_rule_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.data_masking_rules_rule_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.data_masking_rules_rule_id_seq OWNER TO postgres;
-
---
--- Name: data_masking_rules_rule_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.data_masking_rules_rule_id_seq OWNED BY kastle_collection.data_masking_rules.rule_id;
-
-
---
--- Name: digital_collection_attempts; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.digital_collection_attempts (
-    attempt_id integer NOT NULL,
-    case_id integer,
-    customer_id character varying(20),
-    channel_type character varying(30),
-    campaign_id integer,
-    message_template character varying(100),
-    sent_datetime timestamp with time zone,
-    delivered_datetime timestamp with time zone,
-    read_datetime timestamp with time zone,
-    response_datetime timestamp with time zone,
-    response_type character varying(50),
-    payment_made boolean DEFAULT false,
-    payment_amount numeric(18,2),
-    click_through_rate numeric(5,2),
-    cost_per_message numeric(10,4),
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT digital_collection_attempts_channel_type_check CHECK (((channel_type)::text = ANY (ARRAY[('IVR'::character varying)::text, ('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('WHATSAPP'::character varying)::text, ('MOBILE_APP'::character varying)::text, ('WEB_PORTAL'::character varying)::text, ('CHATBOT'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.digital_collection_attempts OWNER TO postgres;
-
---
--- Name: digital_collection_attempts_attempt_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.digital_collection_attempts_attempt_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.digital_collection_attempts_attempt_id_seq OWNER TO postgres;
-
---
--- Name: digital_collection_attempts_attempt_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.digital_collection_attempts_attempt_id_seq OWNED BY kastle_collection.digital_collection_attempts.attempt_id;
-
-
---
--- Name: field_visits; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.field_visits (
-    visit_id integer NOT NULL,
-    case_id integer,
-    customer_id character varying(20),
-    officer_id character varying(20),
-    visit_date date NOT NULL,
-    scheduled_time time without time zone,
-    actual_time time without time zone,
-    visit_address text,
-    visit_status character varying(30),
-    customer_met character varying(100),
-    amount_collected numeric(18,2),
-    collection_mode character varying(30),
-    receipt_number character varying(50),
-    customer_behavior character varying(50),
-    follow_up_required boolean DEFAULT false,
-    geo_location point,
-    distance_traveled numeric(10,2),
-    expenses_claimed numeric(18,2),
-    safety_concern boolean DEFAULT false,
-    notes text,
-    photo_references jsonb,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT field_visits_visit_status_check CHECK (((visit_status)::text = ANY (ARRAY[('SCHEDULED'::character varying)::text, ('COMPLETED'::character varying)::text, ('CUSTOMER_NOT_AVAILABLE'::character varying)::text, ('WRONG_ADDRESS'::character varying)::text, ('REFUSED'::character varying)::text, ('CANCELLED'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.field_visits OWNER TO postgres;
-
---
--- Name: field_visits_visit_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.field_visits_visit_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.field_visits_visit_id_seq OWNER TO postgres;
-
---
--- Name: field_visits_visit_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.field_visits_visit_id_seq OWNED BY kastle_collection.field_visits.visit_id;
-
-
---
--- Name: hardship_applications; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.hardship_applications (
-    application_id integer NOT NULL,
-    customer_id character varying(20),
-    case_id integer,
-    hardship_type character varying(50),
-    application_date date,
-    supporting_documents jsonb,
-    requested_relief character varying(50),
-    review_status character varying(30),
-    approved_by character varying(20),
-    approval_date date,
-    relief_granted character varying(100),
-    relief_start_date date,
-    relief_end_date date,
-    monitoring_required boolean DEFAULT true,
-    notes text,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT hardship_applications_hardship_type_check CHECK (((hardship_type)::text = ANY (ARRAY[('JOB_LOSS'::character varying)::text, ('MEDICAL'::character varying)::text, ('BUSINESS_CLOSURE'::character varying)::text, ('SALARY_REDUCTION'::character varying)::text, ('COVID_IMPACT'::character varying)::text, ('NATURAL_DISASTER'::character varying)::text, ('DEATH_IN_FAMILY'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.hardship_applications OWNER TO postgres;
-
---
--- Name: hardship_applications_application_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.hardship_applications_application_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.hardship_applications_application_id_seq OWNER TO postgres;
-
---
--- Name: hardship_applications_application_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.hardship_applications_application_id_seq OWNED BY kastle_collection.hardship_applications.application_id;
-
-
---
--- Name: ivr_payment_attempts; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.ivr_payment_attempts (
-    attempt_id integer NOT NULL,
-    customer_id character varying(20),
-    account_number character varying(20),
-    call_datetime timestamp with time zone,
-    ivr_menu_path character varying(500),
-    payment_amount numeric(18,2),
-    payment_method character varying(30),
-    transaction_status character varying(30),
-    failure_reason character varying(100),
-    transaction_reference character varying(100),
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.ivr_payment_attempts OWNER TO postgres;
-
---
--- Name: ivr_payment_attempts_attempt_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.ivr_payment_attempts_attempt_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.ivr_payment_attempts_attempt_id_seq OWNER TO postgres;
-
---
--- Name: ivr_payment_attempts_attempt_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.ivr_payment_attempts_attempt_id_seq OWNED BY kastle_collection.ivr_payment_attempts.attempt_id;
-
-
---
--- Name: legal_cases; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.legal_cases (
-    legal_case_id integer NOT NULL,
-    case_id integer,
-    case_number character varying(50),
-    court_name character varying(200),
-    case_type character varying(50),
-    filing_date date,
-    lawyer_name character varying(200),
-    lawyer_firm character varying(200),
-    current_stage character varying(50),
-    next_hearing_date date,
-    judgment_date date,
-    judgment_amount numeric(18,2),
-    execution_status character varying(30),
-    legal_costs numeric(18,2),
-    recovered_amount numeric(18,2),
-    case_status character varying(30) DEFAULT 'ACTIVE'::character varying,
-    documents jsonb,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.legal_cases OWNER TO postgres;
-
---
--- Name: legal_cases_legal_case_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.legal_cases_legal_case_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.legal_cases_legal_case_id_seq OWNER TO postgres;
-
---
--- Name: legal_cases_legal_case_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.legal_cases_legal_case_id_seq OWNED BY kastle_collection.legal_cases.legal_case_id;
-
-
---
--- Name: loan_restructuring; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.loan_restructuring (
-    restructure_id integer NOT NULL,
-    loan_account_number character varying(20),
-    customer_id character varying(20),
-    original_loan_amount numeric(18,2),
-    outstanding_amount numeric(18,2),
-    original_tenure integer,
-    remaining_tenure integer,
-    original_interest_rate numeric(5,2),
-    new_interest_rate numeric(5,2),
-    new_tenure integer,
-    new_emi numeric(18,2),
-    moratorium_months integer,
-    restructure_date date,
-    restructure_reason character varying(100),
-    approval_level character varying(50),
-    impact_on_provision numeric(18,2),
-    status character varying(30) DEFAULT 'ACTIVE'::character varying,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.loan_restructuring OWNER TO postgres;
-
---
--- Name: loan_restructuring_restructure_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.loan_restructuring_restructure_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.loan_restructuring_restructure_id_seq OWNER TO postgres;
-
---
--- Name: loan_restructuring_restructure_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.loan_restructuring_restructure_id_seq OWNED BY kastle_collection.loan_restructuring.restructure_id;
-
-
---
--- Name: officer_performance_metrics; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.officer_performance_metrics (
-    metric_id integer NOT NULL,
-    officer_id character varying(20),
-    metric_date date NOT NULL,
-    accounts_assigned integer,
-    accounts_worked integer,
-    calls_made integer,
-    talk_time_minutes integer,
-    contacts_successful integer,
-    amount_collected numeric(18,2),
-    ptps_obtained integer,
-    ptps_kept_rate numeric(5,2),
-    average_collection_days numeric(5,1),
-    customer_complaints integer,
-    quality_score numeric(5,2),
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.officer_performance_metrics OWNER TO postgres;
-
---
--- Name: officer_performance_metrics_metric_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.officer_performance_metrics_metric_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.officer_performance_metrics_metric_id_seq OWNER TO postgres;
-
---
--- Name: officer_performance_metrics_metric_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.officer_performance_metrics_metric_id_seq OWNED BY kastle_collection.officer_performance_metrics.metric_id;
-
-
---
--- Name: officer_performance_summary; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.officer_performance_summary (
-    summary_id integer NOT NULL,
-    officer_id character varying,
-    summary_date date NOT NULL,
-    total_cases integer DEFAULT 0,
-    total_portfolio_value numeric DEFAULT 0,
-    total_collected numeric DEFAULT 0,
-    collection_rate numeric DEFAULT 0,
-    total_calls integer DEFAULT 0,
-    total_messages integer DEFAULT 0,
-    successful_contacts integer DEFAULT 0,
-    contact_rate numeric DEFAULT 0,
-    total_ptps integer DEFAULT 0,
-    ptps_kept integer DEFAULT 0,
-    ptp_keep_rate numeric DEFAULT 0,
-    avg_response_time numeric DEFAULT 0,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.officer_performance_summary OWNER TO postgres;
-
---
--- Name: officer_performance_summary_summary_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.officer_performance_summary_summary_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.officer_performance_summary_summary_id_seq OWNER TO postgres;
-
---
--- Name: officer_performance_summary_summary_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.officer_performance_summary_summary_id_seq OWNED BY kastle_collection.officer_performance_summary.summary_id;
-
-
---
--- Name: performance_metrics; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.performance_metrics (
-    metric_id bigint NOT NULL,
-    metric_name character varying NOT NULL,
-    metric_value numeric NOT NULL,
-    metric_unit character varying,
-    metric_timestamp timestamp with time zone DEFAULT now(),
-    additional_info jsonb
-);
-
-
-ALTER TABLE kastle_collection.performance_metrics OWNER TO postgres;
-
---
--- Name: performance_metrics_metric_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.performance_metrics_metric_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.performance_metrics_metric_id_seq OWNER TO postgres;
-
---
--- Name: performance_metrics_metric_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.performance_metrics_metric_id_seq OWNED BY kastle_collection.performance_metrics.metric_id;
-
-
---
--- Name: promise_to_pay; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.promise_to_pay (
-    ptp_id integer NOT NULL,
-    case_id integer,
-    customer_id character varying(20),
-    interaction_id integer,
-    ptp_amount numeric(18,2) NOT NULL,
-    ptp_date date NOT NULL,
-    ptp_type character varying(20),
-    installment_count integer,
-    officer_id character varying(20),
-    status character varying(20) DEFAULT 'ACTIVE'::character varying,
-    amount_received numeric(18,2) DEFAULT 0,
-    kept_date date,
-    broken_reason character varying(100),
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT promise_to_pay_ptp_type_check CHECK (((ptp_type)::text = ANY (ARRAY[('FULL'::character varying)::text, ('PARTIAL'::character varying)::text, ('INSTALLMENT'::character varying)::text]))),
-    CONSTRAINT promise_to_pay_status_check CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('KEPT'::character varying)::text, ('BROKEN'::character varying)::text, ('PARTIAL_KEPT'::character varying)::text, ('CANCELLED'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.promise_to_pay OWNER TO postgres;
-
---
--- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.promise_to_pay_ptp_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.promise_to_pay_ptp_id_seq OWNER TO postgres;
-
---
--- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.promise_to_pay_ptp_id_seq OWNED BY kastle_collection.promise_to_pay.ptp_id;
-
-
---
--- Name: repossessed_assets; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.repossessed_assets (
-    asset_id integer NOT NULL,
-    case_id integer,
-    asset_type character varying(30),
-    asset_description text,
-    repossession_date date,
-    storage_location character varying(200),
-    estimated_value numeric(18,2),
-    valuation_date date,
-    valuation_agency character varying(200),
-    auction_date date,
-    sale_amount numeric(18,2),
-    buyer_details jsonb,
-    storage_costs numeric(18,2),
-    legal_costs numeric(18,2),
-    net_recovery numeric(18,2),
-    asset_condition character varying(50),
-    documents jsonb,
-    photos jsonb,
-    status character varying(30) DEFAULT 'IN_POSSESSION'::character varying,
-    created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT repossessed_assets_asset_type_check CHECK (((asset_type)::text = ANY (ARRAY[('VEHICLE'::character varying)::text, ('PROPERTY'::character varying)::text, ('EQUIPMENT'::character varying)::text, ('OTHERS'::character varying)::text])))
-);
-
-
-ALTER TABLE kastle_collection.repossessed_assets OWNER TO postgres;
-
---
--- Name: repossessed_assets_asset_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.repossessed_assets_asset_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.repossessed_assets_asset_id_seq OWNER TO postgres;
-
---
--- Name: repossessed_assets_asset_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.repossessed_assets_asset_id_seq OWNED BY kastle_collection.repossessed_assets.asset_id;
-
-
---
--- Name: sharia_compliance_log; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.sharia_compliance_log (
-    compliance_id integer NOT NULL,
-    case_id integer,
-    compliance_type character varying(50),
-    late_payment_charges numeric(18,2),
-    charity_amount numeric(18,2),
-    charity_name character varying(200),
-    distribution_date date,
-    distribution_receipt character varying(100),
-    compliance_status character varying(30),
-    reviewed_by character varying(100),
-    review_date date,
-    notes text,
-    created_at timestamp with time zone DEFAULT now()
-);
-
-
-ALTER TABLE kastle_collection.sharia_compliance_log OWNER TO postgres;
-
---
--- Name: sharia_compliance_log_compliance_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE SEQUENCE kastle_collection.sharia_compliance_log_compliance_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE kastle_collection.sharia_compliance_log_compliance_id_seq OWNER TO postgres;
-
---
--- Name: sharia_compliance_log_compliance_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
---
-
-ALTER SEQUENCE kastle_collection.sharia_compliance_log_compliance_id_seq OWNED BY kastle_collection.sharia_compliance_log.compliance_id;
-
-
---
--- Name: user_role_assignments; Type: TABLE; Schema: kastle_collection; Owner: postgres
---
-
-CREATE TABLE kastle_collection.user_role_assignments (
+CREATE TABLE kastle_banking.user_role_assignments (
     assignment_id integer NOT NULL,
     user_id character varying NOT NULL,
     role_id integer NOT NULL,
@@ -6187,13 +6205,13 @@ CREATE TABLE kastle_collection.user_role_assignments (
 );
 
 
-ALTER TABLE kastle_collection.user_role_assignments OWNER TO postgres;
+ALTER TABLE kastle_banking.user_role_assignments OWNER TO postgres;
 
 --
--- Name: user_role_assignments_assignment_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
+-- Name: user_role_assignments_assignment_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq
+CREATE SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -6202,20 +6220,20 @@ CREATE SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq OWNER TO postgres;
+ALTER SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq OWNER TO postgres;
 
 --
--- Name: user_role_assignments_assignment_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
+-- Name: user_role_assignments_assignment_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq OWNED BY kastle_collection.user_role_assignments.assignment_id;
+ALTER SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq OWNED BY kastle_banking.user_role_assignments.assignment_id;
 
 
 --
--- Name: user_roles; Type: TABLE; Schema: kastle_collection; Owner: postgres
+-- Name: user_roles; Type: TABLE; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE TABLE kastle_collection.user_roles (
+CREATE TABLE kastle_banking.user_roles (
     role_id integer NOT NULL,
     role_name character varying NOT NULL,
     role_description text,
@@ -6225,13 +6243,13 @@ CREATE TABLE kastle_collection.user_roles (
 );
 
 
-ALTER TABLE kastle_collection.user_roles OWNER TO postgres;
+ALTER TABLE kastle_banking.user_roles OWNER TO postgres;
 
 --
--- Name: user_roles_role_id_seq; Type: SEQUENCE; Schema: kastle_collection; Owner: postgres
+-- Name: user_roles_role_id_seq; Type: SEQUENCE; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE SEQUENCE kastle_collection.user_roles_role_id_seq
+CREATE SEQUENCE kastle_banking.user_roles_role_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -6240,20 +6258,122 @@ CREATE SEQUENCE kastle_collection.user_roles_role_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE kastle_collection.user_roles_role_id_seq OWNER TO postgres;
+ALTER SEQUENCE kastle_banking.user_roles_role_id_seq OWNER TO postgres;
 
 --
--- Name: user_roles_role_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_collection; Owner: postgres
+-- Name: user_roles_role_id_seq; Type: SEQUENCE OWNED BY; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER SEQUENCE kastle_collection.user_roles_role_id_seq OWNED BY kastle_collection.user_roles.role_id;
+ALTER SEQUENCE kastle_banking.user_roles_role_id_seq OWNED BY kastle_banking.user_roles.role_id;
 
 
 --
--- Name: v_first_payment_defaults; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: v_behavioral_changes; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_first_payment_defaults AS
+CREATE VIEW kastle_banking.v_behavioral_changes AS
+ WITH recent_interactions AS (
+         SELECT ci.customer_id,
+            ci.interaction_type,
+            count(*) AS interaction_count,
+            max(ci.interaction_datetime) AS last_interaction
+           FROM kastle_banking.collection_interactions ci
+          WHERE (ci.interaction_datetime >= (CURRENT_DATE - '30 days'::interval))
+          GROUP BY ci.customer_id, ci.interaction_type
+        ), channel_changes AS (
+         SELECT recent_interactions.customer_id,
+            count(DISTINCT recent_interactions.interaction_type) AS channels_used,
+                CASE
+                    WHEN (count(DISTINCT recent_interactions.interaction_type) >= 3) THEN 'Channel switch'::text
+                    WHEN (max(recent_interactions.last_interaction) < (CURRENT_DATE - '15 days'::interval)) THEN 'Contact avoidance'::text
+                    ELSE 'Normal'::text
+                END AS change_type
+           FROM recent_interactions
+          GROUP BY recent_interactions.customer_id
+        )
+ SELECT cc.customer_id,
+    c.full_name AS customer_name,
+    cc.change_type,
+        CASE
+            WHEN (cc.change_type = 'Channel switch'::text) THEN 15
+            WHEN (cc.change_type = 'Contact avoidance'::text) THEN 25
+            ELSE 5
+        END AS risk_increase
+   FROM (channel_changes cc
+     JOIN kastle_banking.customers c ON (((cc.customer_id)::text = (c.customer_id)::text)))
+  WHERE (cc.change_type <> 'Normal'::text);
+
+
+ALTER VIEW kastle_banking.v_behavioral_changes OWNER TO postgres;
+
+--
+-- Name: v_early_warning_alerts; Type: VIEW; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE VIEW kastle_banking.v_early_warning_alerts AS
+ SELECT cc.case_id,
+    cc.case_number,
+    cc.customer_id,
+    c.full_name AS customer_name,
+    cc.account_number,
+    cc.priority AS alert_type,
+        CASE
+            WHEN (cc.days_past_due > 90) THEN 'Account showing severe delinquency'::text
+            WHEN (cc.total_outstanding > (1000000)::numeric) THEN 'Large corporate account showing stress signals'::text
+            WHEN (cc.days_past_due = 1) THEN 'First payment default pattern detected'::text
+            WHEN ((cc.priority)::text = 'HIGH'::text) THEN 'Multiple payment failures detected'::text
+            ELSE 'Account requires attention'::text
+        END AS message,
+    cc.created_at AS alert_time
+   FROM (kastle_banking.collection_cases cc
+     JOIN kastle_banking.customers c ON (((cc.customer_id)::text = (c.customer_id)::text)))
+  WHERE ((cc.created_at >= (CURRENT_TIMESTAMP - '24:00:00'::interval)) AND ((cc.case_status)::text = 'ACTIVE'::text))
+  ORDER BY cc.created_at DESC
+ LIMIT 50;
+
+
+ALTER VIEW kastle_banking.v_early_warning_alerts OWNER TO postgres;
+
+--
+-- Name: v_early_warning_summary; Type: VIEW; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE VIEW kastle_banking.v_early_warning_summary AS
+ SELECT count(DISTINCT case_id) AS total_alerts,
+    count(DISTINCT
+        CASE
+            WHEN ((priority)::text = 'CRITICAL'::text) THEN case_id
+            ELSE NULL::integer
+        END) AS critical_alerts,
+    count(DISTINCT
+        CASE
+            WHEN ((priority)::text = 'HIGH'::text) THEN case_id
+            ELSE NULL::integer
+        END) AS high_risk_accounts,
+    count(DISTINCT
+        CASE
+            WHEN ((priority)::text = 'MEDIUM'::text) THEN case_id
+            ELSE NULL::integer
+        END) AS medium_risk_accounts,
+    sum(total_outstanding) AS potential_loss,
+    count(DISTINCT customer_id) AS accounts_monitored,
+    count(DISTINCT
+        CASE
+            WHEN ((case_status)::text = 'RESOLVED'::text) THEN case_id
+            ELSE NULL::integer
+        END) AS alerts_resolved,
+    0 AS false_positives
+   FROM kastle_banking.collection_cases cc
+  WHERE (created_at >= (CURRENT_DATE - '30 days'::interval));
+
+
+ALTER VIEW kastle_banking.v_early_warning_summary OWNER TO postgres;
+
+--
+-- Name: v_first_payment_defaults; Type: VIEW; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE VIEW kastle_banking.v_first_payment_defaults AS
  SELECT la.loan_account_id,
     la.loan_account_number,
     la.customer_id,
@@ -6274,13 +6394,13 @@ CREATE VIEW kastle_collection.v_first_payment_defaults AS
   WHERE ((la.first_emi_date >= (CURRENT_DATE - '90 days'::interval)) AND (la.overdue_days > 0) AND ((la.loan_status)::text = 'ACTIVE'::text));
 
 
-ALTER VIEW kastle_collection.v_first_payment_defaults OWNER TO postgres;
+ALTER VIEW kastle_banking.v_first_payment_defaults OWNER TO postgres;
 
 --
--- Name: v_high_dti_customers; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: v_high_dti_customers; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_high_dti_customers AS
+CREATE VIEW kastle_banking.v_high_dti_customers AS
  WITH customer_debt AS (
          SELECT la.customer_id,
             sum(la.emi_amount) AS total_monthly_debt
@@ -6312,192 +6432,20 @@ CREATE VIEW kastle_collection.v_high_dti_customers AS
   WHERE ((c.annual_income > (0)::numeric) AND (((cd.total_monthly_debt * (12)::numeric) / c.annual_income) > 0.65));
 
 
-ALTER VIEW kastle_collection.v_high_dti_customers OWNER TO postgres;
+ALTER VIEW kastle_banking.v_high_dti_customers OWNER TO postgres;
 
 --
--- Name: v_multiple_loans_stress; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: v_industry_risk_analysis; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_multiple_loans_stress AS
- SELECT la.customer_id,
-    c.full_name AS customer_name,
-    count(DISTINCT la.loan_account_id) AS loan_count,
-    sum((la.outstanding_principal + la.outstanding_interest)) AS total_exposure,
-    avg((la.outstanding_principal + la.outstanding_interest)) AS avg_loan_size,
-    max(la.overdue_days) AS max_overdue_days,
-    sum(
-        CASE
-            WHEN (la.overdue_days > 0) THEN 1
-            ELSE 0
-        END) AS overdue_loans_count
-   FROM (kastle_banking.loan_accounts la
-     JOIN kastle_banking.customers c ON (((la.customer_id)::text = (c.customer_id)::text)))
-  WHERE ((la.loan_status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'RESTRUCTURED'::character varying])::text[]))
-  GROUP BY la.customer_id, c.full_name
- HAVING (count(DISTINCT la.loan_account_id) >= 2);
-
-
-ALTER VIEW kastle_collection.v_multiple_loans_stress OWNER TO postgres;
-
---
--- Name: v_actionable_insights; Type: VIEW; Schema: kastle_collection; Owner: postgres
---
-
-CREATE VIEW kastle_collection.v_actionable_insights AS
- WITH risk_segments AS (
-         SELECT 'First payment defaults'::text AS insight_type,
-            'CRITICAL'::text AS priority,
-            count(*) AS account_count,
-            sum(v_first_payment_defaults.total_outstanding) AS potential_loss,
-            'Immediate contact required within 24 hours'::text AS recommendation
-           FROM kastle_collection.v_first_payment_defaults
-        UNION ALL
-         SELECT 'Multiple loans showing stress'::text AS insight_type,
-            'HIGH'::text AS priority,
-            count(*) AS account_count,
-            sum(v_multiple_loans_stress.total_exposure) AS potential_loss,
-            'Consider restructuring options proactively'::text AS recommendation
-           FROM kastle_collection.v_multiple_loans_stress
-          WHERE (v_multiple_loans_stress.overdue_loans_count > 0)
-        UNION ALL
-         SELECT 'High DTI customers'::text AS insight_type,
-            'MEDIUM'::text AS priority,
-            count(*) AS account_count,
-            sum((v_high_dti_customers.total_monthly_debt * (12)::numeric)) AS potential_loss,
-            'Review credit limits and monitor closely'::text AS recommendation
-           FROM kastle_collection.v_high_dti_customers
-        )
- SELECT insight_type,
-    priority,
-    ((account_count || ' accounts showing '::text) || insight_type) AS insight,
-    recommendation,
-    (potential_loss * 0.3) AS potential_saving
-   FROM risk_segments
-  ORDER BY
-        CASE priority
-            WHEN 'CRITICAL'::text THEN 1
-            WHEN 'HIGH'::text THEN 2
-            WHEN 'MEDIUM'::text THEN 3
-            ELSE 4
-        END;
-
-
-ALTER VIEW kastle_collection.v_actionable_insights OWNER TO postgres;
-
---
--- Name: v_behavioral_changes; Type: VIEW; Schema: kastle_collection; Owner: postgres
---
-
-CREATE VIEW kastle_collection.v_behavioral_changes AS
- WITH recent_interactions AS (
-         SELECT ci.customer_id,
-            ci.interaction_type,
-            count(*) AS interaction_count,
-            max(ci.interaction_datetime) AS last_interaction
-           FROM kastle_collection.collection_interactions ci
-          WHERE (ci.interaction_datetime >= (CURRENT_DATE - '30 days'::interval))
-          GROUP BY ci.customer_id, ci.interaction_type
-        ), channel_changes AS (
-         SELECT recent_interactions.customer_id,
-            count(DISTINCT recent_interactions.interaction_type) AS channels_used,
-                CASE
-                    WHEN (count(DISTINCT recent_interactions.interaction_type) >= 3) THEN 'Channel switch'::text
-                    WHEN (max(recent_interactions.last_interaction) < (CURRENT_DATE - '15 days'::interval)) THEN 'Contact avoidance'::text
-                    ELSE 'Normal'::text
-                END AS change_type
-           FROM recent_interactions
-          GROUP BY recent_interactions.customer_id
-        )
- SELECT cc.customer_id,
-    c.full_name AS customer_name,
-    cc.change_type,
-        CASE
-            WHEN (cc.change_type = 'Channel switch'::text) THEN 15
-            WHEN (cc.change_type = 'Contact avoidance'::text) THEN 25
-            ELSE 5
-        END AS risk_increase
-   FROM (channel_changes cc
-     JOIN kastle_banking.customers c ON (((cc.customer_id)::text = (c.customer_id)::text)))
-  WHERE (cc.change_type <> 'Normal'::text);
-
-
-ALTER VIEW kastle_collection.v_behavioral_changes OWNER TO postgres;
-
---
--- Name: v_early_warning_alerts; Type: VIEW; Schema: kastle_collection; Owner: postgres
---
-
-CREATE VIEW kastle_collection.v_early_warning_alerts AS
- SELECT cc.case_id,
-    cc.case_number,
-    cc.customer_id,
-    c.full_name AS customer_name,
-    cc.account_number,
-    cc.priority AS alert_type,
-        CASE
-            WHEN (cc.days_past_due > 90) THEN 'Account showing severe delinquency'::text
-            WHEN (cc.total_outstanding > (1000000)::numeric) THEN 'Large corporate account showing stress signals'::text
-            WHEN (cc.days_past_due = 1) THEN 'First payment default pattern detected'::text
-            WHEN ((cc.priority)::text = 'HIGH'::text) THEN 'Multiple payment failures detected'::text
-            ELSE 'Account requires attention'::text
-        END AS message,
-    cc.created_at AS alert_time
-   FROM (kastle_banking.collection_cases cc
-     JOIN kastle_banking.customers c ON (((cc.customer_id)::text = (c.customer_id)::text)))
-  WHERE ((cc.created_at >= (CURRENT_TIMESTAMP - '24:00:00'::interval)) AND ((cc.case_status)::text = 'ACTIVE'::text))
-  ORDER BY cc.created_at DESC
- LIMIT 50;
-
-
-ALTER VIEW kastle_collection.v_early_warning_alerts OWNER TO postgres;
-
---
--- Name: v_early_warning_summary; Type: VIEW; Schema: kastle_collection; Owner: postgres
---
-
-CREATE VIEW kastle_collection.v_early_warning_summary AS
- SELECT count(DISTINCT case_id) AS total_alerts,
-    count(DISTINCT
-        CASE
-            WHEN ((priority)::text = 'CRITICAL'::text) THEN case_id
-            ELSE NULL::integer
-        END) AS critical_alerts,
-    count(DISTINCT
-        CASE
-            WHEN ((priority)::text = 'HIGH'::text) THEN case_id
-            ELSE NULL::integer
-        END) AS high_risk_accounts,
-    count(DISTINCT
-        CASE
-            WHEN ((priority)::text = 'MEDIUM'::text) THEN case_id
-            ELSE NULL::integer
-        END) AS medium_risk_accounts,
-    sum(total_outstanding) AS potential_loss,
-    count(DISTINCT customer_id) AS accounts_monitored,
-    count(DISTINCT
-        CASE
-            WHEN ((case_status)::text = 'RESOLVED'::text) THEN case_id
-            ELSE NULL::integer
-        END) AS alerts_resolved,
-    0 AS false_positives
-   FROM kastle_banking.collection_cases cc
-  WHERE (created_at >= (CURRENT_DATE - '30 days'::interval));
-
-
-ALTER VIEW kastle_collection.v_early_warning_summary OWNER TO postgres;
-
---
--- Name: v_industry_risk_analysis; Type: VIEW; Schema: kastle_collection; Owner: postgres
---
-
-CREATE VIEW kastle_collection.v_industry_risk_analysis AS
+CREATE VIEW kastle_banking.v_industry_risk_analysis AS
  SELECT c.occupation AS sector,
     count(DISTINCT la.loan_account_id) AS accounts,
     sum((la.outstanding_principal + la.outstanding_interest)) AS exposure,
     avg(la.overdue_days) AS avg_overdue_days,
         CASE
-            WHEN ((c.occupation)::text = ANY ((ARRAY['Construction'::character varying, 'Tourism'::character varying, 'Retail'::character varying])::text[])) THEN 'HIGH'::text
-            WHEN ((c.occupation)::text = ANY ((ARRAY['Technology'::character varying, 'Healthcare'::character varying])::text[])) THEN 'LOW'::text
+            WHEN ((c.occupation)::text = ANY (ARRAY[('Construction'::character varying)::text, ('Tourism'::character varying)::text, ('Retail'::character varying)::text])) THEN 'HIGH'::text
+            WHEN ((c.occupation)::text = ANY (ARRAY[('Technology'::character varying)::text, ('Healthcare'::character varying)::text])) THEN 'LOW'::text
             ELSE 'MEDIUM'::text
         END AS risk_level
    FROM (kastle_banking.loan_accounts la
@@ -6506,13 +6454,13 @@ CREATE VIEW kastle_collection.v_industry_risk_analysis AS
   GROUP BY c.occupation;
 
 
-ALTER VIEW kastle_collection.v_industry_risk_analysis OWNER TO postgres;
+ALTER VIEW kastle_banking.v_industry_risk_analysis OWNER TO postgres;
 
 --
--- Name: v_irregular_payment_patterns; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: v_irregular_payment_patterns; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_irregular_payment_patterns AS
+CREATE VIEW kastle_banking.v_irregular_payment_patterns AS
  WITH payment_history AS (
          SELECT t.account_number,
             a.customer_id,
@@ -6555,13 +6503,13 @@ CREATE VIEW kastle_collection.v_irregular_payment_patterns AS
   WHERE (pv.amount_variance > (pv.avg_monthly_payment * 0.2));
 
 
-ALTER VIEW kastle_collection.v_irregular_payment_patterns OWNER TO postgres;
+ALTER VIEW kastle_banking.v_irregular_payment_patterns OWNER TO postgres;
 
 --
--- Name: v_loan_installment_details; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: v_loan_installment_details; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_loan_installment_details AS
+CREATE VIEW kastle_banking.v_loan_installment_details AS
  SELECT la.loan_account_id,
     la.loan_account_number,
     la.customer_id,
@@ -6601,13 +6549,38 @@ CREATE VIEW kastle_collection.v_loan_installment_details AS
      LEFT JOIN kastle_banking.customer_types ct ON ((c.customer_type_id = ct.type_id)));
 
 
-ALTER VIEW kastle_collection.v_loan_installment_details OWNER TO postgres;
+ALTER VIEW kastle_banking.v_loan_installment_details OWNER TO postgres;
 
 --
--- Name: v_officer_communication_summary; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: v_multiple_loans_stress; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_officer_communication_summary AS
+CREATE VIEW kastle_banking.v_multiple_loans_stress AS
+ SELECT la.customer_id,
+    c.full_name AS customer_name,
+    count(DISTINCT la.loan_account_id) AS loan_count,
+    sum((la.outstanding_principal + la.outstanding_interest)) AS total_exposure,
+    avg((la.outstanding_principal + la.outstanding_interest)) AS avg_loan_size,
+    max(la.overdue_days) AS max_overdue_days,
+    sum(
+        CASE
+            WHEN (la.overdue_days > 0) THEN 1
+            ELSE 0
+        END) AS overdue_loans_count
+   FROM (kastle_banking.loan_accounts la
+     JOIN kastle_banking.customers c ON (((la.customer_id)::text = (c.customer_id)::text)))
+  WHERE ((la.loan_status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('RESTRUCTURED'::character varying)::text]))
+  GROUP BY la.customer_id, c.full_name
+ HAVING (count(DISTINCT la.loan_account_id) >= 2);
+
+
+ALTER VIEW kastle_banking.v_multiple_loans_stress OWNER TO postgres;
+
+--
+-- Name: v_officer_communication_summary; Type: VIEW; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE VIEW kastle_banking.v_officer_communication_summary AS
  WITH monthly_calls AS (
          SELECT ci.officer_id,
             ci.case_id,
@@ -6620,7 +6593,7 @@ CREATE VIEW kastle_collection.v_officer_communication_summary AS
                 END) AS calls_count,
             count(
                 CASE
-                    WHEN ((ci.interaction_type)::text = ANY ((ARRAY['SMS'::character varying, 'EMAIL'::character varying, 'WHATSAPP'::character varying])::text[])) THEN 1
+                    WHEN ((ci.interaction_type)::text = ANY (ARRAY[('SMS'::character varying)::text, ('EMAIL'::character varying)::text, ('WHATSAPP'::character varying)::text])) THEN 1
                     ELSE NULL::integer
                 END) AS messages_count,
             max(
@@ -6634,7 +6607,7 @@ CREATE VIEW kastle_collection.v_officer_communication_summary AS
                     ELSE NULL::character varying
                 END)::text) AS last_call_outcome,
             max(ci.interaction_datetime) AS last_contact_date
-           FROM kastle_collection.collection_interactions ci
+           FROM kastle_banking.collection_interactions ci
           GROUP BY ci.officer_id, ci.case_id, ci.customer_id, (date_trunc('month'::text, ci.interaction_datetime))
         )
  SELECT officer_id,
@@ -6657,13 +6630,13 @@ CREATE VIEW kastle_collection.v_officer_communication_summary AS
    FROM monthly_calls mc;
 
 
-ALTER VIEW kastle_collection.v_officer_communication_summary OWNER TO postgres;
+ALTER VIEW kastle_banking.v_officer_communication_summary OWNER TO postgres;
 
 --
--- Name: v_risk_score_trend; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: v_risk_score_trend; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_risk_score_trend AS
+CREATE VIEW kastle_banking.v_risk_score_trend AS
  WITH monthly_risk AS (
          SELECT date_trunc('month'::text, cc.created_at) AS month,
                 CASE
@@ -6711,70 +6684,45 @@ CREATE VIEW kastle_collection.v_risk_score_trend AS
   ORDER BY month;
 
 
-ALTER VIEW kastle_collection.v_risk_score_trend OWNER TO postgres;
+ALTER VIEW kastle_banking.v_risk_score_trend OWNER TO postgres;
 
 --
--- Name: v_specialist_loan_portfolio; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: vw_customer_dashboard; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.v_specialist_loan_portfolio AS
- SELECT cc.case_id,
-    cc.case_number,
-    cc.customer_id,
-    cc.loan_account_number,
-    cc.account_number,
-    cc.total_outstanding,
-    cc.principal_outstanding,
-    cc.interest_outstanding,
-    cc.penalty_outstanding,
-    cc.days_past_due,
-    cc.case_status,
-    cc.assigned_to AS officer_id,
-    cc.priority,
-    cc.created_at AS case_created_at,
-    co.officer_name,
-    co.officer_type,
-    co.team_id,
-    ld.loan_account_id,
-    ld.principal_amount AS loan_amount,
-    ld.paid_amount,
-    ld.due_amount,
-    ld.not_due_amount,
-    ld.overdue_days,
-    ld.delinquency_bucket,
-    ld.disbursement_date,
-    ld.maturity_date,
-    ld.loan_status,
-    ld.product_name,
-    ld.product_type,
-    ld.customer_name,
-    ld.customer_type,
-    cs.calls_this_month,
-    cs.messages_this_month,
-    cs.last_contact_date,
-    cs.last_call_outcome,
-    ptp.ptp_amount,
-    ptp.ptp_date,
-    ptp.status AS ptp_status,
+CREATE VIEW kastle_banking.vw_customer_dashboard AS
+ SELECT c.customer_id,
+    c.full_name,
+    c.customer_segment AS segment,
+    count(DISTINCT a.account_number) AS total_accounts,
+    count(DISTINCT la.loan_account_number) AS total_loans,
+    sum(
         CASE
-            WHEN (ptp.ptp_id IS NOT NULL) THEN true
-            ELSE false
-        END AS has_promise_to_pay
-   FROM ((((kastle_banking.collection_cases cc
-     LEFT JOIN kastle_collection.collection_officers co ON (((cc.assigned_to)::text = (co.officer_id)::text)))
-     LEFT JOIN kastle_collection.v_loan_installment_details ld ON (((cc.loan_account_number)::text = (ld.loan_account_number)::text)))
-     LEFT JOIN kastle_collection.v_officer_communication_summary cs ON ((((cc.assigned_to)::text = (cs.officer_id)::text) AND (cc.case_id = cs.case_id) AND (cs.month = date_trunc('month'::text, (CURRENT_DATE)::timestamp with time zone)))))
-     LEFT JOIN kastle_collection.promise_to_pay ptp ON (((cc.case_id = ptp.case_id) AND ((ptp.status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'PENDING'::character varying])::text[])))))
-  WHERE ((cc.case_status)::text <> 'CLOSED'::text);
+            WHEN ((at.account_category)::text = ANY (ARRAY[('SAVINGS'::character varying)::text, ('CURRENT'::character varying)::text])) THEN a.current_balance
+            ELSE (0)::numeric
+        END) AS total_deposits,
+    sum(
+        CASE
+            WHEN ((la.loan_status)::text = 'ACTIVE'::text) THEN la.outstanding_principal
+            ELSE (0)::numeric
+        END) AS total_loans_outstanding,
+    max(t.transaction_date) AS last_transaction_date
+   FROM ((((kastle_banking.customers c
+     LEFT JOIN kastle_banking.accounts a ON (((c.customer_id)::text = (a.customer_id)::text)))
+     LEFT JOIN kastle_banking.account_types at ON ((a.account_type_id = at.type_id)))
+     LEFT JOIN kastle_banking.loan_accounts la ON (((c.customer_id)::text = (la.customer_id)::text)))
+     LEFT JOIN kastle_banking.transactions t ON (((a.account_number)::text = (t.account_number)::text)))
+  WHERE ((c.customer_id)::text = (kastle_banking.get_current_customer_id())::text)
+  GROUP BY c.customer_id, c.full_name, c.customer_segment;
 
 
-ALTER VIEW kastle_collection.v_specialist_loan_portfolio OWNER TO postgres;
+ALTER VIEW kastle_banking.vw_customer_dashboard OWNER TO postgres;
 
 --
--- Name: vw_daily_collection_dashboard; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: vw_daily_collection_dashboard; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.vw_daily_collection_dashboard AS
+CREATE VIEW kastle_banking.vw_daily_collection_dashboard AS
  SELECT d.summary_date,
     d.branch_id,
     b.branch_name,
@@ -6792,40 +6740,17 @@ CREATE VIEW kastle_collection.vw_daily_collection_dashboard AS
             WHEN (d.collection_rate >= (15)::numeric) THEN 'AVERAGE'::text
             ELSE 'POOR'::text
         END AS performance_status
-   FROM (kastle_collection.daily_collection_summary d
+   FROM (kastle_banking.daily_collection_summary d
      JOIN kastle_banking.branches b ON (((d.branch_id)::text = (b.branch_id)::text)));
 
 
-ALTER VIEW kastle_collection.vw_daily_collection_dashboard OWNER TO postgres;
+ALTER VIEW kastle_banking.vw_daily_collection_dashboard OWNER TO postgres;
 
 --
--- Name: vw_officer_performance; Type: VIEW; Schema: kastle_collection; Owner: postgres
+-- Name: vw_portfolio_aging; Type: VIEW; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE VIEW kastle_collection.vw_officer_performance AS
- SELECT o.officer_id,
-    o.officer_name,
-    o.team_id,
-    t.team_name,
-    date_trunc('month'::text, (m.metric_date)::timestamp with time zone) AS month,
-    sum(m.accounts_worked) AS total_accounts_worked,
-    sum(m.amount_collected) AS total_collected,
-    avg(m.ptps_kept_rate) AS avg_ptp_kept_rate,
-    avg(m.quality_score) AS avg_quality_score,
-    sum(m.customer_complaints) AS total_complaints
-   FROM ((kastle_collection.collection_officers o
-     JOIN kastle_collection.collection_teams t ON ((o.team_id = t.team_id)))
-     LEFT JOIN kastle_collection.officer_performance_metrics m ON (((o.officer_id)::text = (m.officer_id)::text)))
-  GROUP BY o.officer_id, o.officer_name, o.team_id, t.team_name, (date_trunc('month'::text, (m.metric_date)::timestamp with time zone));
-
-
-ALTER VIEW kastle_collection.vw_officer_performance OWNER TO postgres;
-
---
--- Name: vw_portfolio_aging; Type: VIEW; Schema: kastle_collection; Owner: postgres
---
-
-CREATE VIEW kastle_collection.vw_portfolio_aging AS
+CREATE VIEW kastle_banking.vw_portfolio_aging AS
  SELECT cb.bucket_name,
     cb.min_dpd,
     cb.max_dpd,
@@ -6844,868 +6769,31 @@ CREATE VIEW kastle_collection.vw_portfolio_aging AS
   ORDER BY cb.min_dpd;
 
 
-ALTER VIEW kastle_collection.vw_portfolio_aging OWNER TO postgres;
-
---
--- Name: aging_distribution; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.aging_distribution AS
- SELECT bucket_name,
-    display_order,
-    amount,
-    count,
-    percentage
-   FROM ( VALUES ('Current'::text,1,(1875000000)::numeric,(8500)::bigint,75.0), ('1-30 Days'::text,2,(250000000)::numeric,(1200)::bigint,10.0), ('31-60 Days'::text,3,(150000000)::numeric,(800)::bigint,6.0), ('61-90 Days'::text,4,(100000000)::numeric,(500)::bigint,4.0), ('91-180 Days'::text,5,(75000000)::numeric,(300)::bigint,3.0), ('181-365 Days'::text,6,(35000000)::numeric,(150)::bigint,1.4), ('Over 365 Days'::text,7,(15000000)::numeric,(50)::bigint,0.6)) t(bucket_name, display_order, amount, count, percentage);
-
-
-ALTER VIEW public.aging_distribution OWNER TO postgres;
-
---
--- Name: collection_cases; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.collection_cases (
-    case_id integer NOT NULL,
-    case_number character varying DEFAULT ((('COLL'::text || to_char(now(), 'YYYYMMDD'::text)) || '_'::text) || substr(md5((random())::text), 1, 8)) NOT NULL,
-    customer_id character varying,
-    loan_account_number character varying,
-    officer_id character varying,
-    loan_amount numeric(15,2),
-    outstanding_balance numeric(15,2),
-    overdue_amount numeric(15,2),
-    overdue_days integer DEFAULT 0,
-    delinquency_bucket character varying,
-    priority_level character varying,
-    loan_status character varying,
-    product_type character varying,
-    last_payment_date date,
-    last_payment_amount numeric(15,2),
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT collection_cases_loan_status_check CHECK (((loan_status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'RESOLVED'::character varying, 'LEGAL'::character varying, 'WRITTEN_OFF'::character varying, 'SETTLED'::character varying, 'CLOSED'::character varying])::text[]))),
-    CONSTRAINT collection_cases_priority_level_check CHECK (((priority_level)::text = ANY ((ARRAY['LOW'::character varying, 'MEDIUM'::character varying, 'HIGH'::character varying, 'CRITICAL'::character varying])::text[])))
-);
-
-
-ALTER TABLE public.collection_cases OWNER TO postgres;
-
---
--- Name: collection_cases_case_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public.collection_cases_case_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.collection_cases_case_id_seq OWNER TO postgres;
-
---
--- Name: collection_cases_case_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public.collection_cases_case_id_seq OWNED BY public.collection_cases.case_id;
-
-
---
--- Name: collection_interactions; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.collection_interactions (
-    interaction_id integer NOT NULL,
-    case_id integer,
-    officer_id character varying,
-    interaction_type character varying,
-    interaction_datetime timestamp with time zone,
-    response_received boolean DEFAULT false,
-    notes text,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT collection_interactions_interaction_type_check CHECK (((interaction_type)::text = ANY ((ARRAY['CALL'::character varying, 'SMS'::character varying, 'EMAIL'::character varying, 'VISIT'::character varying, 'LETTER'::character varying])::text[])))
-);
-
-
-ALTER TABLE public.collection_interactions OWNER TO postgres;
-
---
--- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public.collection_interactions_interaction_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.collection_interactions_interaction_id_seq OWNER TO postgres;
-
---
--- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public.collection_interactions_interaction_id_seq OWNED BY public.collection_interactions.interaction_id;
-
-
---
--- Name: collection_officers; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.collection_officers (
-    officer_id character varying NOT NULL,
-    full_name character varying NOT NULL,
-    email character varying,
-    mobile_number character varying,
-    department character varying,
-    status character varying,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT collection_officers_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying, 'ON_LEAVE'::character varying])::text[])))
-);
-
-
-ALTER TABLE public.collection_officers OWNER TO postgres;
-
---
--- Name: collection_rates; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.collection_rates AS
- SELECT date_trunc('month'::text, (CURRENT_DATE - ('1 mon'::interval * (n)::double precision))) AS period_date,
-    'MONTHLY'::text AS period_type,
-    (((40000000)::double precision + (random() * (10000000)::double precision)))::numeric AS collection_amount,
-    (((35)::double precision + (random() * (10)::double precision)))::numeric AS collection_rate,
-    (((85)::double precision + (random() * (10)::double precision)))::numeric AS recovery_rate
-   FROM generate_series(0, 11) s(n)
-  ORDER BY (date_trunc('month'::text, (CURRENT_DATE - ('1 mon'::interval * (n)::double precision)))) DESC;
-
-
-ALTER VIEW public.collection_rates OWNER TO postgres;
-
---
--- Name: customers; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.customers (
-    customer_id character varying NOT NULL,
-    full_name character varying NOT NULL,
-    national_id character varying,
-    mobile_number character varying,
-    email character varying,
-    address text,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
-ALTER TABLE public.customers OWNER TO postgres;
-
---
--- Name: executive_delinquency_summary; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.executive_delinquency_summary AS
- SELECT CURRENT_DATE AS snapshot_date,
-    ('2500000000'::bigint)::numeric AS total_portfolio_value,
-    (125000000)::numeric AS delinquent_amount,
-    5.0 AS delinquency_rate,
-    (45000000)::numeric AS collection_amount_mtd,
-    36.0 AS recovery_rate,
-    (1234)::bigint AS active_cases,
-    5.5 AS prev_delinquency_rate,
-    34.0 AS prev_recovery_rate,
-    (42000000)::numeric AS prev_collection_amount;
-
-
-ALTER VIEW public.executive_delinquency_summary OWNER TO postgres;
-
---
--- Name: kastle_banking.account_types; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.account_types" AS
- SELECT type_id,
-    type_code,
-    type_name,
-    account_category,
-    description
-   FROM kastle_banking.account_types;
-
-
-ALTER VIEW public."kastle_banking.account_types" OWNER TO postgres;
-
---
--- Name: kastle_banking.accounts; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.accounts" AS
- SELECT account_id,
-    account_number,
-    customer_id,
-    account_type_id,
-    product_id,
-    branch_id,
-    currency_code,
-    account_status,
-    opening_date,
-    closing_date,
-    current_balance,
-    available_balance,
-    hold_amount,
-    unclear_balance,
-    minimum_balance,
-    overdraft_limit,
-    interest_rate,
-    last_transaction_date,
-    maturity_date,
-    joint_holder_ids,
-    nominee_details,
-    is_salary_account,
-    is_minor_account,
-    guardian_id,
-    created_at,
-    updated_at
-   FROM kastle_banking.accounts;
-
-
-ALTER VIEW public."kastle_banking.accounts" OWNER TO postgres;
-
---
--- Name: kastle_banking.audit_trail; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.audit_trail" AS
- SELECT audit_id,
-    table_name,
-    record_id,
-    action,
-    user_id,
-    auth_user_id,
-    user_ip,
-    old_values,
-    new_values,
-    action_timestamp,
-    session_id,
-    remarks
-   FROM kastle_banking.audit_trail;
-
-
-ALTER VIEW public."kastle_banking.audit_trail" OWNER TO postgres;
-
---
--- Name: kastle_banking.auth_user_profiles; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.auth_user_profiles" AS
- SELECT id,
-    auth_user_id,
-    bank_user_id,
-    customer_id,
-    user_type,
-    created_at,
-    updated_at
-   FROM kastle_banking.auth_user_profiles;
-
-
-ALTER VIEW public."kastle_banking.auth_user_profiles" OWNER TO postgres;
-
---
--- Name: kastle_banking.bank_config; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.bank_config" AS
- SELECT config_id,
-    bank_code,
-    bank_name,
-    head_office_address,
-    swift_code,
-    routing_number,
-    regulatory_license,
-    fiscal_year_start,
-    created_at,
-    updated_at
-   FROM kastle_banking.bank_config;
-
-
-ALTER VIEW public."kastle_banking.bank_config" OWNER TO postgres;
-
---
--- Name: kastle_banking.branches; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.branches" AS
- SELECT branch_id,
-    branch_name,
-    branch_type,
-    address,
-    city,
-    state,
-    country_code,
-    postal_code,
-    phone,
-    email,
-    manager_id,
-    opening_date,
-    is_active,
-    created_at,
-    updated_at
-   FROM kastle_banking.branches;
-
-
-ALTER VIEW public."kastle_banking.branches" OWNER TO postgres;
-
---
--- Name: kastle_banking.collection_buckets; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.collection_buckets" AS
- SELECT bucket_id,
-    bucket_code,
-    bucket_name,
-    min_dpd,
-    max_dpd,
-    priority_level,
-    collection_strategy,
-    description,
-    is_active,
-    created_at
-   FROM kastle_banking.collection_buckets;
-
-
-ALTER VIEW public."kastle_banking.collection_buckets" OWNER TO postgres;
-
---
--- Name: kastle_banking.collection_cases; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.collection_cases" AS
- SELECT case_id,
-    case_number,
-    customer_id,
-    account_number,
-    account_type,
-    loan_account_number,
-    card_number,
-    bucket_id,
-    total_outstanding,
-    principal_outstanding,
-    interest_outstanding,
-    penalty_outstanding,
-    other_charges,
-    days_past_due,
-    last_payment_date,
-    last_payment_amount,
-    case_status,
-    assigned_to,
-    assignment_date,
-    priority,
-    branch_id,
-    created_at,
-    updated_at
-   FROM kastle_banking.collection_cases;
-
-
-ALTER VIEW public."kastle_banking.collection_cases" OWNER TO postgres;
-
---
--- Name: kastle_banking.countries; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.countries" AS
- SELECT country_code,
-    country_name,
-    iso_code,
-    currency_code,
-    is_active,
-    created_at,
-    updated_at
-   FROM kastle_banking.countries;
-
-
-ALTER VIEW public."kastle_banking.countries" OWNER TO postgres;
-
---
--- Name: kastle_banking.currencies; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.currencies" AS
- SELECT currency_code,
-    currency_name,
-    currency_symbol,
-    decimal_places,
-    is_active,
-    created_at
-   FROM kastle_banking.currencies;
-
-
-ALTER VIEW public."kastle_banking.currencies" OWNER TO postgres;
-
---
--- Name: kastle_banking.customer_addresses; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.customer_addresses" AS
- SELECT address_id,
-    customer_id,
-    address_type,
-    address_line1,
-    address_line2,
-    city,
-    state,
-    country_code,
-    postal_code,
-    is_primary,
-    created_at,
-    updated_at
-   FROM kastle_banking.customer_addresses;
-
-
-ALTER VIEW public."kastle_banking.customer_addresses" OWNER TO postgres;
-
---
--- Name: kastle_banking.customer_contacts; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.customer_contacts" AS
- SELECT contact_id,
-    customer_id,
-    contact_type,
-    contact_value,
-    is_primary,
-    is_verified,
-    verified_date,
-    created_at
-   FROM kastle_banking.customer_contacts;
-
-
-ALTER VIEW public."kastle_banking.customer_contacts" OWNER TO postgres;
-
---
--- Name: kastle_banking.customer_documents; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.customer_documents" AS
- SELECT document_id,
-    customer_id,
-    document_type,
-    document_number,
-    issuing_authority,
-    issue_date,
-    expiry_date,
-    document_path,
-    document_url,
-    bucket_name,
-    verification_status,
-    verified_by,
-    verified_date,
-    created_at
-   FROM kastle_banking.customer_documents;
-
-
-ALTER VIEW public."kastle_banking.customer_documents" OWNER TO postgres;
-
---
--- Name: kastle_banking.customer_types; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.customer_types" AS
- SELECT type_id,
-    type_code,
-    type_name,
-    description
-   FROM kastle_banking.customer_types;
-
-
-ALTER VIEW public."kastle_banking.customer_types" OWNER TO postgres;
-
---
--- Name: kastle_banking.customers; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.customers" AS
- SELECT customer_id,
-    auth_user_id,
-    customer_type_id,
-    first_name,
-    middle_name,
-    last_name,
-    full_name,
-    gender,
-    date_of_birth,
-    nationality,
-    marital_status,
-    education_level,
-    occupation,
-    annual_income,
-    income_source,
-    tax_id,
-    employer_name,
-    employment_type,
-    preferred_language,
-    segment,
-    relationship_manager,
-    onboarding_branch,
-    onboarding_date,
-    kyc_status,
-    risk_category,
-    is_active,
-    is_pep,
-    created_at,
-    updated_at
-   FROM kastle_banking.customers;
-
-
-ALTER VIEW public."kastle_banking.customers" OWNER TO postgres;
-
---
--- Name: kastle_banking.loan_accounts; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.loan_accounts" AS
- SELECT loan_account_id,
-    loan_account_number,
-    application_id,
-    customer_id,
-    product_id,
-    principal_amount,
-    interest_rate,
-    tenure_months,
-    emi_amount,
-    disbursement_date,
-    first_emi_date,
-    maturity_date,
-    outstanding_principal,
-    outstanding_interest,
-    total_interest_paid,
-    total_principal_paid,
-    overdue_amount,
-    overdue_days,
-    loan_status,
-    npa_date,
-    settlement_amount,
-    settlement_date,
-    created_at,
-    updated_at,
-    outstanding_balance
-   FROM kastle_banking.loan_accounts;
-
-
-ALTER VIEW public."kastle_banking.loan_accounts" OWNER TO postgres;
-
---
--- Name: kastle_banking.loan_applications; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.loan_applications" AS
- SELECT application_id,
-    application_number,
-    customer_id,
-    product_id,
-    requested_amount,
-    approved_amount,
-    tenure_months,
-    interest_rate,
-    purpose,
-    collateral_details,
-    guarantor_details,
-    application_date,
-    application_status,
-    rejection_reason,
-    credit_score,
-    risk_rating,
-    processing_fee,
-    insurance_premium,
-    branch_id,
-    relationship_officer,
-    created_at,
-    updated_at
-   FROM kastle_banking.loan_applications;
-
-
-ALTER VIEW public."kastle_banking.loan_applications" OWNER TO postgres;
-
---
--- Name: kastle_banking.product_categories; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.product_categories" AS
- SELECT category_id,
-    category_code,
-    category_name,
-    category_type,
-    description,
-    is_active,
-    created_at
-   FROM kastle_banking.product_categories;
-
-
-ALTER VIEW public."kastle_banking.product_categories" OWNER TO postgres;
-
---
--- Name: kastle_banking.products; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.products" AS
- SELECT product_id,
-    product_code,
-    product_name,
-    category_id,
-    product_type,
-    min_balance,
-    max_balance,
-    interest_rate,
-    tenure_months,
-    features,
-    eligibility_criteria,
-    documents_required,
-    is_active,
-    launch_date,
-    end_date,
-    created_at,
-    updated_at
-   FROM kastle_banking.products;
-
-
-ALTER VIEW public."kastle_banking.products" OWNER TO postgres;
-
---
--- Name: kastle_banking.realtime_notifications; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.realtime_notifications" AS
- SELECT id,
-    customer_id,
-    notification_type,
-    title,
-    message,
-    data,
-    is_read,
-    created_at
-   FROM kastle_banking.realtime_notifications;
-
-
-ALTER VIEW public."kastle_banking.realtime_notifications" OWNER TO postgres;
-
---
--- Name: kastle_banking.transaction_types; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.transaction_types" AS
- SELECT type_id,
-    type_code,
-    type_name,
-    transaction_category,
-    affects_balance,
-    requires_approval,
-    min_amount,
-    max_amount,
-    charge_applicable
-   FROM kastle_banking.transaction_types;
-
-
-ALTER VIEW public."kastle_banking.transaction_types" OWNER TO postgres;
-
---
--- Name: kastle_banking.transactions; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public."kastle_banking.transactions" AS
- SELECT transaction_id,
-    transaction_ref,
-    transaction_date,
-    value_date,
-    account_number,
-    transaction_type_id,
-    debit_credit,
-    transaction_amount,
-    currency_code,
-    running_balance,
-    contra_account,
-    channel,
-    reference_number,
-    cheque_number,
-    narration,
-    beneficiary_name,
-    beneficiary_account,
-    beneficiary_bank,
-    status,
-    approval_status,
-    approved_by,
-    reversal_ref,
-    branch_id,
-    teller_id,
-    device_id,
-    ip_address,
-    created_at,
-    posted_at
-   FROM kastle_banking.transactions;
-
-
-ALTER VIEW public."kastle_banking.transactions" OWNER TO postgres;
-
---
--- Name: officer_performance_summary; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.officer_performance_summary (
-    summary_id uuid DEFAULT gen_random_uuid() NOT NULL,
-    officer_id character varying(50) NOT NULL,
-    summary_date date NOT NULL,
-    total_cases integer DEFAULT 0,
-    total_calls integer DEFAULT 0,
-    total_messages integer DEFAULT 0,
-    total_ptps integer DEFAULT 0,
-    ptps_kept integer DEFAULT 0,
-    collection_amount numeric(15,2) DEFAULT 0,
-    collection_rate numeric(5,2) DEFAULT 0,
-    contact_rate numeric(5,2) DEFAULT 0,
-    ptp_keep_rate numeric(5,2) DEFAULT 0,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
-ALTER TABLE public.officer_performance_summary OWNER TO postgres;
-
---
--- Name: payments; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.payments (
-    payment_id integer NOT NULL,
-    case_id integer,
-    payment_date date NOT NULL,
-    payment_amount numeric(15,2) NOT NULL,
-    payment_method character varying,
-    reference_number character varying,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
-ALTER TABLE public.payments OWNER TO postgres;
-
---
--- Name: payments_payment_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public.payments_payment_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.payments_payment_id_seq OWNER TO postgres;
-
---
--- Name: payments_payment_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public.payments_payment_id_seq OWNED BY public.payments.payment_id;
-
-
---
--- Name: promise_to_pay; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.promise_to_pay (
-    ptp_id integer NOT NULL,
-    case_id integer,
-    officer_id character varying,
-    promise_date date NOT NULL,
-    promise_amount numeric(15,2) NOT NULL,
-    status character varying,
-    actual_payment_date date,
-    actual_payment_amount numeric(15,2),
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT promise_to_pay_status_check CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'KEPT'::character varying, 'BROKEN'::character varying, 'PARTIAL'::character varying])::text[])))
-);
-
-
-ALTER TABLE public.promise_to_pay OWNER TO postgres;
-
---
--- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public.promise_to_pay_ptp_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.promise_to_pay_ptp_id_seq OWNER TO postgres;
-
---
--- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public.promise_to_pay_ptp_id_seq OWNED BY public.promise_to_pay.ptp_id;
-
-
---
--- Name: top_delinquent_customers; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.top_delinquent_customers AS
- SELECT customer_id,
-    customer_name,
-    outstanding_amount,
-    days_past_due,
-    aging_bucket
-   FROM ( VALUES ('C001'::text,'ABC Corporation'::text,(15000000)::numeric,120,'91-180 Days'::text), ('C002'::text,'XYZ Industries'::text,(12000000)::numeric,95,'91-180 Days'::text), ('C003'::text,'Global Trading Co.'::text,(10000000)::numeric,65,'61-90 Days'::text), ('C004'::text,'Tech Solutions Ltd.'::text,(8500000)::numeric,45,'31-60 Days'::text), ('C005'::text,'Prime Retail Group'::text,(7200000)::numeric,35,'31-60 Days'::text), ('C006'::text,'Innovation Hub'::text,(6800000)::numeric,185,'181-365 Days'::text), ('C007'::text,'Smart Systems Inc.'::text,(5500000)::numeric,25,'1-30 Days'::text), ('C008'::text,'Future Enterprises'::text,(4200000)::numeric,400,'Over 365 Days'::text), ('C009'::text,'Dynamic Solutions'::text,(3800000)::numeric,55,'31-60 Days'::text), ('C010'::text,'Growth Partners Ltd.'::text,(3200000)::numeric,15,'1-30 Days'::text)) t(customer_id, customer_name, outstanding_amount, days_past_due, aging_bucket);
-
-
-ALTER VIEW public.top_delinquent_customers OWNER TO postgres;
-
---
--- Name: v_specialist_loan_portfolio; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.v_specialist_loan_portfolio AS
- SELECT cc.case_id,
-    cc.loan_account_number,
-    cc.customer_id,
-    cc.officer_id,
-    cc.loan_amount,
-    cc.outstanding_balance,
-    cc.overdue_amount AS due_amount,
-    cc.overdue_days,
-    cc.delinquency_bucket,
-    cc.priority_level,
-    cc.loan_status,
-    cc.product_type,
-    cc.last_payment_date,
-    cc.last_payment_amount,
-    cc.created_at,
-    cc.updated_at,
-    c.full_name AS customer_name,
-    c.national_id,
-    c.mobile_number,
-    (cc.loan_amount - cc.outstanding_balance) AS paid_amount,
-    ci.interaction_datetime AS last_contact_date
-   FROM ((public.collection_cases cc
-     LEFT JOIN public.customers c ON (((cc.customer_id)::text = (c.customer_id)::text)))
-     LEFT JOIN LATERAL ( SELECT collection_interactions.interaction_datetime
-           FROM public.collection_interactions
-          WHERE (collection_interactions.case_id = cc.case_id)
-          ORDER BY collection_interactions.interaction_datetime DESC
-         LIMIT 1) ci ON (true));
-
-
-ALTER VIEW public.v_specialist_loan_portfolio OWNER TO postgres;
+ALTER VIEW kastle_banking.vw_portfolio_aging OWNER TO postgres;
+
+--
+-- Name: vw_recent_transactions; Type: VIEW; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE VIEW kastle_banking.vw_recent_transactions AS
+ SELECT t.transaction_id,
+    t.transaction_date,
+    t.account_number,
+    a.customer_id,
+    t.debit_credit,
+    t.transaction_amount,
+    t.narration,
+    t.running_balance,
+    t.channel,
+    t.status
+   FROM (kastle_banking.transactions t
+     JOIN kastle_banking.accounts a ON (((t.account_number)::text = (a.account_number)::text)))
+  WHERE ((a.customer_id)::text = (kastle_banking.get_current_customer_id())::text)
+  ORDER BY t.transaction_date DESC
+ LIMIT 50;
+
+
+ALTER VIEW kastle_banking.vw_recent_transactions OWNER TO postgres;
 
 --
 -- Name: messages; Type: TABLE; Schema: realtime; Owner: supabase_realtime_admin
@@ -7725,60 +6813,6 @@ PARTITION BY RANGE (inserted_at);
 
 
 ALTER TABLE realtime.messages OWNER TO supabase_realtime_admin;
-
---
--- Name: messages_2025_07_23; Type: TABLE; Schema: realtime; Owner: supabase_admin
---
-
-CREATE TABLE realtime.messages_2025_07_23 (
-    topic text NOT NULL,
-    extension text NOT NULL,
-    payload jsonb,
-    event text,
-    private boolean DEFAULT false,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT gen_random_uuid() NOT NULL
-);
-
-
-ALTER TABLE realtime.messages_2025_07_23 OWNER TO supabase_admin;
-
---
--- Name: messages_2025_07_24; Type: TABLE; Schema: realtime; Owner: supabase_admin
---
-
-CREATE TABLE realtime.messages_2025_07_24 (
-    topic text NOT NULL,
-    extension text NOT NULL,
-    payload jsonb,
-    event text,
-    private boolean DEFAULT false,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT gen_random_uuid() NOT NULL
-);
-
-
-ALTER TABLE realtime.messages_2025_07_24 OWNER TO supabase_admin;
-
---
--- Name: messages_2025_07_25; Type: TABLE; Schema: realtime; Owner: supabase_admin
---
-
-CREATE TABLE realtime.messages_2025_07_25 (
-    topic text NOT NULL,
-    extension text NOT NULL,
-    payload jsonb,
-    event text,
-    private boolean DEFAULT false,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT gen_random_uuid() NOT NULL
-);
-
-
-ALTER TABLE realtime.messages_2025_07_25 OWNER TO supabase_admin;
 
 --
 -- Name: messages_2025_07_26; Type: TABLE; Schema: realtime; Owner: supabase_admin
@@ -7815,6 +6849,96 @@ CREATE TABLE realtime.messages_2025_07_27 (
 
 
 ALTER TABLE realtime.messages_2025_07_27 OWNER TO supabase_admin;
+
+--
+-- Name: messages_2025_07_28; Type: TABLE; Schema: realtime; Owner: supabase_admin
+--
+
+CREATE TABLE realtime.messages_2025_07_28 (
+    topic text NOT NULL,
+    extension text NOT NULL,
+    payload jsonb,
+    event text,
+    private boolean DEFAULT false,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
+);
+
+
+ALTER TABLE realtime.messages_2025_07_28 OWNER TO supabase_admin;
+
+--
+-- Name: messages_2025_07_29; Type: TABLE; Schema: realtime; Owner: supabase_admin
+--
+
+CREATE TABLE realtime.messages_2025_07_29 (
+    topic text NOT NULL,
+    extension text NOT NULL,
+    payload jsonb,
+    event text,
+    private boolean DEFAULT false,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
+);
+
+
+ALTER TABLE realtime.messages_2025_07_29 OWNER TO supabase_admin;
+
+--
+-- Name: messages_2025_07_30; Type: TABLE; Schema: realtime; Owner: supabase_admin
+--
+
+CREATE TABLE realtime.messages_2025_07_30 (
+    topic text NOT NULL,
+    extension text NOT NULL,
+    payload jsonb,
+    event text,
+    private boolean DEFAULT false,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
+);
+
+
+ALTER TABLE realtime.messages_2025_07_30 OWNER TO supabase_admin;
+
+--
+-- Name: messages_2025_07_31; Type: TABLE; Schema: realtime; Owner: supabase_admin
+--
+
+CREATE TABLE realtime.messages_2025_07_31 (
+    topic text NOT NULL,
+    extension text NOT NULL,
+    payload jsonb,
+    event text,
+    private boolean DEFAULT false,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
+);
+
+
+ALTER TABLE realtime.messages_2025_07_31 OWNER TO supabase_admin;
+
+--
+-- Name: messages_2025_08_01; Type: TABLE; Schema: realtime; Owner: supabase_admin
+--
+
+CREATE TABLE realtime.messages_2025_08_01 (
+    topic text NOT NULL,
+    extension text NOT NULL,
+    payload jsonb,
+    event text,
+    private boolean DEFAULT false,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    inserted_at timestamp without time zone DEFAULT now() NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL
+);
+
+
+ALTER TABLE realtime.messages_2025_08_01 OWNER TO supabase_admin;
 
 --
 -- Name: schema_migrations; Type: TABLE; Schema: realtime; Owner: supabase_admin
@@ -7969,27 +7093,6 @@ CREATE TABLE storage.s3_multipart_uploads_parts (
 ALTER TABLE storage.s3_multipart_uploads_parts OWNER TO supabase_storage_admin;
 
 --
--- Name: messages_2025_07_23; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
---
-
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_23 FOR VALUES FROM ('2025-07-23 00:00:00') TO ('2025-07-24 00:00:00');
-
-
---
--- Name: messages_2025_07_24; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
---
-
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_24 FOR VALUES FROM ('2025-07-24 00:00:00') TO ('2025-07-25 00:00:00');
-
-
---
--- Name: messages_2025_07_25; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
---
-
-ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_25 FOR VALUES FROM ('2025-07-25 00:00:00') TO ('2025-07-26 00:00:00');
-
-
---
 -- Name: messages_2025_07_26; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
 --
 
@@ -8004,10 +7107,52 @@ ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_27
 
 
 --
+-- Name: messages_2025_07_28; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_28 FOR VALUES FROM ('2025-07-28 00:00:00') TO ('2025-07-29 00:00:00');
+
+
+--
+-- Name: messages_2025_07_29; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_29 FOR VALUES FROM ('2025-07-29 00:00:00') TO ('2025-07-30 00:00:00');
+
+
+--
+-- Name: messages_2025_07_30; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_30 FOR VALUES FROM ('2025-07-30 00:00:00') TO ('2025-07-31 00:00:00');
+
+
+--
+-- Name: messages_2025_07_31; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_07_31 FOR VALUES FROM ('2025-07-31 00:00:00') TO ('2025-08-01 00:00:00');
+
+
+--
+-- Name: messages_2025_08_01; Type: TABLE ATTACH; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages ATTACH PARTITION realtime.messages_2025_08_01 FOR VALUES FROM ('2025-08-01 00:00:00') TO ('2025-08-02 00:00:00');
+
+
+--
 -- Name: refresh_tokens id; Type: DEFAULT; Schema: auth; Owner: supabase_auth_admin
 --
 
 ALTER TABLE ONLY auth.refresh_tokens ALTER COLUMN id SET DEFAULT nextval('auth.refresh_tokens_id_seq'::regclass);
+
+
+--
+-- Name: access_log access_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.access_log ALTER COLUMN access_id SET DEFAULT nextval('kastle_banking.access_log_access_id_seq'::regclass);
 
 
 --
@@ -8032,6 +7177,13 @@ ALTER TABLE ONLY kastle_banking.aging_buckets ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: audit_log audit_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.audit_log ALTER COLUMN audit_id SET DEFAULT nextval('kastle_banking.audit_log_audit_id_seq'::regclass);
+
+
+--
 -- Name: audit_trail audit_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -8053,10 +7205,59 @@ ALTER TABLE ONLY kastle_banking.branch_collection_performance ALTER COLUMN id SE
 
 
 --
+-- Name: collection_audit_trail audit_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_audit_trail ALTER COLUMN audit_id SET DEFAULT nextval('kastle_banking.collection_audit_trail_audit_id_seq'::regclass);
+
+
+--
+-- Name: collection_automation_metrics metric_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_automation_metrics ALTER COLUMN metric_id SET DEFAULT nextval('kastle_banking.collection_automation_metrics_metric_id_seq'::regclass);
+
+
+--
+-- Name: collection_benchmarks benchmark_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_benchmarks ALTER COLUMN benchmark_id SET DEFAULT nextval('kastle_banking.collection_benchmarks_benchmark_id_seq'::regclass);
+
+
+--
+-- Name: collection_bucket_movement movement_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_bucket_movement ALTER COLUMN movement_id SET DEFAULT nextval('kastle_banking.collection_bucket_movement_movement_id_seq'::regclass);
+
+
+--
 -- Name: collection_buckets bucket_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER TABLE ONLY kastle_banking.collection_buckets ALTER COLUMN bucket_id SET DEFAULT nextval('kastle_banking.collection_buckets_bucket_id_seq'::regclass);
+
+
+--
+-- Name: collection_call_records call_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_call_records ALTER COLUMN call_id SET DEFAULT nextval('kastle_banking.collection_call_records_call_id_seq'::regclass);
+
+
+--
+-- Name: collection_campaigns campaign_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_campaigns ALTER COLUMN campaign_id SET DEFAULT nextval('kastle_banking.collection_campaigns_campaign_id_seq'::regclass);
+
+
+--
+-- Name: collection_case_details case_detail_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_case_details ALTER COLUMN case_detail_id SET DEFAULT nextval('kastle_banking.collection_case_details_case_detail_id_seq'::regclass);
 
 
 --
@@ -8067,10 +7268,122 @@ ALTER TABLE ONLY kastle_banking.collection_cases ALTER COLUMN case_id SET DEFAUL
 
 
 --
+-- Name: collection_compliance_violations violation_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_compliance_violations ALTER COLUMN violation_id SET DEFAULT nextval('kastle_banking.collection_compliance_violations_violation_id_seq'::regclass);
+
+
+--
+-- Name: collection_contact_attempts attempt_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_contact_attempts ALTER COLUMN attempt_id SET DEFAULT nextval('kastle_banking.collection_contact_attempts_attempt_id_seq'::regclass);
+
+
+--
+-- Name: collection_customer_segments segment_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_customer_segments ALTER COLUMN segment_id SET DEFAULT nextval('kastle_banking.collection_customer_segments_segment_id_seq'::regclass);
+
+
+--
+-- Name: collection_forecasts forecast_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_forecasts ALTER COLUMN forecast_id SET DEFAULT nextval('kastle_banking.collection_forecasts_forecast_id_seq'::regclass);
+
+
+--
+-- Name: collection_interactions interaction_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_interactions ALTER COLUMN interaction_id SET DEFAULT nextval('kastle_banking.collection_interactions_interaction_id_seq'::regclass);
+
+
+--
+-- Name: collection_provisions provision_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_provisions ALTER COLUMN provision_id SET DEFAULT nextval('kastle_banking.collection_provisions_provision_id_seq'::regclass);
+
+
+--
+-- Name: collection_queue_management queue_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_queue_management ALTER COLUMN queue_id SET DEFAULT nextval('kastle_banking.collection_queue_management_queue_id_seq'::regclass);
+
+
+--
 -- Name: collection_rates id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER TABLE ONLY kastle_banking.collection_rates ALTER COLUMN id SET DEFAULT nextval('kastle_banking.collection_rates_id_seq'::regclass);
+
+
+--
+-- Name: collection_risk_assessment assessment_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_risk_assessment ALTER COLUMN assessment_id SET DEFAULT nextval('kastle_banking.collection_risk_assessment_assessment_id_seq'::regclass);
+
+
+--
+-- Name: collection_scores score_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_scores ALTER COLUMN score_id SET DEFAULT nextval('kastle_banking.collection_scores_score_id_seq'::regclass);
+
+
+--
+-- Name: collection_settlement_offers offer_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_settlement_offers ALTER COLUMN offer_id SET DEFAULT nextval('kastle_banking.collection_settlement_offers_offer_id_seq'::regclass);
+
+
+--
+-- Name: collection_strategies strategy_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_strategies ALTER COLUMN strategy_id SET DEFAULT nextval('kastle_banking.collection_strategies_strategy_id_seq'::regclass);
+
+
+--
+-- Name: collection_system_performance log_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_system_performance ALTER COLUMN log_id SET DEFAULT nextval('kastle_banking.collection_system_performance_log_id_seq'::regclass);
+
+
+--
+-- Name: collection_teams team_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_teams ALTER COLUMN team_id SET DEFAULT nextval('kastle_banking.collection_teams_team_id_seq'::regclass);
+
+
+--
+-- Name: collection_vintage_analysis vintage_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_vintage_analysis ALTER COLUMN vintage_id SET DEFAULT nextval('kastle_banking.collection_vintage_analysis_vintage_id_seq'::regclass);
+
+
+--
+-- Name: collection_workflow_templates template_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_workflow_templates ALTER COLUMN template_id SET DEFAULT nextval('kastle_banking.collection_workflow_templates_template_id_seq'::regclass);
+
+
+--
+-- Name: collection_write_offs write_off_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_write_offs ALTER COLUMN write_off_id SET DEFAULT nextval('kastle_banking.collection_write_offs_write_off_id_seq'::regclass);
 
 
 --
@@ -8102,6 +7415,20 @@ ALTER TABLE ONLY kastle_banking.customer_types ALTER COLUMN type_id SET DEFAULT 
 
 
 --
+-- Name: daily_collection_summary summary_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.daily_collection_summary ALTER COLUMN summary_id SET DEFAULT nextval('kastle_banking.daily_collection_summary_summary_id_seq'::regclass);
+
+
+--
+-- Name: data_masking_rules rule_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.data_masking_rules ALTER COLUMN rule_id SET DEFAULT nextval('kastle_banking.data_masking_rules_rule_id_seq'::regclass);
+
+
+--
 -- Name: delinquencies id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -8116,6 +7443,41 @@ ALTER TABLE ONLY kastle_banking.delinquency_history ALTER COLUMN id SET DEFAULT 
 
 
 --
+-- Name: digital_collection_attempts attempt_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.digital_collection_attempts ALTER COLUMN attempt_id SET DEFAULT nextval('kastle_banking.digital_collection_attempts_attempt_id_seq'::regclass);
+
+
+--
+-- Name: field_visits visit_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.field_visits ALTER COLUMN visit_id SET DEFAULT nextval('kastle_banking.field_visits_visit_id_seq'::regclass);
+
+
+--
+-- Name: hardship_applications application_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.hardship_applications ALTER COLUMN application_id SET DEFAULT nextval('kastle_banking.hardship_applications_application_id_seq'::regclass);
+
+
+--
+-- Name: ivr_payment_attempts attempt_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.ivr_payment_attempts ALTER COLUMN attempt_id SET DEFAULT nextval('kastle_banking.ivr_payment_attempts_attempt_id_seq'::regclass);
+
+
+--
+-- Name: legal_cases legal_case_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.legal_cases ALTER COLUMN legal_case_id SET DEFAULT nextval('kastle_banking.legal_cases_legal_case_id_seq'::regclass);
+
+
+--
 -- Name: loan_accounts loan_account_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -8127,6 +7489,41 @@ ALTER TABLE ONLY kastle_banking.loan_accounts ALTER COLUMN loan_account_id SET D
 --
 
 ALTER TABLE ONLY kastle_banking.loan_applications ALTER COLUMN application_id SET DEFAULT nextval('kastle_banking.loan_applications_application_id_seq'::regclass);
+
+
+--
+-- Name: loan_restructuring restructure_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.loan_restructuring ALTER COLUMN restructure_id SET DEFAULT nextval('kastle_banking.loan_restructuring_restructure_id_seq'::regclass);
+
+
+--
+-- Name: officer_performance_metrics id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.officer_performance_metrics ALTER COLUMN id SET DEFAULT nextval('kastle_banking.officer_performance_metrics_id_seq'::regclass);
+
+
+--
+-- Name: officer_performance_summary summary_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.officer_performance_summary ALTER COLUMN summary_id SET DEFAULT nextval('kastle_banking.officer_performance_summary_summary_id_seq'::regclass);
+
+
+--
+-- Name: payments payment_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.payments ALTER COLUMN payment_id SET DEFAULT nextval('kastle_banking.payments_payment_id_seq'::regclass);
+
+
+--
+-- Name: performance_metrics metric_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.performance_metrics ALTER COLUMN metric_id SET DEFAULT nextval('kastle_banking.performance_metrics_metric_id_seq'::regclass);
 
 
 --
@@ -8151,6 +7548,27 @@ ALTER TABLE ONLY kastle_banking.products ALTER COLUMN product_id SET DEFAULT nex
 
 
 --
+-- Name: promise_to_pay ptp_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.promise_to_pay ALTER COLUMN ptp_id SET DEFAULT nextval('kastle_banking.promise_to_pay_ptp_id_seq'::regclass);
+
+
+--
+-- Name: repossessed_assets asset_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.repossessed_assets ALTER COLUMN asset_id SET DEFAULT nextval('kastle_banking.repossessed_assets_asset_id_seq'::regclass);
+
+
+--
+-- Name: sharia_compliance_log compliance_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.sharia_compliance_log ALTER COLUMN compliance_id SET DEFAULT nextval('kastle_banking.sharia_compliance_log_compliance_id_seq'::regclass);
+
+
+--
 -- Name: transaction_types type_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -8165,318 +7583,17 @@ ALTER TABLE ONLY kastle_banking.transactions ALTER COLUMN transaction_id SET DEF
 
 
 --
--- Name: access_log access_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
+-- Name: user_role_assignments assignment_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER TABLE ONLY kastle_collection.access_log ALTER COLUMN access_id SET DEFAULT nextval('kastle_collection.access_log_access_id_seq'::regclass);
+ALTER TABLE ONLY kastle_banking.user_role_assignments ALTER COLUMN assignment_id SET DEFAULT nextval('kastle_banking.user_role_assignments_assignment_id_seq'::regclass);
 
 
 --
--- Name: audit_log audit_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
+-- Name: user_roles role_id; Type: DEFAULT; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER TABLE ONLY kastle_collection.audit_log ALTER COLUMN audit_id SET DEFAULT nextval('kastle_collection.audit_log_audit_id_seq'::regclass);
-
-
---
--- Name: collection_audit_trail audit_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_audit_trail ALTER COLUMN audit_id SET DEFAULT nextval('kastle_collection.collection_audit_trail_audit_id_seq'::regclass);
-
-
---
--- Name: collection_automation_metrics metric_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_automation_metrics ALTER COLUMN metric_id SET DEFAULT nextval('kastle_collection.collection_automation_metrics_metric_id_seq'::regclass);
-
-
---
--- Name: collection_benchmarks benchmark_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_benchmarks ALTER COLUMN benchmark_id SET DEFAULT nextval('kastle_collection.collection_benchmarks_benchmark_id_seq'::regclass);
-
-
---
--- Name: collection_bucket_movement movement_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_bucket_movement ALTER COLUMN movement_id SET DEFAULT nextval('kastle_collection.collection_bucket_movement_movement_id_seq'::regclass);
-
-
---
--- Name: collection_call_records call_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_call_records ALTER COLUMN call_id SET DEFAULT nextval('kastle_collection.collection_call_records_call_id_seq'::regclass);
-
-
---
--- Name: collection_campaigns campaign_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_campaigns ALTER COLUMN campaign_id SET DEFAULT nextval('kastle_collection.collection_campaigns_campaign_id_seq'::regclass);
-
-
---
--- Name: collection_case_details case_detail_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_case_details ALTER COLUMN case_detail_id SET DEFAULT nextval('kastle_collection.collection_case_details_case_detail_id_seq'::regclass);
-
-
---
--- Name: collection_compliance_violations violation_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_compliance_violations ALTER COLUMN violation_id SET DEFAULT nextval('kastle_collection.collection_compliance_violations_violation_id_seq'::regclass);
-
-
---
--- Name: collection_contact_attempts attempt_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_contact_attempts ALTER COLUMN attempt_id SET DEFAULT nextval('kastle_collection.collection_contact_attempts_attempt_id_seq'::regclass);
-
-
---
--- Name: collection_customer_segments segment_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_customer_segments ALTER COLUMN segment_id SET DEFAULT nextval('kastle_collection.collection_customer_segments_segment_id_seq'::regclass);
-
-
---
--- Name: collection_forecasts forecast_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_forecasts ALTER COLUMN forecast_id SET DEFAULT nextval('kastle_collection.collection_forecasts_forecast_id_seq'::regclass);
-
-
---
--- Name: collection_interactions interaction_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_interactions ALTER COLUMN interaction_id SET DEFAULT nextval('kastle_collection.collection_interactions_interaction_id_seq'::regclass);
-
-
---
--- Name: collection_provisions provision_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_provisions ALTER COLUMN provision_id SET DEFAULT nextval('kastle_collection.collection_provisions_provision_id_seq'::regclass);
-
-
---
--- Name: collection_queue_management queue_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_queue_management ALTER COLUMN queue_id SET DEFAULT nextval('kastle_collection.collection_queue_management_queue_id_seq'::regclass);
-
-
---
--- Name: collection_risk_assessment assessment_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_risk_assessment ALTER COLUMN assessment_id SET DEFAULT nextval('kastle_collection.collection_risk_assessment_assessment_id_seq'::regclass);
-
-
---
--- Name: collection_scores score_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_scores ALTER COLUMN score_id SET DEFAULT nextval('kastle_collection.collection_scores_score_id_seq'::regclass);
-
-
---
--- Name: collection_settlement_offers offer_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_settlement_offers ALTER COLUMN offer_id SET DEFAULT nextval('kastle_collection.collection_settlement_offers_offer_id_seq'::regclass);
-
-
---
--- Name: collection_strategies strategy_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_strategies ALTER COLUMN strategy_id SET DEFAULT nextval('kastle_collection.collection_strategies_strategy_id_seq'::regclass);
-
-
---
--- Name: collection_system_performance log_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_system_performance ALTER COLUMN log_id SET DEFAULT nextval('kastle_collection.collection_system_performance_log_id_seq'::regclass);
-
-
---
--- Name: collection_teams team_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_teams ALTER COLUMN team_id SET DEFAULT nextval('kastle_collection.collection_teams_team_id_seq'::regclass);
-
-
---
--- Name: collection_vintage_analysis vintage_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_vintage_analysis ALTER COLUMN vintage_id SET DEFAULT nextval('kastle_collection.collection_vintage_analysis_vintage_id_seq'::regclass);
-
-
---
--- Name: collection_workflow_templates template_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_workflow_templates ALTER COLUMN template_id SET DEFAULT nextval('kastle_collection.collection_workflow_templates_template_id_seq'::regclass);
-
-
---
--- Name: collection_write_offs write_off_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_write_offs ALTER COLUMN write_off_id SET DEFAULT nextval('kastle_collection.collection_write_offs_write_off_id_seq'::regclass);
-
-
---
--- Name: daily_collection_summary summary_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.daily_collection_summary ALTER COLUMN summary_id SET DEFAULT nextval('kastle_collection.daily_collection_summary_summary_id_seq'::regclass);
-
-
---
--- Name: data_masking_rules rule_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.data_masking_rules ALTER COLUMN rule_id SET DEFAULT nextval('kastle_collection.data_masking_rules_rule_id_seq'::regclass);
-
-
---
--- Name: digital_collection_attempts attempt_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.digital_collection_attempts ALTER COLUMN attempt_id SET DEFAULT nextval('kastle_collection.digital_collection_attempts_attempt_id_seq'::regclass);
-
-
---
--- Name: field_visits visit_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.field_visits ALTER COLUMN visit_id SET DEFAULT nextval('kastle_collection.field_visits_visit_id_seq'::regclass);
-
-
---
--- Name: hardship_applications application_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.hardship_applications ALTER COLUMN application_id SET DEFAULT nextval('kastle_collection.hardship_applications_application_id_seq'::regclass);
-
-
---
--- Name: ivr_payment_attempts attempt_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.ivr_payment_attempts ALTER COLUMN attempt_id SET DEFAULT nextval('kastle_collection.ivr_payment_attempts_attempt_id_seq'::regclass);
-
-
---
--- Name: legal_cases legal_case_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.legal_cases ALTER COLUMN legal_case_id SET DEFAULT nextval('kastle_collection.legal_cases_legal_case_id_seq'::regclass);
-
-
---
--- Name: loan_restructuring restructure_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.loan_restructuring ALTER COLUMN restructure_id SET DEFAULT nextval('kastle_collection.loan_restructuring_restructure_id_seq'::regclass);
-
-
---
--- Name: officer_performance_metrics metric_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.officer_performance_metrics ALTER COLUMN metric_id SET DEFAULT nextval('kastle_collection.officer_performance_metrics_metric_id_seq'::regclass);
-
-
---
--- Name: officer_performance_summary summary_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.officer_performance_summary ALTER COLUMN summary_id SET DEFAULT nextval('kastle_collection.officer_performance_summary_summary_id_seq'::regclass);
-
-
---
--- Name: performance_metrics metric_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.performance_metrics ALTER COLUMN metric_id SET DEFAULT nextval('kastle_collection.performance_metrics_metric_id_seq'::regclass);
-
-
---
--- Name: promise_to_pay ptp_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.promise_to_pay ALTER COLUMN ptp_id SET DEFAULT nextval('kastle_collection.promise_to_pay_ptp_id_seq'::regclass);
-
-
---
--- Name: repossessed_assets asset_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.repossessed_assets ALTER COLUMN asset_id SET DEFAULT nextval('kastle_collection.repossessed_assets_asset_id_seq'::regclass);
-
-
---
--- Name: sharia_compliance_log compliance_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.sharia_compliance_log ALTER COLUMN compliance_id SET DEFAULT nextval('kastle_collection.sharia_compliance_log_compliance_id_seq'::regclass);
-
-
---
--- Name: user_role_assignments assignment_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.user_role_assignments ALTER COLUMN assignment_id SET DEFAULT nextval('kastle_collection.user_role_assignments_assignment_id_seq'::regclass);
-
-
---
--- Name: user_roles role_id; Type: DEFAULT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.user_roles ALTER COLUMN role_id SET DEFAULT nextval('kastle_collection.user_roles_role_id_seq'::regclass);
-
-
---
--- Name: collection_cases case_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_cases ALTER COLUMN case_id SET DEFAULT nextval('public.collection_cases_case_id_seq'::regclass);
-
-
---
--- Name: collection_interactions interaction_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_interactions ALTER COLUMN interaction_id SET DEFAULT nextval('public.collection_interactions_interaction_id_seq'::regclass);
-
-
---
--- Name: payments payment_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.payments ALTER COLUMN payment_id SET DEFAULT nextval('public.payments_payment_id_seq'::regclass);
-
-
---
--- Name: promise_to_pay ptp_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.promise_to_pay ALTER COLUMN ptp_id SET DEFAULT nextval('public.promise_to_pay_ptp_id_seq'::regclass);
+ALTER TABLE ONLY kastle_banking.user_roles ALTER COLUMN role_id SET DEFAULT nextval('kastle_banking.user_roles_role_id_seq'::regclass);
 
 
 --
@@ -8484,6 +7601,7 @@ ALTER TABLE ONLY public.promise_to_pay ALTER COLUMN ptp_id SET DEFAULT nextval('
 --
 
 COPY auth.audit_log_entries (instance_id, id, payload, created_at, ip_address) FROM stdin;
+00000000-0000-0000-0000-000000000000	4e00035f-319d-45a9-b6ba-9097e6cb233a	{"action":"user_confirmation_requested","actor_id":"c730e629-f5d2-47c7-8bd8-226afb71800f","actor_name":"Demo User","actor_username":"demo@osol.sa","actor_via_sso":false,"log_type":"user","traits":{"provider":"email"}}	2025-07-28 14:43:00.728752+00	
 \.
 
 
@@ -8500,6 +7618,7 @@ COPY auth.flow_state (id, user_id, auth_code, code_challenge_method, code_challe
 --
 
 COPY auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at, id) FROM stdin;
+c730e629-f5d2-47c7-8bd8-226afb71800f	c730e629-f5d2-47c7-8bd8-226afb71800f	{"sub": "c730e629-f5d2-47c7-8bd8-226afb71800f", "role": "admin", "email": "demo@osol.sa", "full_name": "Demo User", "email_verified": false, "phone_verified": false}	email	2025-07-28 14:43:00.724742+00	2025-07-28 14:43:00.724797+00	2025-07-28 14:43:00.724797+00	e08b904d-0b35-4e08-9c30-d59cef6aae09
 \.
 
 
@@ -8540,6 +7659,7 @@ COPY auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_
 --
 
 COPY auth.one_time_tokens (id, user_id, token_type, token_hash, relates_to, created_at, updated_at) FROM stdin;
+221f7fa2-5176-4026-9c97-7c853ee9a660	c730e629-f5d2-47c7-8bd8-226afb71800f	confirmation_token	10bf4e9877bec0d9ed34ed435142faf1d1466f8a60d0ca3b152bc722	demo@osol.sa	2025-07-28 14:43:01.860587	2025-07-28 14:43:01.860587
 \.
 
 
@@ -8670,6 +7790,17 @@ COPY auth.users (instance_id, id, aud, role, email, encrypted_password, email_co
 \N	c3d4e5f6-a7b8-9012-cdef-345678901234	\N	\N	mohammed.salem@email.com	$2a$10$PkKpMR6ClqGP6aKRs/REfeVOQiGXO2L0YXfEibinhLvLQn8LAVIyW	2025-07-24 03:54:06.985292+00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-24 03:54:06.985292+00	2025-07-24 03:54:06.985292+00	\N	\N			\N		0	\N		\N	f	\N	f
 \N	d4e5f6a7-b8c9-0123-defa-456789012345	\N	\N	sara.ahmed@email.com	$2a$10$PkKpMR6ClqGP6aKRs/REfeVOQiGXO2L0YXfEibinhLvLQn8LAVIyW	2025-07-24 03:54:06.985292+00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-24 03:54:06.985292+00	2025-07-24 03:54:06.985292+00	\N	\N			\N		0	\N		\N	f	\N	f
 \N	e5f6a7b8-c9d0-1234-efab-567890123456	\N	\N	khalid.abdullah@email.com	$2a$10$PkKpMR6ClqGP6aKRs/REfeVOQiGXO2L0YXfEibinhLvLQn8LAVIyW	2025-07-24 03:54:06.985292+00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-24 03:54:06.985292+00	2025-07-24 03:54:06.985292+00	\N	\N			\N		0	\N		\N	f	\N	f
+00000000-0000-0000-0000-000000000000	c730e629-f5d2-47c7-8bd8-226afb71800f	authenticated	authenticated	demo@osol.sa	$2a$10$xlVptLI3TU1BG77Nz3yH6ebgKRypI5S2.1MiY.OVcFL35rhceNnKy	\N	\N	10bf4e9877bec0d9ed34ed435142faf1d1466f8a60d0ca3b152bc722	2025-07-28 14:43:00.729516+00		\N			\N	\N	{"provider": "email", "providers": ["email"]}	{"sub": "c730e629-f5d2-47c7-8bd8-226afb71800f", "role": "admin", "email": "demo@osol.sa", "full_name": "Demo User", "email_verified": false, "phone_verified": false}	\N	2025-07-28 14:43:00.718802+00	2025-07-28 14:43:01.856635+00	\N	\N			\N		0	\N		\N	f	\N	f
+\.
+
+
+--
+-- Data for Name: access_log; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.access_log (access_id, user_id, resource_type, resource_id, action, access_granted, denial_reason, ip_address, session_id, created_at) FROM stdin;
+1	OFF001	COLLECTION_CASE	1	VIEW	t	\N	192.168.1.100	\N	2025-07-26 04:37:40.72132+00
+2	OFF002	COLLECTION_CASE	2	UPDATE	t	\N	192.168.1.101	\N	2025-07-26 04:37:40.72132+00
 \.
 
 
@@ -8687,6 +7818,11 @@ COPY kastle_banking.account_types (type_id, type_code, type_name, account_catego
 44	LOAN001	Personal Loan Account	LOAN	Personal loan account
 45	LOAN002	Home Loan Account	LOAN	Home loan account
 46	LOAN003	Auto Loan Account	LOAN	Auto loan account
+47	SAV	Savings Account	SAVINGS	Regular savings account
+48	CUR	Current Account	CURRENT	Current account for daily transactions
+49	DEP	Deposit Account	FIXED_DEPOSIT	Fixed deposit account
+50	VIP	VIP Account	SAVINGS	Premium account with special benefits
+53	FD	Fixed Deposit	FIXED_DEPOSIT	Fixed term deposit
 \.
 
 
@@ -8720,6 +7856,16 @@ COPY kastle_banking.aging_buckets (id, bucket_name, min_days, max_days, display_
 33	91-120 DPD	91	120	5	#FF0000	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 34	121-180 DPD	121	180	6	#8B0000	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 35	180+ DPD	181	\N	7	#000000	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: audit_log; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.audit_log (audit_id, table_name, operation, record_id, user_id, changed_fields, old_values, new_values, ip_address, user_agent, created_at) FROM stdin;
+1	collection_cases	UPDATE	1	OFF001	["case_status", "updated_at"]	\N	\N	\N	\N	2024-07-20 07:35:00+00
+2	promise_to_pay	INSERT	1	OFF001	["all"]	\N	\N	\N	\N	2024-07-20 07:36:00+00
 \.
 
 
@@ -8767,12 +7913,52 @@ COPY kastle_banking.branch_collection_performance (id, branch_id, period_date, t
 -- Data for Name: branches; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
-COPY kastle_banking.branches (branch_id, branch_name, branch_type, address, city, state, country_code, postal_code, phone, email, manager_id, opening_date, is_active, created_at, updated_at) FROM stdin;
-BR001	Riyadh Main Branch	MAIN	King Fahd Road	Riyadh	RI	SA	11564	+966-11-4567890	main@kb.sa	\N	2020-01-01	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-BR002	Jeddah Branch	SUB	Palestine Street	Jeddah	MK	SA	21442	+966-12-6789012	jeddah@kb.sa	\N	2020-06-01	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-BR003	Dammam Branch	SUB	King Saud Street	Dammam	EP	SA	31412	+966-13-8901234	dammam@kb.sa	\N	2021-01-01	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-BR004	Dubai Branch	SUB	Sheikh Zayed Road	Dubai	DU	AE	12345	+971-4-3456789	dubai@kb.ae	\N	2021-06-01	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-BR005	Kuwait City Branch	SUB	Abdullah Al-Ahmad Street	Kuwait City	CA	KW	13001	+965-2234-5678	kuwait@kb.kw	\N	2022-01-01	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+COPY kastle_banking.branches (branch_id, branch_name, branch_type, address, city, state, country_code, postal_code, phone, email, manager_id, opening_date, is_active, created_at, updated_at, branch_code, status) FROM stdin;
+BR001	Riyadh Main Branch	MAIN	King Fahd Road	Riyadh	RI	SA	11564	+966-11-4567890	main@kb.sa	\N	2020-01-01	t	2025-07-26 04:37:40.72132+00	2025-07-29 09:23:41.49769+00	BR001	ACTIVE
+BR002	Jeddah Branch	SUB	Palestine Street	Jeddah	MK	SA	21442	+966-12-6789012	jeddah@kb.sa	\N	2020-06-01	t	2025-07-26 04:37:40.72132+00	2025-07-29 09:23:41.49769+00	BR002	ACTIVE
+BR003	Dammam Branch	SUB	King Saud Street	Dammam	EP	SA	31412	+966-13-8901234	dammam@kb.sa	\N	2021-01-01	t	2025-07-26 04:37:40.72132+00	2025-07-29 09:23:41.49769+00	BR003	ACTIVE
+BR004	Dubai Branch	SUB	Sheikh Zayed Road	Dubai	DU	AE	12345	+971-4-3456789	dubai@kb.ae	\N	2021-06-01	t	2025-07-26 04:37:40.72132+00	2025-07-29 09:23:41.49769+00	BR004	ACTIVE
+BR005	Kuwait City Branch	SUB	Abdullah Al-Ahmad Street	Kuwait City	CA	KW	13001	+965-2234-5678	kuwait@kb.kw	\N	2022-01-01	t	2025-07-26 04:37:40.72132+00	2025-07-29 09:23:41.49769+00	BR005	ACTIVE
+\.
+
+
+--
+-- Data for Name: collection_audit_trail; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_audit_trail (audit_id, user_id, action_type, entity_type, entity_id, old_values, new_values, ip_address, user_agent, action_timestamp) FROM stdin;
+1	OFF001	CREATE_PTP	PROMISE_TO_PAY	1	\N	\N	\N	\N	2024-07-20 07:36:00+00
+2	OFF006	UPDATE_CASE	COLLECTION_CASE	4	\N	\N	\N	\N	2024-07-18 13:50:00+00
+\.
+
+
+--
+-- Data for Name: collection_automation_metrics; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_automation_metrics (metric_id, metric_date, automation_type, total_attempts, successful_contacts, payments_collected, amount_collected, cost_saved, efficiency_gain, error_rate, customer_satisfaction_score, created_at) FROM stdin;
+1	2024-07-20	SMS_CAMPAIGN	1000	850	120	450000	5000	15.5	\N	7.8	2025-07-26 04:37:40.72132+00
+2	2024-07-20	AUTO_DIALER	500	350	45	225000	3500	20.0	\N	7.5	2025-07-26 04:37:40.72132+00
+3	2024-07-20	IVR	300	250	30	150000	2000	18.0	\N	8.0	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_benchmarks; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_benchmarks (benchmark_id, benchmark_date, benchmark_type, metric_name, internal_value, industry_average, best_in_class, percentile_rank, gap_to_average, gap_to_best, source, notes, created_at) FROM stdin;
+1	2024-06-30	RECOVERY_RATE	30_DPD_Recovery	75.0	70.0	85.0	65	5.0	-10.0	SAMA_Report_Q2_2024	\N	2025-07-26 04:37:40.72132+00
+2	2024-06-30	EFFICIENCY	Cost_Per_Dollar_Collected	0.08	0.10	0.05	60	-0.02	0.03	Industry_Survey_2024	\N	2025-07-26 04:37:40.72132+00
+3	2024-06-30	PRODUCTIVITY	Accounts_Per_Officer	150	120	200	70	30	-50	Internal_Analysis	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_bucket_movement; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_bucket_movement (movement_id, case_id, from_bucket_id, to_bucket_id, movement_date, movement_reason, days_in_previous_bucket, amount_at_movement, officer_id, automated_movement, created_at) FROM stdin;
 \.
 
 
@@ -8780,14 +7966,52 @@ BR005	Kuwait City Branch	SUB	Abdullah Al-Ahmad Street	Kuwait City	CA	KW	13001	+9
 -- Data for Name: collection_buckets; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
-COPY kastle_banking.collection_buckets (bucket_id, bucket_code, bucket_name, min_dpd, max_dpd, priority_level, collection_strategy, description, is_active, created_at) FROM stdin;
-21	BUCKET_0	Pre-Delinquent	-5	0	1	REMINDER	Accounts approaching due date	t	2025-07-26 04:37:40.72132+00
-22	BUCKET_1	Early Stage	1	30	2	SOFT_COLLECTION	Early delinquency - soft approach	t	2025-07-26 04:37:40.72132+00
-23	BUCKET_2	Mid Stage	31	60	3	INTENSIVE_FOLLOW_UP	Mid-stage delinquency - intensive follow-up	t	2025-07-26 04:37:40.72132+00
-24	BUCKET_3	Late Stage	61	90	4	FIELD_VISIT	Late stage - field visits required	t	2025-07-26 04:37:40.72132+00
-25	BUCKET_4	Severe	91	120	5	LEGAL_NOTICE	Severe delinquency - legal notices	t	2025-07-26 04:37:40.72132+00
-26	BUCKET_5	Critical	121	180	6	LEGAL_ACTION	Critical - initiate legal proceedings	t	2025-07-26 04:37:40.72132+00
-27	BUCKET_6	Write-off	181	999	7	RECOVERY	Write-off candidates	t	2025-07-26 04:37:40.72132+00
+COPY kastle_banking.collection_buckets (bucket_id, bucket_code, bucket_name, min_dpd, max_dpd, priority_level, collection_strategy, description, is_active, created_at, min_days, max_days) FROM stdin;
+21	BUCKET_0	Pre-Delinquent	-5	0	1	REMINDER	Accounts approaching due date	t	2025-07-26 04:37:40.72132+00	-5	0
+22	BUCKET_1	Early Stage	1	30	2	SOFT_COLLECTION	Early delinquency - soft approach	t	2025-07-26 04:37:40.72132+00	1	30
+23	BUCKET_2	Mid Stage	31	60	3	INTENSIVE_FOLLOW_UP	Mid-stage delinquency - intensive follow-up	t	2025-07-26 04:37:40.72132+00	31	60
+24	BUCKET_3	Late Stage	61	90	4	FIELD_VISIT	Late stage - field visits required	t	2025-07-26 04:37:40.72132+00	61	90
+25	BUCKET_4	Severe	91	120	5	LEGAL_NOTICE	Severe delinquency - legal notices	t	2025-07-26 04:37:40.72132+00	91	120
+26	BUCKET_5	Critical	121	180	6	LEGAL_ACTION	Critical - initiate legal proceedings	t	2025-07-26 04:37:40.72132+00	121	180
+27	BUCKET_6	Write-off	181	999	7	RECOVERY	Write-off candidates	t	2025-07-26 04:37:40.72132+00	181	999
+1	BUCKET_001	1-30 يوم	1	30	1	SOFT_COLLECTION	تحصيل مبكر - مكالمات ودية	t	2025-07-27 11:53:02.538932+00	1	30
+2	BUCKET_002	31-60 يوم	31	60	2	REGULAR_COLLECTION	تحصيل منتظم - مكالمات ورسائل	t	2025-07-27 11:53:02.538932+00	31	60
+3	BUCKET_003	61-90 يوم	61	90	3	INTENSIVE_COLLECTION	تحصيل مكثف - زيارات ميدانية	t	2025-07-27 11:53:02.538932+00	61	90
+4	BUCKET_004	91-180 يوم	91	180	4	LEGAL_COLLECTION	تحصيل قانوني - إجراءات قانونية	t	2025-07-27 11:53:02.538932+00	91	180
+5	BUCKET_005	180+ يوم	181	999	5	RECOVERY_COLLECTION	استرداد - إجراءات متقدمة	t	2025-07-27 11:53:02.538932+00	181	999
+\.
+
+
+--
+-- Data for Name: collection_call_records; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_call_records (call_id, interaction_id, phone_number, officer_id, call_datetime, call_duration_seconds, wait_time_seconds, hold_time_seconds, call_type, call_disposition, recording_url, ivr_path, transfer_count, quality_monitored, quality_score, created_at) FROM stdin;
+1	14	+966501234567	OFF007	2024-07-20 07:30:00+00	420	\N	\N	MANUAL	PROMISE_TO_PAY	\N	\N	\N	f	\N	2025-07-26 04:37:40.72132+00
+2	15	+966505678901	OFF007	2024-07-20 11:15:00+00	180	\N	\N	MANUAL	CALLBACK_REQUESTED	\N	\N	\N	f	\N	2025-07-26 04:37:40.72132+00
+3	17	+966506789012	OFF007	2024-07-18 13:45:00+00	600	\N	\N	INBOUND	DISPUTE_RAISED	\N	\N	\N	f	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_campaigns; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_campaigns (campaign_id, campaign_name, campaign_type, target_bucket, target_segment, start_date, end_date, budget_amount, target_recovery, actual_recovery, total_contacts, success_rate, roi, status, created_by, created_at) FROM stdin;
+3	Ramadan Recovery Campaign	SEASONAL	22	\N	2024-03-01	2024-04-30	100000.00	5000000.00	\N	\N	\N	\N	COMPLETED	MGR001	2025-07-26 04:37:40.72132+00
+4	Q3 2024 Recovery Drive	REGULAR	23	\N	2024-07-01	2024-09-30	150000.00	10000000.00	\N	\N	\N	\N	ACTIVE	MGR002	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_case_details; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_case_details (case_detail_id, case_id, delinquency_reason, customer_segment, risk_score, collection_strategy, skip_trace_status, legal_status, settlement_offered, settlement_amount, restructure_requested, hardship_flag, created_at, updated_at) FROM stdin;
+10	10	JOB_LOSS	RETAIL	65	INT_CALL_01	NOT_REQUIRED	NA	f	\N	f	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+11	11	BUSINESS_IMPACT	RETAIL	55	SOFT_REM_01	NOT_REQUIRED	NA	f	\N	f	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+12	12	FINANCIAL_DISTRESS	RETAIL	60	SOFT_REM_01	NOT_REQUIRED	NA	t	\N	f	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+13	13	DISPUTE	RETAIL	75	FIELD_VIS_01	IN_PROGRESS	NOTICE_PREPARED	f	\N	f	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 \.
 
 
@@ -8795,11 +8019,139 @@ COPY kastle_banking.collection_buckets (bucket_id, bucket_code, bucket_name, min
 -- Data for Name: collection_cases; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
-COPY kastle_banking.collection_cases (case_id, case_number, customer_id, account_number, account_type, loan_account_number, card_number, bucket_id, total_outstanding, principal_outstanding, interest_outstanding, penalty_outstanding, other_charges, days_past_due, last_payment_date, last_payment_amount, case_status, assigned_to, assignment_date, priority, branch_id, created_at, updated_at, total_amount) FROM stdin;
-10	COLL20250726_8f8d1128	CUST001	ACC1000000001	LOAN	LOAN1000000001	\N	23	135250.00	125000.00	5000.00	5250.00	\N	60	\N	\N	ACTIVE	\N	\N	HIGH	BR001	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	135250
-11	COLL20250726_550e80ce	CUST005	ACC1000000007	LOAN	LOAN1000000003	\N	22	129524.00	120000.00	3500.00	6024.00	\N	30	\N	\N	ACTIVE	\N	\N	MEDIUM	BR003	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	129524
-12	COLL20250726_d12d9499	CUST004	ACC1000000006	LOAN	LOAN1000000005	\N	23	55950.00	50000.00	2000.00	3950.00	\N	45	\N	\N	ACTIVE	\N	\N	MEDIUM	BR002	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	55950
-13	COLL20250726_7f2b0237	CUST006	ACC1000000008	LOAN	LOAN1000000006	\N	24	100380.00	90000.00	3000.00	7380.00	\N	90	\N	\N	ACTIVE	\N	\N	HIGH	BR003	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	100380
+COPY kastle_banking.collection_cases (case_id, case_number, customer_id, account_number, account_type, loan_account_number, card_number, bucket_id, total_outstanding, principal_outstanding, interest_outstanding, penalty_outstanding, other_charges, days_past_due, last_payment_date, last_payment_amount, case_status, assigned_to, assignment_date, priority, branch_id, created_at, updated_at, total_amount, total_overdue, dpd, last_contact_date, next_action_date) FROM stdin;
+10	COLL20250726_8f8d1128	CUST001	ACC1000000001	LOAN	LOAN1000000001	\N	23	135250.00	125000.00	5000.00	5250.00	\N	60	\N	\N	ACTIVE	\N	\N	HIGH	BR001	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	135250	0.00	0	\N	\N
+11	COLL20250726_550e80ce	CUST005	ACC1000000007	LOAN	LOAN1000000003	\N	22	129524.00	120000.00	3500.00	6024.00	\N	30	\N	\N	ACTIVE	\N	\N	MEDIUM	BR003	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	129524	0.00	0	\N	\N
+12	COLL20250726_d12d9499	CUST004	ACC1000000006	LOAN	LOAN1000000005	\N	23	55950.00	50000.00	2000.00	3950.00	\N	45	\N	\N	ACTIVE	\N	\N	MEDIUM	BR002	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	55950	0.00	0	\N	\N
+13	COLL20250726_7f2b0237	CUST006	ACC1000000008	LOAN	LOAN1000000006	\N	24	100380.00	90000.00	3000.00	7380.00	\N	90	\N	\N	ACTIVE	\N	\N	HIGH	BR003	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	100380	0.00	0	\N	\N
+30	COLL20250727_efde899f	CUST001	\N	CREDIT_CARD	\N	\N	21	177168.60	237007.06	75474.43	\N	\N	177	\N	\N	ACTIVE	OFF001	2025-06-30	MEDIUM	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+31	COLL20250727_32ab1fe0	CUST002	\N	OVERDRAFT	\N	\N	22	445676.92	112981.22	52124.85	\N	\N	124	\N	\N	ACTIVE	OFF002	2025-07-03	HIGH	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+32	COLL20250727_01ae7d1a	CUST003	\N	OTHER	\N	\N	23	198649.74	262052.23	15024.56	\N	\N	79	\N	\N	ACTIVE	OFF003	2025-07-04	LOW	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+33	COLL20250727_5c7a8ac1	CUST004	\N	LOAN	\N	\N	24	472091.75	305044.86	56185.07	\N	\N	101	\N	\N	ACTIVE	OFF004	2025-07-24	LOW	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+34	COLL20250727_6c0c130b	CUST005	\N	CREDIT_CARD	\N	\N	25	228617.62	361143.41	44495.73	\N	\N	48	\N	\N	ACTIVE	OFF005	2025-07-25	LOW	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+35	COLL20250727_124e728b	CUST006	\N	OVERDRAFT	\N	\N	26	460641.36	40080.02	70846.33	\N	\N	123	\N	\N	ACTIVE	OFF006	2025-07-20	LOW	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+36	COLL20250727_4caca06e	CUST007	\N	OTHER	\N	\N	27	192940.71	343290.67	90877.03	\N	\N	162	\N	\N	ACTIVE	OFF007	2025-07-03	MEDIUM	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+37	COLL20250727_d6cee9ed	CUST008	\N	LOAN	\N	\N	21	222743.47	378228.04	48317.12	\N	\N	103	\N	\N	ACTIVE	OFF008	2025-06-29	HIGH	\N	2025-07-27 05:56:46.281596+00	2025-07-27 05:56:46.281596+00	\N	0.00	0	\N	\N
+44	COLL20250726_ABC123	CUST001	ACC001	\N	LOAN001	\N	1	25000.00	20000.00	3000.00	2000.00	\N	45	\N	\N	ACTIVE	OFF007	2025-07-01	HIGH	\N	2025-07-27 11:53:02.538932+00	2025-07-27 11:53:02.538932+00	\N	5000.00	45	\N	\N
+45	COLL20250726_DEF456	CUST002	ACC002	\N	LOAN002	\N	2	35000.00	30000.00	4000.00	1000.00	\N	75	\N	\N	ACTIVE	OFF007	2025-07-05	MEDIUM	\N	2025-07-27 11:53:02.538932+00	2025-07-27 11:53:02.538932+00	\N	8000.00	75	\N	\N
+46	COLL20250726_GHI789	CUST003	ACC003	\N	LOAN003	\N	3	45000.00	40000.00	3500.00	1500.00	\N	120	\N	\N	ACTIVE	OFF007	2025-07-10	CRITICAL	\N	2025-07-27 11:53:02.538932+00	2025-07-27 11:53:02.538932+00	\N	12000.00	120	\N	\N
+\.
+
+
+--
+-- Data for Name: collection_compliance_violations; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_compliance_violations (violation_id, violation_date, violation_type, severity, officer_id, case_id, description, corrective_action, action_taken, action_date, reviewed_by, fine_amount, created_at) FROM stdin;
+1	2024-07-15	COLLECTION_PRACTICE	LOW	OFF002	11	Called customer outside permitted hours	Refresher training on calling hours	t	\N	\N	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_contact_attempts; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_contact_attempts (attempt_id, case_id, customer_id, contact_type, contact_number, contact_result, attempt_datetime, officer_id, best_time_to_contact, contact_quality_score, is_valid, created_at, outstanding_amount) FROM stdin;
+6	10	CUST001	PRIMARY	+966501234567	NO_ANSWER	2024-07-19 12:30:00+00	OFF001	\N	5	t	2025-07-26 04:37:40.72132+00	135250
+7	10	CUST001	PRIMARY	+966501234567	CONNECTED	2024-07-20 07:30:00+00	OFF001	MORNING	8	t	2025-07-26 04:37:40.72132+00	135250
+8	11	CUST005	PRIMARY	+966505678901	CONNECTED	2024-07-20 11:15:00+00	OFF002	AFTERNOON	7	t	2025-07-26 04:37:40.72132+00	129524
+9	12	CUST004	PRIMARY	+966504567890	VOICEMAIL	2024-07-19 08:30:00+00	OFF004	\N	3	t	2025-07-26 04:37:40.72132+00	55950
+10	13	CUST006	WORK	+966131234567	WRONG_NUMBER	2024-07-18 07:00:00+00	OFF006	\N	0	t	2025-07-26 04:37:40.72132+00	100380
+\.
+
+
+--
+-- Data for Name: collection_customer_segments; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_customer_segments (segment_id, segment_name, segment_code, segment_criteria, risk_profile, collection_strategy, target_recovery_rate, actual_recovery_rate, customers_count, total_exposure, avg_ticket_size, is_active, created_at, updated_at) FROM stdin;
+7	High Value Low Risk	HVLR	{"max_dpd": 30, "min_exposure": 500000, "risk_category": "LOW"}	LOW	SOFT_APPROACH	95.0	\N	50	25000000	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+8	Retail Medium Risk	RMR	{"max_dpd": 60, "max_exposure": 500000, "min_exposure": 50000, "risk_category": "MEDIUM"}	MEDIUM	STANDARD_APPROACH	85.0	\N	200	50000000	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+9	Small Ticket High Risk	STHR	{"min_dpd": 61, "max_exposure": 50000, "risk_category": "HIGH"}	HIGH	AGGRESSIVE_APPROACH	70.0	\N	500	15000000	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_forecasts; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_forecasts (forecast_id, forecast_date, forecast_period, forecast_type, product_id, bucket_id, predicted_amount, confidence_level, lower_bound, upper_bound, actual_amount, variance, model_used, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: collection_interactions; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_interactions (interaction_id, case_id, customer_id, interaction_type, interaction_direction, officer_id, contact_number, interaction_status, duration_seconds, outcome, promise_to_pay, ptp_amount, ptp_date, notes, recording_reference, interaction_datetime, created_at) FROM stdin;
+13	10	CUST001	SMS	OUTBOUND	OFF001	+966501234567	SENT	\N	NO_RESPONSE	f	\N	\N	Reminder SMS sent	\N	2024-07-21 06:00:00+00	2025-07-26 04:37:40.72132+00
+14	10	CUST001	CALL	OUTBOUND	OFF001	+966501234567	COMPLETED	\N	PROMISE_TO_PAY	t	20000.00	2024-08-01	Customer promised partial payment	\N	2024-07-20 07:30:00+00	2025-07-26 04:37:40.72132+00
+15	11	CUST005	CALL	OUTBOUND	OFF002	+966505678901	COMPLETED	\N	CALLBACK_REQUESTED	f	\N	\N	Customer requested callback tomorrow	\N	2024-07-20 11:15:00+00	2025-07-26 04:37:40.72132+00
+16	12	CUST004	EMAIL	OUTBOUND	OFF004	a.qasim@kbank.sa	SENT	\N	NO_RESPONSE	f	\N	\N	Payment reminder email	\N	2024-07-19 08:00:00+00	2025-07-26 04:37:40.72132+00
+17	13	CUST006	CALL	INBOUND	OFF006	+966506789012	COMPLETED	\N	DISPUTE_RAISED	f	\N	\N	Customer disputes charges	\N	2024-07-18 13:45:00+00	2025-07-26 04:37:40.72132+00
+322	30	\N	SMS	\N	OFF001	\N	ANSWERED	\N	FAILED	f	\N	\N	\N	\N	2025-07-02 09:39:35.00432+00	2025-07-27 05:56:46.281596+00
+323	31	\N	CALL	\N	OFF002	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-07-17 08:47:59.321661+00	2025-07-27 05:56:46.281596+00
+324	32	\N	SMS	\N	OFF003	\N	NO_ANSWER	\N	SUCCESSFUL	t	\N	\N	\N	\N	2025-07-19 11:24:58.705352+00	2025-07-27 05:56:46.281596+00
+325	33	\N	EMAIL	\N	OFF004	\N	ANSWERED	\N	PENDING	t	\N	\N	\N	\N	2025-07-19 12:46:23.447409+00	2025-07-27 05:56:46.281596+00
+326	34	\N	SMS	\N	OFF005	\N	ANSWERED	\N	SUCCESSFUL	f	\N	\N	\N	\N	2025-07-11 20:17:18.806576+00	2025-07-27 05:56:46.281596+00
+327	35	\N	CALL	\N	OFF006	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-07-04 12:56:39.850303+00	2025-07-27 05:56:46.281596+00
+328	36	\N	SMS	\N	OFF007	\N	NO_ANSWER	\N	SUCCESSFUL	f	\N	\N	\N	\N	2025-07-14 05:58:53.273929+00	2025-07-27 05:56:46.281596+00
+329	37	\N	SMS	\N	OFF008	\N	ANSWERED	\N	FAILED	f	\N	\N	\N	\N	2025-07-25 09:36:34.287315+00	2025-07-27 05:56:46.281596+00
+330	30	\N	CALL	\N	OFF001	\N	ANSWERED	\N	FAILED	t	\N	\N	\N	\N	2025-07-09 05:32:47.503883+00	2025-07-27 05:56:46.281596+00
+331	31	\N	SMS	\N	OFF002	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-07-05 16:43:24.151383+00	2025-07-27 05:56:46.281596+00
+332	32	\N	SMS	\N	OFF003	\N	NO_ANSWER	\N	SUCCESSFUL	t	\N	\N	\N	\N	2025-06-29 16:13:51.97978+00	2025-07-27 05:56:46.281596+00
+333	33	\N	CALL	\N	OFF004	\N	ANSWERED	\N	PENDING	t	\N	\N	\N	\N	2025-07-05 04:42:59.36473+00	2025-07-27 05:56:46.281596+00
+334	34	\N	CALL	\N	OFF005	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-07-16 00:32:43.721416+00	2025-07-27 05:56:46.281596+00
+335	35	\N	EMAIL	\N	OFF006	\N	NO_ANSWER	\N	PENDING	f	\N	\N	\N	\N	2025-07-14 16:34:08.407682+00	2025-07-27 05:56:46.281596+00
+336	36	\N	CALL	\N	OFF007	\N	ANSWERED	\N	SUCCESSFUL	f	\N	\N	\N	\N	2025-07-01 10:36:27.998202+00	2025-07-27 05:56:46.281596+00
+337	37	\N	SMS	\N	OFF008	\N	ANSWERED	\N	PENDING	t	\N	\N	\N	\N	2025-07-15 04:27:13.599417+00	2025-07-27 05:56:46.281596+00
+338	30	\N	CALL	\N	OFF001	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-07-02 20:33:28.512059+00	2025-07-27 05:56:46.281596+00
+339	31	\N	CALL	\N	OFF002	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-07-12 15:28:30.627507+00	2025-07-27 05:56:46.281596+00
+340	32	\N	SMS	\N	OFF003	\N	NO_ANSWER	\N	PENDING	f	\N	\N	\N	\N	2025-07-21 23:55:07.405485+00	2025-07-27 05:56:46.281596+00
+341	33	\N	CALL	\N	OFF004	\N	ANSWERED	\N	PENDING	t	\N	\N	\N	\N	2025-07-02 14:32:23.665503+00	2025-07-27 05:56:46.281596+00
+342	34	\N	SMS	\N	OFF005	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-07-14 10:27:39.040928+00	2025-07-27 05:56:46.281596+00
+343	35	\N	CALL	\N	OFF006	\N	ANSWERED	\N	SUCCESSFUL	f	\N	\N	\N	\N	2025-07-08 12:32:22.101354+00	2025-07-27 05:56:46.281596+00
+344	36	\N	CALL	\N	OFF007	\N	NO_ANSWER	\N	FAILED	f	\N	\N	\N	\N	2025-07-09 05:51:45.102087+00	2025-07-27 05:56:46.281596+00
+345	37	\N	SMS	\N	OFF008	\N	NO_ANSWER	\N	SUCCESSFUL	f	\N	\N	\N	\N	2025-07-23 04:33:42.699385+00	2025-07-27 05:56:46.281596+00
+346	30	\N	CALL	\N	OFF001	\N	ANSWERED	\N	SUCCESSFUL	f	\N	\N	\N	\N	2025-06-28 01:35:16.9042+00	2025-07-27 05:56:46.281596+00
+347	31	\N	CALL	\N	OFF002	\N	NO_ANSWER	\N	SUCCESSFUL	f	\N	\N	\N	\N	2025-07-02 16:28:06.497571+00	2025-07-27 05:56:46.281596+00
+348	32	\N	SMS	\N	OFF003	\N	NO_ANSWER	\N	PENDING	f	\N	\N	\N	\N	2025-07-07 16:32:27.876383+00	2025-07-27 05:56:46.281596+00
+349	33	\N	CALL	\N	OFF004	\N	ANSWERED	\N	PENDING	f	\N	\N	\N	\N	2025-06-28 19:32:49.130956+00	2025-07-27 05:56:46.281596+00
+350	34	\N	SMS	\N	OFF005	\N	NO_ANSWER	\N	PENDING	f	\N	\N	\N	\N	2025-07-17 01:19:19.214038+00	2025-07-27 05:56:46.281596+00
+351	35	\N	CALL	\N	OFF006	\N	ANSWERED	\N	SUCCESSFUL	t	\N	\N	\N	\N	2025-07-14 04:02:25.795453+00	2025-07-27 05:56:46.281596+00
+352	36	\N	CALL	\N	OFF007	\N	NO_ANSWER	\N	PENDING	f	\N	\N	\N	\N	2025-07-26 18:04:15.783892+00	2025-07-27 05:56:46.281596+00
+353	37	\N	SMS	\N	OFF008	\N	ANSWERED	\N	PENDING	t	\N	\N	\N	\N	2025-07-07 03:43:55.588308+00	2025-07-27 05:56:46.281596+00
+\.
+
+
+--
+-- Data for Name: collection_officers; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_officers (officer_id, officer_name, officer_type, team_id, contact_number, email, status, language_skills, collection_limit, commission_rate, joining_date, last_active, created_at, updated_at) FROM stdin;
+OFF007	Test Officer	Field	1	\N	\N	ACTIVE	\N	\N	\N	\N	\N	2025-07-27 14:55:24.578907+00	2025-07-27 14:55:24.578907+00
+\.
+
+
+--
+-- Data for Name: collection_provisions; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_provisions (provision_id, provision_date, bucket_id, provision_rate, total_exposure, provision_amount, ifrs9_stage, ecl_amount, regulatory_provision, additional_provision, provision_coverage_ratio, created_at) FROM stdin;
+1	2024-06-30	22	5.0	185474	9273.70	STAGE1	9273.70	9273.70	\N	5.0	2025-07-26 04:37:40.72132+00
+2	2024-06-30	23	15.0	135250	20287.50	STAGE2	20287.50	20287.50	\N	15.0	2025-07-26 04:37:40.72132+00
+3	2024-06-30	24	50.0	100380	50190.00	STAGE3	50190.00	50190.00	\N	50.0	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_queue_management; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_queue_management (queue_id, queue_name, queue_type, priority_level, filter_criteria, assigned_officer_id, assigned_team_id, cases_count, total_amount, avg_dpd, last_refreshed, is_active, created_at, updated_at) FROM stdin;
+1	High Priority Retail	PRIORITY	1	{"min_dpd": 60, "min_amount": 100000}	\N	16	2	235630	75	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+2	Standard Retail	NORMAL	2	{"max_dpd": 60, "max_amount": 100000}	\N	16	2	185474	38	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+3	Field Visit Queue	MANUAL	1	{"min_dpd": 90}	\N	17	1	100380	90	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 \.
 
 
@@ -8811,6 +8163,113 @@ COPY kastle_banking.collection_rates (id, period_type, period_date, total_delinq
 139	MONTHLY	2024-06-01	400000.00	120000.00	30.00	10	3	2025-07-26 04:37:40.72132+00
 140	MONTHLY	2024-07-01	421104.00	105276.00	25.00	12	3	2025-07-26 04:37:40.72132+00
 141	WEEKLY	2024-07-15	421104.00	52638.00	12.50	12	2	2025-07-26 04:37:40.72132+00
+142	MONTHLY	2025-06-01	87842637.10	67891542.29	76.77	62	49	2025-07-28 11:10:08.249911+00
+143	MONTHLY	2024-09-01	86881346.47	66811614.00	83.65	53	40	2025-07-28 11:10:08.249911+00
+144	MONTHLY	2024-08-01	88915507.74	67406261.68	80.94	52	39	2025-07-28 11:10:08.249911+00
+145	MONTHLY	2024-10-01	86967401.66	69709728.70	84.89	54	41	2025-07-28 11:10:08.249911+00
+146	MONTHLY	2024-12-01	87113617.23	74208326.45	83.17	56	43	2025-07-28 11:10:08.249911+00
+147	MONTHLY	2024-11-01	89848255.03	74015061.83	83.11	55	42	2025-07-28 11:10:08.249911+00
+148	MONTHLY	2025-07-01	87116263.83	66474849.29	75.42	63	50	2025-07-28 11:10:08.249911+00
+149	MONTHLY	2025-02-01	86351757.87	68238315.89	77.53	58	45	2025-07-28 11:10:08.249911+00
+150	MONTHLY	2025-01-01	86672639.62	70697943.52	83.02	57	44	2025-07-28 11:10:08.249911+00
+151	MONTHLY	2025-03-01	88322411.04	70553369.76	81.95	59	46	2025-07-28 11:10:08.249911+00
+152	MONTHLY	2025-05-01	87538357.36	74320908.16	75.80	61	48	2025-07-28 11:10:08.249911+00
+153	MONTHLY	2025-04-01	88215395.29	74709466.88	82.43	60	47	2025-07-28 11:10:08.249911+00
+\.
+
+
+--
+-- Data for Name: collection_risk_assessment; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_risk_assessment (assessment_id, customer_id, case_id, assessment_date, risk_category, default_probability, loss_given_default, expected_loss, early_warning_flags, behavioral_score, payment_pattern_score, external_risk_factors, recommended_strategy, next_review_date, created_at) FROM stdin;
+1	CUST001	10	2024-07-15	HIGH	0.35	0.60	28402.500000	\N	45	30	\N	SETTLEMENT_OFFER	2024-08-15	2025-07-26 04:37:40.72132+00
+2	CUST005	11	2024-07-15	MEDIUM	0.25	0.50	16190.500000	\N	55	50	\N	STANDARD_COLLECTION	2024-08-15	2025-07-26 04:37:40.72132+00
+3	CUST004	12	2024-07-15	MEDIUM	0.30	0.55	9231.750000	\N	50	45	\N	SETTLEMENT_OFFER	2024-08-15	2025-07-26 04:37:40.72132+00
+4	CUST006	13	2024-07-15	HIGH	0.45	0.70	31619.700000	\N	35	25	\N	LEGAL_ACTION	2024-08-15	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_scores; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_scores (score_id, customer_id, score_date, payment_behavior_score, contact_score, response_score, risk_score, recovery_probability, recommended_action, score_factors, created_at) FROM stdin;
+6	CUST001	2024-07-20	45	80	70	65	0.65	CONTINUE_FOLLOW_UP	\N	2025-07-26 04:37:40.72132+00
+7	CUST005	2024-07-20	55	75	60	55	0.75	STANDARD_COLLECTION	\N	2025-07-26 04:37:40.72132+00
+8	CUST004	2024-07-20	50	40	50	60	0.70	INCREASE_CONTACT	\N	2025-07-26 04:37:40.72132+00
+9	CUST006	2024-07-20	35	30	40	75	0.45	ESCALATE_TO_LEGAL	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_settlement_offers; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_settlement_offers (offer_id, case_id, customer_id, offer_date, original_amount, settlement_amount, discount_percentage, payment_terms, installments, offer_valid_until, offer_status, approval_level, approved_by, customer_response, response_date, created_at) FROM stdin;
+1	10	CUST001	2024-07-20	135250.00	120000	11.3	LUMP_SUM	\N	2024-08-20	PENDING	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00
+2	12	CUST004	2024-07-19	55950.00	50000	10.6	INSTALLMENTS_3	\N	2024-08-19	PENDING	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_strategies; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_strategies (strategy_id, strategy_code, strategy_name, bucket_id, customer_segment, risk_category, min_amount, max_amount, actions, escalation_days, is_active, created_at) FROM stdin;
+12	SOFT_REM_01	Soft Reminder Strategy	22	RETAIL	LOW	1000.00	50000.00	["SMS reminder", "Email reminder", "Automated call"]	7	t	2025-07-26 04:37:40.72132+00
+13	INT_CALL_01	Intensive Calling Strategy	23	RETAIL	MEDIUM	50000.00	200000.00	["Daily calls", "Skip tracing", "Email escalation"]	14	t	2025-07-26 04:37:40.72132+00
+14	FIELD_VIS_01	Field Visit Strategy	24	PREMIUM	HIGH	200000.00	1000000.00	["Field visit", "Legal notice preparation", "Asset verification"]	21	t	2025-07-26 04:37:40.72132+00
+15	LEGAL_ACT_01	Legal Action Strategy	25	HNI	HIGH	1000000.00	\N	["Legal notice", "Court filing", "Asset attachment"]	30	t	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_system_performance; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_system_performance (log_id, log_timestamp, system_component, response_time_ms, cpu_usage_percent, memory_usage_percent, active_users, error_count, warning_count, api_calls, database_connections) FROM stdin;
+4	2024-07-20 07:00:00+00	WEB_APP	45	35.50	62.30	25	\N	\N	1500	\N
+5	2024-07-20 08:00:00+00	API_SERVER	28	42.10	58.70	30	\N	\N	2100	\N
+\.
+
+
+--
+-- Data for Name: collection_teams; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_teams (team_id, team_name, team_type, team_lead_id, created_at, updated_at) FROM stdin;
+1	Default Team	Field	\N	2025-07-27 14:55:24.578907+00	2025-07-27 14:55:24.578907+00
+\.
+
+
+--
+-- Data for Name: collection_vintage_analysis; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_vintage_analysis (vintage_id, origination_month, product_id, months_on_book, original_accounts, original_amount, current_outstanding, dpd_0_30_count, dpd_31_60_count, dpd_61_90_count, dpd_90_plus_count, written_off_count, written_off_amount, recovery_amount, flow_rate_30, flow_rate_60, flow_rate_90, loss_rate, created_at) FROM stdin;
+1	2020-06	41	49	100	10000000	6500000	5	3	1	1	\N	\N	\N	0.05	0.03	0.01	0.01	2025-07-26 04:37:40.72132+00
+2	2021-01	41	42	80	6000000	4200000	4	2	1	0	\N	\N	\N	0.05	0.025	0.0125	0.00	2025-07-26 04:37:40.72132+00
+3	2021-06	41	37	120	9000000	6750000	6	3	2	1	\N	\N	\N	0.05	0.025	0.017	0.008	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_workflow_templates; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_workflow_templates (template_id, template_name, workflow_type, bucket_id, customer_segment, workflow_steps, escalation_matrix, sla_hours, is_automated, is_active, created_at, updated_at) FROM stdin;
+1	Early Stage Workflow	STANDARD	22	\N	[{"step": 1, "action": "SMS"}, {"step": 2, "action": "Call"}, {"step": 3, "action": "Email"}]	\N	48	t	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+2	Mid Stage Workflow	INTENSIVE	23	\N	[{"step": 1, "action": "Call"}, {"step": 2, "action": "Field Visit"}, {"step": 3, "action": "Legal Notice"}]	\N	72	f	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+3	Late Stage Workflow	AGGRESSIVE	24	\N	[{"step": 1, "action": "Field Visit"}, {"step": 2, "action": "Legal Notice"}, {"step": 3, "action": "Legal Action"}]	\N	96	f	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: collection_write_offs; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.collection_write_offs (write_off_id, case_id, account_number, customer_id, write_off_date, write_off_amount, principal_amount, interest_amount, penalty_amount, write_off_reason, approval_level, approved_by, recovery_attempts, last_payment_date, documentation, is_recoverable, created_at) FROM stdin;
 \.
 
 
@@ -8827,6 +8286,8 @@ QA	Qatar	QA	QAR	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 OM	Oman	OM	OMR	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 EG	Egypt	EG	EGP	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 JO	Jordan	JO	JOD	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+US	United States	\N	USD	t	2025-07-29 17:31:20.774076+00	2025-07-29 17:31:20.774076+00
+GB	United Kingdom	\N	GBP	t	2025-07-29 17:31:22.275757+00	2025-07-29 17:31:22.275757+00
 \.
 
 
@@ -8843,6 +8304,7 @@ QAR	Qatari Riyal	ر.ق	2	t	2025-07-26 04:37:40.72132+00
 OMR	Omani Rial	ر.ع	2	t	2025-07-26 04:37:40.72132+00
 USD	US Dollar	$	2	t	2025-07-26 04:37:40.72132+00
 EUR	Euro	€	2	t	2025-07-26 04:37:40.72132+00
+GBP	British Pound	£	2	t	2025-07-29 17:31:24.354382+00
 \.
 
 
@@ -8883,6 +8345,706 @@ COPY kastle_banking.customer_contacts (contact_id, customer_id, contact_type, co
 124	CUST007	EMAIL	a.dosari@kbank.ae	t	t	\N	2025-07-26 04:37:40.72132+00
 125	CUST008	MOBILE	+96598765432	t	t	\N	2025-07-26 04:37:40.72132+00
 126	CUST008	EMAIL	m.mutairi@kbank.kw	t	t	\N	2025-07-26 04:37:40.72132+00
+127	CUST001	EMAIL	customer1@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+128	CUST001	MOBILE	+12345670001	f	t	\N	2025-07-29 16:55:51.728208+00
+129	CUST002	EMAIL	customer2@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+130	CUST002	MOBILE	+12345670002	f	t	\N	2025-07-29 16:55:51.728208+00
+131	CUST003	EMAIL	customer3@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+132	CUST003	MOBILE	+12345670003	f	t	\N	2025-07-29 16:55:51.728208+00
+133	CUST004	EMAIL	customer4@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+134	CUST004	MOBILE	+12345670004	f	t	\N	2025-07-29 16:55:51.728208+00
+135	CUST005	EMAIL	customer5@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+136	CUST005	MOBILE	+12345670005	f	t	\N	2025-07-29 16:55:51.728208+00
+137	CUST006	EMAIL	customer6@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+138	CUST006	MOBILE	+12345670006	f	t	\N	2025-07-29 16:55:51.728208+00
+139	CUST007	EMAIL	customer7@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+140	CUST007	MOBILE	+12345670007	f	t	\N	2025-07-29 16:55:51.728208+00
+141	CUST008	EMAIL	customer8@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+142	CUST008	MOBILE	+12345670008	f	t	\N	2025-07-29 16:55:51.728208+00
+143	CUST000001	EMAIL	customer9@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+144	CUST000001	MOBILE	+12345670009	f	t	\N	2025-07-29 16:55:51.728208+00
+145	CUST000002	EMAIL	customer10@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+146	CUST000002	MOBILE	+12345670010	f	t	\N	2025-07-29 16:55:51.728208+00
+147	CUST000003	EMAIL	customer11@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+148	CUST000003	MOBILE	+12345670011	f	t	\N	2025-07-29 16:55:51.728208+00
+149	CUST000004	EMAIL	customer12@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+150	CUST000004	MOBILE	+12345670012	f	t	\N	2025-07-29 16:55:51.728208+00
+151	CUST000005	EMAIL	customer13@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+152	CUST000005	MOBILE	+12345670013	f	t	\N	2025-07-29 16:55:51.728208+00
+153	CUST000006	EMAIL	customer14@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+154	CUST000006	MOBILE	+12345670014	f	t	\N	2025-07-29 16:55:51.728208+00
+155	CUST000007	EMAIL	customer15@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+156	CUST000007	MOBILE	+12345670015	f	t	\N	2025-07-29 16:55:51.728208+00
+157	CUST000008	EMAIL	customer16@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+158	CUST000008	MOBILE	+12345670016	f	t	\N	2025-07-29 16:55:51.728208+00
+159	CUST000009	EMAIL	customer17@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+160	CUST000009	MOBILE	+12345670017	f	t	\N	2025-07-29 16:55:51.728208+00
+161	CUST000010	EMAIL	customer18@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+162	CUST000010	MOBILE	+12345670018	f	t	\N	2025-07-29 16:55:51.728208+00
+163	CUST000011	EMAIL	customer19@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+164	CUST000011	MOBILE	+12345670019	f	t	\N	2025-07-29 16:55:51.728208+00
+165	CUST000012	EMAIL	customer20@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+166	CUST000012	MOBILE	+12345670020	f	t	\N	2025-07-29 16:55:51.728208+00
+167	CUST000013	EMAIL	customer21@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+168	CUST000013	MOBILE	+12345670021	f	t	\N	2025-07-29 16:55:51.728208+00
+169	CUST000014	EMAIL	customer22@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+170	CUST000014	MOBILE	+12345670022	f	t	\N	2025-07-29 16:55:51.728208+00
+171	CUST000015	EMAIL	customer23@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+172	CUST000015	MOBILE	+12345670023	f	t	\N	2025-07-29 16:55:51.728208+00
+173	CUST000016	EMAIL	customer24@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+174	CUST000016	MOBILE	+12345670024	f	t	\N	2025-07-29 16:55:51.728208+00
+175	CUST000017	EMAIL	customer25@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+176	CUST000017	MOBILE	+12345670025	f	t	\N	2025-07-29 16:55:51.728208+00
+177	CUST000018	EMAIL	customer26@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+178	CUST000018	MOBILE	+12345670026	f	t	\N	2025-07-29 16:55:51.728208+00
+179	CUST000019	EMAIL	customer27@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+180	CUST000019	MOBILE	+12345670027	f	t	\N	2025-07-29 16:55:51.728208+00
+181	CUST000020	EMAIL	customer28@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+182	CUST000020	MOBILE	+12345670028	f	t	\N	2025-07-29 16:55:51.728208+00
+183	CUST000021	EMAIL	customer29@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+184	CUST000021	MOBILE	+12345670029	f	t	\N	2025-07-29 16:55:51.728208+00
+185	CUST000022	EMAIL	customer30@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+186	CUST000022	MOBILE	+12345670030	f	t	\N	2025-07-29 16:55:51.728208+00
+187	CUST000023	EMAIL	customer31@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+188	CUST000023	MOBILE	+12345670031	f	t	\N	2025-07-29 16:55:51.728208+00
+189	CUST000024	EMAIL	customer32@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+190	CUST000024	MOBILE	+12345670032	f	t	\N	2025-07-29 16:55:51.728208+00
+191	CUST000025	EMAIL	customer33@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+192	CUST000025	MOBILE	+12345670033	f	t	\N	2025-07-29 16:55:51.728208+00
+193	CUST000026	EMAIL	customer34@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+194	CUST000026	MOBILE	+12345670034	f	t	\N	2025-07-29 16:55:51.728208+00
+195	CUST000027	EMAIL	customer35@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+196	CUST000027	MOBILE	+12345670035	f	t	\N	2025-07-29 16:55:51.728208+00
+197	CUST000028	EMAIL	customer36@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+198	CUST000028	MOBILE	+12345670036	f	t	\N	2025-07-29 16:55:51.728208+00
+199	CUST000029	EMAIL	customer37@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+200	CUST000029	MOBILE	+12345670037	f	t	\N	2025-07-29 16:55:51.728208+00
+201	CUST000030	EMAIL	customer38@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+202	CUST000030	MOBILE	+12345670038	f	t	\N	2025-07-29 16:55:51.728208+00
+203	CUST000031	EMAIL	customer39@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+204	CUST000031	MOBILE	+12345670039	f	t	\N	2025-07-29 16:55:51.728208+00
+205	CUST000032	EMAIL	customer40@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+206	CUST000032	MOBILE	+12345670040	f	t	\N	2025-07-29 16:55:51.728208+00
+207	CUST000033	EMAIL	customer41@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+208	CUST000033	MOBILE	+12345670041	f	t	\N	2025-07-29 16:55:51.728208+00
+209	CUST000034	EMAIL	customer42@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+210	CUST000034	MOBILE	+12345670042	f	t	\N	2025-07-29 16:55:51.728208+00
+211	CUST000035	EMAIL	customer43@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+212	CUST000035	MOBILE	+12345670043	f	t	\N	2025-07-29 16:55:51.728208+00
+213	CUST000036	EMAIL	customer44@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+214	CUST000036	MOBILE	+12345670044	f	t	\N	2025-07-29 16:55:51.728208+00
+215	CUST000037	EMAIL	customer45@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+216	CUST000037	MOBILE	+12345670045	f	t	\N	2025-07-29 16:55:51.728208+00
+217	CUST000038	EMAIL	customer46@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+218	CUST000038	MOBILE	+12345670046	f	t	\N	2025-07-29 16:55:51.728208+00
+219	CUST000039	EMAIL	customer47@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+220	CUST000039	MOBILE	+12345670047	f	t	\N	2025-07-29 16:55:51.728208+00
+221	CUST000040	EMAIL	customer48@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+222	CUST000040	MOBILE	+12345670048	f	t	\N	2025-07-29 16:55:51.728208+00
+223	CUST000041	EMAIL	customer49@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+224	CUST000041	MOBILE	+12345670049	f	t	\N	2025-07-29 16:55:51.728208+00
+225	CUST000042	EMAIL	customer50@example.com	t	t	\N	2025-07-29 16:55:51.728208+00
+226	CUST000042	MOBILE	+12345670050	f	t	\N	2025-07-29 16:55:51.728208+00
+227	CUST001	EMAIL	customer1@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+228	CUST001	MOBILE	+12345670001	f	t	\N	2025-07-29 16:56:51.904481+00
+229	CUST002	EMAIL	customer2@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+230	CUST002	MOBILE	+12345670002	f	t	\N	2025-07-29 16:56:51.904481+00
+231	CUST003	EMAIL	customer3@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+232	CUST003	MOBILE	+12345670003	f	t	\N	2025-07-29 16:56:51.904481+00
+233	CUST004	EMAIL	customer4@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+234	CUST004	MOBILE	+12345670004	f	t	\N	2025-07-29 16:56:51.904481+00
+235	CUST005	EMAIL	customer5@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+236	CUST005	MOBILE	+12345670005	f	t	\N	2025-07-29 16:56:51.904481+00
+237	CUST006	EMAIL	customer6@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+238	CUST006	MOBILE	+12345670006	f	t	\N	2025-07-29 16:56:51.904481+00
+239	CUST007	EMAIL	customer7@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+240	CUST007	MOBILE	+12345670007	f	t	\N	2025-07-29 16:56:51.904481+00
+241	CUST008	EMAIL	customer8@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+242	CUST008	MOBILE	+12345670008	f	t	\N	2025-07-29 16:56:51.904481+00
+243	CUST000001	EMAIL	customer9@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+244	CUST000001	MOBILE	+12345670009	f	t	\N	2025-07-29 16:56:51.904481+00
+245	CUST000002	EMAIL	customer10@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+246	CUST000002	MOBILE	+12345670010	f	t	\N	2025-07-29 16:56:51.904481+00
+247	CUST000003	EMAIL	customer11@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+248	CUST000003	MOBILE	+12345670011	f	t	\N	2025-07-29 16:56:51.904481+00
+249	CUST000004	EMAIL	customer12@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+250	CUST000004	MOBILE	+12345670012	f	t	\N	2025-07-29 16:56:51.904481+00
+251	CUST000005	EMAIL	customer13@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+252	CUST000005	MOBILE	+12345670013	f	t	\N	2025-07-29 16:56:51.904481+00
+253	CUST000006	EMAIL	customer14@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+254	CUST000006	MOBILE	+12345670014	f	t	\N	2025-07-29 16:56:51.904481+00
+255	CUST000007	EMAIL	customer15@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+256	CUST000007	MOBILE	+12345670015	f	t	\N	2025-07-29 16:56:51.904481+00
+257	CUST000008	EMAIL	customer16@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+258	CUST000008	MOBILE	+12345670016	f	t	\N	2025-07-29 16:56:51.904481+00
+259	CUST000009	EMAIL	customer17@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+260	CUST000009	MOBILE	+12345670017	f	t	\N	2025-07-29 16:56:51.904481+00
+261	CUST000010	EMAIL	customer18@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+262	CUST000010	MOBILE	+12345670018	f	t	\N	2025-07-29 16:56:51.904481+00
+263	CUST000011	EMAIL	customer19@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+264	CUST000011	MOBILE	+12345670019	f	t	\N	2025-07-29 16:56:51.904481+00
+265	CUST000012	EMAIL	customer20@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+266	CUST000012	MOBILE	+12345670020	f	t	\N	2025-07-29 16:56:51.904481+00
+267	CUST000013	EMAIL	customer21@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+268	CUST000013	MOBILE	+12345670021	f	t	\N	2025-07-29 16:56:51.904481+00
+269	CUST000014	EMAIL	customer22@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+270	CUST000014	MOBILE	+12345670022	f	t	\N	2025-07-29 16:56:51.904481+00
+271	CUST000015	EMAIL	customer23@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+272	CUST000015	MOBILE	+12345670023	f	t	\N	2025-07-29 16:56:51.904481+00
+273	CUST000016	EMAIL	customer24@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+274	CUST000016	MOBILE	+12345670024	f	t	\N	2025-07-29 16:56:51.904481+00
+275	CUST000017	EMAIL	customer25@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+276	CUST000017	MOBILE	+12345670025	f	t	\N	2025-07-29 16:56:51.904481+00
+277	CUST000018	EMAIL	customer26@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+278	CUST000018	MOBILE	+12345670026	f	t	\N	2025-07-29 16:56:51.904481+00
+279	CUST000019	EMAIL	customer27@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+280	CUST000019	MOBILE	+12345670027	f	t	\N	2025-07-29 16:56:51.904481+00
+281	CUST000020	EMAIL	customer28@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+282	CUST000020	MOBILE	+12345670028	f	t	\N	2025-07-29 16:56:51.904481+00
+283	CUST000021	EMAIL	customer29@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+284	CUST000021	MOBILE	+12345670029	f	t	\N	2025-07-29 16:56:51.904481+00
+285	CUST000022	EMAIL	customer30@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+286	CUST000022	MOBILE	+12345670030	f	t	\N	2025-07-29 16:56:51.904481+00
+287	CUST000023	EMAIL	customer31@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+288	CUST000023	MOBILE	+12345670031	f	t	\N	2025-07-29 16:56:51.904481+00
+289	CUST000024	EMAIL	customer32@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+290	CUST000024	MOBILE	+12345670032	f	t	\N	2025-07-29 16:56:51.904481+00
+291	CUST000025	EMAIL	customer33@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+292	CUST000025	MOBILE	+12345670033	f	t	\N	2025-07-29 16:56:51.904481+00
+293	CUST000026	EMAIL	customer34@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+294	CUST000026	MOBILE	+12345670034	f	t	\N	2025-07-29 16:56:51.904481+00
+295	CUST000027	EMAIL	customer35@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+296	CUST000027	MOBILE	+12345670035	f	t	\N	2025-07-29 16:56:51.904481+00
+297	CUST000028	EMAIL	customer36@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+298	CUST000028	MOBILE	+12345670036	f	t	\N	2025-07-29 16:56:51.904481+00
+299	CUST000029	EMAIL	customer37@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+300	CUST000029	MOBILE	+12345670037	f	t	\N	2025-07-29 16:56:51.904481+00
+301	CUST000030	EMAIL	customer38@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+302	CUST000030	MOBILE	+12345670038	f	t	\N	2025-07-29 16:56:51.904481+00
+303	CUST000031	EMAIL	customer39@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+304	CUST000031	MOBILE	+12345670039	f	t	\N	2025-07-29 16:56:51.904481+00
+305	CUST000032	EMAIL	customer40@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+306	CUST000032	MOBILE	+12345670040	f	t	\N	2025-07-29 16:56:51.904481+00
+307	CUST000033	EMAIL	customer41@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+308	CUST000033	MOBILE	+12345670041	f	t	\N	2025-07-29 16:56:51.904481+00
+309	CUST000034	EMAIL	customer42@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+310	CUST000034	MOBILE	+12345670042	f	t	\N	2025-07-29 16:56:51.904481+00
+311	CUST000035	EMAIL	customer43@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+312	CUST000035	MOBILE	+12345670043	f	t	\N	2025-07-29 16:56:51.904481+00
+313	CUST000036	EMAIL	customer44@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+314	CUST000036	MOBILE	+12345670044	f	t	\N	2025-07-29 16:56:51.904481+00
+315	CUST000037	EMAIL	customer45@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+316	CUST000037	MOBILE	+12345670045	f	t	\N	2025-07-29 16:56:51.904481+00
+317	CUST000038	EMAIL	customer46@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+318	CUST000038	MOBILE	+12345670046	f	t	\N	2025-07-29 16:56:51.904481+00
+319	CUST000039	EMAIL	customer47@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+320	CUST000039	MOBILE	+12345670047	f	t	\N	2025-07-29 16:56:51.904481+00
+321	CUST000040	EMAIL	customer48@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+322	CUST000040	MOBILE	+12345670048	f	t	\N	2025-07-29 16:56:51.904481+00
+323	CUST000041	EMAIL	customer49@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+324	CUST000041	MOBILE	+12345670049	f	t	\N	2025-07-29 16:56:51.904481+00
+325	CUST000042	EMAIL	customer50@example.com	t	t	\N	2025-07-29 16:56:51.904481+00
+326	CUST000042	MOBILE	+12345670050	f	t	\N	2025-07-29 16:56:51.904481+00
+327	CUST001	EMAIL	customer1@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+328	CUST001	MOBILE	+12345670001	f	t	\N	2025-07-29 16:57:03.221124+00
+329	CUST002	EMAIL	customer2@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+330	CUST002	MOBILE	+12345670002	f	t	\N	2025-07-29 16:57:03.221124+00
+331	CUST003	EMAIL	customer3@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+332	CUST003	MOBILE	+12345670003	f	t	\N	2025-07-29 16:57:03.221124+00
+333	CUST004	EMAIL	customer4@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+334	CUST004	MOBILE	+12345670004	f	t	\N	2025-07-29 16:57:03.221124+00
+335	CUST005	EMAIL	customer5@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+336	CUST005	MOBILE	+12345670005	f	t	\N	2025-07-29 16:57:03.221124+00
+337	CUST006	EMAIL	customer6@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+338	CUST006	MOBILE	+12345670006	f	t	\N	2025-07-29 16:57:03.221124+00
+339	CUST007	EMAIL	customer7@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+340	CUST007	MOBILE	+12345670007	f	t	\N	2025-07-29 16:57:03.221124+00
+341	CUST008	EMAIL	customer8@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+342	CUST008	MOBILE	+12345670008	f	t	\N	2025-07-29 16:57:03.221124+00
+343	CUST000001	EMAIL	customer9@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+344	CUST000001	MOBILE	+12345670009	f	t	\N	2025-07-29 16:57:03.221124+00
+345	CUST000002	EMAIL	customer10@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+346	CUST000002	MOBILE	+12345670010	f	t	\N	2025-07-29 16:57:03.221124+00
+347	CUST000003	EMAIL	customer11@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+348	CUST000003	MOBILE	+12345670011	f	t	\N	2025-07-29 16:57:03.221124+00
+349	CUST000004	EMAIL	customer12@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+350	CUST000004	MOBILE	+12345670012	f	t	\N	2025-07-29 16:57:03.221124+00
+351	CUST000005	EMAIL	customer13@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+352	CUST000005	MOBILE	+12345670013	f	t	\N	2025-07-29 16:57:03.221124+00
+353	CUST000006	EMAIL	customer14@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+354	CUST000006	MOBILE	+12345670014	f	t	\N	2025-07-29 16:57:03.221124+00
+355	CUST000007	EMAIL	customer15@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+356	CUST000007	MOBILE	+12345670015	f	t	\N	2025-07-29 16:57:03.221124+00
+357	CUST000008	EMAIL	customer16@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+358	CUST000008	MOBILE	+12345670016	f	t	\N	2025-07-29 16:57:03.221124+00
+359	CUST000009	EMAIL	customer17@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+360	CUST000009	MOBILE	+12345670017	f	t	\N	2025-07-29 16:57:03.221124+00
+361	CUST000010	EMAIL	customer18@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+362	CUST000010	MOBILE	+12345670018	f	t	\N	2025-07-29 16:57:03.221124+00
+363	CUST000011	EMAIL	customer19@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+364	CUST000011	MOBILE	+12345670019	f	t	\N	2025-07-29 16:57:03.221124+00
+365	CUST000012	EMAIL	customer20@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+366	CUST000012	MOBILE	+12345670020	f	t	\N	2025-07-29 16:57:03.221124+00
+367	CUST000013	EMAIL	customer21@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+368	CUST000013	MOBILE	+12345670021	f	t	\N	2025-07-29 16:57:03.221124+00
+369	CUST000014	EMAIL	customer22@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+370	CUST000014	MOBILE	+12345670022	f	t	\N	2025-07-29 16:57:03.221124+00
+371	CUST000015	EMAIL	customer23@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+372	CUST000015	MOBILE	+12345670023	f	t	\N	2025-07-29 16:57:03.221124+00
+373	CUST000016	EMAIL	customer24@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+374	CUST000016	MOBILE	+12345670024	f	t	\N	2025-07-29 16:57:03.221124+00
+375	CUST000017	EMAIL	customer25@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+376	CUST000017	MOBILE	+12345670025	f	t	\N	2025-07-29 16:57:03.221124+00
+377	CUST000018	EMAIL	customer26@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+378	CUST000018	MOBILE	+12345670026	f	t	\N	2025-07-29 16:57:03.221124+00
+379	CUST000019	EMAIL	customer27@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+380	CUST000019	MOBILE	+12345670027	f	t	\N	2025-07-29 16:57:03.221124+00
+381	CUST000020	EMAIL	customer28@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+382	CUST000020	MOBILE	+12345670028	f	t	\N	2025-07-29 16:57:03.221124+00
+383	CUST000021	EMAIL	customer29@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+384	CUST000021	MOBILE	+12345670029	f	t	\N	2025-07-29 16:57:03.221124+00
+385	CUST000022	EMAIL	customer30@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+386	CUST000022	MOBILE	+12345670030	f	t	\N	2025-07-29 16:57:03.221124+00
+387	CUST000023	EMAIL	customer31@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+388	CUST000023	MOBILE	+12345670031	f	t	\N	2025-07-29 16:57:03.221124+00
+389	CUST000024	EMAIL	customer32@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+390	CUST000024	MOBILE	+12345670032	f	t	\N	2025-07-29 16:57:03.221124+00
+391	CUST000025	EMAIL	customer33@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+392	CUST000025	MOBILE	+12345670033	f	t	\N	2025-07-29 16:57:03.221124+00
+393	CUST000026	EMAIL	customer34@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+394	CUST000026	MOBILE	+12345670034	f	t	\N	2025-07-29 16:57:03.221124+00
+395	CUST000027	EMAIL	customer35@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+396	CUST000027	MOBILE	+12345670035	f	t	\N	2025-07-29 16:57:03.221124+00
+397	CUST000028	EMAIL	customer36@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+398	CUST000028	MOBILE	+12345670036	f	t	\N	2025-07-29 16:57:03.221124+00
+399	CUST000029	EMAIL	customer37@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+400	CUST000029	MOBILE	+12345670037	f	t	\N	2025-07-29 16:57:03.221124+00
+401	CUST000030	EMAIL	customer38@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+402	CUST000030	MOBILE	+12345670038	f	t	\N	2025-07-29 16:57:03.221124+00
+403	CUST000031	EMAIL	customer39@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+404	CUST000031	MOBILE	+12345670039	f	t	\N	2025-07-29 16:57:03.221124+00
+405	CUST000032	EMAIL	customer40@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+406	CUST000032	MOBILE	+12345670040	f	t	\N	2025-07-29 16:57:03.221124+00
+407	CUST000033	EMAIL	customer41@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+408	CUST000033	MOBILE	+12345670041	f	t	\N	2025-07-29 16:57:03.221124+00
+409	CUST000034	EMAIL	customer42@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+410	CUST000034	MOBILE	+12345670042	f	t	\N	2025-07-29 16:57:03.221124+00
+411	CUST000035	EMAIL	customer43@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+412	CUST000035	MOBILE	+12345670043	f	t	\N	2025-07-29 16:57:03.221124+00
+413	CUST000036	EMAIL	customer44@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+414	CUST000036	MOBILE	+12345670044	f	t	\N	2025-07-29 16:57:03.221124+00
+415	CUST000037	EMAIL	customer45@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+416	CUST000037	MOBILE	+12345670045	f	t	\N	2025-07-29 16:57:03.221124+00
+417	CUST000038	EMAIL	customer46@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+418	CUST000038	MOBILE	+12345670046	f	t	\N	2025-07-29 16:57:03.221124+00
+419	CUST000039	EMAIL	customer47@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+420	CUST000039	MOBILE	+12345670047	f	t	\N	2025-07-29 16:57:03.221124+00
+421	CUST000040	EMAIL	customer48@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+422	CUST000040	MOBILE	+12345670048	f	t	\N	2025-07-29 16:57:03.221124+00
+423	CUST000041	EMAIL	customer49@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+424	CUST000041	MOBILE	+12345670049	f	t	\N	2025-07-29 16:57:03.221124+00
+425	CUST000042	EMAIL	customer50@example.com	t	t	\N	2025-07-29 16:57:03.221124+00
+426	CUST000042	MOBILE	+12345670050	f	t	\N	2025-07-29 16:57:03.221124+00
+427	CUST001	EMAIL	customer1@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+428	CUST001	MOBILE	+12345670001	f	t	\N	2025-07-29 17:17:34.170828+00
+429	CUST002	EMAIL	customer2@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+430	CUST002	MOBILE	+12345670002	f	t	\N	2025-07-29 17:17:34.170828+00
+431	CUST003	EMAIL	customer3@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+432	CUST003	MOBILE	+12345670003	f	t	\N	2025-07-29 17:17:34.170828+00
+433	CUST004	EMAIL	customer4@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+434	CUST004	MOBILE	+12345670004	f	t	\N	2025-07-29 17:17:34.170828+00
+435	CUST005	EMAIL	customer5@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+436	CUST005	MOBILE	+12345670005	f	t	\N	2025-07-29 17:17:34.170828+00
+437	CUST006	EMAIL	customer6@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+438	CUST006	MOBILE	+12345670006	f	t	\N	2025-07-29 17:17:34.170828+00
+439	CUST007	EMAIL	customer7@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+440	CUST007	MOBILE	+12345670007	f	t	\N	2025-07-29 17:17:34.170828+00
+441	CUST008	EMAIL	customer8@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+442	CUST008	MOBILE	+12345670008	f	t	\N	2025-07-29 17:17:34.170828+00
+443	CUST000001	EMAIL	customer9@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+444	CUST000001	MOBILE	+12345670009	f	t	\N	2025-07-29 17:17:34.170828+00
+445	CUST000002	EMAIL	customer10@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+446	CUST000002	MOBILE	+12345670010	f	t	\N	2025-07-29 17:17:34.170828+00
+447	CUST000003	EMAIL	customer11@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+448	CUST000003	MOBILE	+12345670011	f	t	\N	2025-07-29 17:17:34.170828+00
+449	CUST000004	EMAIL	customer12@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+450	CUST000004	MOBILE	+12345670012	f	t	\N	2025-07-29 17:17:34.170828+00
+451	CUST000005	EMAIL	customer13@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+452	CUST000005	MOBILE	+12345670013	f	t	\N	2025-07-29 17:17:34.170828+00
+453	CUST000006	EMAIL	customer14@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+454	CUST000006	MOBILE	+12345670014	f	t	\N	2025-07-29 17:17:34.170828+00
+455	CUST000007	EMAIL	customer15@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+456	CUST000007	MOBILE	+12345670015	f	t	\N	2025-07-29 17:17:34.170828+00
+457	CUST000008	EMAIL	customer16@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+458	CUST000008	MOBILE	+12345670016	f	t	\N	2025-07-29 17:17:34.170828+00
+459	CUST000009	EMAIL	customer17@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+460	CUST000009	MOBILE	+12345670017	f	t	\N	2025-07-29 17:17:34.170828+00
+461	CUST000010	EMAIL	customer18@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+462	CUST000010	MOBILE	+12345670018	f	t	\N	2025-07-29 17:17:34.170828+00
+463	CUST000011	EMAIL	customer19@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+464	CUST000011	MOBILE	+12345670019	f	t	\N	2025-07-29 17:17:34.170828+00
+465	CUST000012	EMAIL	customer20@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+466	CUST000012	MOBILE	+12345670020	f	t	\N	2025-07-29 17:17:34.170828+00
+467	CUST000013	EMAIL	customer21@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+468	CUST000013	MOBILE	+12345670021	f	t	\N	2025-07-29 17:17:34.170828+00
+469	CUST000014	EMAIL	customer22@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+470	CUST000014	MOBILE	+12345670022	f	t	\N	2025-07-29 17:17:34.170828+00
+471	CUST000015	EMAIL	customer23@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+472	CUST000015	MOBILE	+12345670023	f	t	\N	2025-07-29 17:17:34.170828+00
+473	CUST000016	EMAIL	customer24@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+474	CUST000016	MOBILE	+12345670024	f	t	\N	2025-07-29 17:17:34.170828+00
+475	CUST000017	EMAIL	customer25@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+476	CUST000017	MOBILE	+12345670025	f	t	\N	2025-07-29 17:17:34.170828+00
+477	CUST000018	EMAIL	customer26@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+478	CUST000018	MOBILE	+12345670026	f	t	\N	2025-07-29 17:17:34.170828+00
+479	CUST000019	EMAIL	customer27@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+480	CUST000019	MOBILE	+12345670027	f	t	\N	2025-07-29 17:17:34.170828+00
+481	CUST000020	EMAIL	customer28@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+482	CUST000020	MOBILE	+12345670028	f	t	\N	2025-07-29 17:17:34.170828+00
+483	CUST000021	EMAIL	customer29@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+484	CUST000021	MOBILE	+12345670029	f	t	\N	2025-07-29 17:17:34.170828+00
+485	CUST000022	EMAIL	customer30@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+486	CUST000022	MOBILE	+12345670030	f	t	\N	2025-07-29 17:17:34.170828+00
+487	CUST000023	EMAIL	customer31@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+488	CUST000023	MOBILE	+12345670031	f	t	\N	2025-07-29 17:17:34.170828+00
+489	CUST000024	EMAIL	customer32@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+490	CUST000024	MOBILE	+12345670032	f	t	\N	2025-07-29 17:17:34.170828+00
+491	CUST000025	EMAIL	customer33@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+492	CUST000025	MOBILE	+12345670033	f	t	\N	2025-07-29 17:17:34.170828+00
+493	CUST000026	EMAIL	customer34@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+494	CUST000026	MOBILE	+12345670034	f	t	\N	2025-07-29 17:17:34.170828+00
+495	CUST000027	EMAIL	customer35@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+496	CUST000027	MOBILE	+12345670035	f	t	\N	2025-07-29 17:17:34.170828+00
+497	CUST000028	EMAIL	customer36@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+498	CUST000028	MOBILE	+12345670036	f	t	\N	2025-07-29 17:17:34.170828+00
+499	CUST000029	EMAIL	customer37@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+500	CUST000029	MOBILE	+12345670037	f	t	\N	2025-07-29 17:17:34.170828+00
+501	CUST000030	EMAIL	customer38@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+502	CUST000030	MOBILE	+12345670038	f	t	\N	2025-07-29 17:17:34.170828+00
+503	CUST000031	EMAIL	customer39@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+504	CUST000031	MOBILE	+12345670039	f	t	\N	2025-07-29 17:17:34.170828+00
+505	CUST000032	EMAIL	customer40@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+506	CUST000032	MOBILE	+12345670040	f	t	\N	2025-07-29 17:17:34.170828+00
+507	CUST000033	EMAIL	customer41@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+508	CUST000033	MOBILE	+12345670041	f	t	\N	2025-07-29 17:17:34.170828+00
+509	CUST000034	EMAIL	customer42@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+510	CUST000034	MOBILE	+12345670042	f	t	\N	2025-07-29 17:17:34.170828+00
+511	CUST000035	EMAIL	customer43@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+512	CUST000035	MOBILE	+12345670043	f	t	\N	2025-07-29 17:17:34.170828+00
+513	CUST000036	EMAIL	customer44@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+514	CUST000036	MOBILE	+12345670044	f	t	\N	2025-07-29 17:17:34.170828+00
+515	CUST000037	EMAIL	customer45@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+516	CUST000037	MOBILE	+12345670045	f	t	\N	2025-07-29 17:17:34.170828+00
+517	CUST000038	EMAIL	customer46@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+518	CUST000038	MOBILE	+12345670046	f	t	\N	2025-07-29 17:17:34.170828+00
+519	CUST000039	EMAIL	customer47@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+520	CUST000039	MOBILE	+12345670047	f	t	\N	2025-07-29 17:17:34.170828+00
+521	CUST000040	EMAIL	customer48@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+522	CUST000040	MOBILE	+12345670048	f	t	\N	2025-07-29 17:17:34.170828+00
+523	CUST000041	EMAIL	customer49@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+524	CUST000041	MOBILE	+12345670049	f	t	\N	2025-07-29 17:17:34.170828+00
+525	CUST000042	EMAIL	customer50@example.com	t	t	\N	2025-07-29 17:17:34.170828+00
+526	CUST000042	MOBILE	+12345670050	f	t	\N	2025-07-29 17:17:34.170828+00
+527	CUST001	EMAIL	customer1@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+528	CUST001	MOBILE	+12345670001	f	t	\N	2025-07-29 17:21:49.634921+00
+529	CUST002	EMAIL	customer2@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+530	CUST002	MOBILE	+12345670002	f	t	\N	2025-07-29 17:21:49.634921+00
+531	CUST003	EMAIL	customer3@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+532	CUST003	MOBILE	+12345670003	f	t	\N	2025-07-29 17:21:49.634921+00
+533	CUST004	EMAIL	customer4@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+534	CUST004	MOBILE	+12345670004	f	t	\N	2025-07-29 17:21:49.634921+00
+535	CUST005	EMAIL	customer5@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+536	CUST005	MOBILE	+12345670005	f	t	\N	2025-07-29 17:21:49.634921+00
+537	CUST006	EMAIL	customer6@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+538	CUST006	MOBILE	+12345670006	f	t	\N	2025-07-29 17:21:49.634921+00
+539	CUST007	EMAIL	customer7@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+540	CUST007	MOBILE	+12345670007	f	t	\N	2025-07-29 17:21:49.634921+00
+541	CUST008	EMAIL	customer8@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+542	CUST008	MOBILE	+12345670008	f	t	\N	2025-07-29 17:21:49.634921+00
+543	CUST000001	EMAIL	customer9@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+544	CUST000001	MOBILE	+12345670009	f	t	\N	2025-07-29 17:21:49.634921+00
+545	CUST000002	EMAIL	customer10@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+546	CUST000002	MOBILE	+12345670010	f	t	\N	2025-07-29 17:21:49.634921+00
+547	CUST000003	EMAIL	customer11@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+548	CUST000003	MOBILE	+12345670011	f	t	\N	2025-07-29 17:21:49.634921+00
+549	CUST000004	EMAIL	customer12@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+550	CUST000004	MOBILE	+12345670012	f	t	\N	2025-07-29 17:21:49.634921+00
+551	CUST000005	EMAIL	customer13@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+552	CUST000005	MOBILE	+12345670013	f	t	\N	2025-07-29 17:21:49.634921+00
+553	CUST000006	EMAIL	customer14@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+554	CUST000006	MOBILE	+12345670014	f	t	\N	2025-07-29 17:21:49.634921+00
+555	CUST000007	EMAIL	customer15@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+556	CUST000007	MOBILE	+12345670015	f	t	\N	2025-07-29 17:21:49.634921+00
+557	CUST000008	EMAIL	customer16@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+558	CUST000008	MOBILE	+12345670016	f	t	\N	2025-07-29 17:21:49.634921+00
+559	CUST000009	EMAIL	customer17@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+560	CUST000009	MOBILE	+12345670017	f	t	\N	2025-07-29 17:21:49.634921+00
+561	CUST000010	EMAIL	customer18@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+562	CUST000010	MOBILE	+12345670018	f	t	\N	2025-07-29 17:21:49.634921+00
+563	CUST000011	EMAIL	customer19@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+564	CUST000011	MOBILE	+12345670019	f	t	\N	2025-07-29 17:21:49.634921+00
+565	CUST000012	EMAIL	customer20@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+566	CUST000012	MOBILE	+12345670020	f	t	\N	2025-07-29 17:21:49.634921+00
+567	CUST000013	EMAIL	customer21@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+568	CUST000013	MOBILE	+12345670021	f	t	\N	2025-07-29 17:21:49.634921+00
+569	CUST000014	EMAIL	customer22@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+570	CUST000014	MOBILE	+12345670022	f	t	\N	2025-07-29 17:21:49.634921+00
+571	CUST000015	EMAIL	customer23@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+572	CUST000015	MOBILE	+12345670023	f	t	\N	2025-07-29 17:21:49.634921+00
+573	CUST000016	EMAIL	customer24@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+574	CUST000016	MOBILE	+12345670024	f	t	\N	2025-07-29 17:21:49.634921+00
+575	CUST000017	EMAIL	customer25@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+576	CUST000017	MOBILE	+12345670025	f	t	\N	2025-07-29 17:21:49.634921+00
+577	CUST000018	EMAIL	customer26@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+578	CUST000018	MOBILE	+12345670026	f	t	\N	2025-07-29 17:21:49.634921+00
+579	CUST000019	EMAIL	customer27@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+580	CUST000019	MOBILE	+12345670027	f	t	\N	2025-07-29 17:21:49.634921+00
+581	CUST000020	EMAIL	customer28@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+582	CUST000020	MOBILE	+12345670028	f	t	\N	2025-07-29 17:21:49.634921+00
+583	CUST000021	EMAIL	customer29@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+584	CUST000021	MOBILE	+12345670029	f	t	\N	2025-07-29 17:21:49.634921+00
+585	CUST000022	EMAIL	customer30@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+586	CUST000022	MOBILE	+12345670030	f	t	\N	2025-07-29 17:21:49.634921+00
+587	CUST000023	EMAIL	customer31@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+588	CUST000023	MOBILE	+12345670031	f	t	\N	2025-07-29 17:21:49.634921+00
+589	CUST000024	EMAIL	customer32@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+590	CUST000024	MOBILE	+12345670032	f	t	\N	2025-07-29 17:21:49.634921+00
+591	CUST000025	EMAIL	customer33@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+592	CUST000025	MOBILE	+12345670033	f	t	\N	2025-07-29 17:21:49.634921+00
+593	CUST000026	EMAIL	customer34@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+594	CUST000026	MOBILE	+12345670034	f	t	\N	2025-07-29 17:21:49.634921+00
+595	CUST000027	EMAIL	customer35@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+596	CUST000027	MOBILE	+12345670035	f	t	\N	2025-07-29 17:21:49.634921+00
+597	CUST000028	EMAIL	customer36@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+598	CUST000028	MOBILE	+12345670036	f	t	\N	2025-07-29 17:21:49.634921+00
+599	CUST000029	EMAIL	customer37@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+600	CUST000029	MOBILE	+12345670037	f	t	\N	2025-07-29 17:21:49.634921+00
+601	CUST000030	EMAIL	customer38@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+602	CUST000030	MOBILE	+12345670038	f	t	\N	2025-07-29 17:21:49.634921+00
+603	CUST000031	EMAIL	customer39@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+604	CUST000031	MOBILE	+12345670039	f	t	\N	2025-07-29 17:21:49.634921+00
+605	CUST000032	EMAIL	customer40@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+606	CUST000032	MOBILE	+12345670040	f	t	\N	2025-07-29 17:21:49.634921+00
+607	CUST000033	EMAIL	customer41@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+608	CUST000033	MOBILE	+12345670041	f	t	\N	2025-07-29 17:21:49.634921+00
+609	CUST000034	EMAIL	customer42@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+610	CUST000034	MOBILE	+12345670042	f	t	\N	2025-07-29 17:21:49.634921+00
+611	CUST000035	EMAIL	customer43@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+612	CUST000035	MOBILE	+12345670043	f	t	\N	2025-07-29 17:21:49.634921+00
+613	CUST000036	EMAIL	customer44@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+614	CUST000036	MOBILE	+12345670044	f	t	\N	2025-07-29 17:21:49.634921+00
+615	CUST000037	EMAIL	customer45@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+616	CUST000037	MOBILE	+12345670045	f	t	\N	2025-07-29 17:21:49.634921+00
+617	CUST000038	EMAIL	customer46@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+618	CUST000038	MOBILE	+12345670046	f	t	\N	2025-07-29 17:21:49.634921+00
+619	CUST000039	EMAIL	customer47@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+620	CUST000039	MOBILE	+12345670047	f	t	\N	2025-07-29 17:21:49.634921+00
+621	CUST000040	EMAIL	customer48@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+622	CUST000040	MOBILE	+12345670048	f	t	\N	2025-07-29 17:21:49.634921+00
+623	CUST000041	EMAIL	customer49@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+624	CUST000041	MOBILE	+12345670049	f	t	\N	2025-07-29 17:21:49.634921+00
+625	CUST000042	EMAIL	customer50@example.com	t	t	\N	2025-07-29 17:21:49.634921+00
+626	CUST000042	MOBILE	+12345670050	f	t	\N	2025-07-29 17:21:49.634921+00
+627	CUST001	EMAIL	customer1@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+628	CUST001	MOBILE	+12345670001	f	t	\N	2025-07-29 17:22:12.17247+00
+629	CUST002	EMAIL	customer2@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+630	CUST002	MOBILE	+12345670002	f	t	\N	2025-07-29 17:22:12.17247+00
+631	CUST003	EMAIL	customer3@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+632	CUST003	MOBILE	+12345670003	f	t	\N	2025-07-29 17:22:12.17247+00
+633	CUST004	EMAIL	customer4@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+634	CUST004	MOBILE	+12345670004	f	t	\N	2025-07-29 17:22:12.17247+00
+635	CUST005	EMAIL	customer5@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+636	CUST005	MOBILE	+12345670005	f	t	\N	2025-07-29 17:22:12.17247+00
+637	CUST006	EMAIL	customer6@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+638	CUST006	MOBILE	+12345670006	f	t	\N	2025-07-29 17:22:12.17247+00
+639	CUST007	EMAIL	customer7@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+640	CUST007	MOBILE	+12345670007	f	t	\N	2025-07-29 17:22:12.17247+00
+641	CUST008	EMAIL	customer8@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+642	CUST008	MOBILE	+12345670008	f	t	\N	2025-07-29 17:22:12.17247+00
+643	CUST000001	EMAIL	customer9@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+644	CUST000001	MOBILE	+12345670009	f	t	\N	2025-07-29 17:22:12.17247+00
+645	CUST000002	EMAIL	customer10@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+646	CUST000002	MOBILE	+12345670010	f	t	\N	2025-07-29 17:22:12.17247+00
+647	CUST000003	EMAIL	customer11@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+648	CUST000003	MOBILE	+12345670011	f	t	\N	2025-07-29 17:22:12.17247+00
+649	CUST000004	EMAIL	customer12@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+650	CUST000004	MOBILE	+12345670012	f	t	\N	2025-07-29 17:22:12.17247+00
+651	CUST000005	EMAIL	customer13@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+652	CUST000005	MOBILE	+12345670013	f	t	\N	2025-07-29 17:22:12.17247+00
+653	CUST000006	EMAIL	customer14@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+654	CUST000006	MOBILE	+12345670014	f	t	\N	2025-07-29 17:22:12.17247+00
+655	CUST000007	EMAIL	customer15@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+656	CUST000007	MOBILE	+12345670015	f	t	\N	2025-07-29 17:22:12.17247+00
+657	CUST000008	EMAIL	customer16@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+658	CUST000008	MOBILE	+12345670016	f	t	\N	2025-07-29 17:22:12.17247+00
+659	CUST000009	EMAIL	customer17@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+660	CUST000009	MOBILE	+12345670017	f	t	\N	2025-07-29 17:22:12.17247+00
+661	CUST000010	EMAIL	customer18@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+662	CUST000010	MOBILE	+12345670018	f	t	\N	2025-07-29 17:22:12.17247+00
+663	CUST000011	EMAIL	customer19@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+664	CUST000011	MOBILE	+12345670019	f	t	\N	2025-07-29 17:22:12.17247+00
+665	CUST000012	EMAIL	customer20@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+666	CUST000012	MOBILE	+12345670020	f	t	\N	2025-07-29 17:22:12.17247+00
+667	CUST000013	EMAIL	customer21@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+668	CUST000013	MOBILE	+12345670021	f	t	\N	2025-07-29 17:22:12.17247+00
+669	CUST000014	EMAIL	customer22@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+670	CUST000014	MOBILE	+12345670022	f	t	\N	2025-07-29 17:22:12.17247+00
+671	CUST000015	EMAIL	customer23@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+672	CUST000015	MOBILE	+12345670023	f	t	\N	2025-07-29 17:22:12.17247+00
+673	CUST000016	EMAIL	customer24@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+674	CUST000016	MOBILE	+12345670024	f	t	\N	2025-07-29 17:22:12.17247+00
+675	CUST000017	EMAIL	customer25@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+676	CUST000017	MOBILE	+12345670025	f	t	\N	2025-07-29 17:22:12.17247+00
+677	CUST000018	EMAIL	customer26@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+678	CUST000018	MOBILE	+12345670026	f	t	\N	2025-07-29 17:22:12.17247+00
+679	CUST000019	EMAIL	customer27@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+680	CUST000019	MOBILE	+12345670027	f	t	\N	2025-07-29 17:22:12.17247+00
+681	CUST000020	EMAIL	customer28@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+682	CUST000020	MOBILE	+12345670028	f	t	\N	2025-07-29 17:22:12.17247+00
+683	CUST000021	EMAIL	customer29@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+684	CUST000021	MOBILE	+12345670029	f	t	\N	2025-07-29 17:22:12.17247+00
+685	CUST000022	EMAIL	customer30@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+686	CUST000022	MOBILE	+12345670030	f	t	\N	2025-07-29 17:22:12.17247+00
+687	CUST000023	EMAIL	customer31@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+688	CUST000023	MOBILE	+12345670031	f	t	\N	2025-07-29 17:22:12.17247+00
+689	CUST000024	EMAIL	customer32@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+690	CUST000024	MOBILE	+12345670032	f	t	\N	2025-07-29 17:22:12.17247+00
+691	CUST000025	EMAIL	customer33@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+692	CUST000025	MOBILE	+12345670033	f	t	\N	2025-07-29 17:22:12.17247+00
+693	CUST000026	EMAIL	customer34@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+694	CUST000026	MOBILE	+12345670034	f	t	\N	2025-07-29 17:22:12.17247+00
+695	CUST000027	EMAIL	customer35@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+696	CUST000027	MOBILE	+12345670035	f	t	\N	2025-07-29 17:22:12.17247+00
+697	CUST000028	EMAIL	customer36@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+698	CUST000028	MOBILE	+12345670036	f	t	\N	2025-07-29 17:22:12.17247+00
+699	CUST000029	EMAIL	customer37@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+700	CUST000029	MOBILE	+12345670037	f	t	\N	2025-07-29 17:22:12.17247+00
+701	CUST000030	EMAIL	customer38@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+702	CUST000030	MOBILE	+12345670038	f	t	\N	2025-07-29 17:22:12.17247+00
+703	CUST000031	EMAIL	customer39@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+704	CUST000031	MOBILE	+12345670039	f	t	\N	2025-07-29 17:22:12.17247+00
+705	CUST000032	EMAIL	customer40@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+706	CUST000032	MOBILE	+12345670040	f	t	\N	2025-07-29 17:22:12.17247+00
+707	CUST000033	EMAIL	customer41@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+708	CUST000033	MOBILE	+12345670041	f	t	\N	2025-07-29 17:22:12.17247+00
+709	CUST000034	EMAIL	customer42@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+710	CUST000034	MOBILE	+12345670042	f	t	\N	2025-07-29 17:22:12.17247+00
+711	CUST000035	EMAIL	customer43@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+712	CUST000035	MOBILE	+12345670043	f	t	\N	2025-07-29 17:22:12.17247+00
+713	CUST000036	EMAIL	customer44@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+714	CUST000036	MOBILE	+12345670044	f	t	\N	2025-07-29 17:22:12.17247+00
+715	CUST000037	EMAIL	customer45@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+716	CUST000037	MOBILE	+12345670045	f	t	\N	2025-07-29 17:22:12.17247+00
+717	CUST000038	EMAIL	customer46@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+718	CUST000038	MOBILE	+12345670046	f	t	\N	2025-07-29 17:22:12.17247+00
+719	CUST000039	EMAIL	customer47@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+720	CUST000039	MOBILE	+12345670047	f	t	\N	2025-07-29 17:22:12.17247+00
+721	CUST000040	EMAIL	customer48@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+722	CUST000040	MOBILE	+12345670048	f	t	\N	2025-07-29 17:22:12.17247+00
+723	CUST000041	EMAIL	customer49@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+724	CUST000041	MOBILE	+12345670049	f	t	\N	2025-07-29 17:22:12.17247+00
+725	CUST000042	EMAIL	customer50@example.com	t	t	\N	2025-07-29 17:22:12.17247+00
+726	CUST000042	MOBILE	+12345670050	f	t	\N	2025-07-29 17:22:12.17247+00
+727	CUST001	EMAIL	customer1@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+728	CUST001	MOBILE	+12345670001	f	t	\N	2025-07-29 17:22:27.952234+00
+729	CUST002	EMAIL	customer2@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+730	CUST002	MOBILE	+12345670002	f	t	\N	2025-07-29 17:22:27.952234+00
+731	CUST003	EMAIL	customer3@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+732	CUST003	MOBILE	+12345670003	f	t	\N	2025-07-29 17:22:27.952234+00
+733	CUST004	EMAIL	customer4@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+734	CUST004	MOBILE	+12345670004	f	t	\N	2025-07-29 17:22:27.952234+00
+735	CUST005	EMAIL	customer5@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+736	CUST005	MOBILE	+12345670005	f	t	\N	2025-07-29 17:22:27.952234+00
+737	CUST006	EMAIL	customer6@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+738	CUST006	MOBILE	+12345670006	f	t	\N	2025-07-29 17:22:27.952234+00
+739	CUST007	EMAIL	customer7@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+740	CUST007	MOBILE	+12345670007	f	t	\N	2025-07-29 17:22:27.952234+00
+741	CUST008	EMAIL	customer8@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+742	CUST008	MOBILE	+12345670008	f	t	\N	2025-07-29 17:22:27.952234+00
+743	CUST000001	EMAIL	customer9@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+744	CUST000001	MOBILE	+12345670009	f	t	\N	2025-07-29 17:22:27.952234+00
+745	CUST000002	EMAIL	customer10@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+746	CUST000002	MOBILE	+12345670010	f	t	\N	2025-07-29 17:22:27.952234+00
+747	CUST000003	EMAIL	customer11@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+748	CUST000003	MOBILE	+12345670011	f	t	\N	2025-07-29 17:22:27.952234+00
+749	CUST000004	EMAIL	customer12@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+750	CUST000004	MOBILE	+12345670012	f	t	\N	2025-07-29 17:22:27.952234+00
+751	CUST000005	EMAIL	customer13@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+752	CUST000005	MOBILE	+12345670013	f	t	\N	2025-07-29 17:22:27.952234+00
+753	CUST000006	EMAIL	customer14@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+754	CUST000006	MOBILE	+12345670014	f	t	\N	2025-07-29 17:22:27.952234+00
+755	CUST000007	EMAIL	customer15@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+756	CUST000007	MOBILE	+12345670015	f	t	\N	2025-07-29 17:22:27.952234+00
+757	CUST000008	EMAIL	customer16@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+758	CUST000008	MOBILE	+12345670016	f	t	\N	2025-07-29 17:22:27.952234+00
+759	CUST000009	EMAIL	customer17@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+760	CUST000009	MOBILE	+12345670017	f	t	\N	2025-07-29 17:22:27.952234+00
+761	CUST000010	EMAIL	customer18@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+762	CUST000010	MOBILE	+12345670018	f	t	\N	2025-07-29 17:22:27.952234+00
+763	CUST000011	EMAIL	customer19@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+764	CUST000011	MOBILE	+12345670019	f	t	\N	2025-07-29 17:22:27.952234+00
+765	CUST000012	EMAIL	customer20@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+766	CUST000012	MOBILE	+12345670020	f	t	\N	2025-07-29 17:22:27.952234+00
+767	CUST000013	EMAIL	customer21@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+768	CUST000013	MOBILE	+12345670021	f	t	\N	2025-07-29 17:22:27.952234+00
+769	CUST000014	EMAIL	customer22@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+770	CUST000014	MOBILE	+12345670022	f	t	\N	2025-07-29 17:22:27.952234+00
+771	CUST000015	EMAIL	customer23@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+772	CUST000015	MOBILE	+12345670023	f	t	\N	2025-07-29 17:22:27.952234+00
+773	CUST000016	EMAIL	customer24@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+774	CUST000016	MOBILE	+12345670024	f	t	\N	2025-07-29 17:22:27.952234+00
+775	CUST000017	EMAIL	customer25@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+776	CUST000017	MOBILE	+12345670025	f	t	\N	2025-07-29 17:22:27.952234+00
+777	CUST000018	EMAIL	customer26@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+778	CUST000018	MOBILE	+12345670026	f	t	\N	2025-07-29 17:22:27.952234+00
+779	CUST000019	EMAIL	customer27@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+780	CUST000019	MOBILE	+12345670027	f	t	\N	2025-07-29 17:22:27.952234+00
+781	CUST000020	EMAIL	customer28@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+782	CUST000020	MOBILE	+12345670028	f	t	\N	2025-07-29 17:22:27.952234+00
+783	CUST000021	EMAIL	customer29@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+784	CUST000021	MOBILE	+12345670029	f	t	\N	2025-07-29 17:22:27.952234+00
+785	CUST000022	EMAIL	customer30@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+786	CUST000022	MOBILE	+12345670030	f	t	\N	2025-07-29 17:22:27.952234+00
+787	CUST000023	EMAIL	customer31@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+788	CUST000023	MOBILE	+12345670031	f	t	\N	2025-07-29 17:22:27.952234+00
+789	CUST000024	EMAIL	customer32@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+790	CUST000024	MOBILE	+12345670032	f	t	\N	2025-07-29 17:22:27.952234+00
+791	CUST000025	EMAIL	customer33@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+792	CUST000025	MOBILE	+12345670033	f	t	\N	2025-07-29 17:22:27.952234+00
+793	CUST000026	EMAIL	customer34@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+794	CUST000026	MOBILE	+12345670034	f	t	\N	2025-07-29 17:22:27.952234+00
+795	CUST000027	EMAIL	customer35@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+796	CUST000027	MOBILE	+12345670035	f	t	\N	2025-07-29 17:22:27.952234+00
+797	CUST000028	EMAIL	customer36@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+798	CUST000028	MOBILE	+12345670036	f	t	\N	2025-07-29 17:22:27.952234+00
+799	CUST000029	EMAIL	customer37@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+800	CUST000029	MOBILE	+12345670037	f	t	\N	2025-07-29 17:22:27.952234+00
+801	CUST000030	EMAIL	customer38@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+802	CUST000030	MOBILE	+12345670038	f	t	\N	2025-07-29 17:22:27.952234+00
+803	CUST000031	EMAIL	customer39@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+804	CUST000031	MOBILE	+12345670039	f	t	\N	2025-07-29 17:22:27.952234+00
+805	CUST000032	EMAIL	customer40@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+806	CUST000032	MOBILE	+12345670040	f	t	\N	2025-07-29 17:22:27.952234+00
+807	CUST000033	EMAIL	customer41@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+808	CUST000033	MOBILE	+12345670041	f	t	\N	2025-07-29 17:22:27.952234+00
+809	CUST000034	EMAIL	customer42@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+810	CUST000034	MOBILE	+12345670042	f	t	\N	2025-07-29 17:22:27.952234+00
+811	CUST000035	EMAIL	customer43@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+812	CUST000035	MOBILE	+12345670043	f	t	\N	2025-07-29 17:22:27.952234+00
+813	CUST000036	EMAIL	customer44@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+814	CUST000036	MOBILE	+12345670044	f	t	\N	2025-07-29 17:22:27.952234+00
+815	CUST000037	EMAIL	customer45@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+816	CUST000037	MOBILE	+12345670045	f	t	\N	2025-07-29 17:22:27.952234+00
+817	CUST000038	EMAIL	customer46@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+818	CUST000038	MOBILE	+12345670046	f	t	\N	2025-07-29 17:22:27.952234+00
+819	CUST000039	EMAIL	customer47@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+820	CUST000039	MOBILE	+12345670047	f	t	\N	2025-07-29 17:22:27.952234+00
+821	CUST000040	EMAIL	customer48@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+822	CUST000040	MOBILE	+12345670048	f	t	\N	2025-07-29 17:22:27.952234+00
+823	CUST000041	EMAIL	customer49@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+824	CUST000041	MOBILE	+12345670049	f	t	\N	2025-07-29 17:22:27.952234+00
+825	CUST000042	EMAIL	customer50@example.com	t	t	\N	2025-07-29 17:22:27.952234+00
+826	CUST000042	MOBILE	+12345670050	f	t	\N	2025-07-29 17:22:27.952234+00
 \.
 
 
@@ -8919,15 +9081,92 @@ COPY kastle_banking.customer_types (type_id, type_code, type_name, description) 
 -- Data for Name: customers; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
-COPY kastle_banking.customers (customer_id, auth_user_id, customer_type_id, first_name, middle_name, last_name, full_name, gender, date_of_birth, nationality, marital_status, education_level, occupation, annual_income, income_source, tax_id, employer_name, employment_type, preferred_language, segment, relationship_manager, onboarding_branch, onboarding_date, kyc_status, risk_category, is_active, is_pep, created_at, updated_at) FROM stdin;
-CUST001	\N	23	Mohammed	Ahmed	Al-Rashid	Mohammed Ahmed Al-Rashid	MALE	1985-03-15	SA	MARRIED	Bachelor	Engineer	180000.00	\N	1234567890	\N	\N	ENGLISH	RETAIL	\N	BR001	2020-02-01	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-CUST002	\N	23	Fatima	Ali	Al-Zahra	Fatima Ali Al-Zahra	FEMALE	1990-07-20	SA	SINGLE	Master	Doctor	250000.00	\N	2345678901	\N	\N	ENGLISH	PREMIUM	\N	BR001	2020-03-15	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-CUST003	\N	23	Abdullah	Khalid	Al-Saud	Abdullah Khalid Al-Saud	MALE	1978-11-05	SA	MARRIED	PhD	Business Owner	500000.00	\N	3456789012	\N	\N	ENGLISH	HNI	\N	BR002	2020-04-01	VERIFIED	MEDIUM	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-CUST004	\N	23	Aisha	Mohammed	Al-Qasim	Aisha Mohammed Al-Qasim	FEMALE	1995-01-10	SA	SINGLE	Bachelor	Teacher	120000.00	\N	4567890123	\N	\N	ENGLISH	RETAIL	\N	BR002	2020-05-20	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-CUST005	\N	23	Omar	Hassan	Al-Jabri	Omar Hassan Al-Jabri	MALE	1988-06-25	SA	MARRIED	Master	Manager	200000.00	\N	5678901234	\N	\N	ENGLISH	RETAIL	\N	BR003	2021-02-10	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-CUST006	\N	23	Layla	Ibrahim	Al-Harbi	Layla Ibrahim Al-Harbi	FEMALE	1992-09-30	SA	MARRIED	Bachelor	Accountant	150000.00	\N	6789012345	\N	\N	ENGLISH	RETAIL	\N	BR003	2021-03-25	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-CUST007	\N	23	Ahmed	Yusuf	Al-Dosari	Ahmed Yusuf Al-Dosari	MALE	1983-12-20	AE	MARRIED	Master	IT Consultant	300000.00	\N	7890123456	\N	\N	ENGLISH	PREMIUM	\N	BR004	2021-07-15	VERIFIED	MEDIUM	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-CUST008	\N	23	Mariam	Saleh	Al-Mutairi	Mariam Saleh Al-Mutairi	FEMALE	1987-04-18	KW	SINGLE	Bachelor	Marketing Executive	180000.00	\N	8901234567	\N	\N	ENGLISH	RETAIL	\N	BR005	2022-02-28	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+COPY kastle_banking.customers (customer_id, auth_user_id, customer_type_id, first_name, middle_name, last_name, full_name, gender, date_of_birth, nationality, marital_status, education_level, occupation, annual_income, income_source, tax_id, employer_name, employment_type, preferred_language, customer_segment, relationship_manager, onboarding_branch, onboarding_date, kyc_status, risk_category, is_active, is_pep, created_at, updated_at, customer_type, national_id, branch_id, email, mobile_number) FROM stdin;
+CUST001	\N	23	Mohammed	Ahmed	Al-Rashid	Mohammed Ahmed Al-Rashid	MALE	1985-03-15	SA	MARRIED	Bachelor	Engineer	180000.00	\N	1234567890	\N	\N	ENGLISH	RETAIL	\N	BR001	2020-02-01	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	SA	\N	\N	\N
+CUST002	\N	23	Fatima	Ali	Al-Zahra	Fatima Ali Al-Zahra	FEMALE	1990-07-20	SA	SINGLE	Master	Doctor	250000.00	\N	2345678901	\N	\N	ENGLISH	PREMIUM	\N	BR001	2020-03-15	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	SA	\N	\N	\N
+CUST003	\N	23	Abdullah	Khalid	Al-Saud	Abdullah Khalid Al-Saud	MALE	1978-11-05	SA	MARRIED	PhD	Business Owner	500000.00	\N	3456789012	\N	\N	ENGLISH	HNI	\N	BR002	2020-04-01	VERIFIED	MEDIUM	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	SA	\N	\N	\N
+CUST004	\N	23	Aisha	Mohammed	Al-Qasim	Aisha Mohammed Al-Qasim	FEMALE	1995-01-10	SA	SINGLE	Bachelor	Teacher	120000.00	\N	4567890123	\N	\N	ENGLISH	RETAIL	\N	BR002	2020-05-20	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	SA	\N	\N	\N
+CUST005	\N	23	Omar	Hassan	Al-Jabri	Omar Hassan Al-Jabri	MALE	1988-06-25	SA	MARRIED	Master	Manager	200000.00	\N	5678901234	\N	\N	ENGLISH	RETAIL	\N	BR003	2021-02-10	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	SA	\N	\N	\N
+CUST006	\N	23	Layla	Ibrahim	Al-Harbi	Layla Ibrahim Al-Harbi	FEMALE	1992-09-30	SA	MARRIED	Bachelor	Accountant	150000.00	\N	6789012345	\N	\N	ENGLISH	RETAIL	\N	BR003	2021-03-25	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	SA	\N	\N	\N
+CUST007	\N	23	Ahmed	Yusuf	Al-Dosari	Ahmed Yusuf Al-Dosari	MALE	1983-12-20	AE	MARRIED	Master	IT Consultant	300000.00	\N	7890123456	\N	\N	ENGLISH	PREMIUM	\N	BR004	2021-07-15	VERIFIED	MEDIUM	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	AE	\N	\N	\N
+CUST008	\N	23	Mariam	Saleh	Al-Mutairi	Mariam Saleh Al-Mutairi	FEMALE	1987-04-18	KW	SINGLE	Bachelor	Marketing Executive	180000.00	\N	8901234567	\N	\N	ENGLISH	RETAIL	\N	BR005	2022-02-28	VERIFIED	LOW	t	f	2025-07-26 04:37:40.72132+00	2025-07-27 14:48:37.003154+00	فرد	KW	\N	\N	\N
+CUST000001	\N	1	Customer	\N	1	Customer 1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2024-11-19 04:20:21.173+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000002	\N	1	Customer	\N	2	Customer 2	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2024-08-13 21:48:09.875+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000003	\N	2	Customer	\N	3	Customer 3	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-09-06 12:11:46.66+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000004	\N	1	Customer	\N	4	Customer 4	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-01-23 02:15:07.059+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000005	\N	1	Customer	\N	5	Customer 5	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-02-24 17:01:49.568+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000006	\N	2	Customer	\N	6	Customer 6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2025-06-19 20:07:47.447+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000007	\N	1	Customer	\N	7	Customer 7	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2024-10-15 23:15:48.109+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000008	\N	1	Customer	\N	8	Customer 8	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-06-18 20:13:09.392+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000009	\N	2	Customer	\N	9	Customer 9	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-11-10 21:01:07.973+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000010	\N	1	Customer	\N	10	Customer 10	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-07-04 01:30:33.524+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000011	\N	1	Customer	\N	11	Customer 11	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-05-21 06:02:39.016+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000012	\N	2	Customer	\N	12	Customer 12	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2025-04-13 10:17:12.298+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000013	\N	1	Customer	\N	13	Customer 13	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-06-05 06:24:41.987+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000014	\N	1	Customer	\N	14	Customer 14	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2024-09-16 17:02:26.677+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000015	\N	2	Customer	\N	15	Customer 15	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2025-02-22 01:58:09.617+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000016	\N	1	Customer	\N	16	Customer 16	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-03-20 21:37:43.763+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000017	\N	1	Customer	\N	17	Customer 17	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-07-08 03:54:57.231+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000018	\N	2	Customer	\N	18	Customer 18	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2025-03-26 12:25:47.233+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000019	\N	1	Customer	\N	19	Customer 19	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2024-12-09 09:42:12.296+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000020	\N	1	Customer	\N	20	Customer 20	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-01-26 03:57:39.874+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000021	\N	2	Customer	\N	21	Customer 21	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-08-21 04:17:41.672+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000022	\N	1	Customer	\N	22	Customer 22	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2024-10-11 06:19:04.416+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000023	\N	1	Customer	\N	23	Customer 23	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-06-21 21:16:57.176+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000024	\N	2	Customer	\N	24	Customer 24	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-11-22 07:48:50.8+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000025	\N	1	Customer	\N	25	Customer 25	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2024-12-31 08:08:28.617+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000026	\N	1	Customer	\N	26	Customer 26	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-02-14 02:27:33.513+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000027	\N	2	Customer	\N	27	Customer 27	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-10-09 06:34:42.564+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000028	\N	1	Customer	\N	28	Customer 28	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-04-19 15:35:20.546+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000029	\N	1	Customer	\N	29	Customer 29	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-04-16 00:51:33.304+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000030	\N	2	Customer	\N	30	Customer 30	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-09-13 02:10:02.583+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000031	\N	1	Customer	\N	31	Customer 31	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-01-28 20:59:30.325+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000032	\N	1	Customer	\N	32	Customer 32	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-04-21 22:33:46.345+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000033	\N	2	Customer	\N	33	Customer 33	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2025-04-07 03:46:50.889+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000034	\N	1	Customer	\N	34	Customer 34	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-06-03 03:42:25.804+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000035	\N	1	Customer	\N	35	Customer 35	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2024-08-05 10:24:21.796+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000036	\N	2	Customer	\N	36	Customer 36	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-11-18 00:07:19.16+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000037	\N	1	Customer	\N	37	Customer 37	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-06-09 07:11:37.777+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000038	\N	1	Customer	\N	38	Customer 38	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2024-10-04 10:40:24.387+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000039	\N	2	Customer	\N	39	Customer 39	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-08-31 04:33:05.892+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000040	\N	1	Customer	\N	40	Customer 40	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2024-12-04 15:14:53.865+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000041	\N	1	Customer	\N	41	Customer 41	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2024-10-22 02:11:41.72+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000042	\N	2	Customer	\N	42	Customer 42	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2025-07-29 15:25:36.852+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000043	\N	1	Customer	\N	43	Customer 43	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-06-23 08:24:13.923+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000044	\N	1	Customer	\N	44	Customer 44	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-01-30 08:24:20.194+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000045	\N	2	Customer	\N	45	Customer 45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2025-04-09 05:27:52.235+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000046	\N	1	Customer	\N	46	Customer 46	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2024-08-11 12:28:58.731+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000047	\N	1	Customer	\N	47	Customer 47	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2025-05-23 06:48:57.295+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000048	\N	2	Customer	\N	48	Customer 48	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR001	2025-07-29	VERIFIED	LOW	t	f	2024-08-02 03:25:11.125+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000049	\N	1	Customer	\N	49	Customer 49	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR002	2025-07-29	VERIFIED	MEDIUM	t	f	2025-05-05 19:11:31.483+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+CUST000050	\N	1	Customer	\N	50	Customer 50	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	ENGLISH	\N	\N	BR003	2025-07-29	VERIFIED	HIGH	t	f	2024-12-15 20:43:12.695+00	2025-07-29 15:42:20.380546+00	\N	\N	\N	\N	\N
+\.
+
+
+--
+-- Data for Name: daily_collection_summary; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.daily_collection_summary (summary_id, summary_date, branch_id, team_id, total_due_amount, total_collected, collection_rate, accounts_due, accounts_collected, calls_made, contacts_successful, ptps_obtained, ptps_kept, field_visits_done, legal_notices_sent, digital_payments, created_at, total_cases, total_outstanding, ptps_created) FROM stdin;
+6	2024-07-20	BR003	19	229904.00	45981.00	20.00	2	1	45	12	2	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00	0	0.00	0
+7	2025-07-29	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-29 06:45:57.848193+00	0	0.00	0
+8	2025-07-28	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-29 06:45:57.848193+00	0	0.00	0
+9	2025-07-27	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-29 06:45:57.848193+00	0	0.00	0
+10	2025-07-26	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-29 06:45:57.848193+00	0	0.00	0
+11	2025-07-25	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-29 06:45:57.848193+00	0	0.00	0
+12	2025-07-24	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-29 06:45:57.848193+00	0	0.00	0
+13	2025-07-23	\N	\N	\N	0.00	0.00	\N	\N	\N	\N	\N	\N	\N	\N	\N	2025-07-29 06:45:57.848193+00	0	0.00	0
+\.
+
+
+--
+-- Data for Name: data_masking_rules; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.data_masking_rules (rule_id, table_name, column_name, masking_type, masking_pattern, role_exceptions, is_active, created_at) FROM stdin;
+4	customers	tax_id	PARTIAL	XXX-XX-####	\N	t	2025-07-26 04:37:40.72132+00
+5	customer_contacts	contact_value	PARTIAL	+966#####XX##	\N	t	2025-07-26 04:37:40.72132+00
+6	accounts	account_number	PARTIAL	ACC######XXXX	\N	t	2025-07-26 04:37:40.72132+00
 \.
 
 
@@ -8954,16 +9193,70 @@ COPY kastle_banking.delinquency_history (id, delinquency_id, snapshot_date, outs
 
 
 --
+-- Data for Name: digital_collection_attempts; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.digital_collection_attempts (attempt_id, case_id, customer_id, channel_type, campaign_id, message_template, sent_datetime, delivered_datetime, read_datetime, response_datetime, response_type, payment_made, payment_amount, click_through_rate, cost_per_message, created_at) FROM stdin;
+3	10	CUST001	SMS	\N	PAYMENT_REMINDER_01	2024-07-21 06:00:00+00	2024-07-21 06:00:05+00	\N	\N	NO_RESPONSE	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
+4	11	CUST005	WHATSAPP	\N	PAYMENT_REMINDER_02	2024-07-20 05:00:00+00	2024-07-20 05:00:03+00	\N	\N	READ	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
+5	12	CUST004	EMAIL	\N	PAYMENT_REMINDER_03	2024-07-19 08:00:00+00	2024-07-19 08:00:10+00	\N	\N	NO_RESPONSE	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
+6	13	CUST006	SMS	\N	URGENT_PAYMENT_01	2024-07-18 06:00:00+00	2024-07-18 06:00:04+00	\N	\N	CLICKED	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: field_visits; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.field_visits (visit_id, case_id, customer_id, officer_id, visit_date, scheduled_time, actual_time, visit_address, visit_status, customer_met, amount_collected, collection_mode, receipt_number, customer_behavior, follow_up_required, geo_location, distance_traveled, expenses_claimed, safety_concern, notes, photo_references, created_at) FROM stdin;
+2	10	CUST001	OFF007	2024-07-15	14:00:00	\N	\N	COMPLETED	CUSTOMER	10000.00	\N	\N	\N	f	\N	\N	\N	f	Partial payment collected	\N	2025-07-26 04:37:40.72132+00
+3	13	CUST006	OFF003	2024-07-22	10:00:00	\N	\N	SCHEDULED	\N	\N	\N	\N	\N	f	\N	\N	\N	f	First field visit scheduled	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: hardship_applications; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.hardship_applications (application_id, customer_id, case_id, hardship_type, application_date, supporting_documents, requested_relief, review_status, approved_by, approval_date, relief_granted, relief_start_date, relief_end_date, monitoring_required, notes, created_at) FROM stdin;
+3	CUST001	10	JOB_LOSS	2024-07-15	\N	PAYMENT_DEFERRAL_3_MONTHS	UNDER_REVIEW	\N	\N	\N	\N	\N	t	\N	2025-07-26 04:37:40.72132+00
+4	CUST006	13	MEDICAL	2024-07-10	\N	INTEREST_WAIVER	PENDING	\N	\N	\N	\N	\N	t	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: ivr_payment_attempts; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.ivr_payment_attempts (attempt_id, customer_id, account_number, call_datetime, ivr_menu_path, payment_amount, payment_method, transaction_status, failure_reason, transaction_reference, created_at) FROM stdin;
+1	CUST001	ACC1000000001	2024-07-19 15:30:00+00	MAIN>PAYMENT>LOAN	5000.00	DEBIT_CARD	SUCCESS	\N	IVR20240719183000001	2025-07-26 04:37:40.72132+00
+2	CUST005	ACC1000000007	2024-07-18 17:15:00+00	MAIN>PAYMENT>LOAN	3012.00	CREDIT_CARD	FAILED	\N	\N	2025-07-26 04:37:40.72132+00
+\.
+
+
+--
+-- Data for Name: legal_cases; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.legal_cases (legal_case_id, case_id, case_number, court_name, case_type, filing_date, lawyer_name, lawyer_firm, current_stage, next_hearing_date, judgment_date, judgment_amount, execution_status, legal_costs, recovered_amount, case_status, documents, created_at, updated_at) FROM stdin;
+\.
+
+
+--
 -- Data for Name: loan_accounts; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
-COPY kastle_banking.loan_accounts (loan_account_id, loan_account_number, application_id, customer_id, product_id, principal_amount, interest_rate, tenure_months, emi_amount, disbursement_date, first_emi_date, maturity_date, outstanding_principal, outstanding_interest, total_interest_paid, total_principal_paid, overdue_amount, overdue_days, loan_status, npa_date, settlement_amount, settlement_date, created_at, updated_at, outstanding_balance) FROM stdin;
-15	LOAN1000000001	20	CUST001	41	250000.00	8.50	60	5125.00	2020-06-15	2020-07-15	2025-06-15	125000.00	5000.00	0.00	0.00	10250.00	60	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	\N
-16	LOAN1000000002	21	CUST003	42	2000000.00	6.50	240	14960.00	2020-09-01	2020-10-01	2040-09-01	1850000.00	50000.00	0.00	0.00	0.00	0	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	\N
-17	LOAN1000000005	24	CUST004	41	80000.00	8.50	48	1975.00	2021-07-01	2021-08-01	2025-07-01	50000.00	2000.00	0.00	0.00	3950.00	45	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	\N
-18	LOAN1000000006	25	CUST006	41	120000.00	8.50	60	2460.00	2021-09-01	2021-10-01	2026-09-01	90000.00	3000.00	0.00	0.00	7380.00	90	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	\N
-19	LOAN1000000007	26	CUST007	41	180000.00	8.50	48	4445.00	2021-10-15	2021-11-15	2025-10-15	120000.00	4000.00	0.00	0.00	0.00	0	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	\N
-20	LOAN1000000008	27	CUST008	41	50000.00	8.50	36	1578.00	2022-05-01	2022-06-01	2025-05-01	35000.00	1000.00	0.00	0.00	0.00	0	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00	\N
+COPY kastle_banking.loan_accounts (loan_account_id, loan_account_number, application_id, customer_id, product_id, principal_amount, interest_rate, tenure_months, emi_amount, disbursement_date, first_emi_date, maturity_date, outstanding_principal, outstanding_interest, total_interest_paid, total_principal_paid, overdue_amount, overdue_days, loan_status, npa_date, settlement_amount, settlement_date, created_at, updated_at, outstanding_balance, loan_amount, loan_start_date) FROM stdin;
+15	LOAN1000000001	20	CUST001	41	250000.00	8.50	60	5125.00	2020-06-15	2020-07-15	2025-06-15	125000.00	5000.00	0.00	0.00	10250.00	60	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-27 14:55:24.578907+00	130000	250000.00	2020-06-15
+16	LOAN1000000002	21	CUST003	42	2000000.00	6.50	240	14960.00	2020-09-01	2020-10-01	2040-09-01	1850000.00	50000.00	0.00	0.00	0.00	0	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-27 14:55:24.578907+00	1900000	2000000.00	2020-09-01
+17	LOAN1000000005	24	CUST004	41	80000.00	8.50	48	1975.00	2021-07-01	2021-08-01	2025-07-01	50000.00	2000.00	0.00	0.00	3950.00	45	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-27 14:55:24.578907+00	52000	80000.00	2021-07-01
+18	LOAN1000000006	25	CUST006	41	120000.00	8.50	60	2460.00	2021-09-01	2021-10-01	2026-09-01	90000.00	3000.00	0.00	0.00	7380.00	90	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-27 14:55:24.578907+00	93000	120000.00	2021-09-01
+19	LOAN1000000007	26	CUST007	41	180000.00	8.50	48	4445.00	2021-10-15	2021-11-15	2025-10-15	120000.00	4000.00	0.00	0.00	0.00	0	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-27 14:55:24.578907+00	124000	180000.00	2021-10-15
+20	LOAN1000000008	27	CUST008	41	50000.00	8.50	36	1578.00	2022-05-01	2022-06-01	2025-05-01	35000.00	1000.00	0.00	0.00	0.00	0	ACTIVE	\N	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-27 14:55:24.578907+00	36000	50000.00	2022-05-01
+26	LOAN001	\N	CUST001	41	23000.00	8.50	60	416.67	2023-07-27	\N	\N	20000.00	3000.00	0.00	0.00	25000.00	45	NPA	\N	\N	\N	2025-07-27 14:17:49.525882+00	2025-07-27 14:55:24.578907+00	23000	23000.00	2023-07-27
+27	LOAN002	\N	CUST002	41	34000.00	8.50	60	583.33	2023-07-27	\N	\N	30000.00	4000.00	0.00	0.00	35000.00	75	NPA	\N	\N	\N	2025-07-27 14:17:49.525882+00	2025-07-27 14:55:24.578907+00	34000	34000.00	2023-07-27
+28	LOAN003	\N	CUST003	41	43500.00	8.50	60	750.00	2023-07-27	\N	\N	40000.00	3500.00	0.00	0.00	45000.00	120	NPA	\N	\N	\N	2025-07-27 14:17:49.525882+00	2025-07-27 14:55:24.578907+00	43500	43500.00	2023-07-27
+29	LOAN1000000003	22	CUST005	41	123500.00	8.50	60	2158.73	2023-07-27	\N	\N	120000.00	3500.00	0.00	0.00	129524.00	30	NPA	\N	\N	\N	2025-07-27 14:17:49.525882+00	2025-07-27 14:55:24.578907+00	123500	123500.00	2023-07-27
 \.
 
 
@@ -8984,6 +9277,88 @@ COPY kastle_banking.loan_applications (application_id, application_number, custo
 
 
 --
+-- Data for Name: loan_restructuring; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.loan_restructuring (restructure_id, loan_account_number, customer_id, original_loan_amount, outstanding_amount, original_tenure, remaining_tenure, original_interest_rate, new_interest_rate, new_tenure, new_emi, moratorium_months, restructure_date, restructure_reason, approval_level, impact_on_provision, status, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: officer_performance_metrics; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.officer_performance_metrics (id, officer_id, metric_date, calls_made, calls_answered, promises_made, promises_kept, amount_collected, cases_resolved, avg_call_duration, customer_satisfaction_score, created_at, contacts_successful, ptps_obtained, ptps_kept, ptps_kept_rate, accounts_worked, talk_time_minutes, quality_score) FROM stdin;
+1	OFF007	2025-07-29	330	250	65	58	195000.00	48	125	4.50	2025-07-29 10:55:02.357054+00	250	65	58	89.23	148	620	96.50
+2	OFF007	2025-07-28	325	245	62	56	190000.00	46	120	4.40	2025-07-29 10:55:02.357054+00	245	62	56	90.32	145	610	96.00
+3	OFF007	2025-07-26	320	240	60	53	185000.00	45	118	4.30	2025-07-29 10:55:02.357054+00	240	60	53	88.33	142	600	95.50
+4	OFF007	2025-07-25	298	218	51	42	168000.00	40	112	4.20	2025-07-29 10:55:02.357054+00	218	51	42	82.35	136	555	92.00
+5	OFF007	2025-07-24	315	235	58	51	180000.00	44	115	4.40	2025-07-29 10:55:02.357054+00	235	58	51	87.93	140	590	95.00
+6	OFF007	2025-07-23	308	228	54	46	172000.00	42	113	4.30	2025-07-29 10:55:02.357054+00	228	54	46	85.19	138	575	93.25
+7	OFF007	2025-07-22	310	230	55	48	175000.00	43	114	4.40	2025-07-29 10:55:02.357054+00	230	55	48	87.27	138	580	94.50
+8	OFF007	2025-07-19	305	225	52	45	170000.00	41	112	4.30	2025-07-29 10:55:02.357054+00	225	52	45	86.54	135	570	94.00
+9	OFF007	2025-07-18	285	208	47	38	158000.00	38	110	4.10	2025-07-29 10:55:02.357054+00	208	47	38	80.85	128	535	91.50
+10	OFF007	2025-07-17	300	220	50	43	165000.00	40	112	4.30	2025-07-29 10:55:02.357054+00	220	50	43	86.00	132	560	93.50
+11	OFF007	2025-07-16	295	215	48	40	160000.00	39	111	4.20	2025-07-29 10:55:02.357054+00	215	48	40	83.33	130	550	92.75
+12	OFF007	2025-07-15	290	210	46	38	155000.00	38	110	4.20	2025-07-29 10:55:02.357054+00	210	46	38	82.61	128	540	92.00
+13	OFF007	2025-07-12	285	205	45	36	150000.00	37	108	4.00	2025-07-29 10:55:02.357054+00	205	45	36	80.00	125	530	89.75
+14	OFF007	2025-07-11	265	190	39	30	138000.00	35	105	3.90	2025-07-29 10:55:02.357054+00	190	39	30	76.92	118	500	88.50
+15	OFF007	2025-07-10	280	200	42	33	145000.00	36	107	4.10	2025-07-29 10:55:02.357054+00	200	42	33	78.57	122	520	91.00
+16	OFF007	2025-07-09	275	198	41	32	142000.00	35	106	4.00	2025-07-29 10:55:02.357054+00	198	41	32	78.05	120	515	90.50
+17	OFF007	2025-07-08	270	195	40	31	140000.00	35	105	4.00	2025-07-29 10:55:02.357054+00	195	40	31	77.50	118	510	90.25
+18	OFF007	2025-07-05	235	170	30	24	115000.00	30	100	3.80	2025-07-29 10:55:02.357054+00	170	30	24	80.00	105	450	88.00
+19	OFF007	2025-07-04	260	185	38	29	132000.00	33	103	3.90	2025-07-29 10:55:02.357054+00	185	38	29	76.32	115	490	87.75
+20	OFF007	2025-07-03	245	175	32	25	118000.00	31	101	3.80	2025-07-29 10:55:02.357054+00	175	32	25	78.13	108	470	89.00
+21	OFF007	2025-07-02	250	180	35	26	125000.00	32	102	3.90	2025-07-29 10:55:02.357054+00	180	35	26	74.29	110	480	88.50
+22	OFF007	2025-07-01	235	170	30	22	115000.00	30	100	3.70	2025-07-29 10:55:02.357054+00	170	30	22	73.33	105	450	87.00
+23	OFF007	2025-06-28	250	180	35	27	120000.00	32	102	3.80	2025-07-29 10:55:02.357054+00	180	35	27	77.14	115	480	88.00
+24	OFF007	2025-06-24	240	170	32	24	115000.00	31	100	3.70	2025-07-29 10:55:02.357054+00	170	32	24	75.00	110	460	87.00
+25	OFF007	2025-06-17	230	165	30	22	110000.00	30	98	3.60	2025-07-29 10:55:02.357054+00	165	30	22	73.33	105	440	86.00
+26	OFF007	2025-06-10	220	160	28	20	105000.00	28	95	3.50	2025-07-29 10:55:02.357054+00	160	28	20	71.43	100	420	85.00
+27	OFF007	2025-06-03	210	150	25	17	95000.00	26	92	3.40	2025-07-29 10:55:02.357054+00	150	25	17	68.00	95	400	84.00
+28	OFF007	2025-05-27	235	168	30	22	108000.00	30	98	3.60	2025-07-29 10:55:02.357054+00	168	30	22	73.33	108	450	86.50
+29	OFF007	2025-05-20	225	162	28	20	102000.00	28	96	3.50	2025-07-29 10:55:02.357054+00	162	28	20	71.43	102	430	85.50
+30	OFF007	2025-05-13	215	155	26	18	98000.00	26	94	3.40	2025-07-29 10:55:02.357054+00	155	26	18	69.23	98	410	84.00
+31	OFF007	2025-05-06	210	150	25	17	95000.00	25	92	3.30	2025-07-29 10:55:02.357054+00	150	25	17	68.00	95	400	83.00
+32	OFF001	2025-07-29	290	210	55	45	175000.00	42	115	4.20	2025-07-29 10:55:02.357054+00	210	55	45	81.82	135	550	88.00
+33	OFF001	2025-07-28	285	205	52	42	170000.00	40	112	4.10	2025-07-29 10:55:02.357054+00	205	52	42	80.77	132	540	87.50
+34	OFF001	2025-07-26	280	200	50	39	165000.00	38	110	4.00	2025-07-29 10:55:02.357054+00	200	50	39	78.00	130	530	89.00
+35	OFF002	2025-07-29	340	260	70	64	210000.00	55	130	4.70	2025-07-29 10:55:02.357054+00	260	70	64	91.43	150	650	94.00
+36	OFF002	2025-07-28	335	255	68	61	205000.00	53	128	4.60	2025-07-29 10:55:02.357054+00	255	68	61	89.71	148	640	93.50
+37	OFF002	2025-07-26	330	250	65	58	200000.00	51	126	4.50	2025-07-29 10:55:02.357054+00	250	65	58	89.23	145	630	92.00
+38	OFF003	2025-07-29	270	190	48	36	160000.00	38	108	3.80	2025-07-29 10:55:02.357054+00	190	48	36	75.00	125	510	82.00
+39	OFF003	2025-07-28	265	185	45	33	155000.00	36	106	3.70	2025-07-29 10:55:02.357054+00	185	45	33	73.33	122	500	81.50
+40	OFF003	2025-07-26	260	180	42	30	150000.00	34	104	3.60	2025-07-29 10:55:02.357054+00	180	42	30	71.43	120	490	83.00
+\.
+
+
+--
+-- Data for Name: officer_performance_summary; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.officer_performance_summary (summary_id, officer_id, summary_date, total_cases, total_portfolio_value, total_collected, collection_rate, total_calls, total_messages, successful_contacts, contact_rate, total_ptps, ptps_kept, ptp_keep_rate, avg_response_time, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: payments; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.payments (payment_id, case_id, payment_date, payment_amount, payment_method, reference_number, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: performance_metrics; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.performance_metrics (metric_id, metric_name, metric_value, metric_unit, metric_timestamp, additional_info) FROM stdin;
+1	DAILY_COLLECTION_RATE	25.5	PERCENTAGE	2025-07-26 04:37:40.72132+00	{"date": "2024-07-20", "region": "Central"}
+2	AVERAGE_CALL_DURATION	7.5	MINUTES	2025-07-26 04:37:40.72132+00	{"date": "2024-07-20", "team": "CALL_TEAM_01"}
+\.
+
+
+--
 -- Data for Name: portfolio_summary; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
@@ -8991,6 +9366,19 @@ COPY kastle_banking.portfolio_summary (id, snapshot_date, total_portfolio_value,
 55	2024-06-30	3115000.00	421104.00	13.52	8	4	2025-07-26 04:37:40.72132+00
 56	2024-07-15	3115000.00	421104.00	13.52	8	4	2025-07-26 04:37:40.72132+00
 57	2024-07-26	3115000.00	421104.00	13.52	8	4	2025-07-26 04:37:40.72132+00
+58	2025-07-28	850000000.00	42500000.00	5.00	1250	63	2025-07-28 11:10:08.249911+00
+59	2025-06-01	845000000.00	43095000.00	5.10	1240	62	2025-07-28 11:10:08.249911+00
+60	2025-05-01	840000000.00	42000000.00	5.00	1230	61	2025-07-28 11:10:08.249911+00
+61	2025-04-01	835000000.00	40915000.00	4.90	1220	60	2025-07-28 11:10:08.249911+00
+62	2025-03-01	830000000.00	39840000.00	4.80	1210	59	2025-07-28 11:10:08.249911+00
+63	2025-02-01	825000000.00	38775000.00	4.70	1200	58	2025-07-28 11:10:08.249911+00
+64	2025-01-01	820000000.00	37720000.00	4.60	1190	57	2025-07-28 11:10:08.249911+00
+65	2024-12-01	815000000.00	36675000.00	4.50	1180	56	2025-07-28 11:10:08.249911+00
+66	2024-11-01	810000000.00	35640000.00	4.40	1170	55	2025-07-28 11:10:08.249911+00
+67	2024-10-01	805000000.00	34615000.00	4.30	1160	54	2025-07-28 11:10:08.249911+00
+68	2024-09-01	800000000.00	33600000.00	4.20	1150	53	2025-07-28 11:10:08.249911+00
+69	2024-08-01	795000000.00	32595000.00	4.10	1140	52	2025-07-28 11:10:08.249911+00
+70	2024-07-01	790000000.00	31600000.00	4.00	1130	51	2025-07-28 11:10:08.249911+00
 \.
 
 
@@ -9005,6 +9393,12 @@ COPY kastle_banking.product_categories (category_id, category_code, category_nam
 30	LOAN002	Secured Loans	LOAN	Asset-backed loan products	t	2025-07-26 04:37:40.72132+00
 31	CARD001	Credit Cards	CARD	Credit card products	t	2025-07-26 04:37:40.72132+00
 32	CARD002	Debit Cards	CARD	Debit card products	t	2025-07-26 04:37:40.72132+00
+33	DEP	Deposits	\N	Deposit products	t	2025-07-29 16:20:30.088408+00
+34	LON	Loans	\N	Loan products	t	2025-07-29 16:20:30.088408+00
+35	CRD	Cards	\N	Credit and debit cards	t	2025-07-29 16:20:30.088408+00
+36	INV	Investments	\N	Investment products	t	2025-07-29 16:20:30.088408+00
+44	LOAN	Loan Products	LOAN	Loan products	t	2025-07-29 17:31:28.688255+00
+45	CARD	Card Products	CARD	Card products	t	2025-07-29 17:31:29.115617+00
 \.
 
 
@@ -9022,6 +9416,19 @@ COPY kastle_banking.products (product_id, product_code, product_name, category_i
 43	AL_001	Auto Loan	30	AUTO_LOAN	20000.00	300000.00	7.50	84	\N	\N	\N	t	2020-01-01	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 44	CC_CLASSIC	Classic Credit Card	31	CREDIT_CARD	5000.00	50000.00	24.00	\N	\N	\N	\N	t	2020-06-01	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
 45	CC_GOLD	Gold Credit Card	31	CREDIT_CARD	10000.00	200000.00	21.00	\N	\N	\N	\N	t	2020-06-01	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
+46	SAV001	Basic Savings	33	\N	1000.00	1000000.00	2.50	\N	\N	\N	\N	t	\N	\N	2025-07-29 16:55:57.331716+00	2025-07-29 16:55:57.331716+00
+47	PRL001	Personal Loan	34	\N	10000.00	500000.00	8.50	\N	\N	\N	\N	t	\N	\N	2025-07-29 16:55:57.331716+00	2025-07-29 16:55:57.331716+00
+48	HML001	Home Loan	34	\N	100000.00	5000000.00	6.50	\N	\N	\N	\N	t	\N	\N	2025-07-29 16:55:57.331716+00	2025-07-29 16:55:57.331716+00
+49	AUL001	Auto Loan	34	\N	50000.00	500000.00	7.50	\N	\N	\N	\N	t	\N	\N	2025-07-29 16:55:57.331716+00	2025-07-29 16:55:57.331716+00
+50	CRD001	Credit Card	35	\N	5000.00	100000.00	18.00	\N	\N	\N	\N	t	\N	\N	2025-07-29 16:55:57.331716+00	2025-07-29 16:55:57.331716+00
+\.
+
+
+--
+-- Data for Name: promise_to_pay; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.promise_to_pay (ptp_id, case_id, officer_id, ptp_date, ptp_amount, status, actual_payment_date, actual_payment_amount, created_at, updated_at) FROM stdin;
 \.
 
 
@@ -9038,6 +9445,22 @@ COPY kastle_banking.realtime_notifications (id, customer_id, notification_type, 
 
 
 --
+-- Data for Name: repossessed_assets; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.repossessed_assets (asset_id, case_id, asset_type, asset_description, repossession_date, storage_location, estimated_value, valuation_date, valuation_agency, auction_date, sale_amount, buyer_details, storage_costs, legal_costs, net_recovery, asset_condition, documents, photos, status, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: sharia_compliance_log; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
+--
+
+COPY kastle_banking.sharia_compliance_log (compliance_id, case_id, compliance_type, late_payment_charges, charity_amount, charity_name, distribution_date, distribution_receipt, compliance_status, reviewed_by, review_date, notes, created_at) FROM stdin;
+\.
+
+
+--
 -- Data for Name: transaction_types; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
@@ -9050,6 +9473,13 @@ COPY kastle_banking.transaction_types (type_id, type_code, type_name, transactio
 40	LOAN_DISB	Loan Disbursement	CREDIT	t	t	\N	\N	f
 41	LOAN_PMT	Loan Payment	DEBIT	t	f	\N	\N	f
 42	CHG_DEBIT	Service Charge	CHARGE	t	f	\N	\N	f
+43	DEP	Deposit	CREDIT	t	f	\N	\N	f
+44	WTH	Withdrawal	DEBIT	t	f	\N	\N	f
+45	TRF	Transfer	TRANSFER	t	f	\N	\N	f
+46	PMT	Payment	DEBIT	t	f	\N	\N	f
+47	FEE	Fee	CHARGE	t	f	\N	\N	f
+48	INT	Interest	INTEREST	t	f	\N	\N	f
+51	CHG	Charge	CHARGE	t	f	\N	\N	f
 \.
 
 
@@ -9072,431 +9502,10 @@ COPY kastle_banking.transactions (transaction_id, transaction_ref, transaction_d
 
 
 --
--- Data for Name: access_log; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
+-- Data for Name: user_role_assignments; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
-COPY kastle_collection.access_log (access_id, user_id, resource_type, resource_id, action, access_granted, denial_reason, ip_address, session_id, created_at) FROM stdin;
-1	OFF001	COLLECTION_CASE	1	VIEW	t	\N	192.168.1.100	\N	2025-07-26 04:37:40.72132+00
-2	OFF002	COLLECTION_CASE	2	UPDATE	t	\N	192.168.1.101	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: audit_log; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.audit_log (audit_id, table_name, operation, record_id, user_id, changed_fields, old_values, new_values, ip_address, user_agent, created_at) FROM stdin;
-1	collection_cases	UPDATE	1	OFF001	["case_status", "updated_at"]	\N	\N	\N	\N	2024-07-20 07:35:00+00
-2	promise_to_pay	INSERT	1	OFF001	["all"]	\N	\N	\N	\N	2024-07-20 07:36:00+00
-\.
-
-
---
--- Data for Name: collection_audit_trail; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_audit_trail (audit_id, user_id, action_type, entity_type, entity_id, old_values, new_values, ip_address, user_agent, action_timestamp) FROM stdin;
-1	OFF001	CREATE_PTP	PROMISE_TO_PAY	1	\N	\N	\N	\N	2024-07-20 07:36:00+00
-2	OFF006	UPDATE_CASE	COLLECTION_CASE	4	\N	\N	\N	\N	2024-07-18 13:50:00+00
-\.
-
-
---
--- Data for Name: collection_automation_metrics; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_automation_metrics (metric_id, metric_date, automation_type, total_attempts, successful_contacts, payments_collected, amount_collected, cost_saved, efficiency_gain, error_rate, customer_satisfaction_score, created_at) FROM stdin;
-1	2024-07-20	SMS_CAMPAIGN	1000	850	120	450000	5000	15.5	\N	7.8	2025-07-26 04:37:40.72132+00
-2	2024-07-20	AUTO_DIALER	500	350	45	225000	3500	20.0	\N	7.5	2025-07-26 04:37:40.72132+00
-3	2024-07-20	IVR	300	250	30	150000	2000	18.0	\N	8.0	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_benchmarks; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_benchmarks (benchmark_id, benchmark_date, benchmark_type, metric_name, internal_value, industry_average, best_in_class, percentile_rank, gap_to_average, gap_to_best, source, notes, created_at) FROM stdin;
-1	2024-06-30	RECOVERY_RATE	30_DPD_Recovery	75.0	70.0	85.0	65	5.0	-10.0	SAMA_Report_Q2_2024	\N	2025-07-26 04:37:40.72132+00
-2	2024-06-30	EFFICIENCY	Cost_Per_Dollar_Collected	0.08	0.10	0.05	60	-0.02	0.03	Industry_Survey_2024	\N	2025-07-26 04:37:40.72132+00
-3	2024-06-30	PRODUCTIVITY	Accounts_Per_Officer	150	120	200	70	30	-50	Internal_Analysis	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_bucket_movement; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_bucket_movement (movement_id, case_id, from_bucket_id, to_bucket_id, movement_date, movement_reason, days_in_previous_bucket, amount_at_movement, officer_id, automated_movement, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: collection_call_records; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_call_records (call_id, interaction_id, phone_number, officer_id, call_datetime, call_duration_seconds, wait_time_seconds, hold_time_seconds, call_type, call_disposition, recording_url, ivr_path, transfer_count, quality_monitored, quality_score, created_at) FROM stdin;
-1	14	+966501234567	OFF001	2024-07-20 07:30:00+00	420	\N	\N	MANUAL	PROMISE_TO_PAY	\N	\N	\N	f	\N	2025-07-26 04:37:40.72132+00
-2	15	+966505678901	OFF002	2024-07-20 11:15:00+00	180	\N	\N	MANUAL	CALLBACK_REQUESTED	\N	\N	\N	f	\N	2025-07-26 04:37:40.72132+00
-3	17	+966506789012	OFF006	2024-07-18 13:45:00+00	600	\N	\N	INBOUND	DISPUTE_RAISED	\N	\N	\N	f	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_campaigns; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_campaigns (campaign_id, campaign_name, campaign_type, target_bucket, target_segment, start_date, end_date, budget_amount, target_recovery, actual_recovery, total_contacts, success_rate, roi, status, created_by, created_at) FROM stdin;
-3	Ramadan Recovery Campaign	SEASONAL	22	\N	2024-03-01	2024-04-30	100000.00	5000000.00	\N	\N	\N	\N	COMPLETED	MGR001	2025-07-26 04:37:40.72132+00
-4	Q3 2024 Recovery Drive	REGULAR	23	\N	2024-07-01	2024-09-30	150000.00	10000000.00	\N	\N	\N	\N	ACTIVE	MGR002	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_case_details; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_case_details (case_detail_id, case_id, delinquency_reason, customer_segment, risk_score, collection_strategy, skip_trace_status, legal_status, settlement_offered, settlement_amount, restructure_requested, hardship_flag, created_at, updated_at) FROM stdin;
-10	10	JOB_LOSS	RETAIL	65	INT_CALL_01	NOT_REQUIRED	NA	f	\N	f	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-11	11	BUSINESS_IMPACT	RETAIL	55	SOFT_REM_01	NOT_REQUIRED	NA	f	\N	f	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-12	12	FINANCIAL_DISTRESS	RETAIL	60	SOFT_REM_01	NOT_REQUIRED	NA	t	\N	f	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-13	13	DISPUTE	RETAIL	75	FIELD_VIS_01	IN_PROGRESS	NOTICE_PREPARED	f	\N	f	f	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_compliance_violations; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_compliance_violations (violation_id, violation_date, violation_type, severity, officer_id, case_id, description, corrective_action, action_taken, action_date, reviewed_by, fine_amount, created_at) FROM stdin;
-1	2024-07-15	COLLECTION_PRACTICE	LOW	OFF002	11	Called customer outside permitted hours	Refresher training on calling hours	t	\N	\N	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_contact_attempts; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_contact_attempts (attempt_id, case_id, customer_id, contact_type, contact_number, contact_result, attempt_datetime, officer_id, best_time_to_contact, contact_quality_score, is_valid, created_at, outstanding_amount) FROM stdin;
-6	10	CUST001	PRIMARY	+966501234567	NO_ANSWER	2024-07-19 12:30:00+00	OFF001	\N	5	t	2025-07-26 04:37:40.72132+00	135250
-7	10	CUST001	PRIMARY	+966501234567	CONNECTED	2024-07-20 07:30:00+00	OFF001	MORNING	8	t	2025-07-26 04:37:40.72132+00	135250
-8	11	CUST005	PRIMARY	+966505678901	CONNECTED	2024-07-20 11:15:00+00	OFF002	AFTERNOON	7	t	2025-07-26 04:37:40.72132+00	129524
-9	12	CUST004	PRIMARY	+966504567890	VOICEMAIL	2024-07-19 08:30:00+00	OFF004	\N	3	t	2025-07-26 04:37:40.72132+00	55950
-10	13	CUST006	WORK	+966131234567	WRONG_NUMBER	2024-07-18 07:00:00+00	OFF006	\N	0	t	2025-07-26 04:37:40.72132+00	100380
-\.
-
-
---
--- Data for Name: collection_customer_segments; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_customer_segments (segment_id, segment_name, segment_code, segment_criteria, risk_profile, collection_strategy, target_recovery_rate, actual_recovery_rate, customers_count, total_exposure, avg_ticket_size, is_active, created_at, updated_at) FROM stdin;
-7	High Value Low Risk	HVLR	{"max_dpd": 30, "min_exposure": 500000, "risk_category": "LOW"}	LOW	SOFT_APPROACH	95.0	\N	50	25000000	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-8	Retail Medium Risk	RMR	{"max_dpd": 60, "max_exposure": 500000, "min_exposure": 50000, "risk_category": "MEDIUM"}	MEDIUM	STANDARD_APPROACH	85.0	\N	200	50000000	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-9	Small Ticket High Risk	STHR	{"min_dpd": 61, "max_exposure": 50000, "risk_category": "HIGH"}	HIGH	AGGRESSIVE_APPROACH	70.0	\N	500	15000000	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_forecasts; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_forecasts (forecast_id, forecast_date, forecast_period, forecast_type, product_id, bucket_id, predicted_amount, confidence_level, lower_bound, upper_bound, actual_amount, variance, model_used, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: collection_interactions; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_interactions (interaction_id, case_id, customer_id, interaction_type, interaction_direction, officer_id, contact_number, interaction_status, duration_seconds, outcome, promise_to_pay, ptp_amount, ptp_date, notes, recording_reference, interaction_datetime, created_at) FROM stdin;
-13	10	CUST001	SMS	OUTBOUND	OFF001	+966501234567	SENT	\N	NO_RESPONSE	f	\N	\N	Reminder SMS sent	\N	2024-07-21 06:00:00+00	2025-07-26 04:37:40.72132+00
-14	10	CUST001	CALL	OUTBOUND	OFF001	+966501234567	COMPLETED	\N	PROMISE_TO_PAY	t	20000.00	2024-08-01	Customer promised partial payment	\N	2024-07-20 07:30:00+00	2025-07-26 04:37:40.72132+00
-15	11	CUST005	CALL	OUTBOUND	OFF002	+966505678901	COMPLETED	\N	CALLBACK_REQUESTED	f	\N	\N	Customer requested callback tomorrow	\N	2024-07-20 11:15:00+00	2025-07-26 04:37:40.72132+00
-16	12	CUST004	EMAIL	OUTBOUND	OFF004	a.qasim@kbank.sa	SENT	\N	NO_RESPONSE	f	\N	\N	Payment reminder email	\N	2024-07-19 08:00:00+00	2025-07-26 04:37:40.72132+00
-17	13	CUST006	CALL	INBOUND	OFF006	+966506789012	COMPLETED	\N	DISPUTE_RAISED	f	\N	\N	Customer disputes charges	\N	2024-07-18 13:45:00+00	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_officers; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_officers (officer_id, employee_id, officer_name, team_id, officer_type, contact_number, email, language_skills, collection_limit, commission_rate, status, joining_date, last_active, created_at) FROM stdin;
-OFF001	EMP001	Ahmed Al-Rasheed	16	CALL_AGENT	+966501111111	a.rasheed@kb.sa	Arabic,English	500000.00	0.50	ACTIVE	2020-03-01	\N	2025-07-26 04:37:40.72132+00
-OFF002	EMP002	Sara Al-Mahmoud	16	CALL_AGENT	+966502222222	s.mahmoud@kb.sa	Arabic,English	500000.00	0.50	ACTIVE	2020-04-01	\N	2025-07-26 04:37:40.72132+00
-OFF003	EMP003	Khalid Al-Otaibi	17	FIELD_AGENT	+966503333333	k.otaibi@kb.sa	Arabic,English	1000000.00	1.00	ACTIVE	2020-05-01	\N	2025-07-26 04:37:40.72132+00
-OFF004	EMP004	Fatima Al-Zahrani	18	CALL_AGENT	+966504444444	f.zahrani@kb.sa	Arabic,English	500000.00	0.50	ACTIVE	2020-06-01	\N	2025-07-26 04:37:40.72132+00
-OFF005	EMP005	Mohammed Al-Qahtani	20	LEGAL_OFFICER	+966505555555	m.qahtani@kb.sa	Arabic,English	2000000.00	0.30	ACTIVE	2020-07-01	\N	2025-07-26 04:37:40.72132+00
-OFF006	EMP006	Noura Al-Shehri	16	SENIOR_COLLECTOR	+966506666666	n.shehri@kb.sa	Arabic,English,Hindi	1500000.00	0.75	ACTIVE	2020-02-01	\N	2025-07-26 04:37:40.72132+00
-OFF007	EMP007	Abdullah Al-Ghamdi	19	FIELD_AGENT	+966507777777	a.ghamdi@kb.sa	Arabic,English	1000000.00	1.00	ACTIVE	2021-01-01	\N	2025-07-26 04:37:40.72132+00
-OFF008	EMP008	Maha Al-Dossari	16	TEAM_LEAD	+966508888888	m.dossari@kb.sa	Arabic,English,French	2000000.00	0.40	ACTIVE	2020-01-15	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_provisions; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_provisions (provision_id, provision_date, bucket_id, provision_rate, total_exposure, provision_amount, ifrs9_stage, ecl_amount, regulatory_provision, additional_provision, provision_coverage_ratio, created_at) FROM stdin;
-1	2024-06-30	22	5.0	185474	9273.70	STAGE1	9273.70	9273.70	\N	5.0	2025-07-26 04:37:40.72132+00
-2	2024-06-30	23	15.0	135250	20287.50	STAGE2	20287.50	20287.50	\N	15.0	2025-07-26 04:37:40.72132+00
-3	2024-06-30	24	50.0	100380	50190.00	STAGE3	50190.00	50190.00	\N	50.0	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_queue_management; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_queue_management (queue_id, queue_name, queue_type, priority_level, filter_criteria, assigned_officer_id, assigned_team_id, cases_count, total_amount, avg_dpd, last_refreshed, is_active, created_at, updated_at) FROM stdin;
-1	High Priority Retail	PRIORITY	1	{"min_dpd": 60, "min_amount": 100000}	\N	16	2	235630	75	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-2	Standard Retail	NORMAL	2	{"max_dpd": 60, "max_amount": 100000}	\N	16	2	185474	38	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-3	Field Visit Queue	MANUAL	1	{"min_dpd": 90}	\N	17	1	100380	90	\N	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_risk_assessment; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_risk_assessment (assessment_id, customer_id, case_id, assessment_date, risk_category, default_probability, loss_given_default, expected_loss, early_warning_flags, behavioral_score, payment_pattern_score, external_risk_factors, recommended_strategy, next_review_date, created_at) FROM stdin;
-1	CUST001	10	2024-07-15	HIGH	0.35	0.60	28402.500000	\N	45	30	\N	SETTLEMENT_OFFER	2024-08-15	2025-07-26 04:37:40.72132+00
-2	CUST005	11	2024-07-15	MEDIUM	0.25	0.50	16190.500000	\N	55	50	\N	STANDARD_COLLECTION	2024-08-15	2025-07-26 04:37:40.72132+00
-3	CUST004	12	2024-07-15	MEDIUM	0.30	0.55	9231.750000	\N	50	45	\N	SETTLEMENT_OFFER	2024-08-15	2025-07-26 04:37:40.72132+00
-4	CUST006	13	2024-07-15	HIGH	0.45	0.70	31619.700000	\N	35	25	\N	LEGAL_ACTION	2024-08-15	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_scores; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_scores (score_id, customer_id, score_date, payment_behavior_score, contact_score, response_score, risk_score, recovery_probability, recommended_action, score_factors, created_at) FROM stdin;
-6	CUST001	2024-07-20	45	80	70	65	0.65	CONTINUE_FOLLOW_UP	\N	2025-07-26 04:37:40.72132+00
-7	CUST005	2024-07-20	55	75	60	55	0.75	STANDARD_COLLECTION	\N	2025-07-26 04:37:40.72132+00
-8	CUST004	2024-07-20	50	40	50	60	0.70	INCREASE_CONTACT	\N	2025-07-26 04:37:40.72132+00
-9	CUST006	2024-07-20	35	30	40	75	0.45	ESCALATE_TO_LEGAL	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_settlement_offers; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_settlement_offers (offer_id, case_id, customer_id, offer_date, original_amount, settlement_amount, discount_percentage, payment_terms, installments, offer_valid_until, offer_status, approval_level, approved_by, customer_response, response_date, created_at) FROM stdin;
-1	10	CUST001	2024-07-20	135250.00	120000	11.3	LUMP_SUM	\N	2024-08-20	PENDING	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00
-2	12	CUST004	2024-07-19	55950.00	50000	10.6	INSTALLMENTS_3	\N	2024-08-19	PENDING	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_strategies; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_strategies (strategy_id, strategy_code, strategy_name, bucket_id, customer_segment, risk_category, min_amount, max_amount, actions, escalation_days, is_active, created_at) FROM stdin;
-12	SOFT_REM_01	Soft Reminder Strategy	22	RETAIL	LOW	1000.00	50000.00	["SMS reminder", "Email reminder", "Automated call"]	7	t	2025-07-26 04:37:40.72132+00
-13	INT_CALL_01	Intensive Calling Strategy	23	RETAIL	MEDIUM	50000.00	200000.00	["Daily calls", "Skip tracing", "Email escalation"]	14	t	2025-07-26 04:37:40.72132+00
-14	FIELD_VIS_01	Field Visit Strategy	24	PREMIUM	HIGH	200000.00	1000000.00	["Field visit", "Legal notice preparation", "Asset verification"]	21	t	2025-07-26 04:37:40.72132+00
-15	LEGAL_ACT_01	Legal Action Strategy	25	HNI	HIGH	1000000.00	\N	["Legal notice", "Court filing", "Asset attachment"]	30	t	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_system_performance; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_system_performance (log_id, log_timestamp, system_component, response_time_ms, cpu_usage_percent, memory_usage_percent, active_users, error_count, warning_count, api_calls, database_connections) FROM stdin;
-4	2024-07-20 07:00:00+00	WEB_APP	45	35.50	62.30	25	\N	\N	1500	\N
-5	2024-07-20 08:00:00+00	API_SERVER	28	42.10	58.70	30	\N	\N	2100	\N
-\.
-
-
---
--- Data for Name: collection_teams; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_teams (team_id, team_code, team_name, team_type, branch_id, manager_id, is_active, created_at) FROM stdin;
-16	CALL_TEAM_01	Riyadh Call Center Team	CALL_CENTER	BR001	MGR001	t	2025-07-26 04:37:40.72132+00
-17	FIELD_TEAM_01	Riyadh Field Team	FIELD	BR001	MGR002	t	2025-07-26 04:37:40.72132+00
-18	CALL_TEAM_02	Jeddah Call Center Team	CALL_CENTER	BR002	MGR003	t	2025-07-26 04:37:40.72132+00
-19	FIELD_TEAM_02	Eastern Province Field Team	FIELD	BR003	MGR004	t	2025-07-26 04:37:40.72132+00
-20	LEGAL_TEAM_01	Central Legal Team	LEGAL	BR001	MGR005	t	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_vintage_analysis; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_vintage_analysis (vintage_id, origination_month, product_id, months_on_book, original_accounts, original_amount, current_outstanding, dpd_0_30_count, dpd_31_60_count, dpd_61_90_count, dpd_90_plus_count, written_off_count, written_off_amount, recovery_amount, flow_rate_30, flow_rate_60, flow_rate_90, loss_rate, created_at) FROM stdin;
-1	2020-06	41	49	100	10000000	6500000	5	3	1	1	\N	\N	\N	0.05	0.03	0.01	0.01	2025-07-26 04:37:40.72132+00
-2	2021-01	41	42	80	6000000	4200000	4	2	1	0	\N	\N	\N	0.05	0.025	0.0125	0.00	2025-07-26 04:37:40.72132+00
-3	2021-06	41	37	120	9000000	6750000	6	3	2	1	\N	\N	\N	0.05	0.025	0.017	0.008	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_workflow_templates; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_workflow_templates (template_id, template_name, workflow_type, bucket_id, customer_segment, workflow_steps, escalation_matrix, sla_hours, is_automated, is_active, created_at, updated_at) FROM stdin;
-1	Early Stage Workflow	STANDARD	22	\N	[{"step": 1, "action": "SMS"}, {"step": 2, "action": "Call"}, {"step": 3, "action": "Email"}]	\N	48	t	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-2	Mid Stage Workflow	INTENSIVE	23	\N	[{"step": 1, "action": "Call"}, {"step": 2, "action": "Field Visit"}, {"step": 3, "action": "Legal Notice"}]	\N	72	f	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-3	Late Stage Workflow	AGGRESSIVE	24	\N	[{"step": 1, "action": "Field Visit"}, {"step": 2, "action": "Legal Notice"}, {"step": 3, "action": "Legal Action"}]	\N	96	f	t	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_write_offs; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.collection_write_offs (write_off_id, case_id, account_number, customer_id, write_off_date, write_off_amount, principal_amount, interest_amount, penalty_amount, write_off_reason, approval_level, approved_by, recovery_attempts, last_payment_date, documentation, is_recoverable, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: daily_collection_summary; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.daily_collection_summary (summary_id, summary_date, branch_id, team_id, total_due_amount, total_collected, collection_rate, accounts_due, accounts_collected, calls_made, contacts_successful, ptps_obtained, ptps_kept, field_visits_done, legal_notices_sent, digital_payments, created_at) FROM stdin;
-4	2024-07-20	BR001	16	191200.00	57360.00	30.00	2	1	105	27	6	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00
-5	2024-07-20	BR002	18	55950.00	11190.00	20.00	1	0	30	6	1	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00
-6	2024-07-20	BR003	19	229904.00	45981.00	20.00	2	1	45	12	2	\N	\N	\N	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: data_masking_rules; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.data_masking_rules (rule_id, table_name, column_name, masking_type, masking_pattern, role_exceptions, is_active, created_at) FROM stdin;
-4	customers	tax_id	PARTIAL	XXX-XX-####	\N	t	2025-07-26 04:37:40.72132+00
-5	customer_contacts	contact_value	PARTIAL	+966#####XX##	\N	t	2025-07-26 04:37:40.72132+00
-6	accounts	account_number	PARTIAL	ACC######XXXX	\N	t	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: digital_collection_attempts; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.digital_collection_attempts (attempt_id, case_id, customer_id, channel_type, campaign_id, message_template, sent_datetime, delivered_datetime, read_datetime, response_datetime, response_type, payment_made, payment_amount, click_through_rate, cost_per_message, created_at) FROM stdin;
-3	10	CUST001	SMS	\N	PAYMENT_REMINDER_01	2024-07-21 06:00:00+00	2024-07-21 06:00:05+00	\N	\N	NO_RESPONSE	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
-4	11	CUST005	WHATSAPP	\N	PAYMENT_REMINDER_02	2024-07-20 05:00:00+00	2024-07-20 05:00:03+00	\N	\N	READ	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
-5	12	CUST004	EMAIL	\N	PAYMENT_REMINDER_03	2024-07-19 08:00:00+00	2024-07-19 08:00:10+00	\N	\N	NO_RESPONSE	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
-6	13	CUST006	SMS	\N	URGENT_PAYMENT_01	2024-07-18 06:00:00+00	2024-07-18 06:00:04+00	\N	\N	CLICKED	f	\N	\N	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: field_visits; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.field_visits (visit_id, case_id, customer_id, officer_id, visit_date, scheduled_time, actual_time, visit_address, visit_status, customer_met, amount_collected, collection_mode, receipt_number, customer_behavior, follow_up_required, geo_location, distance_traveled, expenses_claimed, safety_concern, notes, photo_references, created_at) FROM stdin;
-2	10	CUST001	OFF007	2024-07-15	14:00:00	\N	\N	COMPLETED	CUSTOMER	10000.00	\N	\N	\N	f	\N	\N	\N	f	Partial payment collected	\N	2025-07-26 04:37:40.72132+00
-3	13	CUST006	OFF003	2024-07-22	10:00:00	\N	\N	SCHEDULED	\N	\N	\N	\N	\N	f	\N	\N	\N	f	First field visit scheduled	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: hardship_applications; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.hardship_applications (application_id, customer_id, case_id, hardship_type, application_date, supporting_documents, requested_relief, review_status, approved_by, approval_date, relief_granted, relief_start_date, relief_end_date, monitoring_required, notes, created_at) FROM stdin;
-3	CUST001	10	JOB_LOSS	2024-07-15	\N	PAYMENT_DEFERRAL_3_MONTHS	UNDER_REVIEW	\N	\N	\N	\N	\N	t	\N	2025-07-26 04:37:40.72132+00
-4	CUST006	13	MEDICAL	2024-07-10	\N	INTEREST_WAIVER	PENDING	\N	\N	\N	\N	\N	t	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: ivr_payment_attempts; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.ivr_payment_attempts (attempt_id, customer_id, account_number, call_datetime, ivr_menu_path, payment_amount, payment_method, transaction_status, failure_reason, transaction_reference, created_at) FROM stdin;
-1	CUST001	ACC1000000001	2024-07-19 15:30:00+00	MAIN>PAYMENT>LOAN	5000.00	DEBIT_CARD	SUCCESS	\N	IVR20240719183000001	2025-07-26 04:37:40.72132+00
-2	CUST005	ACC1000000007	2024-07-18 17:15:00+00	MAIN>PAYMENT>LOAN	3012.00	CREDIT_CARD	FAILED	\N	\N	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: legal_cases; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.legal_cases (legal_case_id, case_id, case_number, court_name, case_type, filing_date, lawyer_name, lawyer_firm, current_stage, next_hearing_date, judgment_date, judgment_amount, execution_status, legal_costs, recovered_amount, case_status, documents, created_at, updated_at) FROM stdin;
-\.
-
-
---
--- Data for Name: loan_restructuring; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.loan_restructuring (restructure_id, loan_account_number, customer_id, original_loan_amount, outstanding_amount, original_tenure, remaining_tenure, original_interest_rate, new_interest_rate, new_tenure, new_emi, moratorium_months, restructure_date, restructure_reason, approval_level, impact_on_provision, status, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: officer_performance_metrics; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.officer_performance_metrics (metric_id, officer_id, metric_date, accounts_assigned, accounts_worked, calls_made, talk_time_minutes, contacts_successful, amount_collected, ptps_obtained, ptps_kept_rate, average_collection_days, customer_complaints, quality_score, created_at) FROM stdin;
-4	OFF001	2024-07-20	25	20	60	420	15	50000.00	5	0.80	\N	0	8.50	2025-07-26 04:37:40.72132+00
-5	OFF002	2024-07-20	30	25	75	525	18	75000.00	8	0.75	\N	1	8.00	2025-07-26 04:37:40.72132+00
-6	OFF003	2024-07-20	15	12	0	0	8	120000.00	3	0.90	\N	0	9.00	2025-07-26 04:37:40.72132+00
-7	OFF006	2024-07-20	20	18	45	540	12	95000.00	6	0.85	\N	0	8.80	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: officer_performance_summary; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.officer_performance_summary (summary_id, officer_id, summary_date, total_cases, total_portfolio_value, total_collected, collection_rate, total_calls, total_messages, successful_contacts, contact_rate, total_ptps, ptps_kept, ptp_keep_rate, avg_response_time, created_at, updated_at) FROM stdin;
-\.
-
-
---
--- Data for Name: performance_metrics; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.performance_metrics (metric_id, metric_name, metric_value, metric_unit, metric_timestamp, additional_info) FROM stdin;
-1	DAILY_COLLECTION_RATE	25.5	PERCENTAGE	2025-07-26 04:37:40.72132+00	{"date": "2024-07-20", "region": "Central"}
-2	AVERAGE_CALL_DURATION	7.5	MINUTES	2025-07-26 04:37:40.72132+00	{"date": "2024-07-20", "team": "CALL_TEAM_01"}
-\.
-
-
---
--- Data for Name: promise_to_pay; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.promise_to_pay (ptp_id, case_id, customer_id, interaction_id, ptp_amount, ptp_date, ptp_type, installment_count, officer_id, status, amount_received, kept_date, broken_reason, created_at, updated_at) FROM stdin;
-5	10	CUST001	14	20000.00	2024-08-01	PARTIAL	\N	OFF001	ACTIVE	0.00	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-6	11	CUST005	\N	30000.00	2024-07-30	PARTIAL	\N	OFF002	ACTIVE	0.00	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-7	12	CUST004	\N	55950.00	2024-08-15	FULL	\N	OFF004	ACTIVE	0.00	\N	\N	2025-07-26 04:37:40.72132+00	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: repossessed_assets; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.repossessed_assets (asset_id, case_id, asset_type, asset_description, repossession_date, storage_location, estimated_value, valuation_date, valuation_agency, auction_date, sale_amount, buyer_details, storage_costs, legal_costs, net_recovery, asset_condition, documents, photos, status, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: sharia_compliance_log; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.sharia_compliance_log (compliance_id, case_id, compliance_type, late_payment_charges, charity_amount, charity_name, distribution_date, distribution_receipt, compliance_status, reviewed_by, review_date, notes, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: user_role_assignments; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
---
-
-COPY kastle_collection.user_role_assignments (assignment_id, user_id, role_id, assigned_by, valid_from, valid_until, is_active, created_at) FROM stdin;
+COPY kastle_banking.user_role_assignments (assignment_id, user_id, role_id, assigned_by, valid_from, valid_until, is_active, created_at) FROM stdin;
 17	OFF001	16	ADMIN	2025-07-26 04:37:40.72132+00	\N	t	2025-07-26 04:37:40.72132+00
 18	OFF002	16	ADMIN	2025-07-26 04:37:40.72132+00	\N	t	2025-07-26 04:37:40.72132+00
 19	OFF003	19	ADMIN	2025-07-26 04:37:40.72132+00	\N	t	2025-07-26 04:37:40.72132+00
@@ -9509,116 +9518,15 @@ COPY kastle_collection.user_role_assignments (assignment_id, user_id, role_id, a
 
 
 --
--- Data for Name: user_roles; Type: TABLE DATA; Schema: kastle_collection; Owner: postgres
+-- Data for Name: user_roles; Type: TABLE DATA; Schema: kastle_banking; Owner: postgres
 --
 
-COPY kastle_collection.user_roles (role_id, role_name, role_description, permissions, is_active, created_at) FROM stdin;
+COPY kastle_banking.user_roles (role_id, role_name, role_description, permissions, is_active, created_at) FROM stdin;
 16	COLLECTION_AGENT	Basic collection agent role	{"make_calls": true, "view_cases": true, "update_interactions": true}	t	2025-07-26 04:37:40.72132+00
 17	TEAM_LEAD	Team lead with supervisory access	{"make_calls": true, "view_cases": true, "assign_cases": true, "update_interactions": true, "view_team_performance": true}	t	2025-07-26 04:37:40.72132+00
 18	COLLECTION_MANAGER	Collection department manager	{"full_access": true}	t	2025-07-26 04:37:40.72132+00
 19	FIELD_AGENT	Field collection agent	{"view_cases": true, "collect_payments": true, "update_field_visits": true}	t	2025-07-26 04:37:40.72132+00
 20	LEGAL_OFFICER	Legal collection officer	{"view_cases": true, "file_legal_notices": true, "manage_legal_cases": true}	t	2025-07-26 04:37:40.72132+00
-\.
-
-
---
--- Data for Name: collection_cases; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.collection_cases (case_id, case_number, customer_id, loan_account_number, officer_id, loan_amount, outstanding_balance, overdue_amount, overdue_days, delinquency_bucket, priority_level, loan_status, product_type, last_payment_date, last_payment_amount, created_at, updated_at) FROM stdin;
-1	COLL20250726_3bb2209b	CUST001	LN001234	OFF001	100000.00	85000.00	15000.00	30	30-60 days	MEDIUM	ACTIVE	Personal Loan	\N	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-2	COLL20250726_2d0cb2e8	CUST002	LN001235	OFF001	200000.00	180000.00	40000.00	60	60-90 days	HIGH	ACTIVE	Business Loan	\N	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-3	COLL20250726_cd0d3790	CUST003	LN001236	OFF002	50000.00	45000.00	10000.00	15	0-30 days	LOW	ACTIVE	Personal Loan	\N	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-4	COLL20250726_dc602e10	CUST004	LN001237	OFF002	300000.00	250000.00	80000.00	90	90+ days	CRITICAL	ACTIVE	Mortgage	\N	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-5	COLL20250726_7d3edf91	CUST005	LN001238	OFF003	75000.00	70000.00	20000.00	45	30-60 days	MEDIUM	ACTIVE	Auto Loan	\N	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-6	COLL20250726_0fe3cad6	CUST001	LN001234	OFF001	100000.00	85000.00	15000.00	30	30-60 days	MEDIUM	ACTIVE	Personal Loan	\N	\N	2025-07-26 13:31:41.82752+00	2025-07-26 13:31:41.82752+00
-7	COLL20250726_08deed75	CUST002	LN001235	OFF001	200000.00	180000.00	40000.00	60	60-90 days	HIGH	ACTIVE	Business Loan	\N	\N	2025-07-26 13:31:41.82752+00	2025-07-26 13:31:41.82752+00
-8	COLL20250726_6bd21a78	CUST003	LN001236	OFF002	50000.00	45000.00	10000.00	15	0-30 days	LOW	ACTIVE	Personal Loan	\N	\N	2025-07-26 13:31:41.82752+00	2025-07-26 13:31:41.82752+00
-9	COLL20250726_3e920b7b	CUST004	LN001237	OFF002	300000.00	250000.00	80000.00	90	90+ days	CRITICAL	ACTIVE	Mortgage	\N	\N	2025-07-26 13:31:41.82752+00	2025-07-26 13:31:41.82752+00
-10	COLL20250726_78a5d4bf	CUST005	LN001238	OFF003	75000.00	70000.00	20000.00	45	30-60 days	MEDIUM	ACTIVE	Auto Loan	\N	\N	2025-07-26 13:31:41.82752+00	2025-07-26 13:31:41.82752+00
-\.
-
-
---
--- Data for Name: collection_interactions; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.collection_interactions (interaction_id, case_id, officer_id, interaction_type, interaction_datetime, response_received, notes, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: collection_officers; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.collection_officers (officer_id, full_name, email, mobile_number, department, status, created_at, updated_at) FROM stdin;
-OFF001	Alice Officer	alice.o@company.com	+254700111222	Collections	ACTIVE	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-OFF002	Bob Collector	bob.c@company.com	+254700222333	Collections	ACTIVE	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-OFF003	Charlie Agent	charlie.a@company.com	+254700333444	Collections	ACTIVE	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-\.
-
-
---
--- Data for Name: customers; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.customers (customer_id, full_name, national_id, mobile_number, email, address, created_at, updated_at) FROM stdin;
-CUST001	John Doe	1234567890	+254712345678	john.doe@email.com	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-CUST002	Jane Smith	0987654321	+254723456789	jane.smith@email.com	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-CUST003	Robert Johnson	1122334455	+254734567890	robert.j@email.com	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-CUST004	Mary Williams	5544332211	+254745678901	mary.w@email.com	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-CUST005	David Brown	6677889900	+254756789012	david.b@email.com	\N	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-\.
-
-
---
--- Data for Name: officer_performance_summary; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.officer_performance_summary (summary_id, officer_id, summary_date, total_cases, total_calls, total_messages, total_ptps, ptps_kept, collection_amount, collection_rate, contact_rate, ptp_keep_rate, created_at, updated_at) FROM stdin;
-c13fbebb-d738-4a45-af9f-59ba91516df8	OFF001	2025-07-26	40	59	20	15	12	139700.00	68.00	57.00	83.00	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-57af0683-8955-48f6-b91c-806d5f331d2d	OFF002	2025-07-26	39	21	51	14	12	191910.00	72.00	47.00	77.00	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-d7b73ed7-a5b2-4c74-a589-5c30612948ec	OFF003	2025-07-26	57	70	25	24	5	194559.00	75.00	70.00	74.00	2025-07-26 13:30:32.822611+00	2025-07-26 13:30:32.822611+00
-\.
-
-
---
--- Data for Name: payments; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.payments (payment_id, case_id, payment_date, payment_amount, payment_method, reference_number, created_at) FROM stdin;
-\.
-
-
---
--- Data for Name: promise_to_pay; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.promise_to_pay (ptp_id, case_id, officer_id, promise_date, promise_amount, status, actual_payment_date, actual_payment_amount, created_at, updated_at) FROM stdin;
-\.
-
-
---
--- Data for Name: messages_2025_07_23; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
---
-
-COPY realtime.messages_2025_07_23 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
-\.
-
-
---
--- Data for Name: messages_2025_07_24; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
---
-
-COPY realtime.messages_2025_07_24 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
-\.
-
-
---
--- Data for Name: messages_2025_07_25; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
---
-
-COPY realtime.messages_2025_07_25 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
@@ -9635,6 +9543,46 @@ COPY realtime.messages_2025_07_26 (topic, extension, payload, event, private, up
 --
 
 COPY realtime.messages_2025_07_27 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: messages_2025_07_28; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
+--
+
+COPY realtime.messages_2025_07_28 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: messages_2025_07_29; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
+--
+
+COPY realtime.messages_2025_07_29 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: messages_2025_07_30; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
+--
+
+COPY realtime.messages_2025_07_30 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: messages_2025_07_31; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
+--
+
+COPY realtime.messages_2025_07_31 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: messages_2025_08_01; Type: TABLE DATA; Schema: realtime; Owner: supabase_admin
+--
+
+COPY realtime.messages_2025_08_01 (topic, extension, payload, event, private, updated_at, inserted_at, id) FROM stdin;
 \.
 
 
@@ -9799,17 +9747,24 @@ SELECT pg_catalog.setval('auth.refresh_tokens_id_seq', 1, false);
 
 
 --
+-- Name: access_log_access_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.access_log_access_id_seq', 2, true);
+
+
+--
 -- Name: account_types_type_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.account_types_type_id_seq', 46, true);
+SELECT pg_catalog.setval('kastle_banking.account_types_type_id_seq', 55, true);
 
 
 --
 -- Name: accounts_account_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.accounts_account_id_seq', 81, true);
+SELECT pg_catalog.setval('kastle_banking.accounts_account_id_seq', 778, true);
 
 
 --
@@ -9817,6 +9772,13 @@ SELECT pg_catalog.setval('kastle_banking.accounts_account_id_seq', 81, true);
 --
 
 SELECT pg_catalog.setval('kastle_banking.aging_buckets_id_seq', 35, true);
+
+
+--
+-- Name: audit_log_audit_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.audit_log_audit_id_seq', 2, true);
 
 
 --
@@ -9841,6 +9803,34 @@ SELECT pg_catalog.setval('kastle_banking.branch_collection_performance_id_seq', 
 
 
 --
+-- Name: collection_audit_trail_audit_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_audit_trail_audit_id_seq', 2, true);
+
+
+--
+-- Name: collection_automation_metrics_metric_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_automation_metrics_metric_id_seq', 3, true);
+
+
+--
+-- Name: collection_benchmarks_benchmark_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_benchmarks_benchmark_id_seq', 3, true);
+
+
+--
+-- Name: collection_bucket_movement_movement_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_bucket_movement_movement_id_seq', 1, false);
+
+
+--
 -- Name: collection_buckets_bucket_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
@@ -9848,17 +9838,150 @@ SELECT pg_catalog.setval('kastle_banking.collection_buckets_bucket_id_seq', 27, 
 
 
 --
+-- Name: collection_call_records_call_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_call_records_call_id_seq', 3, true);
+
+
+--
+-- Name: collection_campaigns_campaign_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_campaigns_campaign_id_seq', 4, true);
+
+
+--
+-- Name: collection_case_details_case_detail_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_case_details_case_detail_id_seq', 13, true);
+
+
+--
 -- Name: collection_cases_case_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.collection_cases_case_id_seq', 21, true);
+SELECT pg_catalog.setval('kastle_banking.collection_cases_case_id_seq', 46, true);
+
+
+--
+-- Name: collection_compliance_violations_violation_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_compliance_violations_violation_id_seq', 1, true);
+
+
+--
+-- Name: collection_contact_attempts_attempt_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_contact_attempts_attempt_id_seq', 10, true);
+
+
+--
+-- Name: collection_customer_segments_segment_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_customer_segments_segment_id_seq', 9, true);
+
+
+--
+-- Name: collection_forecasts_forecast_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_forecasts_forecast_id_seq', 1, false);
+
+
+--
+-- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_interactions_interaction_id_seq', 353, true);
+
+
+--
+-- Name: collection_provisions_provision_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_provisions_provision_id_seq', 3, true);
+
+
+--
+-- Name: collection_queue_management_queue_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_queue_management_queue_id_seq', 3, true);
 
 
 --
 -- Name: collection_rates_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.collection_rates_id_seq', 141, true);
+SELECT pg_catalog.setval('kastle_banking.collection_rates_id_seq', 153, true);
+
+
+--
+-- Name: collection_risk_assessment_assessment_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_risk_assessment_assessment_id_seq', 4, true);
+
+
+--
+-- Name: collection_scores_score_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_scores_score_id_seq', 9, true);
+
+
+--
+-- Name: collection_settlement_offers_offer_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_settlement_offers_offer_id_seq', 2, true);
+
+
+--
+-- Name: collection_strategies_strategy_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_strategies_strategy_id_seq', 15, true);
+
+
+--
+-- Name: collection_system_performance_log_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_system_performance_log_id_seq', 5, true);
+
+
+--
+-- Name: collection_teams_team_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_teams_team_id_seq', 1, false);
+
+
+--
+-- Name: collection_vintage_analysis_vintage_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_vintage_analysis_vintage_id_seq', 3, true);
+
+
+--
+-- Name: collection_workflow_templates_template_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_workflow_templates_template_id_seq', 3, true);
+
+
+--
+-- Name: collection_write_offs_write_off_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.collection_write_offs_write_off_id_seq', 1, false);
 
 
 --
@@ -9872,7 +9995,7 @@ SELECT pg_catalog.setval('kastle_banking.customer_addresses_address_id_seq', 66,
 -- Name: customer_contacts_contact_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.customer_contacts_contact_id_seq', 126, true);
+SELECT pg_catalog.setval('kastle_banking.customer_contacts_contact_id_seq', 826, true);
 
 
 --
@@ -9886,7 +10009,21 @@ SELECT pg_catalog.setval('kastle_banking.customer_documents_document_id_seq', 67
 -- Name: customer_types_type_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.customer_types_type_id_seq', 27, true);
+SELECT pg_catalog.setval('kastle_banking.customer_types_type_id_seq', 68, true);
+
+
+--
+-- Name: daily_collection_summary_summary_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.daily_collection_summary_summary_id_seq', 13, true);
+
+
+--
+-- Name: data_masking_rules_rule_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.data_masking_rules_rule_id_seq', 6, true);
 
 
 --
@@ -9904,10 +10041,45 @@ SELECT pg_catalog.setval('kastle_banking.delinquency_history_id_seq', 22, true);
 
 
 --
+-- Name: digital_collection_attempts_attempt_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.digital_collection_attempts_attempt_id_seq', 6, true);
+
+
+--
+-- Name: field_visits_visit_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.field_visits_visit_id_seq', 3, true);
+
+
+--
+-- Name: hardship_applications_application_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.hardship_applications_application_id_seq', 4, true);
+
+
+--
+-- Name: ivr_payment_attempts_attempt_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.ivr_payment_attempts_attempt_id_seq', 2, true);
+
+
+--
+-- Name: legal_cases_legal_case_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.legal_cases_legal_case_id_seq', 1, false);
+
+
+--
 -- Name: loan_accounts_loan_account_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.loan_accounts_loan_account_id_seq', 25, true);
+SELECT pg_catalog.setval('kastle_banking.loan_accounts_loan_account_id_seq', 29, true);
 
 
 --
@@ -9918,31 +10090,87 @@ SELECT pg_catalog.setval('kastle_banking.loan_applications_application_id_seq', 
 
 
 --
+-- Name: loan_restructuring_restructure_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.loan_restructuring_restructure_id_seq', 1, false);
+
+
+--
+-- Name: officer_performance_metrics_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.officer_performance_metrics_id_seq', 40, true);
+
+
+--
+-- Name: officer_performance_summary_summary_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.officer_performance_summary_summary_id_seq', 1, false);
+
+
+--
+-- Name: payments_payment_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.payments_payment_id_seq', 1, false);
+
+
+--
+-- Name: performance_metrics_metric_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.performance_metrics_metric_id_seq', 2, true);
+
+
+--
 -- Name: portfolio_summary_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.portfolio_summary_id_seq', 57, true);
+SELECT pg_catalog.setval('kastle_banking.portfolio_summary_id_seq', 70, true);
 
 
 --
 -- Name: product_categories_category_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.product_categories_category_id_seq', 32, true);
+SELECT pg_catalog.setval('kastle_banking.product_categories_category_id_seq', 47, true);
 
 
 --
 -- Name: products_product_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.products_product_id_seq', 45, true);
+SELECT pg_catalog.setval('kastle_banking.products_product_id_seq', 54, true);
+
+
+--
+-- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.promise_to_pay_ptp_id_seq', 1, false);
+
+
+--
+-- Name: repossessed_assets_asset_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.repossessed_assets_asset_id_seq', 1, false);
+
+
+--
+-- Name: sharia_compliance_log_compliance_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
+--
+
+SELECT pg_catalog.setval('kastle_banking.sharia_compliance_log_compliance_id_seq', 1, true);
 
 
 --
 -- Name: transaction_types_type_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_banking.transaction_types_type_id_seq', 42, true);
+SELECT pg_catalog.setval('kastle_banking.transaction_types_type_id_seq', 53, true);
 
 
 --
@@ -9953,318 +10181,17 @@ SELECT pg_catalog.setval('kastle_banking.transactions_transaction_id_seq', 47, t
 
 
 --
--- Name: access_log_access_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
+-- Name: user_role_assignments_assignment_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_collection.access_log_access_id_seq', 2, true);
+SELECT pg_catalog.setval('kastle_banking.user_role_assignments_assignment_id_seq', 24, true);
 
 
 --
--- Name: audit_log_audit_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
+-- Name: user_roles_role_id_seq; Type: SEQUENCE SET; Schema: kastle_banking; Owner: postgres
 --
 
-SELECT pg_catalog.setval('kastle_collection.audit_log_audit_id_seq', 2, true);
-
-
---
--- Name: collection_audit_trail_audit_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_audit_trail_audit_id_seq', 2, true);
-
-
---
--- Name: collection_automation_metrics_metric_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_automation_metrics_metric_id_seq', 3, true);
-
-
---
--- Name: collection_benchmarks_benchmark_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_benchmarks_benchmark_id_seq', 3, true);
-
-
---
--- Name: collection_bucket_movement_movement_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_bucket_movement_movement_id_seq', 1, false);
-
-
---
--- Name: collection_call_records_call_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_call_records_call_id_seq', 3, true);
-
-
---
--- Name: collection_campaigns_campaign_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_campaigns_campaign_id_seq', 4, true);
-
-
---
--- Name: collection_case_details_case_detail_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_case_details_case_detail_id_seq', 13, true);
-
-
---
--- Name: collection_compliance_violations_violation_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_compliance_violations_violation_id_seq', 1, true);
-
-
---
--- Name: collection_contact_attempts_attempt_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_contact_attempts_attempt_id_seq', 10, true);
-
-
---
--- Name: collection_customer_segments_segment_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_customer_segments_segment_id_seq', 9, true);
-
-
---
--- Name: collection_forecasts_forecast_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_forecasts_forecast_id_seq', 1, false);
-
-
---
--- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_interactions_interaction_id_seq', 17, true);
-
-
---
--- Name: collection_provisions_provision_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_provisions_provision_id_seq', 3, true);
-
-
---
--- Name: collection_queue_management_queue_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_queue_management_queue_id_seq', 3, true);
-
-
---
--- Name: collection_risk_assessment_assessment_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_risk_assessment_assessment_id_seq', 4, true);
-
-
---
--- Name: collection_scores_score_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_scores_score_id_seq', 9, true);
-
-
---
--- Name: collection_settlement_offers_offer_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_settlement_offers_offer_id_seq', 2, true);
-
-
---
--- Name: collection_strategies_strategy_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_strategies_strategy_id_seq', 15, true);
-
-
---
--- Name: collection_system_performance_log_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_system_performance_log_id_seq', 5, true);
-
-
---
--- Name: collection_teams_team_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_teams_team_id_seq', 20, true);
-
-
---
--- Name: collection_vintage_analysis_vintage_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_vintage_analysis_vintage_id_seq', 3, true);
-
-
---
--- Name: collection_workflow_templates_template_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_workflow_templates_template_id_seq', 3, true);
-
-
---
--- Name: collection_write_offs_write_off_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.collection_write_offs_write_off_id_seq', 1, false);
-
-
---
--- Name: daily_collection_summary_summary_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.daily_collection_summary_summary_id_seq', 6, true);
-
-
---
--- Name: data_masking_rules_rule_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.data_masking_rules_rule_id_seq', 6, true);
-
-
---
--- Name: digital_collection_attempts_attempt_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.digital_collection_attempts_attempt_id_seq', 6, true);
-
-
---
--- Name: field_visits_visit_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.field_visits_visit_id_seq', 3, true);
-
-
---
--- Name: hardship_applications_application_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.hardship_applications_application_id_seq', 4, true);
-
-
---
--- Name: ivr_payment_attempts_attempt_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.ivr_payment_attempts_attempt_id_seq', 2, true);
-
-
---
--- Name: legal_cases_legal_case_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.legal_cases_legal_case_id_seq', 1, false);
-
-
---
--- Name: loan_restructuring_restructure_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.loan_restructuring_restructure_id_seq', 1, false);
-
-
---
--- Name: officer_performance_metrics_metric_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.officer_performance_metrics_metric_id_seq', 7, true);
-
-
---
--- Name: officer_performance_summary_summary_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.officer_performance_summary_summary_id_seq', 1, false);
-
-
---
--- Name: performance_metrics_metric_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.performance_metrics_metric_id_seq', 2, true);
-
-
---
--- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.promise_to_pay_ptp_id_seq', 7, true);
-
-
---
--- Name: repossessed_assets_asset_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.repossessed_assets_asset_id_seq', 1, false);
-
-
---
--- Name: sharia_compliance_log_compliance_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.sharia_compliance_log_compliance_id_seq', 1, true);
-
-
---
--- Name: user_role_assignments_assignment_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.user_role_assignments_assignment_id_seq', 24, true);
-
-
---
--- Name: user_roles_role_id_seq; Type: SEQUENCE SET; Schema: kastle_collection; Owner: postgres
---
-
-SELECT pg_catalog.setval('kastle_collection.user_roles_role_id_seq', 20, true);
-
-
---
--- Name: collection_cases_case_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.collection_cases_case_id_seq', 10, true);
-
-
---
--- Name: collection_interactions_interaction_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.collection_interactions_interaction_id_seq', 1, false);
-
-
---
--- Name: payments_payment_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.payments_payment_id_seq', 1, false);
-
-
---
--- Name: promise_to_pay_ptp_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.promise_to_pay_ptp_id_seq', 1, false);
+SELECT pg_catalog.setval('kastle_banking.user_roles_role_id_seq', 20, true);
 
 
 --
@@ -10451,6 +10378,14 @@ ALTER TABLE ONLY auth.users
 
 
 --
+-- Name: access_log access_log_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.access_log
+    ADD CONSTRAINT access_log_pkey PRIMARY KEY (access_id);
+
+
+--
 -- Name: account_types account_types_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -10488,6 +10423,14 @@ ALTER TABLE ONLY kastle_banking.accounts
 
 ALTER TABLE ONLY kastle_banking.aging_buckets
     ADD CONSTRAINT aging_buckets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.audit_log
+    ADD CONSTRAINT audit_log_pkey PRIMARY KEY (audit_id);
 
 
 --
@@ -10539,11 +10482,51 @@ ALTER TABLE ONLY kastle_banking.branch_collection_performance
 
 
 --
+-- Name: branches branches_branch_code_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.branches
+    ADD CONSTRAINT branches_branch_code_key UNIQUE (branch_code);
+
+
+--
 -- Name: branches branches_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER TABLE ONLY kastle_banking.branches
     ADD CONSTRAINT branches_pkey PRIMARY KEY (branch_id);
+
+
+--
+-- Name: collection_audit_trail collection_audit_trail_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_audit_trail
+    ADD CONSTRAINT collection_audit_trail_pkey PRIMARY KEY (audit_id);
+
+
+--
+-- Name: collection_automation_metrics collection_automation_metrics_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_automation_metrics
+    ADD CONSTRAINT collection_automation_metrics_pkey PRIMARY KEY (metric_id);
+
+
+--
+-- Name: collection_benchmarks collection_benchmarks_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_benchmarks
+    ADD CONSTRAINT collection_benchmarks_pkey PRIMARY KEY (benchmark_id);
+
+
+--
+-- Name: collection_bucket_movement collection_bucket_movement_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_bucket_movement
+    ADD CONSTRAINT collection_bucket_movement_pkey PRIMARY KEY (movement_id);
 
 
 --
@@ -10555,11 +10538,43 @@ ALTER TABLE ONLY kastle_banking.collection_buckets
 
 
 --
+-- Name: collection_buckets collection_buckets_bucket_id_unique; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_buckets
+    ADD CONSTRAINT collection_buckets_bucket_id_unique UNIQUE (bucket_id);
+
+
+--
 -- Name: collection_buckets collection_buckets_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER TABLE ONLY kastle_banking.collection_buckets
     ADD CONSTRAINT collection_buckets_pkey PRIMARY KEY (bucket_id);
+
+
+--
+-- Name: collection_call_records collection_call_records_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_call_records
+    ADD CONSTRAINT collection_call_records_pkey PRIMARY KEY (call_id);
+
+
+--
+-- Name: collection_campaigns collection_campaigns_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_campaigns
+    ADD CONSTRAINT collection_campaigns_pkey PRIMARY KEY (campaign_id);
+
+
+--
+-- Name: collection_case_details collection_case_details_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_case_details
+    ADD CONSTRAINT collection_case_details_pkey PRIMARY KEY (case_detail_id);
 
 
 --
@@ -10579,11 +10594,163 @@ ALTER TABLE ONLY kastle_banking.collection_cases
 
 
 --
+-- Name: collection_compliance_violations collection_compliance_violations_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_compliance_violations
+    ADD CONSTRAINT collection_compliance_violations_pkey PRIMARY KEY (violation_id);
+
+
+--
+-- Name: collection_contact_attempts collection_contact_attempts_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_contact_attempts
+    ADD CONSTRAINT collection_contact_attempts_pkey PRIMARY KEY (attempt_id);
+
+
+--
+-- Name: collection_customer_segments collection_customer_segments_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_customer_segments
+    ADD CONSTRAINT collection_customer_segments_pkey PRIMARY KEY (segment_id);
+
+
+--
+-- Name: collection_customer_segments collection_customer_segments_segment_code_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_customer_segments
+    ADD CONSTRAINT collection_customer_segments_segment_code_key UNIQUE (segment_code);
+
+
+--
+-- Name: collection_forecasts collection_forecasts_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_forecasts
+    ADD CONSTRAINT collection_forecasts_pkey PRIMARY KEY (forecast_id);
+
+
+--
+-- Name: collection_interactions collection_interactions_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_interactions
+    ADD CONSTRAINT collection_interactions_pkey PRIMARY KEY (interaction_id);
+
+
+--
+-- Name: collection_officers collection_officers_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_officers
+    ADD CONSTRAINT collection_officers_pkey PRIMARY KEY (officer_id);
+
+
+--
+-- Name: collection_provisions collection_provisions_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_provisions
+    ADD CONSTRAINT collection_provisions_pkey PRIMARY KEY (provision_id);
+
+
+--
+-- Name: collection_queue_management collection_queue_management_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_queue_management
+    ADD CONSTRAINT collection_queue_management_pkey PRIMARY KEY (queue_id);
+
+
+--
 -- Name: collection_rates collection_rates_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER TABLE ONLY kastle_banking.collection_rates
     ADD CONSTRAINT collection_rates_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: collection_risk_assessment collection_risk_assessment_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_risk_assessment
+    ADD CONSTRAINT collection_risk_assessment_pkey PRIMARY KEY (assessment_id);
+
+
+--
+-- Name: collection_scores collection_scores_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_scores
+    ADD CONSTRAINT collection_scores_pkey PRIMARY KEY (score_id);
+
+
+--
+-- Name: collection_settlement_offers collection_settlement_offers_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_settlement_offers
+    ADD CONSTRAINT collection_settlement_offers_pkey PRIMARY KEY (offer_id);
+
+
+--
+-- Name: collection_strategies collection_strategies_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_strategies
+    ADD CONSTRAINT collection_strategies_pkey PRIMARY KEY (strategy_id);
+
+
+--
+-- Name: collection_strategies collection_strategies_strategy_code_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_strategies
+    ADD CONSTRAINT collection_strategies_strategy_code_key UNIQUE (strategy_code);
+
+
+--
+-- Name: collection_system_performance collection_system_performance_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_system_performance
+    ADD CONSTRAINT collection_system_performance_pkey PRIMARY KEY (log_id);
+
+
+--
+-- Name: collection_teams collection_teams_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_teams
+    ADD CONSTRAINT collection_teams_pkey PRIMARY KEY (team_id);
+
+
+--
+-- Name: collection_vintage_analysis collection_vintage_analysis_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_vintage_analysis
+    ADD CONSTRAINT collection_vintage_analysis_pkey PRIMARY KEY (vintage_id);
+
+
+--
+-- Name: collection_workflow_templates collection_workflow_templates_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_workflow_templates
+    ADD CONSTRAINT collection_workflow_templates_pkey PRIMARY KEY (template_id);
+
+
+--
+-- Name: collection_write_offs collection_write_offs_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_write_offs
+    ADD CONSTRAINT collection_write_offs_pkey PRIMARY KEY (write_off_id);
 
 
 --
@@ -10651,6 +10818,30 @@ ALTER TABLE ONLY kastle_banking.customers
 
 
 --
+-- Name: daily_collection_summary daily_collection_summary_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.daily_collection_summary
+    ADD CONSTRAINT daily_collection_summary_pkey PRIMARY KEY (summary_id);
+
+
+--
+-- Name: daily_collection_summary daily_collection_summary_summary_date_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.daily_collection_summary
+    ADD CONSTRAINT daily_collection_summary_summary_date_key UNIQUE (summary_date);
+
+
+--
+-- Name: data_masking_rules data_masking_rules_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.data_masking_rules
+    ADD CONSTRAINT data_masking_rules_pkey PRIMARY KEY (rule_id);
+
+
+--
 -- Name: delinquencies delinquencies_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -10664,6 +10855,54 @@ ALTER TABLE ONLY kastle_banking.delinquencies
 
 ALTER TABLE ONLY kastle_banking.delinquency_history
     ADD CONSTRAINT delinquency_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: digital_collection_attempts digital_collection_attempts_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.digital_collection_attempts
+    ADD CONSTRAINT digital_collection_attempts_pkey PRIMARY KEY (attempt_id);
+
+
+--
+-- Name: field_visits field_visits_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.field_visits
+    ADD CONSTRAINT field_visits_pkey PRIMARY KEY (visit_id);
+
+
+--
+-- Name: hardship_applications hardship_applications_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.hardship_applications
+    ADD CONSTRAINT hardship_applications_pkey PRIMARY KEY (application_id);
+
+
+--
+-- Name: ivr_payment_attempts ivr_payment_attempts_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.ivr_payment_attempts
+    ADD CONSTRAINT ivr_payment_attempts_pkey PRIMARY KEY (attempt_id);
+
+
+--
+-- Name: legal_cases legal_cases_case_number_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.legal_cases
+    ADD CONSTRAINT legal_cases_case_number_key UNIQUE (case_number);
+
+
+--
+-- Name: legal_cases legal_cases_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.legal_cases
+    ADD CONSTRAINT legal_cases_pkey PRIMARY KEY (legal_case_id);
 
 
 --
@@ -10696,6 +10935,62 @@ ALTER TABLE ONLY kastle_banking.loan_applications
 
 ALTER TABLE ONLY kastle_banking.loan_applications
     ADD CONSTRAINT loan_applications_pkey PRIMARY KEY (application_id);
+
+
+--
+-- Name: loan_restructuring loan_restructuring_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.loan_restructuring
+    ADD CONSTRAINT loan_restructuring_pkey PRIMARY KEY (restructure_id);
+
+
+--
+-- Name: officer_performance_metrics officer_performance_metrics_officer_id_metric_date_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.officer_performance_metrics
+    ADD CONSTRAINT officer_performance_metrics_officer_id_metric_date_key UNIQUE (officer_id, metric_date);
+
+
+--
+-- Name: officer_performance_metrics officer_performance_metrics_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.officer_performance_metrics
+    ADD CONSTRAINT officer_performance_metrics_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: officer_performance_summary officer_performance_summary_officer_id_summary_date_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.officer_performance_summary
+    ADD CONSTRAINT officer_performance_summary_officer_id_summary_date_key UNIQUE (officer_id, summary_date);
+
+
+--
+-- Name: officer_performance_summary officer_performance_summary_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.officer_performance_summary
+    ADD CONSTRAINT officer_performance_summary_pkey PRIMARY KEY (summary_id);
+
+
+--
+-- Name: payments payments_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.payments
+    ADD CONSTRAINT payments_pkey PRIMARY KEY (payment_id);
+
+
+--
+-- Name: performance_metrics performance_metrics_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.performance_metrics
+    ADD CONSTRAINT performance_metrics_pkey PRIMARY KEY (metric_id);
 
 
 --
@@ -10739,11 +11034,35 @@ ALTER TABLE ONLY kastle_banking.products
 
 
 --
+-- Name: promise_to_pay promise_to_pay_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.promise_to_pay
+    ADD CONSTRAINT promise_to_pay_pkey PRIMARY KEY (ptp_id);
+
+
+--
 -- Name: realtime_notifications realtime_notifications_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER TABLE ONLY kastle_banking.realtime_notifications
     ADD CONSTRAINT realtime_notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: repossessed_assets repossessed_assets_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.repossessed_assets
+    ADD CONSTRAINT repossessed_assets_pkey PRIMARY KEY (asset_id);
+
+
+--
+-- Name: sharia_compliance_log sharia_compliance_log_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.sharia_compliance_log
+    ADD CONSTRAINT sharia_compliance_log_pkey PRIMARY KEY (compliance_id);
 
 
 --
@@ -10779,459 +11098,27 @@ ALTER TABLE ONLY kastle_banking.transactions
 
 
 --
--- Name: access_log access_log_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
+-- Name: user_role_assignments user_role_assignments_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER TABLE ONLY kastle_collection.access_log
-    ADD CONSTRAINT access_log_pkey PRIMARY KEY (access_id);
-
-
---
--- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.audit_log
-    ADD CONSTRAINT audit_log_pkey PRIMARY KEY (audit_id);
-
-
---
--- Name: collection_audit_trail collection_audit_trail_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_audit_trail
-    ADD CONSTRAINT collection_audit_trail_pkey PRIMARY KEY (audit_id);
-
-
---
--- Name: collection_automation_metrics collection_automation_metrics_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_automation_metrics
-    ADD CONSTRAINT collection_automation_metrics_pkey PRIMARY KEY (metric_id);
-
-
---
--- Name: collection_benchmarks collection_benchmarks_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_benchmarks
-    ADD CONSTRAINT collection_benchmarks_pkey PRIMARY KEY (benchmark_id);
-
-
---
--- Name: collection_bucket_movement collection_bucket_movement_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_bucket_movement
-    ADD CONSTRAINT collection_bucket_movement_pkey PRIMARY KEY (movement_id);
-
-
---
--- Name: collection_call_records collection_call_records_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_call_records
-    ADD CONSTRAINT collection_call_records_pkey PRIMARY KEY (call_id);
-
-
---
--- Name: collection_campaigns collection_campaigns_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_campaigns
-    ADD CONSTRAINT collection_campaigns_pkey PRIMARY KEY (campaign_id);
-
-
---
--- Name: collection_case_details collection_case_details_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_case_details
-    ADD CONSTRAINT collection_case_details_pkey PRIMARY KEY (case_detail_id);
-
-
---
--- Name: collection_compliance_violations collection_compliance_violations_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_compliance_violations
-    ADD CONSTRAINT collection_compliance_violations_pkey PRIMARY KEY (violation_id);
-
-
---
--- Name: collection_contact_attempts collection_contact_attempts_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_contact_attempts
-    ADD CONSTRAINT collection_contact_attempts_pkey PRIMARY KEY (attempt_id);
-
-
---
--- Name: collection_customer_segments collection_customer_segments_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_customer_segments
-    ADD CONSTRAINT collection_customer_segments_pkey PRIMARY KEY (segment_id);
-
-
---
--- Name: collection_customer_segments collection_customer_segments_segment_code_key; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_customer_segments
-    ADD CONSTRAINT collection_customer_segments_segment_code_key UNIQUE (segment_code);
-
-
---
--- Name: collection_forecasts collection_forecasts_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_forecasts
-    ADD CONSTRAINT collection_forecasts_pkey PRIMARY KEY (forecast_id);
-
-
---
--- Name: collection_interactions collection_interactions_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_interactions
-    ADD CONSTRAINT collection_interactions_pkey PRIMARY KEY (interaction_id);
-
-
---
--- Name: collection_officers collection_officers_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_officers
-    ADD CONSTRAINT collection_officers_pkey PRIMARY KEY (officer_id);
-
-
---
--- Name: collection_provisions collection_provisions_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_provisions
-    ADD CONSTRAINT collection_provisions_pkey PRIMARY KEY (provision_id);
-
-
---
--- Name: collection_queue_management collection_queue_management_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_queue_management
-    ADD CONSTRAINT collection_queue_management_pkey PRIMARY KEY (queue_id);
-
-
---
--- Name: collection_risk_assessment collection_risk_assessment_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_risk_assessment
-    ADD CONSTRAINT collection_risk_assessment_pkey PRIMARY KEY (assessment_id);
-
-
---
--- Name: collection_scores collection_scores_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_scores
-    ADD CONSTRAINT collection_scores_pkey PRIMARY KEY (score_id);
-
-
---
--- Name: collection_settlement_offers collection_settlement_offers_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_settlement_offers
-    ADD CONSTRAINT collection_settlement_offers_pkey PRIMARY KEY (offer_id);
-
-
---
--- Name: collection_strategies collection_strategies_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_strategies
-    ADD CONSTRAINT collection_strategies_pkey PRIMARY KEY (strategy_id);
-
-
---
--- Name: collection_strategies collection_strategies_strategy_code_key; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_strategies
-    ADD CONSTRAINT collection_strategies_strategy_code_key UNIQUE (strategy_code);
-
-
---
--- Name: collection_system_performance collection_system_performance_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_system_performance
-    ADD CONSTRAINT collection_system_performance_pkey PRIMARY KEY (log_id);
-
-
---
--- Name: collection_teams collection_teams_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_teams
-    ADD CONSTRAINT collection_teams_pkey PRIMARY KEY (team_id);
-
-
---
--- Name: collection_teams collection_teams_team_code_key; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_teams
-    ADD CONSTRAINT collection_teams_team_code_key UNIQUE (team_code);
-
-
---
--- Name: collection_vintage_analysis collection_vintage_analysis_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_vintage_analysis
-    ADD CONSTRAINT collection_vintage_analysis_pkey PRIMARY KEY (vintage_id);
-
-
---
--- Name: collection_workflow_templates collection_workflow_templates_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_workflow_templates
-    ADD CONSTRAINT collection_workflow_templates_pkey PRIMARY KEY (template_id);
-
-
---
--- Name: collection_write_offs collection_write_offs_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_write_offs
-    ADD CONSTRAINT collection_write_offs_pkey PRIMARY KEY (write_off_id);
-
-
---
--- Name: daily_collection_summary daily_collection_summary_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.daily_collection_summary
-    ADD CONSTRAINT daily_collection_summary_pkey PRIMARY KEY (summary_id);
-
-
---
--- Name: data_masking_rules data_masking_rules_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.data_masking_rules
-    ADD CONSTRAINT data_masking_rules_pkey PRIMARY KEY (rule_id);
-
-
---
--- Name: digital_collection_attempts digital_collection_attempts_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.digital_collection_attempts
-    ADD CONSTRAINT digital_collection_attempts_pkey PRIMARY KEY (attempt_id);
-
-
---
--- Name: field_visits field_visits_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.field_visits
-    ADD CONSTRAINT field_visits_pkey PRIMARY KEY (visit_id);
-
-
---
--- Name: hardship_applications hardship_applications_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.hardship_applications
-    ADD CONSTRAINT hardship_applications_pkey PRIMARY KEY (application_id);
-
-
---
--- Name: ivr_payment_attempts ivr_payment_attempts_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.ivr_payment_attempts
-    ADD CONSTRAINT ivr_payment_attempts_pkey PRIMARY KEY (attempt_id);
-
-
---
--- Name: legal_cases legal_cases_case_number_key; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.legal_cases
-    ADD CONSTRAINT legal_cases_case_number_key UNIQUE (case_number);
-
-
---
--- Name: legal_cases legal_cases_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.legal_cases
-    ADD CONSTRAINT legal_cases_pkey PRIMARY KEY (legal_case_id);
-
-
---
--- Name: loan_restructuring loan_restructuring_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.loan_restructuring
-    ADD CONSTRAINT loan_restructuring_pkey PRIMARY KEY (restructure_id);
-
-
---
--- Name: officer_performance_metrics officer_performance_metrics_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.officer_performance_metrics
-    ADD CONSTRAINT officer_performance_metrics_pkey PRIMARY KEY (metric_id);
-
-
---
--- Name: officer_performance_summary officer_performance_summary_officer_id_summary_date_key; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.officer_performance_summary
-    ADD CONSTRAINT officer_performance_summary_officer_id_summary_date_key UNIQUE (officer_id, summary_date);
-
-
---
--- Name: officer_performance_summary officer_performance_summary_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.officer_performance_summary
-    ADD CONSTRAINT officer_performance_summary_pkey PRIMARY KEY (summary_id);
-
-
---
--- Name: performance_metrics performance_metrics_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.performance_metrics
-    ADD CONSTRAINT performance_metrics_pkey PRIMARY KEY (metric_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_pkey PRIMARY KEY (ptp_id);
-
-
---
--- Name: repossessed_assets repossessed_assets_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.repossessed_assets
-    ADD CONSTRAINT repossessed_assets_pkey PRIMARY KEY (asset_id);
-
-
---
--- Name: sharia_compliance_log sharia_compliance_log_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.sharia_compliance_log
-    ADD CONSTRAINT sharia_compliance_log_pkey PRIMARY KEY (compliance_id);
-
-
---
--- Name: user_role_assignments user_role_assignments_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.user_role_assignments
+ALTER TABLE ONLY kastle_banking.user_role_assignments
     ADD CONSTRAINT user_role_assignments_pkey PRIMARY KEY (assignment_id);
 
 
 --
--- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
+-- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER TABLE ONLY kastle_collection.user_roles
+ALTER TABLE ONLY kastle_banking.user_roles
     ADD CONSTRAINT user_roles_pkey PRIMARY KEY (role_id);
 
 
 --
--- Name: user_roles user_roles_role_name_key; Type: CONSTRAINT; Schema: kastle_collection; Owner: postgres
+-- Name: user_roles user_roles_role_name_key; Type: CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER TABLE ONLY kastle_collection.user_roles
+ALTER TABLE ONLY kastle_banking.user_roles
     ADD CONSTRAINT user_roles_role_name_key UNIQUE (role_name);
-
-
---
--- Name: collection_cases collection_cases_case_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_cases
-    ADD CONSTRAINT collection_cases_case_number_key UNIQUE (case_number);
-
-
---
--- Name: collection_cases collection_cases_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_cases
-    ADD CONSTRAINT collection_cases_pkey PRIMARY KEY (case_id);
-
-
---
--- Name: collection_interactions collection_interactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_interactions
-    ADD CONSTRAINT collection_interactions_pkey PRIMARY KEY (interaction_id);
-
-
---
--- Name: collection_officers collection_officers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_officers
-    ADD CONSTRAINT collection_officers_pkey PRIMARY KEY (officer_id);
-
-
---
--- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.customers
-    ADD CONSTRAINT customers_pkey PRIMARY KEY (customer_id);
-
-
---
--- Name: officer_performance_summary officer_performance_summary_officer_id_summary_date_key; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.officer_performance_summary
-    ADD CONSTRAINT officer_performance_summary_officer_id_summary_date_key UNIQUE (officer_id, summary_date);
-
-
---
--- Name: officer_performance_summary officer_performance_summary_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.officer_performance_summary
-    ADD CONSTRAINT officer_performance_summary_pkey PRIMARY KEY (summary_id);
-
-
---
--- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.payments
-    ADD CONSTRAINT payments_pkey PRIMARY KEY (payment_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_pkey PRIMARY KEY (ptp_id);
 
 
 --
@@ -11240,30 +11127,6 @@ ALTER TABLE ONLY public.promise_to_pay
 
 ALTER TABLE ONLY realtime.messages
     ADD CONSTRAINT messages_pkey PRIMARY KEY (id, inserted_at);
-
-
---
--- Name: messages_2025_07_23 messages_2025_07_23_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
---
-
-ALTER TABLE ONLY realtime.messages_2025_07_23
-    ADD CONSTRAINT messages_2025_07_23_pkey PRIMARY KEY (id, inserted_at);
-
-
---
--- Name: messages_2025_07_24 messages_2025_07_24_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
---
-
-ALTER TABLE ONLY realtime.messages_2025_07_24
-    ADD CONSTRAINT messages_2025_07_24_pkey PRIMARY KEY (id, inserted_at);
-
-
---
--- Name: messages_2025_07_25 messages_2025_07_25_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
---
-
-ALTER TABLE ONLY realtime.messages_2025_07_25
-    ADD CONSTRAINT messages_2025_07_25_pkey PRIMARY KEY (id, inserted_at);
 
 
 --
@@ -11280,6 +11143,46 @@ ALTER TABLE ONLY realtime.messages_2025_07_26
 
 ALTER TABLE ONLY realtime.messages_2025_07_27
     ADD CONSTRAINT messages_2025_07_27_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2025_07_28 messages_2025_07_28_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages_2025_07_28
+    ADD CONSTRAINT messages_2025_07_28_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2025_07_29 messages_2025_07_29_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages_2025_07_29
+    ADD CONSTRAINT messages_2025_07_29_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2025_07_30 messages_2025_07_30_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages_2025_07_30
+    ADD CONSTRAINT messages_2025_07_30_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2025_07_31 messages_2025_07_31_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages_2025_07_31
+    ADD CONSTRAINT messages_2025_07_31_pkey PRIMARY KEY (id, inserted_at);
+
+
+--
+-- Name: messages_2025_08_01 messages_2025_08_01_pkey; Type: CONSTRAINT; Schema: realtime; Owner: supabase_admin
+--
+
+ALTER TABLE ONLY realtime.messages_2025_08_01
+    ADD CONSTRAINT messages_2025_08_01_pkey PRIMARY KEY (id, inserted_at);
 
 
 --
@@ -11627,10 +11530,45 @@ CREATE INDEX users_is_anonymous_idx ON auth.users USING btree (is_anonymous);
 
 
 --
+-- Name: idx_access_log_created; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_access_log_created ON kastle_banking.access_log USING btree (created_at);
+
+
+--
+-- Name: idx_access_log_user; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_access_log_user ON kastle_banking.access_log USING btree (user_id);
+
+
+--
 -- Name: idx_accounts_customer_status; Type: INDEX; Schema: kastle_banking; Owner: postgres
 --
 
 CREATE INDEX idx_accounts_customer_status ON kastle_banking.accounts USING btree (customer_id, account_status);
+
+
+--
+-- Name: idx_audit_log_created; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_audit_log_created ON kastle_banking.audit_log USING btree (created_at);
+
+
+--
+-- Name: idx_audit_log_table_record; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_audit_log_table_record ON kastle_banking.audit_log USING btree (table_name, record_id);
+
+
+--
+-- Name: idx_audit_log_user; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_audit_log_user ON kastle_banking.audit_log USING btree (user_id);
 
 
 --
@@ -11655,10 +11593,94 @@ CREATE INDEX idx_auth_profiles_customer ON kastle_banking.auth_user_profiles USI
 
 
 --
+-- Name: idx_automation_metrics_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_automation_metrics_date ON kastle_banking.collection_automation_metrics USING btree (metric_date);
+
+
+--
+-- Name: idx_benchmarks_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_benchmarks_date ON kastle_banking.collection_benchmarks USING btree (benchmark_date);
+
+
+--
+-- Name: idx_branches_branch_code; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_branches_branch_code ON kastle_banking.branches USING btree (branch_code);
+
+
+--
+-- Name: idx_bucket_movement_case; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_bucket_movement_case ON kastle_banking.collection_bucket_movement USING btree (case_id);
+
+
+--
+-- Name: idx_bucket_movement_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_bucket_movement_date ON kastle_banking.collection_bucket_movement USING btree (movement_date);
+
+
+--
+-- Name: idx_collection_buckets_bucket_id; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_collection_buckets_bucket_id ON kastle_banking.collection_buckets USING btree (bucket_id);
+
+
+--
 -- Name: idx_collection_cases_assigned_to; Type: INDEX; Schema: kastle_banking; Owner: postgres
 --
 
 CREATE INDEX idx_collection_cases_assigned_to ON kastle_banking.collection_cases USING btree (assigned_to);
+
+
+--
+-- Name: idx_collection_cases_last_contact; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_collection_cases_last_contact ON kastle_banking.collection_cases USING btree (last_contact_date);
+
+
+--
+-- Name: idx_collection_cases_loan_account; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_collection_cases_loan_account ON kastle_banking.collection_cases USING btree (loan_account_number);
+
+
+--
+-- Name: idx_collection_cases_loan_account_number; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_collection_cases_loan_account_number ON kastle_banking.collection_cases USING btree (loan_account_number) WHERE (loan_account_number IS NOT NULL);
+
+
+--
+-- Name: idx_collection_cases_next_action; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_collection_cases_next_action ON kastle_banking.collection_cases USING btree (next_action_date);
+
+
+--
+-- Name: idx_collection_interactions_officer_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_collection_interactions_officer_date ON kastle_banking.collection_interactions USING btree (officer_id, interaction_datetime);
+
+
+--
+-- Name: idx_collection_officers_team_id; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_collection_officers_team_id ON kastle_banking.collection_officers USING btree (team_id);
 
 
 --
@@ -11669,10 +11691,31 @@ CREATE INDEX idx_collection_rates_period_date ON kastle_banking.collection_rates
 
 
 --
+-- Name: idx_compliance_violations_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_compliance_violations_date ON kastle_banking.collection_compliance_violations USING btree (violation_date);
+
+
+--
+-- Name: idx_contact_attempts_case; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_contact_attempts_case ON kastle_banking.collection_contact_attempts USING btree (case_id);
+
+
+--
 -- Name: idx_customers_auth_user; Type: INDEX; Schema: kastle_banking; Owner: postgres
 --
 
 CREATE INDEX idx_customers_auth_user ON kastle_banking.customers USING btree (auth_user_id);
+
+
+--
+-- Name: idx_daily_summary_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_daily_summary_date ON kastle_banking.daily_collection_summary USING btree (summary_date, branch_id);
 
 
 --
@@ -11711,6 +11754,48 @@ CREATE INDEX idx_delinquency_history_snapshot_date ON kastle_banking.delinquency
 
 
 --
+-- Name: idx_digital_attempts_customer; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_digital_attempts_customer ON kastle_banking.digital_collection_attempts USING btree (customer_id, sent_datetime);
+
+
+--
+-- Name: idx_field_visits_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_field_visits_date ON kastle_banking.field_visits USING btree (visit_date, officer_id);
+
+
+--
+-- Name: idx_forecasts_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_forecasts_date ON kastle_banking.collection_forecasts USING btree (forecast_date);
+
+
+--
+-- Name: idx_interactions_case; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_interactions_case ON kastle_banking.collection_interactions USING btree (case_id);
+
+
+--
+-- Name: idx_interactions_customer_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_interactions_customer_date ON kastle_banking.collection_interactions USING btree (customer_id, interaction_datetime);
+
+
+--
+-- Name: idx_loan_accounts_loan_account_number; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_loan_accounts_loan_account_number ON kastle_banking.loan_accounts USING btree (loan_account_number);
+
+
+--
 -- Name: idx_notifications_customer; Type: INDEX; Schema: kastle_banking; Owner: postgres
 --
 
@@ -11718,10 +11803,80 @@ CREATE INDEX idx_notifications_customer ON kastle_banking.realtime_notifications
 
 
 --
+-- Name: idx_officer_performance_metrics_officer_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_officer_performance_metrics_officer_date ON kastle_banking.officer_performance_metrics USING btree (officer_id, metric_date);
+
+
+--
+-- Name: idx_payments_case_id; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_payments_case_id ON kastle_banking.payments USING btree (case_id);
+
+
+--
+-- Name: idx_payments_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_payments_date ON kastle_banking.payments USING btree (payment_date);
+
+
+--
+-- Name: idx_performance_metrics_name_time; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_performance_metrics_name_time ON kastle_banking.performance_metrics USING btree (metric_name, metric_timestamp);
+
+
+--
 -- Name: idx_portfolio_summary_snapshot_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
 --
 
 CREATE INDEX idx_portfolio_summary_snapshot_date ON kastle_banking.portfolio_summary USING btree (snapshot_date);
+
+
+--
+-- Name: idx_promise_to_pay_case; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_promise_to_pay_case ON kastle_banking.promise_to_pay USING btree (case_id);
+
+
+--
+-- Name: idx_promise_to_pay_officer; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_promise_to_pay_officer ON kastle_banking.promise_to_pay USING btree (officer_id);
+
+
+--
+-- Name: idx_provisions_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_provisions_date ON kastle_banking.collection_provisions USING btree (provision_date);
+
+
+--
+-- Name: idx_queue_management_active; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_queue_management_active ON kastle_banking.collection_queue_management USING btree (is_active);
+
+
+--
+-- Name: idx_risk_assessment_customer; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_risk_assessment_customer ON kastle_banking.collection_risk_assessment USING btree (customer_id);
+
+
+--
+-- Name: idx_settlement_offers_case; Type: INDEX; Schema: kastle_banking; Owner: postgres
+--
+
+CREATE INDEX idx_settlement_offers_case ON kastle_banking.collection_settlement_offers USING btree (case_id);
 
 
 --
@@ -11739,255 +11894,17 @@ CREATE INDEX idx_transactions_date ON kastle_banking.transactions USING btree (t
 
 
 --
--- Name: idx_access_log_created; Type: INDEX; Schema: kastle_collection; Owner: postgres
+-- Name: idx_vintage_month; Type: INDEX; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE INDEX idx_access_log_created ON kastle_collection.access_log USING btree (created_at);
+CREATE INDEX idx_vintage_month ON kastle_banking.collection_vintage_analysis USING btree (origination_month);
 
 
 --
--- Name: idx_access_log_user; Type: INDEX; Schema: kastle_collection; Owner: postgres
+-- Name: idx_write_offs_date; Type: INDEX; Schema: kastle_banking; Owner: postgres
 --
 
-CREATE INDEX idx_access_log_user ON kastle_collection.access_log USING btree (user_id);
-
-
---
--- Name: idx_audit_log_created; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_audit_log_created ON kastle_collection.audit_log USING btree (created_at);
-
-
---
--- Name: idx_audit_log_table_record; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_audit_log_table_record ON kastle_collection.audit_log USING btree (table_name, record_id);
-
-
---
--- Name: idx_audit_log_user; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_audit_log_user ON kastle_collection.audit_log USING btree (user_id);
-
-
---
--- Name: idx_automation_metrics_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_automation_metrics_date ON kastle_collection.collection_automation_metrics USING btree (metric_date);
-
-
---
--- Name: idx_benchmarks_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_benchmarks_date ON kastle_collection.collection_benchmarks USING btree (benchmark_date);
-
-
---
--- Name: idx_bucket_movement_case; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_bucket_movement_case ON kastle_collection.collection_bucket_movement USING btree (case_id);
-
-
---
--- Name: idx_bucket_movement_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_bucket_movement_date ON kastle_collection.collection_bucket_movement USING btree (movement_date);
-
-
---
--- Name: idx_collection_interactions_officer_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_collection_interactions_officer_date ON kastle_collection.collection_interactions USING btree (officer_id, interaction_datetime);
-
-
---
--- Name: idx_compliance_violations_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_compliance_violations_date ON kastle_collection.collection_compliance_violations USING btree (violation_date);
-
-
---
--- Name: idx_contact_attempts_case; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_contact_attempts_case ON kastle_collection.collection_contact_attempts USING btree (case_id);
-
-
---
--- Name: idx_daily_summary_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_daily_summary_date ON kastle_collection.daily_collection_summary USING btree (summary_date, branch_id);
-
-
---
--- Name: idx_digital_attempts_customer; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_digital_attempts_customer ON kastle_collection.digital_collection_attempts USING btree (customer_id, sent_datetime);
-
-
---
--- Name: idx_field_visits_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_field_visits_date ON kastle_collection.field_visits USING btree (visit_date, officer_id);
-
-
---
--- Name: idx_forecasts_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_forecasts_date ON kastle_collection.collection_forecasts USING btree (forecast_date);
-
-
---
--- Name: idx_interactions_case; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_interactions_case ON kastle_collection.collection_interactions USING btree (case_id);
-
-
---
--- Name: idx_interactions_customer_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_interactions_customer_date ON kastle_collection.collection_interactions USING btree (customer_id, interaction_datetime);
-
-
---
--- Name: idx_officer_metrics_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_officer_metrics_date ON kastle_collection.officer_performance_metrics USING btree (metric_date, officer_id);
-
-
---
--- Name: idx_performance_metrics_name_time; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_performance_metrics_name_time ON kastle_collection.performance_metrics USING btree (metric_name, metric_timestamp);
-
-
---
--- Name: idx_promise_to_pay_case_status; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_promise_to_pay_case_status ON kastle_collection.promise_to_pay USING btree (case_id, status);
-
-
---
--- Name: idx_provisions_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_provisions_date ON kastle_collection.collection_provisions USING btree (provision_date);
-
-
---
--- Name: idx_ptp_status_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_ptp_status_date ON kastle_collection.promise_to_pay USING btree (status, ptp_date);
-
-
---
--- Name: idx_queue_management_active; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_queue_management_active ON kastle_collection.collection_queue_management USING btree (is_active);
-
-
---
--- Name: idx_risk_assessment_customer; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_risk_assessment_customer ON kastle_collection.collection_risk_assessment USING btree (customer_id);
-
-
---
--- Name: idx_settlement_offers_case; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_settlement_offers_case ON kastle_collection.collection_settlement_offers USING btree (case_id);
-
-
---
--- Name: idx_vintage_month; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_vintage_month ON kastle_collection.collection_vintage_analysis USING btree (origination_month);
-
-
---
--- Name: idx_write_offs_date; Type: INDEX; Schema: kastle_collection; Owner: postgres
---
-
-CREATE INDEX idx_write_offs_date ON kastle_collection.collection_write_offs USING btree (write_off_date);
-
-
---
--- Name: idx_collection_cases_customer_id; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_collection_cases_customer_id ON public.collection_cases USING btree (customer_id);
-
-
---
--- Name: idx_collection_cases_officer_id; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_collection_cases_officer_id ON public.collection_cases USING btree (officer_id);
-
-
---
--- Name: idx_collection_cases_status; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_collection_cases_status ON public.collection_cases USING btree (loan_status);
-
-
---
--- Name: idx_collection_interactions_case_id; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_collection_interactions_case_id ON public.collection_interactions USING btree (case_id);
-
-
---
--- Name: idx_collection_interactions_officer_id; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_collection_interactions_officer_id ON public.collection_interactions USING btree (officer_id);
-
-
---
--- Name: idx_payments_case_id; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_payments_case_id ON public.payments USING btree (case_id);
-
-
---
--- Name: idx_payments_date; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_payments_date ON public.payments USING btree (payment_date);
-
-
---
--- Name: idx_promise_to_pay_case_id; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_promise_to_pay_case_id ON public.promise_to_pay USING btree (case_id);
+CREATE INDEX idx_write_offs_date ON kastle_banking.collection_write_offs USING btree (write_off_date);
 
 
 --
@@ -12040,27 +11957,6 @@ CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_patter
 
 
 --
--- Name: messages_2025_07_23_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_23_pkey;
-
-
---
--- Name: messages_2025_07_24_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_24_pkey;
-
-
---
--- Name: messages_2025_07_25_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
---
-
-ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_25_pkey;
-
-
---
 -- Name: messages_2025_07_26_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
 --
 
@@ -12072,6 +11968,41 @@ ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_26
 --
 
 ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_27_pkey;
+
+
+--
+-- Name: messages_2025_07_28_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_28_pkey;
+
+
+--
+-- Name: messages_2025_07_29_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_29_pkey;
+
+
+--
+-- Name: messages_2025_07_30_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_30_pkey;
+
+
+--
+-- Name: messages_2025_07_31_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_07_31_pkey;
+
+
+--
+-- Name: messages_2025_08_01_pkey; Type: INDEX ATTACH; Schema: realtime; Owner: supabase_realtime_admin
+--
+
+ALTER INDEX realtime.messages_pkey ATTACH PARTITION realtime.messages_2025_08_01_pkey;
 
 
 --
@@ -12346,6 +12277,54 @@ ALTER TABLE ONLY kastle_banking.branches
 
 
 --
+-- Name: collection_bucket_movement collection_bucket_movement_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_bucket_movement
+    ADD CONSTRAINT collection_bucket_movement_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: collection_bucket_movement collection_bucket_movement_from_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_bucket_movement
+    ADD CONSTRAINT collection_bucket_movement_from_bucket_id_fkey FOREIGN KEY (from_bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
+
+
+--
+-- Name: collection_bucket_movement collection_bucket_movement_to_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_bucket_movement
+    ADD CONSTRAINT collection_bucket_movement_to_bucket_id_fkey FOREIGN KEY (to_bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
+
+
+--
+-- Name: collection_call_records collection_call_records_interaction_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_call_records
+    ADD CONSTRAINT collection_call_records_interaction_id_fkey FOREIGN KEY (interaction_id) REFERENCES kastle_banking.collection_interactions(interaction_id);
+
+
+--
+-- Name: collection_campaigns collection_campaigns_target_bucket_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_campaigns
+    ADD CONSTRAINT collection_campaigns_target_bucket_fkey FOREIGN KEY (target_bucket) REFERENCES kastle_banking.collection_buckets(bucket_id);
+
+
+--
+-- Name: collection_case_details collection_case_details_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_case_details
+    ADD CONSTRAINT collection_case_details_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
 -- Name: collection_cases collection_cases_branch_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -12367,6 +12346,158 @@ ALTER TABLE ONLY kastle_banking.collection_cases
 
 ALTER TABLE ONLY kastle_banking.collection_cases
     ADD CONSTRAINT collection_cases_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: collection_compliance_violations collection_compliance_violations_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_compliance_violations
+    ADD CONSTRAINT collection_compliance_violations_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: collection_contact_attempts collection_contact_attempts_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_contact_attempts
+    ADD CONSTRAINT collection_contact_attempts_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: collection_contact_attempts collection_contact_attempts_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_contact_attempts
+    ADD CONSTRAINT collection_contact_attempts_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: collection_forecasts collection_forecasts_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_forecasts
+    ADD CONSTRAINT collection_forecasts_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
+
+
+--
+-- Name: collection_forecasts collection_forecasts_product_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_forecasts
+    ADD CONSTRAINT collection_forecasts_product_id_fkey FOREIGN KEY (product_id) REFERENCES kastle_banking.products(product_id);
+
+
+--
+-- Name: collection_interactions collection_interactions_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_interactions
+    ADD CONSTRAINT collection_interactions_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: collection_interactions collection_interactions_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_interactions
+    ADD CONSTRAINT collection_interactions_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: collection_officers collection_officers_team_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_officers
+    ADD CONSTRAINT collection_officers_team_id_fkey FOREIGN KEY (team_id) REFERENCES kastle_banking.collection_teams(team_id);
+
+
+--
+-- Name: collection_provisions collection_provisions_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_provisions
+    ADD CONSTRAINT collection_provisions_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
+
+
+--
+-- Name: collection_risk_assessment collection_risk_assessment_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_risk_assessment
+    ADD CONSTRAINT collection_risk_assessment_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: collection_risk_assessment collection_risk_assessment_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_risk_assessment
+    ADD CONSTRAINT collection_risk_assessment_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: collection_scores collection_scores_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_scores
+    ADD CONSTRAINT collection_scores_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: collection_settlement_offers collection_settlement_offers_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_settlement_offers
+    ADD CONSTRAINT collection_settlement_offers_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: collection_settlement_offers collection_settlement_offers_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_settlement_offers
+    ADD CONSTRAINT collection_settlement_offers_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: collection_strategies collection_strategies_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_strategies
+    ADD CONSTRAINT collection_strategies_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
+
+
+--
+-- Name: collection_vintage_analysis collection_vintage_analysis_product_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_vintage_analysis
+    ADD CONSTRAINT collection_vintage_analysis_product_id_fkey FOREIGN KEY (product_id) REFERENCES kastle_banking.products(product_id);
+
+
+--
+-- Name: collection_workflow_templates collection_workflow_templates_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_workflow_templates
+    ADD CONSTRAINT collection_workflow_templates_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
+
+
+--
+-- Name: collection_write_offs collection_write_offs_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_write_offs
+    ADD CONSTRAINT collection_write_offs_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: collection_write_offs collection_write_offs_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_write_offs
+    ADD CONSTRAINT collection_write_offs_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
 
 
 --
@@ -12394,6 +12525,14 @@ ALTER TABLE ONLY kastle_banking.customer_contacts
 
 
 --
+-- Name: customer_contacts customer_contacts_customer_id_fkey1; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.customer_contacts
+    ADD CONSTRAINT customer_contacts_customer_id_fkey1 FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
 -- Name: customer_documents customer_documents_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
@@ -12415,6 +12554,14 @@ ALTER TABLE ONLY kastle_banking.customers
 
 ALTER TABLE ONLY kastle_banking.customers
     ADD CONSTRAINT customers_onboarding_branch_fkey FOREIGN KEY (onboarding_branch) REFERENCES kastle_banking.branches(branch_id);
+
+
+--
+-- Name: daily_collection_summary daily_collection_summary_branch_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.daily_collection_summary
+    ADD CONSTRAINT daily_collection_summary_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES kastle_banking.branches(branch_id);
 
 
 --
@@ -12455,6 +12602,78 @@ ALTER TABLE ONLY kastle_banking.delinquency_history
 
 ALTER TABLE ONLY kastle_banking.delinquency_history
     ADD CONSTRAINT delinquency_history_delinquency_id_fkey FOREIGN KEY (delinquency_id) REFERENCES kastle_banking.delinquencies(id);
+
+
+--
+-- Name: digital_collection_attempts digital_collection_attempts_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.digital_collection_attempts
+    ADD CONSTRAINT digital_collection_attempts_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: digital_collection_attempts digital_collection_attempts_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.digital_collection_attempts
+    ADD CONSTRAINT digital_collection_attempts_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: field_visits field_visits_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.field_visits
+    ADD CONSTRAINT field_visits_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: field_visits field_visits_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.field_visits
+    ADD CONSTRAINT field_visits_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: collection_cases fk_collection_cases_loan_accounts; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.collection_cases
+    ADD CONSTRAINT fk_collection_cases_loan_accounts FOREIGN KEY (loan_account_number) REFERENCES kastle_banking.loan_accounts(loan_account_number) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: hardship_applications hardship_applications_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.hardship_applications
+    ADD CONSTRAINT hardship_applications_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: hardship_applications hardship_applications_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.hardship_applications
+    ADD CONSTRAINT hardship_applications_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: ivr_payment_attempts ivr_payment_attempts_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.ivr_payment_attempts
+    ADD CONSTRAINT ivr_payment_attempts_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: legal_cases legal_cases_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.legal_cases
+    ADD CONSTRAINT legal_cases_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
 
 
 --
@@ -12506,11 +12725,35 @@ ALTER TABLE ONLY kastle_banking.loan_applications
 
 
 --
+-- Name: loan_restructuring loan_restructuring_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.loan_restructuring
+    ADD CONSTRAINT loan_restructuring_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
 -- Name: realtime_notifications realtime_notifications_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER TABLE ONLY kastle_banking.realtime_notifications
     ADD CONSTRAINT realtime_notifications_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
+
+
+--
+-- Name: repossessed_assets repossessed_assets_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.repossessed_assets
+    ADD CONSTRAINT repossessed_assets_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
+
+
+--
+-- Name: sharia_compliance_log sharia_compliance_log_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER TABLE ONLY kastle_banking.sharia_compliance_log
+    ADD CONSTRAINT sharia_compliance_log_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
 
 
 --
@@ -12546,491 +12789,11 @@ ALTER TABLE ONLY kastle_banking.transactions
 
 
 --
--- Name: collection_bucket_movement collection_bucket_movement_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
+-- Name: user_role_assignments user_role_assignments_role_id_fkey; Type: FK CONSTRAINT; Schema: kastle_banking; Owner: postgres
 --
 
-ALTER TABLE ONLY kastle_collection.collection_bucket_movement
-    ADD CONSTRAINT collection_bucket_movement_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_bucket_movement collection_bucket_movement_from_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_bucket_movement
-    ADD CONSTRAINT collection_bucket_movement_from_bucket_id_fkey FOREIGN KEY (from_bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
-
-
---
--- Name: collection_bucket_movement collection_bucket_movement_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_bucket_movement
-    ADD CONSTRAINT collection_bucket_movement_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: collection_bucket_movement collection_bucket_movement_to_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_bucket_movement
-    ADD CONSTRAINT collection_bucket_movement_to_bucket_id_fkey FOREIGN KEY (to_bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
-
-
---
--- Name: collection_call_records collection_call_records_interaction_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_call_records
-    ADD CONSTRAINT collection_call_records_interaction_id_fkey FOREIGN KEY (interaction_id) REFERENCES kastle_collection.collection_interactions(interaction_id);
-
-
---
--- Name: collection_call_records collection_call_records_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_call_records
-    ADD CONSTRAINT collection_call_records_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: collection_campaigns collection_campaigns_target_bucket_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_campaigns
-    ADD CONSTRAINT collection_campaigns_target_bucket_fkey FOREIGN KEY (target_bucket) REFERENCES kastle_banking.collection_buckets(bucket_id);
-
-
---
--- Name: collection_case_details collection_case_details_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_case_details
-    ADD CONSTRAINT collection_case_details_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_compliance_violations collection_compliance_violations_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_compliance_violations
-    ADD CONSTRAINT collection_compliance_violations_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_compliance_violations collection_compliance_violations_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_compliance_violations
-    ADD CONSTRAINT collection_compliance_violations_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: collection_contact_attempts collection_contact_attempts_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_contact_attempts
-    ADD CONSTRAINT collection_contact_attempts_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_contact_attempts collection_contact_attempts_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_contact_attempts
-    ADD CONSTRAINT collection_contact_attempts_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: collection_contact_attempts collection_contact_attempts_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_contact_attempts
-    ADD CONSTRAINT collection_contact_attempts_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: collection_forecasts collection_forecasts_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_forecasts
-    ADD CONSTRAINT collection_forecasts_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
-
-
---
--- Name: collection_forecasts collection_forecasts_product_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_forecasts
-    ADD CONSTRAINT collection_forecasts_product_id_fkey FOREIGN KEY (product_id) REFERENCES kastle_banking.products(product_id);
-
-
---
--- Name: collection_interactions collection_interactions_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_interactions
-    ADD CONSTRAINT collection_interactions_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_interactions collection_interactions_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_interactions
-    ADD CONSTRAINT collection_interactions_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: collection_interactions collection_interactions_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_interactions
-    ADD CONSTRAINT collection_interactions_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: collection_officers collection_officers_team_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_officers
-    ADD CONSTRAINT collection_officers_team_id_fkey FOREIGN KEY (team_id) REFERENCES kastle_collection.collection_teams(team_id);
-
-
---
--- Name: collection_provisions collection_provisions_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_provisions
-    ADD CONSTRAINT collection_provisions_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
-
-
---
--- Name: collection_queue_management collection_queue_management_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_queue_management
-    ADD CONSTRAINT collection_queue_management_officer_id_fkey FOREIGN KEY (assigned_officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: collection_queue_management collection_queue_management_team_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_queue_management
-    ADD CONSTRAINT collection_queue_management_team_id_fkey FOREIGN KEY (assigned_team_id) REFERENCES kastle_collection.collection_teams(team_id);
-
-
---
--- Name: collection_risk_assessment collection_risk_assessment_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_risk_assessment
-    ADD CONSTRAINT collection_risk_assessment_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_risk_assessment collection_risk_assessment_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_risk_assessment
-    ADD CONSTRAINT collection_risk_assessment_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: collection_scores collection_scores_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_scores
-    ADD CONSTRAINT collection_scores_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: collection_settlement_offers collection_settlement_offers_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_settlement_offers
-    ADD CONSTRAINT collection_settlement_offers_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_settlement_offers collection_settlement_offers_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_settlement_offers
-    ADD CONSTRAINT collection_settlement_offers_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: collection_strategies collection_strategies_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_strategies
-    ADD CONSTRAINT collection_strategies_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
-
-
---
--- Name: collection_teams collection_teams_branch_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_teams
-    ADD CONSTRAINT collection_teams_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES kastle_banking.branches(branch_id);
-
-
---
--- Name: collection_vintage_analysis collection_vintage_analysis_product_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_vintage_analysis
-    ADD CONSTRAINT collection_vintage_analysis_product_id_fkey FOREIGN KEY (product_id) REFERENCES kastle_banking.products(product_id);
-
-
---
--- Name: collection_workflow_templates collection_workflow_templates_bucket_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_workflow_templates
-    ADD CONSTRAINT collection_workflow_templates_bucket_id_fkey FOREIGN KEY (bucket_id) REFERENCES kastle_banking.collection_buckets(bucket_id);
-
-
---
--- Name: collection_write_offs collection_write_offs_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_write_offs
-    ADD CONSTRAINT collection_write_offs_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: collection_write_offs collection_write_offs_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.collection_write_offs
-    ADD CONSTRAINT collection_write_offs_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: daily_collection_summary daily_collection_summary_branch_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.daily_collection_summary
-    ADD CONSTRAINT daily_collection_summary_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES kastle_banking.branches(branch_id);
-
-
---
--- Name: daily_collection_summary daily_collection_summary_team_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.daily_collection_summary
-    ADD CONSTRAINT daily_collection_summary_team_id_fkey FOREIGN KEY (team_id) REFERENCES kastle_collection.collection_teams(team_id);
-
-
---
--- Name: digital_collection_attempts digital_collection_attempts_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.digital_collection_attempts
-    ADD CONSTRAINT digital_collection_attempts_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: digital_collection_attempts digital_collection_attempts_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.digital_collection_attempts
-    ADD CONSTRAINT digital_collection_attempts_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: field_visits field_visits_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.field_visits
-    ADD CONSTRAINT field_visits_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: field_visits field_visits_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.field_visits
-    ADD CONSTRAINT field_visits_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: field_visits field_visits_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.field_visits
-    ADD CONSTRAINT field_visits_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: hardship_applications hardship_applications_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.hardship_applications
-    ADD CONSTRAINT hardship_applications_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: hardship_applications hardship_applications_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.hardship_applications
-    ADD CONSTRAINT hardship_applications_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: ivr_payment_attempts ivr_payment_attempts_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.ivr_payment_attempts
-    ADD CONSTRAINT ivr_payment_attempts_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: legal_cases legal_cases_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.legal_cases
-    ADD CONSTRAINT legal_cases_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: loan_restructuring loan_restructuring_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.loan_restructuring
-    ADD CONSTRAINT loan_restructuring_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: officer_performance_metrics officer_performance_metrics_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.officer_performance_metrics
-    ADD CONSTRAINT officer_performance_metrics_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: officer_performance_summary officer_performance_summary_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.officer_performance_summary
-    ADD CONSTRAINT officer_performance_summary_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_customer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES kastle_banking.customers(customer_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_interaction_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_interaction_id_fkey FOREIGN KEY (interaction_id) REFERENCES kastle_collection.collection_interactions(interaction_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_officer_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES kastle_collection.collection_officers(officer_id);
-
-
---
--- Name: repossessed_assets repossessed_assets_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.repossessed_assets
-    ADD CONSTRAINT repossessed_assets_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: sharia_compliance_log sharia_compliance_log_case_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.sharia_compliance_log
-    ADD CONSTRAINT sharia_compliance_log_case_id_fkey FOREIGN KEY (case_id) REFERENCES kastle_banking.collection_cases(case_id);
-
-
---
--- Name: user_role_assignments user_role_assignments_role_id_fkey; Type: FK CONSTRAINT; Schema: kastle_collection; Owner: postgres
---
-
-ALTER TABLE ONLY kastle_collection.user_role_assignments
-    ADD CONSTRAINT user_role_assignments_role_id_fkey FOREIGN KEY (role_id) REFERENCES kastle_collection.user_roles(role_id);
-
-
---
--- Name: collection_cases collection_cases_customer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_cases
-    ADD CONSTRAINT collection_cases_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(customer_id);
-
-
---
--- Name: collection_cases collection_cases_officer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_cases
-    ADD CONSTRAINT collection_cases_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES public.collection_officers(officer_id);
-
-
---
--- Name: collection_interactions collection_interactions_case_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_interactions
-    ADD CONSTRAINT collection_interactions_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.collection_cases(case_id);
-
-
---
--- Name: collection_interactions collection_interactions_officer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.collection_interactions
-    ADD CONSTRAINT collection_interactions_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES public.collection_officers(officer_id);
-
-
---
--- Name: payments payments_case_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.payments
-    ADD CONSTRAINT payments_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.collection_cases(case_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_case_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_case_id_fkey FOREIGN KEY (case_id) REFERENCES public.collection_cases(case_id);
-
-
---
--- Name: promise_to_pay promise_to_pay_officer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.promise_to_pay
-    ADD CONSTRAINT promise_to_pay_officer_id_fkey FOREIGN KEY (officer_id) REFERENCES public.collection_officers(officer_id);
+ALTER TABLE ONLY kastle_banking.user_role_assignments
+    ADD CONSTRAINT user_role_assignments_role_id_fkey FOREIGN KEY (role_id) REFERENCES kastle_banking.user_roles(role_id);
 
 
 --
@@ -13162,245 +12925,6 @@ ALTER TABLE auth.sso_providers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: accounts Account holders can view own accounts; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Account holders can view own accounts" ON kastle_banking.accounts FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: transactions Account holders can view own transactions; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Account holders can view own transactions" ON kastle_banking.transactions FOR SELECT USING (((account_number)::text IN ( SELECT accounts.account_number
-   FROM kastle_banking.accounts
-  WHERE ((accounts.customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-           FROM kastle_banking.auth_user_profiles
-          WHERE (auth_user_profiles.auth_user_id = auth.uid()))))));
-
-
---
--- Name: account_types Account types are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Account types are viewable by everyone" ON kastle_banking.account_types FOR SELECT USING (true);
-
-
---
--- Name: branches Branches are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Branches are viewable by everyone" ON kastle_banking.branches FOR SELECT USING (true);
-
-
---
--- Name: collection_cases Collection officers can view assigned cases; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Collection officers can view assigned cases" ON kastle_banking.collection_cases FOR SELECT USING ((kastle_banking.is_bank_employee() OR ((assigned_to)::text IN ( SELECT auth_user_profiles.bank_user_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid())))));
-
-
---
--- Name: countries Countries are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Countries are viewable by everyone" ON kastle_banking.countries FOR SELECT USING (true);
-
-
---
--- Name: currencies Currencies are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Currencies are viewable by everyone" ON kastle_banking.currencies FOR SELECT USING (true);
-
-
---
--- Name: customer_types Customer types are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customer types are viewable by everyone" ON kastle_banking.customer_types FOR SELECT USING (true);
-
-
---
--- Name: customer_contacts Customers can update own contacts; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can update own contacts" ON kastle_banking.customer_contacts FOR UPDATE USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: realtime_notifications Customers can update own notifications; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can update own notifications" ON kastle_banking.realtime_notifications FOR UPDATE USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid())))) WITH CHECK (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: customer_addresses Customers can view own addresses; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own addresses" ON kastle_banking.customer_addresses FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: collection_cases Customers can view own collection cases; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own collection cases" ON kastle_banking.collection_cases FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: customer_contacts Customers can view own contacts; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own contacts" ON kastle_banking.customer_contacts FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: customers Customers can view own data; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own data" ON kastle_banking.customers FOR SELECT USING ((auth.uid() IN ( SELECT auth_user_profiles.auth_user_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE ((auth_user_profiles.customer_id)::text = (customers.customer_id)::text))));
-
-
---
--- Name: customer_documents Customers can view own documents; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own documents" ON kastle_banking.customer_documents FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: loan_accounts Customers can view own loan accounts; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own loan accounts" ON kastle_banking.loan_accounts FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: loan_applications Customers can view own loan applications; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own loan applications" ON kastle_banking.loan_applications FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: realtime_notifications Customers can view own notifications; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Customers can view own notifications" ON kastle_banking.realtime_notifications FOR SELECT USING (((customer_id)::text IN ( SELECT auth_user_profiles.customer_id
-   FROM kastle_banking.auth_user_profiles
-  WHERE (auth_user_profiles.auth_user_id = auth.uid()))));
-
-
---
--- Name: transactions Employees can create transactions; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Employees can create transactions" ON kastle_banking.transactions FOR INSERT WITH CHECK (kastle_banking.is_bank_employee());
-
-
---
--- Name: customers Employees can update customers; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Employees can update customers" ON kastle_banking.customers FOR UPDATE USING (kastle_banking.is_bank_employee());
-
-
---
--- Name: accounts Employees can view all accounts; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Employees can view all accounts" ON kastle_banking.accounts FOR SELECT USING (kastle_banking.is_bank_employee());
-
-
---
--- Name: customers Employees can view all customers; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Employees can view all customers" ON kastle_banking.customers FOR SELECT USING (kastle_banking.is_bank_employee());
-
-
---
--- Name: loan_applications Employees can view all loan applications; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Employees can view all loan applications" ON kastle_banking.loan_applications FOR SELECT USING (kastle_banking.is_bank_employee());
-
-
---
--- Name: transactions Employees can view all transactions; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Employees can view all transactions" ON kastle_banking.transactions FOR SELECT USING (kastle_banking.is_bank_employee());
-
-
---
--- Name: product_categories Product categories are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Product categories are viewable by everyone" ON kastle_banking.product_categories FOR SELECT USING (true);
-
-
---
--- Name: products Products are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Products are viewable by everyone" ON kastle_banking.products FOR SELECT USING (true);
-
-
---
--- Name: transaction_types Transaction types are viewable by everyone; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Transaction types are viewable by everyone" ON kastle_banking.transaction_types FOR SELECT USING (true);
-
-
---
--- Name: auth_user_profiles Users can update own profile; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Users can update own profile" ON kastle_banking.auth_user_profiles FOR UPDATE USING ((auth_user_id = auth.uid()));
-
-
---
--- Name: auth_user_profiles Users can view own profile; Type: POLICY; Schema: kastle_banking; Owner: postgres
---
-
-CREATE POLICY "Users can view own profile" ON kastle_banking.auth_user_profiles FOR SELECT USING ((auth_user_id = auth.uid()));
-
-
---
--- Name: account_types; Type: ROW SECURITY; Schema: kastle_banking; Owner: postgres
---
-
-ALTER TABLE kastle_banking.account_types ENABLE ROW LEVEL SECURITY;
-
---
 -- Name: messages; Type: ROW SECURITY; Schema: realtime; Owner: supabase_realtime_admin
 --
 
@@ -13493,17 +13017,7 @@ GRANT USAGE ON SCHEMA kastle_banking TO anon;
 GRANT USAGE ON SCHEMA kastle_banking TO collection_read;
 GRANT USAGE ON SCHEMA kastle_banking TO collection_write;
 GRANT USAGE ON SCHEMA kastle_banking TO collection_admin;
-
-
---
--- Name: SCHEMA kastle_collection; Type: ACL; Schema: -; Owner: postgres
---
-
-GRANT USAGE ON SCHEMA kastle_collection TO collection_read;
-GRANT USAGE ON SCHEMA kastle_collection TO collection_write;
-GRANT USAGE ON SCHEMA kastle_collection TO collection_admin;
-GRANT USAGE ON SCHEMA kastle_collection TO anon;
-GRANT USAGE ON SCHEMA kastle_collection TO authenticated;
+GRANT USAGE ON SCHEMA kastle_banking TO web_anon;
 
 
 --
@@ -14030,12 +13544,49 @@ GRANT ALL ON FUNCTION graphql_public.graphql("operationName" text, query text, v
 
 
 --
+-- Name: FUNCTION api_get_case_details(p_case_id integer); Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION kastle_banking.api_get_case_details(p_case_id integer) TO anon;
+GRANT ALL ON FUNCTION kastle_banking.api_get_case_details(p_case_id integer) TO authenticated;
+GRANT ALL ON FUNCTION kastle_banking.api_get_case_details(p_case_id integer) TO service_role;
+
+
+--
+-- Name: FUNCTION archive_old_data(p_days_to_keep integer); Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION kastle_banking.archive_old_data(p_days_to_keep integer) TO anon;
+GRANT ALL ON FUNCTION kastle_banking.archive_old_data(p_days_to_keep integer) TO authenticated;
+GRANT ALL ON FUNCTION kastle_banking.archive_old_data(p_days_to_keep integer) TO service_role;
+
+
+--
+-- Name: FUNCTION audit_trigger_function(); Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION kastle_banking.audit_trigger_function() TO anon;
+GRANT ALL ON FUNCTION kastle_banking.audit_trigger_function() TO authenticated;
+GRANT ALL ON FUNCTION kastle_banking.audit_trigger_function() TO service_role;
+
+
+--
+-- Name: FUNCTION calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer); Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION kastle_banking.calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer) TO anon;
+GRANT ALL ON FUNCTION kastle_banking.calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer) TO authenticated;
+GRANT ALL ON FUNCTION kastle_banking.calculate_collection_forecast(p_bucket_id integer, p_forecast_days integer) TO service_role;
+
+
+--
 -- Name: FUNCTION check_data_lengths(); Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
 GRANT ALL ON FUNCTION kastle_banking.check_data_lengths() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.check_data_lengths() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.check_data_lengths() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.check_data_lengths() TO web_anon;
 
 
 --
@@ -14048,6 +13599,7 @@ GRANT ALL ON TABLE kastle_banking.transactions TO service_role;
 GRANT SELECT ON TABLE kastle_banking.transactions TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.transactions TO collection_write;
 GRANT ALL ON TABLE kastle_banking.transactions TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.transactions TO web_anon;
 
 
 --
@@ -14057,6 +13609,7 @@ GRANT ALL ON TABLE kastle_banking.transactions TO collection_admin;
 GRANT ALL ON FUNCTION kastle_banking.create_transaction_with_balance_update(p_account_number character varying, p_transaction_type_id integer, p_debit_credit character varying, p_amount numeric, p_narration text, p_channel character varying) TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.create_transaction_with_balance_update(p_account_number character varying, p_transaction_type_id integer, p_debit_credit character varying, p_amount numeric, p_narration text, p_channel character varying) TO anon;
 GRANT ALL ON FUNCTION kastle_banking.create_transaction_with_balance_update(p_account_number character varying, p_transaction_type_id integer, p_debit_credit character varying, p_amount numeric, p_narration text, p_channel character varying) TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.create_transaction_with_balance_update(p_account_number character varying, p_transaction_type_id integer, p_debit_credit character varying, p_amount numeric, p_narration text, p_channel character varying) TO web_anon;
 
 
 --
@@ -14066,6 +13619,7 @@ GRANT ALL ON FUNCTION kastle_banking.create_transaction_with_balance_update(p_ac
 GRANT ALL ON FUNCTION kastle_banking.generate_collection_case_number() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.generate_collection_case_number() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.generate_collection_case_number() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.generate_collection_case_number() TO web_anon;
 
 
 --
@@ -14075,6 +13629,7 @@ GRANT ALL ON FUNCTION kastle_banking.generate_collection_case_number() TO servic
 GRANT ALL ON FUNCTION kastle_banking.generate_loan_application_number() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.generate_loan_application_number() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.generate_loan_application_number() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.generate_loan_application_number() TO web_anon;
 
 
 --
@@ -14084,6 +13639,16 @@ GRANT ALL ON FUNCTION kastle_banking.generate_loan_application_number() TO servi
 GRANT ALL ON FUNCTION kastle_banking.generate_transaction_ref() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.generate_transaction_ref() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.generate_transaction_ref() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.generate_transaction_ref() TO web_anon;
+
+
+--
+-- Name: FUNCTION get_collection_efficiency_report(p_start_date date, p_end_date date); Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION kastle_banking.get_collection_efficiency_report(p_start_date date, p_end_date date) TO anon;
+GRANT ALL ON FUNCTION kastle_banking.get_collection_efficiency_report(p_start_date date, p_end_date date) TO authenticated;
+GRANT ALL ON FUNCTION kastle_banking.get_collection_efficiency_report(p_start_date date, p_end_date date) TO service_role;
 
 
 --
@@ -14093,6 +13658,7 @@ GRANT ALL ON FUNCTION kastle_banking.generate_transaction_ref() TO service_role;
 GRANT ALL ON FUNCTION kastle_banking.get_current_customer_id() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.get_current_customer_id() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.get_current_customer_id() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.get_current_customer_id() TO web_anon;
 
 
 --
@@ -14102,6 +13668,7 @@ GRANT ALL ON FUNCTION kastle_banking.get_current_customer_id() TO service_role;
 GRANT ALL ON FUNCTION kastle_banking.get_customer_total_balance(p_customer_id character varying) TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.get_customer_total_balance(p_customer_id character varying) TO anon;
 GRANT ALL ON FUNCTION kastle_banking.get_customer_total_balance(p_customer_id character varying) TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.get_customer_total_balance(p_customer_id character varying) TO web_anon;
 
 
 --
@@ -14111,6 +13678,25 @@ GRANT ALL ON FUNCTION kastle_banking.get_customer_total_balance(p_customer_id ch
 GRANT ALL ON FUNCTION kastle_banking.is_bank_employee() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.is_bank_employee() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.is_bank_employee() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.is_bank_employee() TO web_anon;
+
+
+--
+-- Name: FUNCTION log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying, p_additional_info jsonb); Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION kastle_banking.log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying, p_additional_info jsonb) TO anon;
+GRANT ALL ON FUNCTION kastle_banking.log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying, p_additional_info jsonb) TO authenticated;
+GRANT ALL ON FUNCTION kastle_banking.log_performance_metric(p_metric_name character varying, p_metric_value numeric, p_metric_unit character varying, p_additional_info jsonb) TO service_role;
+
+
+--
+-- Name: FUNCTION refresh_officer_performance_summary(p_officer_id character varying, p_date date); Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON FUNCTION kastle_banking.refresh_officer_performance_summary(p_officer_id character varying, p_date date) TO anon;
+GRANT ALL ON FUNCTION kastle_banking.refresh_officer_performance_summary(p_officer_id character varying, p_date date) TO authenticated;
+GRANT ALL ON FUNCTION kastle_banking.refresh_officer_performance_summary(p_officer_id character varying, p_date date) TO service_role;
 
 
 --
@@ -14120,6 +13706,7 @@ GRANT ALL ON FUNCTION kastle_banking.is_bank_employee() TO service_role;
 GRANT ALL ON FUNCTION kastle_banking.update_customer_full_name() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.update_customer_full_name() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.update_customer_full_name() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.update_customer_full_name() TO web_anon;
 
 
 --
@@ -14129,6 +13716,7 @@ GRANT ALL ON FUNCTION kastle_banking.update_customer_full_name() TO service_role
 GRANT ALL ON FUNCTION kastle_banking.update_updated_at_column() TO anon;
 GRANT ALL ON FUNCTION kastle_banking.update_updated_at_column() TO authenticated;
 GRANT ALL ON FUNCTION kastle_banking.update_updated_at_column() TO service_role;
+GRANT ALL ON FUNCTION kastle_banking.update_updated_at_column() TO web_anon;
 
 
 --
@@ -14541,6 +14129,29 @@ GRANT ALL ON TABLE extensions.pg_stat_statements_info TO dashboard_user;
 
 
 --
+-- Name: TABLE access_log; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.access_log TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.access_log TO collection_write;
+GRANT ALL ON TABLE kastle_banking.access_log TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.access_log TO anon;
+GRANT ALL ON TABLE kastle_banking.access_log TO authenticated;
+GRANT ALL ON TABLE kastle_banking.access_log TO service_role;
+
+
+--
+-- Name: SEQUENCE access_log_access_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.access_log_access_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.access_log_access_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.access_log_access_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.access_log_access_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.access_log_access_id_seq TO service_role;
+
+
+--
 -- Name: TABLE account_types; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
@@ -14550,6 +14161,7 @@ GRANT ALL ON TABLE kastle_banking.account_types TO service_role;
 GRANT SELECT ON TABLE kastle_banking.account_types TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.account_types TO collection_write;
 GRANT ALL ON TABLE kastle_banking.account_types TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.account_types TO web_anon;
 
 
 --
@@ -14573,6 +14185,7 @@ GRANT ALL ON TABLE kastle_banking.accounts TO service_role;
 GRANT SELECT ON TABLE kastle_banking.accounts TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.accounts TO collection_write;
 GRANT ALL ON TABLE kastle_banking.accounts TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.accounts TO web_anon;
 
 
 --
@@ -14590,32 +14203,62 @@ GRANT ALL ON SEQUENCE kastle_banking.accounts_account_id_seq TO collection_admin
 -- Name: TABLE aging_buckets; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.aging_buckets TO anon;
-GRANT SELECT ON TABLE kastle_banking.aging_buckets TO authenticated;
+GRANT ALL ON TABLE kastle_banking.aging_buckets TO anon;
+GRANT ALL ON TABLE kastle_banking.aging_buckets TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.aging_buckets TO web_anon;
+GRANT ALL ON TABLE kastle_banking.aging_buckets TO service_role;
 
 
 --
 -- Name: SEQUENCE aging_buckets_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON SEQUENCE kastle_banking.aging_buckets_id_seq TO anon;
-GRANT SELECT ON SEQUENCE kastle_banking.aging_buckets_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.aging_buckets_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.aging_buckets_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.aging_buckets_id_seq TO service_role;
 
 
 --
 -- Name: TABLE delinquencies; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.delinquencies TO anon;
-GRANT SELECT ON TABLE kastle_banking.delinquencies TO authenticated;
+GRANT ALL ON TABLE kastle_banking.delinquencies TO anon;
+GRANT ALL ON TABLE kastle_banking.delinquencies TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.delinquencies TO web_anon;
+GRANT ALL ON TABLE kastle_banking.delinquencies TO service_role;
 
 
 --
 -- Name: TABLE aging_distribution; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.aging_distribution TO anon;
-GRANT SELECT ON TABLE kastle_banking.aging_distribution TO authenticated;
+GRANT ALL ON TABLE kastle_banking.aging_distribution TO anon;
+GRANT ALL ON TABLE kastle_banking.aging_distribution TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.aging_distribution TO web_anon;
+GRANT ALL ON TABLE kastle_banking.aging_distribution TO service_role;
+
+
+--
+-- Name: TABLE audit_log; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.audit_log TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.audit_log TO collection_write;
+GRANT ALL ON TABLE kastle_banking.audit_log TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.audit_log TO anon;
+GRANT ALL ON TABLE kastle_banking.audit_log TO authenticated;
+GRANT ALL ON TABLE kastle_banking.audit_log TO service_role;
+
+
+--
+-- Name: SEQUENCE audit_log_audit_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.audit_log_audit_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.audit_log_audit_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.audit_log_audit_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.audit_log_audit_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.audit_log_audit_id_seq TO service_role;
 
 
 --
@@ -14628,6 +14271,7 @@ GRANT ALL ON TABLE kastle_banking.audit_trail TO service_role;
 GRANT SELECT ON TABLE kastle_banking.audit_trail TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.audit_trail TO collection_write;
 GRANT ALL ON TABLE kastle_banking.audit_trail TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.audit_trail TO web_anon;
 
 
 --
@@ -14651,6 +14295,7 @@ GRANT ALL ON TABLE kastle_banking.auth_user_profiles TO service_role;
 GRANT SELECT ON TABLE kastle_banking.auth_user_profiles TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.auth_user_profiles TO collection_write;
 GRANT ALL ON TABLE kastle_banking.auth_user_profiles TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.auth_user_profiles TO web_anon;
 
 
 --
@@ -14663,6 +14308,7 @@ GRANT ALL ON TABLE kastle_banking.bank_config TO service_role;
 GRANT SELECT ON TABLE kastle_banking.bank_config TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.bank_config TO collection_write;
 GRANT ALL ON TABLE kastle_banking.bank_config TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.bank_config TO web_anon;
 
 
 --
@@ -14680,16 +14326,19 @@ GRANT ALL ON SEQUENCE kastle_banking.bank_config_config_id_seq TO collection_adm
 -- Name: TABLE branch_collection_performance; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.branch_collection_performance TO anon;
-GRANT SELECT ON TABLE kastle_banking.branch_collection_performance TO authenticated;
+GRANT ALL ON TABLE kastle_banking.branch_collection_performance TO anon;
+GRANT ALL ON TABLE kastle_banking.branch_collection_performance TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.branch_collection_performance TO web_anon;
+GRANT ALL ON TABLE kastle_banking.branch_collection_performance TO service_role;
 
 
 --
 -- Name: SEQUENCE branch_collection_performance_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON SEQUENCE kastle_banking.branch_collection_performance_id_seq TO anon;
-GRANT SELECT ON SEQUENCE kastle_banking.branch_collection_performance_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.branch_collection_performance_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.branch_collection_performance_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.branch_collection_performance_id_seq TO service_role;
 
 
 --
@@ -14702,6 +14351,99 @@ GRANT ALL ON TABLE kastle_banking.branches TO service_role;
 GRANT SELECT ON TABLE kastle_banking.branches TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.branches TO collection_write;
 GRANT ALL ON TABLE kastle_banking.branches TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.branches TO web_anon;
+
+
+--
+-- Name: TABLE collection_audit_trail; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_audit_trail TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_audit_trail TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_audit_trail TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_audit_trail TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_audit_trail TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_audit_trail TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_audit_trail_audit_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_audit_trail_audit_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_automation_metrics; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_automation_metrics TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_automation_metrics TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_automation_metrics TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_automation_metrics TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_automation_metrics TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_automation_metrics TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_automation_metrics_metric_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_automation_metrics_metric_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_benchmarks; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_benchmarks TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_benchmarks TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_benchmarks TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_benchmarks TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_benchmarks TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_benchmarks TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_benchmarks_benchmark_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_benchmarks_benchmark_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_bucket_movement; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_bucket_movement TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_bucket_movement TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_bucket_movement TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_bucket_movement TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_bucket_movement TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_bucket_movement TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_bucket_movement_movement_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_bucket_movement_movement_id_seq TO service_role;
 
 
 --
@@ -14714,6 +14456,7 @@ GRANT ALL ON TABLE kastle_banking.collection_buckets TO service_role;
 GRANT SELECT ON TABLE kastle_banking.collection_buckets TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_buckets TO collection_write;
 GRANT ALL ON TABLE kastle_banking.collection_buckets TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.collection_buckets TO web_anon;
 
 
 --
@@ -14728,6 +14471,75 @@ GRANT ALL ON SEQUENCE kastle_banking.collection_buckets_bucket_id_seq TO collect
 
 
 --
+-- Name: TABLE collection_call_records; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_call_records TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_call_records TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_call_records TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_call_records TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_call_records TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_call_records TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_call_records_call_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_call_records_call_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_call_records_call_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_call_records_call_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_call_records_call_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_call_records_call_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_campaigns; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_campaigns TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_campaigns TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_campaigns TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_campaigns TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_campaigns TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_campaigns TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_campaigns_campaign_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_campaigns_campaign_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_case_details; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_case_details TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_case_details TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_case_details TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_case_details TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_case_details TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_case_details TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_case_details_case_detail_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_case_details_case_detail_id_seq TO service_role;
+
+
+--
 -- Name: TABLE collection_cases; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
@@ -14737,6 +14549,7 @@ GRANT ALL ON TABLE kastle_banking.collection_cases TO service_role;
 GRANT SELECT ON TABLE kastle_banking.collection_cases TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_cases TO collection_write;
 GRANT ALL ON TABLE kastle_banking.collection_cases TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.collection_cases TO web_anon;
 
 
 --
@@ -14751,19 +14564,396 @@ GRANT ALL ON SEQUENCE kastle_banking.collection_cases_case_id_seq TO collection_
 
 
 --
+-- Name: TABLE collection_compliance_violations; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_compliance_violations TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_compliance_violations TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_compliance_violations TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_compliance_violations TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_compliance_violations TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_compliance_violations TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_compliance_violations_violation_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_compliance_violations_violation_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_contact_attempts; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_contact_attempts TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_contact_attempts TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_contact_attempts TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_contact_attempts TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_contact_attempts TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_contact_attempts TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_contact_attempts_attempt_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_contact_attempts_attempt_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_customer_segments; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_customer_segments TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_customer_segments TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_customer_segments TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_customer_segments TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_customer_segments TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_customer_segments TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_customer_segments_segment_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_customer_segments_segment_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_forecasts; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_forecasts TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_forecasts TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_forecasts TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_forecasts TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_forecasts TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_forecasts TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_forecasts_forecast_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_forecasts_forecast_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_interactions; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_interactions TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_interactions TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_interactions TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_interactions TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_interactions TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_interactions TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_interactions_interaction_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_interactions_interaction_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_interactions_interaction_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_interactions_interaction_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_interactions_interaction_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_interactions_interaction_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_officers; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.collection_officers TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_officers TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.collection_officers TO web_anon;
+GRANT ALL ON TABLE kastle_banking.collection_officers TO service_role;
+
+
+--
+-- Name: TABLE collection_provisions; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_provisions TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_provisions TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_provisions TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_provisions TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_provisions TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_provisions TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_provisions_provision_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_provisions_provision_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_provisions_provision_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_provisions_provision_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_provisions_provision_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_provisions_provision_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_queue_management; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_queue_management TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_queue_management TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_queue_management TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_queue_management TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_queue_management TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_queue_management TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_queue_management_queue_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_queue_management_queue_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_queue_management_queue_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_queue_management_queue_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_queue_management_queue_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_queue_management_queue_id_seq TO service_role;
+
+
+--
 -- Name: TABLE collection_rates; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.collection_rates TO anon;
-GRANT SELECT ON TABLE kastle_banking.collection_rates TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_rates TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_rates TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.collection_rates TO web_anon;
+GRANT ALL ON TABLE kastle_banking.collection_rates TO service_role;
 
 
 --
 -- Name: SEQUENCE collection_rates_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON SEQUENCE kastle_banking.collection_rates_id_seq TO anon;
-GRANT SELECT ON SEQUENCE kastle_banking.collection_rates_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_rates_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_rates_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_rates_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_risk_assessment; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_risk_assessment TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_risk_assessment TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_risk_assessment TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_risk_assessment TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_risk_assessment TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_risk_assessment TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_risk_assessment_assessment_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_risk_assessment_assessment_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_scores; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_scores TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_scores TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_scores TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_scores TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_scores TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_scores TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_scores_score_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_scores_score_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_scores_score_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_scores_score_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_scores_score_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_scores_score_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_settlement_offers; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_settlement_offers TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_settlement_offers TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_settlement_offers TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_settlement_offers TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_settlement_offers TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_settlement_offers TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_settlement_offers_offer_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_settlement_offers_offer_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_strategies; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_strategies TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_strategies TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_strategies TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_strategies TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_strategies TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_strategies TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_strategies_strategy_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_strategies_strategy_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_strategies_strategy_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_strategies_strategy_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_strategies_strategy_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_strategies_strategy_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_system_performance; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_system_performance TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_system_performance TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_system_performance TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_system_performance TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_system_performance TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_system_performance TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_system_performance_log_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_system_performance_log_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_system_performance_log_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_system_performance_log_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_system_performance_log_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_system_performance_log_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_teams; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.collection_teams TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_teams TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.collection_teams TO web_anon;
+GRANT ALL ON TABLE kastle_banking.collection_teams TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_teams_team_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE kastle_banking.collection_teams_team_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_teams_team_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_teams_team_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_vintage_analysis; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_vintage_analysis TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_vintage_analysis TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_vintage_analysis TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_vintage_analysis TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_vintage_analysis TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_vintage_analysis TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_vintage_analysis_vintage_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_vintage_analysis_vintage_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_workflow_templates; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_workflow_templates TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_workflow_templates TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_workflow_templates TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_workflow_templates TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_workflow_templates TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_workflow_templates TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_workflow_templates_template_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_workflow_templates_template_id_seq TO service_role;
+
+
+--
+-- Name: TABLE collection_write_offs; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.collection_write_offs TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.collection_write_offs TO collection_write;
+GRANT ALL ON TABLE kastle_banking.collection_write_offs TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.collection_write_offs TO anon;
+GRANT ALL ON TABLE kastle_banking.collection_write_offs TO authenticated;
+GRANT ALL ON TABLE kastle_banking.collection_write_offs TO service_role;
+
+
+--
+-- Name: SEQUENCE collection_write_offs_write_off_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.collection_write_offs_write_off_id_seq TO service_role;
 
 
 --
@@ -14776,6 +14966,7 @@ GRANT ALL ON TABLE kastle_banking.countries TO service_role;
 GRANT SELECT ON TABLE kastle_banking.countries TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.countries TO collection_write;
 GRANT ALL ON TABLE kastle_banking.countries TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.countries TO web_anon;
 
 
 --
@@ -14788,6 +14979,7 @@ GRANT ALL ON TABLE kastle_banking.currencies TO service_role;
 GRANT SELECT ON TABLE kastle_banking.currencies TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.currencies TO collection_write;
 GRANT ALL ON TABLE kastle_banking.currencies TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.currencies TO web_anon;
 
 
 --
@@ -14800,6 +14992,7 @@ GRANT ALL ON TABLE kastle_banking.customer_addresses TO service_role;
 GRANT SELECT ON TABLE kastle_banking.customer_addresses TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.customer_addresses TO collection_write;
 GRANT ALL ON TABLE kastle_banking.customer_addresses TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.customer_addresses TO web_anon;
 
 
 --
@@ -14823,6 +15016,7 @@ GRANT ALL ON TABLE kastle_banking.customer_contacts TO service_role;
 GRANT SELECT ON TABLE kastle_banking.customer_contacts TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.customer_contacts TO collection_write;
 GRANT ALL ON TABLE kastle_banking.customer_contacts TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.customer_contacts TO web_anon;
 
 
 --
@@ -14846,6 +15040,7 @@ GRANT ALL ON TABLE kastle_banking.customer_documents TO service_role;
 GRANT SELECT ON TABLE kastle_banking.customer_documents TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.customer_documents TO collection_write;
 GRANT ALL ON TABLE kastle_banking.customer_documents TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.customer_documents TO web_anon;
 
 
 --
@@ -14869,6 +15064,7 @@ GRANT ALL ON TABLE kastle_banking.customer_types TO service_role;
 GRANT SELECT ON TABLE kastle_banking.customer_types TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.customer_types TO collection_write;
 GRANT ALL ON TABLE kastle_banking.customer_types TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.customer_types TO web_anon;
 
 
 --
@@ -14892,46 +15088,216 @@ GRANT ALL ON TABLE kastle_banking.customers TO service_role;
 GRANT SELECT ON TABLE kastle_banking.customers TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.customers TO collection_write;
 GRANT ALL ON TABLE kastle_banking.customers TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.customers TO web_anon;
+
+
+--
+-- Name: TABLE daily_collection_summary; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.daily_collection_summary TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.daily_collection_summary TO collection_write;
+GRANT ALL ON TABLE kastle_banking.daily_collection_summary TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.daily_collection_summary TO anon;
+GRANT ALL ON TABLE kastle_banking.daily_collection_summary TO authenticated;
+GRANT ALL ON TABLE kastle_banking.daily_collection_summary TO service_role;
+
+
+--
+-- Name: SEQUENCE daily_collection_summary_summary_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.daily_collection_summary_summary_id_seq TO service_role;
+
+
+--
+-- Name: TABLE data_masking_rules; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.data_masking_rules TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.data_masking_rules TO collection_write;
+GRANT ALL ON TABLE kastle_banking.data_masking_rules TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.data_masking_rules TO anon;
+GRANT ALL ON TABLE kastle_banking.data_masking_rules TO authenticated;
+GRANT ALL ON TABLE kastle_banking.data_masking_rules TO service_role;
+
+
+--
+-- Name: SEQUENCE data_masking_rules_rule_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.data_masking_rules_rule_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.data_masking_rules_rule_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.data_masking_rules_rule_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.data_masking_rules_rule_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.data_masking_rules_rule_id_seq TO service_role;
 
 
 --
 -- Name: SEQUENCE delinquencies_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON SEQUENCE kastle_banking.delinquencies_id_seq TO anon;
-GRANT SELECT ON SEQUENCE kastle_banking.delinquencies_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.delinquencies_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.delinquencies_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.delinquencies_id_seq TO service_role;
 
 
 --
 -- Name: TABLE delinquency_history; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.delinquency_history TO anon;
-GRANT SELECT ON TABLE kastle_banking.delinquency_history TO authenticated;
+GRANT ALL ON TABLE kastle_banking.delinquency_history TO anon;
+GRANT ALL ON TABLE kastle_banking.delinquency_history TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.delinquency_history TO web_anon;
+GRANT ALL ON TABLE kastle_banking.delinquency_history TO service_role;
 
 
 --
 -- Name: SEQUENCE delinquency_history_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON SEQUENCE kastle_banking.delinquency_history_id_seq TO anon;
-GRANT SELECT ON SEQUENCE kastle_banking.delinquency_history_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.delinquency_history_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.delinquency_history_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.delinquency_history_id_seq TO service_role;
+
+
+--
+-- Name: TABLE digital_collection_attempts; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.digital_collection_attempts TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.digital_collection_attempts TO collection_write;
+GRANT ALL ON TABLE kastle_banking.digital_collection_attempts TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.digital_collection_attempts TO anon;
+GRANT ALL ON TABLE kastle_banking.digital_collection_attempts TO authenticated;
+GRANT ALL ON TABLE kastle_banking.digital_collection_attempts TO service_role;
+
+
+--
+-- Name: SEQUENCE digital_collection_attempts_attempt_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.digital_collection_attempts_attempt_id_seq TO service_role;
 
 
 --
 -- Name: TABLE portfolio_summary; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.portfolio_summary TO anon;
-GRANT SELECT ON TABLE kastle_banking.portfolio_summary TO authenticated;
+GRANT ALL ON TABLE kastle_banking.portfolio_summary TO anon;
+GRANT ALL ON TABLE kastle_banking.portfolio_summary TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.portfolio_summary TO web_anon;
+GRANT ALL ON TABLE kastle_banking.portfolio_summary TO service_role;
 
 
 --
 -- Name: TABLE executive_delinquency_summary; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.executive_delinquency_summary TO anon;
-GRANT SELECT ON TABLE kastle_banking.executive_delinquency_summary TO authenticated;
+GRANT ALL ON TABLE kastle_banking.executive_delinquency_summary TO anon;
+GRANT ALL ON TABLE kastle_banking.executive_delinquency_summary TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.executive_delinquency_summary TO web_anon;
+GRANT ALL ON TABLE kastle_banking.executive_delinquency_summary TO service_role;
+
+
+--
+-- Name: TABLE field_visits; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.field_visits TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.field_visits TO collection_write;
+GRANT ALL ON TABLE kastle_banking.field_visits TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.field_visits TO anon;
+GRANT ALL ON TABLE kastle_banking.field_visits TO authenticated;
+GRANT ALL ON TABLE kastle_banking.field_visits TO service_role;
+
+
+--
+-- Name: SEQUENCE field_visits_visit_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.field_visits_visit_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.field_visits_visit_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.field_visits_visit_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.field_visits_visit_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.field_visits_visit_id_seq TO service_role;
+
+
+--
+-- Name: TABLE hardship_applications; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.hardship_applications TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.hardship_applications TO collection_write;
+GRANT ALL ON TABLE kastle_banking.hardship_applications TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.hardship_applications TO anon;
+GRANT ALL ON TABLE kastle_banking.hardship_applications TO authenticated;
+GRANT ALL ON TABLE kastle_banking.hardship_applications TO service_role;
+
+
+--
+-- Name: SEQUENCE hardship_applications_application_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.hardship_applications_application_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.hardship_applications_application_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.hardship_applications_application_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.hardship_applications_application_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.hardship_applications_application_id_seq TO service_role;
+
+
+--
+-- Name: TABLE ivr_payment_attempts; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.ivr_payment_attempts TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.ivr_payment_attempts TO collection_write;
+GRANT ALL ON TABLE kastle_banking.ivr_payment_attempts TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.ivr_payment_attempts TO anon;
+GRANT ALL ON TABLE kastle_banking.ivr_payment_attempts TO authenticated;
+GRANT ALL ON TABLE kastle_banking.ivr_payment_attempts TO service_role;
+
+
+--
+-- Name: SEQUENCE ivr_payment_attempts_attempt_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.ivr_payment_attempts_attempt_id_seq TO service_role;
+
+
+--
+-- Name: TABLE legal_cases; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.legal_cases TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.legal_cases TO collection_write;
+GRANT ALL ON TABLE kastle_banking.legal_cases TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.legal_cases TO anon;
+GRANT ALL ON TABLE kastle_banking.legal_cases TO authenticated;
+GRANT ALL ON TABLE kastle_banking.legal_cases TO service_role;
+
+
+--
+-- Name: SEQUENCE legal_cases_legal_case_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.legal_cases_legal_case_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.legal_cases_legal_case_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.legal_cases_legal_case_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.legal_cases_legal_case_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.legal_cases_legal_case_id_seq TO service_role;
 
 
 --
@@ -14944,6 +15310,7 @@ GRANT ALL ON TABLE kastle_banking.loan_accounts TO service_role;
 GRANT SELECT ON TABLE kastle_banking.loan_accounts TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.loan_accounts TO collection_write;
 GRANT ALL ON TABLE kastle_banking.loan_accounts TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.loan_accounts TO web_anon;
 
 
 --
@@ -14967,6 +15334,7 @@ GRANT ALL ON TABLE kastle_banking.loan_applications TO service_role;
 GRANT SELECT ON TABLE kastle_banking.loan_applications TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.loan_applications TO collection_write;
 GRANT ALL ON TABLE kastle_banking.loan_applications TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.loan_applications TO web_anon;
 
 
 --
@@ -14981,11 +15349,121 @@ GRANT ALL ON SEQUENCE kastle_banking.loan_applications_application_id_seq TO col
 
 
 --
+-- Name: TABLE loan_restructuring; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.loan_restructuring TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.loan_restructuring TO collection_write;
+GRANT ALL ON TABLE kastle_banking.loan_restructuring TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.loan_restructuring TO anon;
+GRANT ALL ON TABLE kastle_banking.loan_restructuring TO authenticated;
+GRANT ALL ON TABLE kastle_banking.loan_restructuring TO service_role;
+
+
+--
+-- Name: SEQUENCE loan_restructuring_restructure_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.loan_restructuring_restructure_id_seq TO service_role;
+
+
+--
+-- Name: TABLE officer_performance_metrics; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.officer_performance_metrics TO anon;
+GRANT ALL ON TABLE kastle_banking.officer_performance_metrics TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.officer_performance_metrics TO web_anon;
+GRANT ALL ON TABLE kastle_banking.officer_performance_metrics TO service_role;
+
+
+--
+-- Name: SEQUENCE officer_performance_metrics_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE kastle_banking.officer_performance_metrics_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.officer_performance_metrics_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.officer_performance_metrics_id_seq TO service_role;
+
+
+--
+-- Name: TABLE officer_performance_metrics_view; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.officer_performance_metrics_view TO anon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE kastle_banking.officer_performance_metrics_view TO authenticated;
+
+
+--
+-- Name: TABLE officer_performance_summary; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.officer_performance_summary TO anon;
+GRANT ALL ON TABLE kastle_banking.officer_performance_summary TO authenticated;
+GRANT ALL ON TABLE kastle_banking.officer_performance_summary TO service_role;
+
+
+--
+-- Name: SEQUENCE officer_performance_summary_summary_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE kastle_banking.officer_performance_summary_summary_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.officer_performance_summary_summary_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.officer_performance_summary_summary_id_seq TO service_role;
+
+
+--
+-- Name: TABLE payments; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.payments TO anon;
+GRANT ALL ON TABLE kastle_banking.payments TO authenticated;
+GRANT ALL ON TABLE kastle_banking.payments TO service_role;
+
+
+--
+-- Name: SEQUENCE payments_payment_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE kastle_banking.payments_payment_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.payments_payment_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.payments_payment_id_seq TO service_role;
+
+
+--
+-- Name: TABLE performance_metrics; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.performance_metrics TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.performance_metrics TO collection_write;
+GRANT ALL ON TABLE kastle_banking.performance_metrics TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.performance_metrics TO anon;
+GRANT ALL ON TABLE kastle_banking.performance_metrics TO authenticated;
+GRANT ALL ON TABLE kastle_banking.performance_metrics TO service_role;
+
+
+--
+-- Name: SEQUENCE performance_metrics_metric_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.performance_metrics_metric_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.performance_metrics_metric_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.performance_metrics_metric_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.performance_metrics_metric_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.performance_metrics_metric_id_seq TO service_role;
+
+
+--
 -- Name: SEQUENCE portfolio_summary_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON SEQUENCE kastle_banking.portfolio_summary_id_seq TO anon;
-GRANT SELECT ON SEQUENCE kastle_banking.portfolio_summary_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.portfolio_summary_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.portfolio_summary_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.portfolio_summary_id_seq TO service_role;
 
 
 --
@@ -14998,6 +15476,7 @@ GRANT ALL ON TABLE kastle_banking.product_categories TO service_role;
 GRANT SELECT ON TABLE kastle_banking.product_categories TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.product_categories TO collection_write;
 GRANT ALL ON TABLE kastle_banking.product_categories TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.product_categories TO web_anon;
 
 
 --
@@ -15021,6 +15500,7 @@ GRANT ALL ON TABLE kastle_banking.products TO service_role;
 GRANT SELECT ON TABLE kastle_banking.products TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.products TO collection_write;
 GRANT ALL ON TABLE kastle_banking.products TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.products TO web_anon;
 
 
 --
@@ -15035,6 +15515,25 @@ GRANT ALL ON SEQUENCE kastle_banking.products_product_id_seq TO collection_admin
 
 
 --
+-- Name: TABLE promise_to_pay; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.promise_to_pay TO anon;
+GRANT ALL ON TABLE kastle_banking.promise_to_pay TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.promise_to_pay TO web_anon;
+GRANT ALL ON TABLE kastle_banking.promise_to_pay TO service_role;
+
+
+--
+-- Name: SEQUENCE promise_to_pay_ptp_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE kastle_banking.promise_to_pay_ptp_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.promise_to_pay_ptp_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.promise_to_pay_ptp_id_seq TO service_role;
+
+
+--
 -- Name: TABLE realtime_notifications; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
@@ -15044,14 +15543,63 @@ GRANT ALL ON TABLE kastle_banking.realtime_notifications TO service_role;
 GRANT SELECT ON TABLE kastle_banking.realtime_notifications TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.realtime_notifications TO collection_write;
 GRANT ALL ON TABLE kastle_banking.realtime_notifications TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.realtime_notifications TO web_anon;
+
+
+--
+-- Name: TABLE repossessed_assets; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.repossessed_assets TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.repossessed_assets TO collection_write;
+GRANT ALL ON TABLE kastle_banking.repossessed_assets TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.repossessed_assets TO anon;
+GRANT ALL ON TABLE kastle_banking.repossessed_assets TO authenticated;
+GRANT ALL ON TABLE kastle_banking.repossessed_assets TO service_role;
+
+
+--
+-- Name: SEQUENCE repossessed_assets_asset_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.repossessed_assets_asset_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.repossessed_assets_asset_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.repossessed_assets_asset_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.repossessed_assets_asset_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.repossessed_assets_asset_id_seq TO service_role;
+
+
+--
+-- Name: TABLE sharia_compliance_log; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.sharia_compliance_log TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.sharia_compliance_log TO collection_write;
+GRANT ALL ON TABLE kastle_banking.sharia_compliance_log TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.sharia_compliance_log TO anon;
+GRANT ALL ON TABLE kastle_banking.sharia_compliance_log TO authenticated;
+GRANT ALL ON TABLE kastle_banking.sharia_compliance_log TO service_role;
+
+
+--
+-- Name: SEQUENCE sharia_compliance_log_compliance_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.sharia_compliance_log_compliance_id_seq TO service_role;
 
 
 --
 -- Name: TABLE top_delinquent_customers; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
-GRANT SELECT ON TABLE kastle_banking.top_delinquent_customers TO anon;
-GRANT SELECT ON TABLE kastle_banking.top_delinquent_customers TO authenticated;
+GRANT ALL ON TABLE kastle_banking.top_delinquent_customers TO anon;
+GRANT ALL ON TABLE kastle_banking.top_delinquent_customers TO authenticated;
+GRANT SELECT ON TABLE kastle_banking.top_delinquent_customers TO web_anon;
+GRANT ALL ON TABLE kastle_banking.top_delinquent_customers TO service_role;
 
 
 --
@@ -15064,6 +15612,7 @@ GRANT ALL ON TABLE kastle_banking.transaction_types TO service_role;
 GRANT SELECT ON TABLE kastle_banking.transaction_types TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.transaction_types TO collection_write;
 GRANT ALL ON TABLE kastle_banking.transaction_types TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.transaction_types TO web_anon;
 
 
 --
@@ -15089,6 +15638,151 @@ GRANT ALL ON SEQUENCE kastle_banking.transactions_transaction_id_seq TO collecti
 
 
 --
+-- Name: TABLE user_role_assignments; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.user_role_assignments TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.user_role_assignments TO collection_write;
+GRANT ALL ON TABLE kastle_banking.user_role_assignments TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.user_role_assignments TO anon;
+GRANT ALL ON TABLE kastle_banking.user_role_assignments TO authenticated;
+GRANT ALL ON TABLE kastle_banking.user_role_assignments TO service_role;
+
+
+--
+-- Name: SEQUENCE user_role_assignments_assignment_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.user_role_assignments_assignment_id_seq TO service_role;
+
+
+--
+-- Name: TABLE user_roles; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT SELECT ON TABLE kastle_banking.user_roles TO collection_read;
+GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.user_roles TO collection_write;
+GRANT ALL ON TABLE kastle_banking.user_roles TO collection_admin;
+GRANT ALL ON TABLE kastle_banking.user_roles TO anon;
+GRANT ALL ON TABLE kastle_banking.user_roles TO authenticated;
+GRANT ALL ON TABLE kastle_banking.user_roles TO service_role;
+
+
+--
+-- Name: SEQUENCE user_roles_role_id_seq; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT USAGE ON SEQUENCE kastle_banking.user_roles_role_id_seq TO collection_write;
+GRANT ALL ON SEQUENCE kastle_banking.user_roles_role_id_seq TO collection_admin;
+GRANT ALL ON SEQUENCE kastle_banking.user_roles_role_id_seq TO anon;
+GRANT ALL ON SEQUENCE kastle_banking.user_roles_role_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE kastle_banking.user_roles_role_id_seq TO service_role;
+
+
+--
+-- Name: TABLE v_behavioral_changes; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_behavioral_changes TO anon;
+GRANT ALL ON TABLE kastle_banking.v_behavioral_changes TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_behavioral_changes TO service_role;
+
+
+--
+-- Name: TABLE v_early_warning_alerts; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_early_warning_alerts TO anon;
+GRANT ALL ON TABLE kastle_banking.v_early_warning_alerts TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_early_warning_alerts TO service_role;
+
+
+--
+-- Name: TABLE v_early_warning_summary; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_early_warning_summary TO anon;
+GRANT ALL ON TABLE kastle_banking.v_early_warning_summary TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_early_warning_summary TO service_role;
+
+
+--
+-- Name: TABLE v_first_payment_defaults; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_first_payment_defaults TO anon;
+GRANT ALL ON TABLE kastle_banking.v_first_payment_defaults TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_first_payment_defaults TO service_role;
+
+
+--
+-- Name: TABLE v_high_dti_customers; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_high_dti_customers TO anon;
+GRANT ALL ON TABLE kastle_banking.v_high_dti_customers TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_high_dti_customers TO service_role;
+
+
+--
+-- Name: TABLE v_industry_risk_analysis; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_industry_risk_analysis TO anon;
+GRANT ALL ON TABLE kastle_banking.v_industry_risk_analysis TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_industry_risk_analysis TO service_role;
+
+
+--
+-- Name: TABLE v_irregular_payment_patterns; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_irregular_payment_patterns TO anon;
+GRANT ALL ON TABLE kastle_banking.v_irregular_payment_patterns TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_irregular_payment_patterns TO service_role;
+
+
+--
+-- Name: TABLE v_loan_installment_details; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_loan_installment_details TO anon;
+GRANT ALL ON TABLE kastle_banking.v_loan_installment_details TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_loan_installment_details TO service_role;
+
+
+--
+-- Name: TABLE v_multiple_loans_stress; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_multiple_loans_stress TO anon;
+GRANT ALL ON TABLE kastle_banking.v_multiple_loans_stress TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_multiple_loans_stress TO service_role;
+
+
+--
+-- Name: TABLE v_officer_communication_summary; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_officer_communication_summary TO anon;
+GRANT ALL ON TABLE kastle_banking.v_officer_communication_summary TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_officer_communication_summary TO service_role;
+
+
+--
+-- Name: TABLE v_risk_score_trend; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.v_risk_score_trend TO anon;
+GRANT ALL ON TABLE kastle_banking.v_risk_score_trend TO authenticated;
+GRANT ALL ON TABLE kastle_banking.v_risk_score_trend TO service_role;
+
+
+--
 -- Name: TABLE vw_customer_dashboard; Type: ACL; Schema: kastle_banking; Owner: postgres
 --
 
@@ -15098,6 +15792,25 @@ GRANT ALL ON TABLE kastle_banking.vw_customer_dashboard TO service_role;
 GRANT SELECT ON TABLE kastle_banking.vw_customer_dashboard TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.vw_customer_dashboard TO collection_write;
 GRANT ALL ON TABLE kastle_banking.vw_customer_dashboard TO collection_admin;
+GRANT SELECT ON TABLE kastle_banking.vw_customer_dashboard TO web_anon;
+
+
+--
+-- Name: TABLE vw_daily_collection_dashboard; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.vw_daily_collection_dashboard TO anon;
+GRANT ALL ON TABLE kastle_banking.vw_daily_collection_dashboard TO authenticated;
+GRANT ALL ON TABLE kastle_banking.vw_daily_collection_dashboard TO service_role;
+
+
+--
+-- Name: TABLE vw_portfolio_aging; Type: ACL; Schema: kastle_banking; Owner: postgres
+--
+
+GRANT ALL ON TABLE kastle_banking.vw_portfolio_aging TO anon;
+GRANT ALL ON TABLE kastle_banking.vw_portfolio_aging TO authenticated;
+GRANT ALL ON TABLE kastle_banking.vw_portfolio_aging TO service_role;
 
 
 --
@@ -15110,1344 +15823,7 @@ GRANT ALL ON TABLE kastle_banking.vw_recent_transactions TO service_role;
 GRANT SELECT ON TABLE kastle_banking.vw_recent_transactions TO collection_read;
 GRANT SELECT,INSERT,UPDATE ON TABLE kastle_banking.vw_recent_transactions TO collection_write;
 GRANT ALL ON TABLE kastle_banking.vw_recent_transactions TO collection_admin;
-
-
---
--- Name: TABLE access_log; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.access_log TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.access_log TO collection_write;
-GRANT ALL ON TABLE kastle_collection.access_log TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.access_log TO anon;
-GRANT ALL ON TABLE kastle_collection.access_log TO authenticated;
-
-
---
--- Name: SEQUENCE access_log_access_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.access_log_access_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.access_log_access_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.access_log_access_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.access_log_access_id_seq TO authenticated;
-
-
---
--- Name: TABLE audit_log; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.audit_log TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.audit_log TO collection_write;
-GRANT ALL ON TABLE kastle_collection.audit_log TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.audit_log TO anon;
-GRANT ALL ON TABLE kastle_collection.audit_log TO authenticated;
-
-
---
--- Name: SEQUENCE audit_log_audit_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.audit_log_audit_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.audit_log_audit_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.audit_log_audit_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.audit_log_audit_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_audit_trail; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_audit_trail TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_audit_trail TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_audit_trail TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_audit_trail TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_audit_trail TO authenticated;
-
-
---
--- Name: SEQUENCE collection_audit_trail_audit_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_audit_trail_audit_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_audit_trail_audit_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_audit_trail_audit_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_audit_trail_audit_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_automation_metrics; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_automation_metrics TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_automation_metrics TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_automation_metrics TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_automation_metrics TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_automation_metrics TO authenticated;
-
-
---
--- Name: SEQUENCE collection_automation_metrics_metric_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_automation_metrics_metric_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_automation_metrics_metric_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_automation_metrics_metric_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_automation_metrics_metric_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_benchmarks; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_benchmarks TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_benchmarks TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_benchmarks TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_benchmarks TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_benchmarks TO authenticated;
-
-
---
--- Name: SEQUENCE collection_benchmarks_benchmark_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_benchmarks_benchmark_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_benchmarks_benchmark_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_benchmarks_benchmark_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_benchmarks_benchmark_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_bucket_movement; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_bucket_movement TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_bucket_movement TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_bucket_movement TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_bucket_movement TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_bucket_movement TO authenticated;
-
-
---
--- Name: SEQUENCE collection_bucket_movement_movement_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_bucket_movement_movement_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_bucket_movement_movement_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_bucket_movement_movement_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_bucket_movement_movement_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_call_records; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_call_records TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_call_records TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_call_records TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_call_records TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_call_records TO authenticated;
-
-
---
--- Name: SEQUENCE collection_call_records_call_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_call_records_call_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_call_records_call_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_call_records_call_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_call_records_call_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_campaigns; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_campaigns TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_campaigns TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_campaigns TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_campaigns TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_campaigns TO authenticated;
-
-
---
--- Name: SEQUENCE collection_campaigns_campaign_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_campaigns_campaign_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_campaigns_campaign_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_campaigns_campaign_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_campaigns_campaign_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_case_details; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_case_details TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_case_details TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_case_details TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_case_details TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_case_details TO authenticated;
-
-
---
--- Name: SEQUENCE collection_case_details_case_detail_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_case_details_case_detail_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_case_details_case_detail_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_case_details_case_detail_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_case_details_case_detail_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_compliance_violations; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_compliance_violations TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_compliance_violations TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_compliance_violations TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_compliance_violations TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_compliance_violations TO authenticated;
-
-
---
--- Name: SEQUENCE collection_compliance_violations_violation_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_compliance_violations_violation_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_compliance_violations_violation_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_compliance_violations_violation_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_compliance_violations_violation_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_contact_attempts; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_contact_attempts TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_contact_attempts TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_contact_attempts TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_contact_attempts TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_contact_attempts TO authenticated;
-
-
---
--- Name: SEQUENCE collection_contact_attempts_attempt_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_contact_attempts_attempt_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_contact_attempts_attempt_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_contact_attempts_attempt_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_contact_attempts_attempt_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_customer_segments; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_customer_segments TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_customer_segments TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_customer_segments TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_customer_segments TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_customer_segments TO authenticated;
-
-
---
--- Name: SEQUENCE collection_customer_segments_segment_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_customer_segments_segment_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_customer_segments_segment_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_customer_segments_segment_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_customer_segments_segment_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_forecasts; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_forecasts TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_forecasts TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_forecasts TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_forecasts TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_forecasts TO authenticated;
-
-
---
--- Name: SEQUENCE collection_forecasts_forecast_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_forecasts_forecast_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_forecasts_forecast_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_forecasts_forecast_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_forecasts_forecast_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_interactions; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_interactions TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_interactions TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_interactions TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_interactions TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_interactions TO authenticated;
-
-
---
--- Name: SEQUENCE collection_interactions_interaction_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_interactions_interaction_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_interactions_interaction_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_interactions_interaction_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_interactions_interaction_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_officers; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_officers TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_officers TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_officers TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_officers TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_officers TO authenticated;
-
-
---
--- Name: TABLE collection_provisions; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_provisions TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_provisions TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_provisions TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_provisions TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_provisions TO authenticated;
-
-
---
--- Name: SEQUENCE collection_provisions_provision_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_provisions_provision_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_provisions_provision_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_provisions_provision_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_provisions_provision_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_queue_management; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_queue_management TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_queue_management TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_queue_management TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_queue_management TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_queue_management TO authenticated;
-
-
---
--- Name: SEQUENCE collection_queue_management_queue_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_queue_management_queue_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_queue_management_queue_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_queue_management_queue_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_queue_management_queue_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_risk_assessment; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_risk_assessment TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_risk_assessment TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_risk_assessment TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_risk_assessment TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_risk_assessment TO authenticated;
-
-
---
--- Name: SEQUENCE collection_risk_assessment_assessment_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_risk_assessment_assessment_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_risk_assessment_assessment_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_risk_assessment_assessment_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_risk_assessment_assessment_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_scores; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_scores TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_scores TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_scores TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_scores TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_scores TO authenticated;
-
-
---
--- Name: SEQUENCE collection_scores_score_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_scores_score_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_scores_score_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_scores_score_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_scores_score_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_settlement_offers; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_settlement_offers TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_settlement_offers TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_settlement_offers TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_settlement_offers TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_settlement_offers TO authenticated;
-
-
---
--- Name: SEQUENCE collection_settlement_offers_offer_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_settlement_offers_offer_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_settlement_offers_offer_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_settlement_offers_offer_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_settlement_offers_offer_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_strategies; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_strategies TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_strategies TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_strategies TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_strategies TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_strategies TO authenticated;
-
-
---
--- Name: SEQUENCE collection_strategies_strategy_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_strategies_strategy_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_strategies_strategy_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_strategies_strategy_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_strategies_strategy_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_system_performance; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_system_performance TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_system_performance TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_system_performance TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_system_performance TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_system_performance TO authenticated;
-
-
---
--- Name: SEQUENCE collection_system_performance_log_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_system_performance_log_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_system_performance_log_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_system_performance_log_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_system_performance_log_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_teams; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_teams TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_teams TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_teams TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_teams TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_teams TO authenticated;
-
-
---
--- Name: SEQUENCE collection_teams_team_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_teams_team_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_teams_team_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_teams_team_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_teams_team_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_vintage_analysis; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_vintage_analysis TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_vintage_analysis TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_vintage_analysis TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_vintage_analysis TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_vintage_analysis TO authenticated;
-
-
---
--- Name: SEQUENCE collection_vintage_analysis_vintage_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_vintage_analysis_vintage_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_vintage_analysis_vintage_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_vintage_analysis_vintage_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_vintage_analysis_vintage_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_workflow_templates; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_workflow_templates TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_workflow_templates TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_workflow_templates TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_workflow_templates TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_workflow_templates TO authenticated;
-
-
---
--- Name: SEQUENCE collection_workflow_templates_template_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_workflow_templates_template_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_workflow_templates_template_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_workflow_templates_template_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_workflow_templates_template_id_seq TO authenticated;
-
-
---
--- Name: TABLE collection_write_offs; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.collection_write_offs TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.collection_write_offs TO collection_write;
-GRANT ALL ON TABLE kastle_collection.collection_write_offs TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.collection_write_offs TO anon;
-GRANT ALL ON TABLE kastle_collection.collection_write_offs TO authenticated;
-
-
---
--- Name: SEQUENCE collection_write_offs_write_off_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.collection_write_offs_write_off_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.collection_write_offs_write_off_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.collection_write_offs_write_off_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.collection_write_offs_write_off_id_seq TO authenticated;
-
-
---
--- Name: TABLE daily_collection_summary; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.daily_collection_summary TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.daily_collection_summary TO collection_write;
-GRANT ALL ON TABLE kastle_collection.daily_collection_summary TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.daily_collection_summary TO anon;
-GRANT ALL ON TABLE kastle_collection.daily_collection_summary TO authenticated;
-
-
---
--- Name: SEQUENCE daily_collection_summary_summary_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.daily_collection_summary_summary_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.daily_collection_summary_summary_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.daily_collection_summary_summary_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.daily_collection_summary_summary_id_seq TO authenticated;
-
-
---
--- Name: TABLE data_masking_rules; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.data_masking_rules TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.data_masking_rules TO collection_write;
-GRANT ALL ON TABLE kastle_collection.data_masking_rules TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.data_masking_rules TO anon;
-GRANT ALL ON TABLE kastle_collection.data_masking_rules TO authenticated;
-
-
---
--- Name: SEQUENCE data_masking_rules_rule_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.data_masking_rules_rule_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.data_masking_rules_rule_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.data_masking_rules_rule_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.data_masking_rules_rule_id_seq TO authenticated;
-
-
---
--- Name: TABLE digital_collection_attempts; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.digital_collection_attempts TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.digital_collection_attempts TO collection_write;
-GRANT ALL ON TABLE kastle_collection.digital_collection_attempts TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.digital_collection_attempts TO anon;
-GRANT ALL ON TABLE kastle_collection.digital_collection_attempts TO authenticated;
-
-
---
--- Name: SEQUENCE digital_collection_attempts_attempt_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.digital_collection_attempts_attempt_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.digital_collection_attempts_attempt_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.digital_collection_attempts_attempt_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.digital_collection_attempts_attempt_id_seq TO authenticated;
-
-
---
--- Name: TABLE field_visits; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.field_visits TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.field_visits TO collection_write;
-GRANT ALL ON TABLE kastle_collection.field_visits TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.field_visits TO anon;
-GRANT ALL ON TABLE kastle_collection.field_visits TO authenticated;
-
-
---
--- Name: SEQUENCE field_visits_visit_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.field_visits_visit_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.field_visits_visit_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.field_visits_visit_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.field_visits_visit_id_seq TO authenticated;
-
-
---
--- Name: TABLE hardship_applications; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.hardship_applications TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.hardship_applications TO collection_write;
-GRANT ALL ON TABLE kastle_collection.hardship_applications TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.hardship_applications TO anon;
-GRANT ALL ON TABLE kastle_collection.hardship_applications TO authenticated;
-
-
---
--- Name: SEQUENCE hardship_applications_application_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.hardship_applications_application_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.hardship_applications_application_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.hardship_applications_application_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.hardship_applications_application_id_seq TO authenticated;
-
-
---
--- Name: TABLE ivr_payment_attempts; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.ivr_payment_attempts TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.ivr_payment_attempts TO collection_write;
-GRANT ALL ON TABLE kastle_collection.ivr_payment_attempts TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.ivr_payment_attempts TO anon;
-GRANT ALL ON TABLE kastle_collection.ivr_payment_attempts TO authenticated;
-
-
---
--- Name: SEQUENCE ivr_payment_attempts_attempt_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.ivr_payment_attempts_attempt_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.ivr_payment_attempts_attempt_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.ivr_payment_attempts_attempt_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.ivr_payment_attempts_attempt_id_seq TO authenticated;
-
-
---
--- Name: TABLE legal_cases; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.legal_cases TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.legal_cases TO collection_write;
-GRANT ALL ON TABLE kastle_collection.legal_cases TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.legal_cases TO anon;
-GRANT ALL ON TABLE kastle_collection.legal_cases TO authenticated;
-
-
---
--- Name: SEQUENCE legal_cases_legal_case_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.legal_cases_legal_case_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.legal_cases_legal_case_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.legal_cases_legal_case_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.legal_cases_legal_case_id_seq TO authenticated;
-
-
---
--- Name: TABLE loan_restructuring; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.loan_restructuring TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.loan_restructuring TO collection_write;
-GRANT ALL ON TABLE kastle_collection.loan_restructuring TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.loan_restructuring TO anon;
-GRANT ALL ON TABLE kastle_collection.loan_restructuring TO authenticated;
-
-
---
--- Name: SEQUENCE loan_restructuring_restructure_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.loan_restructuring_restructure_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.loan_restructuring_restructure_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.loan_restructuring_restructure_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.loan_restructuring_restructure_id_seq TO authenticated;
-
-
---
--- Name: TABLE officer_performance_metrics; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.officer_performance_metrics TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.officer_performance_metrics TO collection_write;
-GRANT ALL ON TABLE kastle_collection.officer_performance_metrics TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.officer_performance_metrics TO anon;
-GRANT ALL ON TABLE kastle_collection.officer_performance_metrics TO authenticated;
-
-
---
--- Name: SEQUENCE officer_performance_metrics_metric_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.officer_performance_metrics_metric_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.officer_performance_metrics_metric_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.officer_performance_metrics_metric_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.officer_performance_metrics_metric_id_seq TO authenticated;
-
-
---
--- Name: TABLE officer_performance_summary; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.officer_performance_summary TO anon;
-GRANT SELECT ON TABLE kastle_collection.officer_performance_summary TO authenticated;
-
-
---
--- Name: TABLE performance_metrics; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.performance_metrics TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.performance_metrics TO collection_write;
-GRANT ALL ON TABLE kastle_collection.performance_metrics TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.performance_metrics TO anon;
-GRANT ALL ON TABLE kastle_collection.performance_metrics TO authenticated;
-
-
---
--- Name: SEQUENCE performance_metrics_metric_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.performance_metrics_metric_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.performance_metrics_metric_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.performance_metrics_metric_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.performance_metrics_metric_id_seq TO authenticated;
-
-
---
--- Name: TABLE promise_to_pay; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.promise_to_pay TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.promise_to_pay TO collection_write;
-GRANT ALL ON TABLE kastle_collection.promise_to_pay TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.promise_to_pay TO anon;
-GRANT ALL ON TABLE kastle_collection.promise_to_pay TO authenticated;
-
-
---
--- Name: SEQUENCE promise_to_pay_ptp_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.promise_to_pay_ptp_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.promise_to_pay_ptp_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.promise_to_pay_ptp_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.promise_to_pay_ptp_id_seq TO authenticated;
-
-
---
--- Name: TABLE repossessed_assets; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.repossessed_assets TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.repossessed_assets TO collection_write;
-GRANT ALL ON TABLE kastle_collection.repossessed_assets TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.repossessed_assets TO anon;
-GRANT ALL ON TABLE kastle_collection.repossessed_assets TO authenticated;
-
-
---
--- Name: SEQUENCE repossessed_assets_asset_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.repossessed_assets_asset_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.repossessed_assets_asset_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.repossessed_assets_asset_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.repossessed_assets_asset_id_seq TO authenticated;
-
-
---
--- Name: TABLE sharia_compliance_log; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.sharia_compliance_log TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.sharia_compliance_log TO collection_write;
-GRANT ALL ON TABLE kastle_collection.sharia_compliance_log TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.sharia_compliance_log TO anon;
-GRANT ALL ON TABLE kastle_collection.sharia_compliance_log TO authenticated;
-
-
---
--- Name: SEQUENCE sharia_compliance_log_compliance_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.sharia_compliance_log_compliance_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.sharia_compliance_log_compliance_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.sharia_compliance_log_compliance_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.sharia_compliance_log_compliance_id_seq TO authenticated;
-
-
---
--- Name: TABLE user_role_assignments; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.user_role_assignments TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.user_role_assignments TO collection_write;
-GRANT ALL ON TABLE kastle_collection.user_role_assignments TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.user_role_assignments TO anon;
-GRANT ALL ON TABLE kastle_collection.user_role_assignments TO authenticated;
-
-
---
--- Name: SEQUENCE user_role_assignments_assignment_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.user_role_assignments_assignment_id_seq TO authenticated;
-
-
---
--- Name: TABLE user_roles; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.user_roles TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.user_roles TO collection_write;
-GRANT ALL ON TABLE kastle_collection.user_roles TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.user_roles TO anon;
-GRANT ALL ON TABLE kastle_collection.user_roles TO authenticated;
-
-
---
--- Name: SEQUENCE user_roles_role_id_seq; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT USAGE ON SEQUENCE kastle_collection.user_roles_role_id_seq TO collection_write;
-GRANT ALL ON SEQUENCE kastle_collection.user_roles_role_id_seq TO collection_admin;
-GRANT ALL ON SEQUENCE kastle_collection.user_roles_role_id_seq TO anon;
-GRANT ALL ON SEQUENCE kastle_collection.user_roles_role_id_seq TO authenticated;
-
-
---
--- Name: TABLE v_first_payment_defaults; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_first_payment_defaults TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_first_payment_defaults TO authenticated;
-
-
---
--- Name: TABLE v_high_dti_customers; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_high_dti_customers TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_high_dti_customers TO authenticated;
-
-
---
--- Name: TABLE v_multiple_loans_stress; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_multiple_loans_stress TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_multiple_loans_stress TO authenticated;
-
-
---
--- Name: TABLE v_actionable_insights; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_actionable_insights TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_actionable_insights TO authenticated;
-
-
---
--- Name: TABLE v_behavioral_changes; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_behavioral_changes TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_behavioral_changes TO authenticated;
-
-
---
--- Name: TABLE v_early_warning_alerts; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_early_warning_alerts TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_early_warning_alerts TO authenticated;
-
-
---
--- Name: TABLE v_early_warning_summary; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_early_warning_summary TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_early_warning_summary TO authenticated;
-
-
---
--- Name: TABLE v_industry_risk_analysis; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_industry_risk_analysis TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_industry_risk_analysis TO authenticated;
-
-
---
--- Name: TABLE v_irregular_payment_patterns; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_irregular_payment_patterns TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_irregular_payment_patterns TO authenticated;
-
-
---
--- Name: TABLE v_loan_installment_details; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_loan_installment_details TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_loan_installment_details TO authenticated;
-
-
---
--- Name: TABLE v_officer_communication_summary; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_officer_communication_summary TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_officer_communication_summary TO authenticated;
-
-
---
--- Name: TABLE v_risk_score_trend; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_risk_score_trend TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_risk_score_trend TO authenticated;
-
-
---
--- Name: TABLE v_specialist_loan_portfolio; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.v_specialist_loan_portfolio TO anon;
-GRANT SELECT ON TABLE kastle_collection.v_specialist_loan_portfolio TO authenticated;
-
-
---
--- Name: TABLE vw_daily_collection_dashboard; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.vw_daily_collection_dashboard TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.vw_daily_collection_dashboard TO collection_write;
-GRANT ALL ON TABLE kastle_collection.vw_daily_collection_dashboard TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.vw_daily_collection_dashboard TO anon;
-GRANT ALL ON TABLE kastle_collection.vw_daily_collection_dashboard TO authenticated;
-
-
---
--- Name: TABLE vw_officer_performance; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.vw_officer_performance TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.vw_officer_performance TO collection_write;
-GRANT ALL ON TABLE kastle_collection.vw_officer_performance TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.vw_officer_performance TO anon;
-GRANT ALL ON TABLE kastle_collection.vw_officer_performance TO authenticated;
-
-
---
--- Name: TABLE vw_portfolio_aging; Type: ACL; Schema: kastle_collection; Owner: postgres
---
-
-GRANT SELECT ON TABLE kastle_collection.vw_portfolio_aging TO collection_read;
-GRANT SELECT,INSERT,UPDATE ON TABLE kastle_collection.vw_portfolio_aging TO collection_write;
-GRANT ALL ON TABLE kastle_collection.vw_portfolio_aging TO collection_admin;
-GRANT ALL ON TABLE kastle_collection.vw_portfolio_aging TO anon;
-GRANT ALL ON TABLE kastle_collection.vw_portfolio_aging TO authenticated;
-
-
---
--- Name: TABLE aging_distribution; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.aging_distribution TO anon;
-GRANT ALL ON TABLE public.aging_distribution TO authenticated;
-GRANT ALL ON TABLE public.aging_distribution TO service_role;
-
-
---
--- Name: TABLE collection_cases; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.collection_cases TO anon;
-GRANT ALL ON TABLE public.collection_cases TO authenticated;
-GRANT ALL ON TABLE public.collection_cases TO service_role;
-
-
---
--- Name: SEQUENCE collection_cases_case_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.collection_cases_case_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.collection_cases_case_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.collection_cases_case_id_seq TO service_role;
-
-
---
--- Name: TABLE collection_interactions; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.collection_interactions TO anon;
-GRANT ALL ON TABLE public.collection_interactions TO authenticated;
-GRANT ALL ON TABLE public.collection_interactions TO service_role;
-
-
---
--- Name: SEQUENCE collection_interactions_interaction_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.collection_interactions_interaction_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.collection_interactions_interaction_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.collection_interactions_interaction_id_seq TO service_role;
-
-
---
--- Name: TABLE collection_officers; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.collection_officers TO anon;
-GRANT ALL ON TABLE public.collection_officers TO authenticated;
-GRANT ALL ON TABLE public.collection_officers TO service_role;
-
-
---
--- Name: TABLE collection_rates; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.collection_rates TO anon;
-GRANT ALL ON TABLE public.collection_rates TO authenticated;
-GRANT ALL ON TABLE public.collection_rates TO service_role;
-
-
---
--- Name: TABLE customers; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.customers TO anon;
-GRANT ALL ON TABLE public.customers TO authenticated;
-GRANT ALL ON TABLE public.customers TO service_role;
-
-
---
--- Name: TABLE executive_delinquency_summary; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.executive_delinquency_summary TO anon;
-GRANT ALL ON TABLE public.executive_delinquency_summary TO authenticated;
-GRANT ALL ON TABLE public.executive_delinquency_summary TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.account_types"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.account_types" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.account_types" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.account_types" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.accounts"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.accounts" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.accounts" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.accounts" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.audit_trail"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.audit_trail" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.audit_trail" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.audit_trail" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.auth_user_profiles"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.auth_user_profiles" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.auth_user_profiles" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.auth_user_profiles" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.bank_config"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.bank_config" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.bank_config" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.bank_config" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.branches"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.branches" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.branches" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.branches" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.collection_buckets"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.collection_buckets" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.collection_buckets" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.collection_buckets" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.collection_cases"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.collection_cases" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.collection_cases" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.collection_cases" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.countries"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.countries" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.countries" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.countries" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.currencies"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.currencies" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.currencies" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.currencies" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.customer_addresses"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.customer_addresses" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.customer_addresses" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.customer_addresses" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.customer_contacts"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.customer_contacts" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.customer_contacts" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.customer_contacts" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.customer_documents"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.customer_documents" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.customer_documents" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.customer_documents" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.customer_types"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.customer_types" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.customer_types" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.customer_types" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.customers"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.customers" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.customers" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.customers" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.loan_accounts"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.loan_accounts" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.loan_accounts" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.loan_accounts" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.loan_applications"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.loan_applications" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.loan_applications" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.loan_applications" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.product_categories"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.product_categories" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.product_categories" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.product_categories" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.products"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.products" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.products" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.products" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.realtime_notifications"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.realtime_notifications" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.realtime_notifications" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.realtime_notifications" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.transaction_types"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.transaction_types" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.transaction_types" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.transaction_types" TO service_role;
-
-
---
--- Name: TABLE "kastle_banking.transactions"; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public."kastle_banking.transactions" TO anon;
-GRANT ALL ON TABLE public."kastle_banking.transactions" TO authenticated;
-GRANT ALL ON TABLE public."kastle_banking.transactions" TO service_role;
-
-
---
--- Name: TABLE officer_performance_summary; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.officer_performance_summary TO anon;
-GRANT ALL ON TABLE public.officer_performance_summary TO authenticated;
-GRANT ALL ON TABLE public.officer_performance_summary TO service_role;
-
-
---
--- Name: TABLE payments; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.payments TO anon;
-GRANT ALL ON TABLE public.payments TO authenticated;
-GRANT ALL ON TABLE public.payments TO service_role;
-
-
---
--- Name: SEQUENCE payments_payment_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.payments_payment_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.payments_payment_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.payments_payment_id_seq TO service_role;
-
-
---
--- Name: TABLE promise_to_pay; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.promise_to_pay TO anon;
-GRANT ALL ON TABLE public.promise_to_pay TO authenticated;
-GRANT ALL ON TABLE public.promise_to_pay TO service_role;
-
-
---
--- Name: SEQUENCE promise_to_pay_ptp_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.promise_to_pay_ptp_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.promise_to_pay_ptp_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.promise_to_pay_ptp_id_seq TO service_role;
-
-
---
--- Name: TABLE top_delinquent_customers; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.top_delinquent_customers TO anon;
-GRANT ALL ON TABLE public.top_delinquent_customers TO authenticated;
-GRANT ALL ON TABLE public.top_delinquent_customers TO service_role;
-
-
---
--- Name: TABLE v_specialist_loan_portfolio; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.v_specialist_loan_portfolio TO anon;
-GRANT ALL ON TABLE public.v_specialist_loan_portfolio TO authenticated;
-GRANT ALL ON TABLE public.v_specialist_loan_portfolio TO service_role;
+GRANT SELECT ON TABLE kastle_banking.vw_recent_transactions TO web_anon;
 
 
 --
@@ -16459,30 +15835,6 @@ GRANT ALL ON TABLE realtime.messages TO dashboard_user;
 GRANT SELECT,INSERT,UPDATE ON TABLE realtime.messages TO anon;
 GRANT SELECT,INSERT,UPDATE ON TABLE realtime.messages TO authenticated;
 GRANT SELECT,INSERT,UPDATE ON TABLE realtime.messages TO service_role;
-
-
---
--- Name: TABLE messages_2025_07_23; Type: ACL; Schema: realtime; Owner: supabase_admin
---
-
-GRANT ALL ON TABLE realtime.messages_2025_07_23 TO postgres;
-GRANT ALL ON TABLE realtime.messages_2025_07_23 TO dashboard_user;
-
-
---
--- Name: TABLE messages_2025_07_24; Type: ACL; Schema: realtime; Owner: supabase_admin
---
-
-GRANT ALL ON TABLE realtime.messages_2025_07_24 TO postgres;
-GRANT ALL ON TABLE realtime.messages_2025_07_24 TO dashboard_user;
-
-
---
--- Name: TABLE messages_2025_07_25; Type: ACL; Schema: realtime; Owner: supabase_admin
---
-
-GRANT ALL ON TABLE realtime.messages_2025_07_25 TO postgres;
-GRANT ALL ON TABLE realtime.messages_2025_07_25 TO dashboard_user;
 
 
 --
@@ -16499,6 +15851,46 @@ GRANT ALL ON TABLE realtime.messages_2025_07_26 TO dashboard_user;
 
 GRANT ALL ON TABLE realtime.messages_2025_07_27 TO postgres;
 GRANT ALL ON TABLE realtime.messages_2025_07_27 TO dashboard_user;
+
+
+--
+-- Name: TABLE messages_2025_07_28; Type: ACL; Schema: realtime; Owner: supabase_admin
+--
+
+GRANT ALL ON TABLE realtime.messages_2025_07_28 TO postgres;
+GRANT ALL ON TABLE realtime.messages_2025_07_28 TO dashboard_user;
+
+
+--
+-- Name: TABLE messages_2025_07_29; Type: ACL; Schema: realtime; Owner: supabase_admin
+--
+
+GRANT ALL ON TABLE realtime.messages_2025_07_29 TO postgres;
+GRANT ALL ON TABLE realtime.messages_2025_07_29 TO dashboard_user;
+
+
+--
+-- Name: TABLE messages_2025_07_30; Type: ACL; Schema: realtime; Owner: supabase_admin
+--
+
+GRANT ALL ON TABLE realtime.messages_2025_07_30 TO postgres;
+GRANT ALL ON TABLE realtime.messages_2025_07_30 TO dashboard_user;
+
+
+--
+-- Name: TABLE messages_2025_07_31; Type: ACL; Schema: realtime; Owner: supabase_admin
+--
+
+GRANT ALL ON TABLE realtime.messages_2025_07_31 TO postgres;
+GRANT ALL ON TABLE realtime.messages_2025_07_31 TO dashboard_user;
+
+
+--
+-- Name: TABLE messages_2025_08_01; Type: ACL; Schema: realtime; Owner: supabase_admin
+--
+
+GRANT ALL ON TABLE realtime.messages_2025_08_01 TO postgres;
+GRANT ALL ON TABLE realtime.messages_2025_08_01 TO dashboard_user;
 
 
 --
@@ -16699,19 +16091,18 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA graphql_public GRANT 
 
 
 --
+-- Name: DEFAULT PRIVILEGES FOR SEQUENCES; Type: DEFAULT ACL; Schema: kastle_banking; Owner: postgres
+--
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA kastle_banking GRANT SELECT,USAGE ON SEQUENCES TO authenticated;
+
+
+--
 -- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: kastle_banking; Owner: postgres
 --
 
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA kastle_banking GRANT SELECT ON TABLES TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA kastle_banking GRANT SELECT ON TABLES TO authenticated;
-
-
---
--- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: kastle_collection; Owner: postgres
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA kastle_collection GRANT SELECT ON TABLES TO anon;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA kastle_collection GRANT SELECT ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA kastle_banking GRANT SELECT,INSERT,DELETE,UPDATE ON TABLES TO authenticated;
 
 
 --
