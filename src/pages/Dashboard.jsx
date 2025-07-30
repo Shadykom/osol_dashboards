@@ -13,7 +13,7 @@ import {
   Layers, Target, Brain, Zap, ChevronRight, Globe, Maximize2,
   Home, UserCheck, Package, FileCheck, Briefcase,
   GitBranch, Percent, Timer, Phone, MessageSquare, UserX, Scale,
-  FileSpreadsheet, Database
+  FileSpreadsheet, Database, Info
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,6 +90,7 @@ import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 import { BranchReportService } from '@/services/branchReportService';
 import { ProductReportService } from '@/services/productReportService';
 import { CustomerSegmentService } from '@/services/customerSegmentService';
+import { fixDashboardData, checkDatabaseStatus } from '@/utils/fixDashboardData';
 
 // Mock Supabase clients for demonstration
 const mockSupabaseBanking = {
@@ -563,6 +564,29 @@ const WIDGET_CATALOG = {
       type: 'kpi',
       query: async (filters) => {
         try {
+          // First check if we have account_types table
+          const { data: accountTypes } = await supabaseBanking
+            .from('account_types')
+            .select('type_id')
+            .limit(1);
+          
+          if (!accountTypes || accountTypes.length === 0) {
+            // No account types, just count accounts
+            const { count, error } = await supabaseBanking
+              .from(TABLES.ACCOUNTS)
+              .select('*', { count: 'exact', head: true })
+              .eq('account_status', 'ACTIVE');
+            
+            if (error) throw error;
+            
+            return {
+              value: count || 0,
+              change: 8.2,
+              trend: 'up'
+            };
+          }
+          
+          // Account types exist, do the full query
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
             .select('*, account_types!inner(account_category)', { count: 'exact', head: true })
@@ -588,19 +612,32 @@ const WIDGET_CATALOG = {
           
           const { count, error } = await query;
           
-          if (error) throw error;
+          if (error) {
+            // If join fails, try simple count
+            const { count: simpleCount } = await supabaseBanking
+              .from(TABLES.ACCOUNTS)
+              .select('*', { count: 'exact', head: true })
+              .eq('account_status', 'ACTIVE');
+            
+            return {
+              value: simpleCount || 0,
+              change: 8.2,
+              trend: 'up'
+            };
+          }
           
           return {
-            value: count || 18293,
+            value: count || 0,
             change: 8.2,
             trend: 'up'
           };
         } catch (error) {
-          console.log('Using mock data for active_accounts');
+          console.log('Error in active_accounts:', error);
+          // Return 0 instead of mock data to show real state
           return {
-            value: 18293,
-            change: 8.2,
-            trend: 'up'
+            value: 0,
+            change: 0,
+            trend: 'neutral'
           };
         }
       }
@@ -891,16 +928,16 @@ const WIDGET_CATALOG = {
           if (error) throw error;
           
           return {
-            value: count || 1245,
-            change: 15.2,
-            trend: 'up'
+            value: count || 0,
+            change: count > 0 ? 15.2 : 0,
+            trend: count > 0 ? 'up' : 'neutral'
           };
         } catch (error) {
-          console.log('Using mock data for active_cases');
+          console.log('Error in active_cases:', error);
           return {
-            value: 1245,
-            change: 15.2,
-            trend: 'up'
+            value: 0,
+            change: 0,
+            trend: 'neutral'
           };
         }
       }
@@ -1214,6 +1251,8 @@ export default function EnhancedDashboard() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showDataSeeder, setShowDataSeeder] = useState(false);
+  const [databaseStatus, setDatabaseStatus] = useState(null);
+  const [isFixingData, setIsFixingData] = useState(false);
   
   // Filters
   const [filters, setFilters] = useState({
@@ -1335,6 +1374,16 @@ export default function EnhancedDashboard() {
         await autoLogin();
       } catch (error) {
         console.error('Error with auto-login:', error);
+      }
+      
+      // Check database status first
+      const status = await checkDatabaseStatus();
+      setDatabaseStatus(status);
+      console.log('Database status:', status);
+      
+      // If database has no data, show the data seeder
+      if (status.isConnected && !status.hasData) {
+        setShowDataSeeder(true);
       }
       
       // Initialize database with proper reference data
@@ -1529,6 +1578,30 @@ export default function EnhancedDashboard() {
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Export failed');
+    }
+  };
+  
+  // Handle fixing dashboard data
+  const handleFixData = async () => {
+    setIsFixingData(true);
+    try {
+      const result = await fixDashboardData();
+      if (result.success) {
+        if (result.dataSeeded) {
+          // Data was seeded, page will reload
+          return;
+        }
+        // Check status again
+        const newStatus = await checkDatabaseStatus();
+        setDatabaseStatus(newStatus);
+        // Refresh dashboard data
+        await refresh();
+      }
+    } catch (error) {
+      console.error('Error fixing data:', error);
+      toast.error('Failed to fix dashboard data');
+    } finally {
+      setIsFixingData(false);
     }
   };
 
@@ -1799,6 +1872,53 @@ export default function EnhancedDashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-[1600px] mx-auto">
+      {/* Database Status Alert */}
+      {databaseStatus && !databaseStatus.isConnected && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>Database connection failed. Dashboard is showing empty data.</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleFixData}
+              disabled={isFixingData}
+              className="ml-4"
+            >
+              {isFixingData ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Fixing...
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4 mr-2" />
+                  Fix Data
+                </>
+              )}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* No Data Alert */}
+      {databaseStatus && databaseStatus.isConnected && !databaseStatus.hasData && (
+        <Alert className="mb-4">
+          <Info className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>No data found in database. Click to seed sample data.</span>
+            <Button
+              size="sm"
+              onClick={() => setShowDataSeeder(true)}
+              className="ml-4"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Seed Data
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header Section */}
       <div className="space-y-4">
         {/* Title and Actions */}
@@ -2211,10 +2331,20 @@ export default function EnhancedDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Data Seeder Component */}
-      <div className="mb-6">
-        <DataSeeder />
-      </div>
+      {/* Data Seeder Dialog */}
+      <Dialog open={showDataSeeder} onOpenChange={setShowDataSeeder}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Seed Dashboard Data</DialogTitle>
+            <DialogDescription>
+              Your database is empty. Seed it with sample data to see the dashboard in action.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <DataSeeder />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Schema Test Button - Add this for debugging */}
       <div className="mb-6">
