@@ -1,5 +1,8 @@
 import { supabaseBanking, TABLES } from '@/lib/supabase';
 
+// Flag to prevent concurrent initializations
+let isInitializing = false;
+
 // Helper function to check if data exists
 const checkDataExists = async (table, column, value) => {
   try {
@@ -250,11 +253,24 @@ export const initializeSampleData = async () => {
     const { customerTypeMap, accountTypeMap } = await initializeReferenceData();
     
     // Check if we already have customers
-    const { count: customerCount } = await supabaseBanking
+    const { count: customerCount, error: countError } = await supabaseBanking
       .from('customers')
       .select('*', { count: 'exact', head: true });
     
-    if (customerCount > 0) {
+    // If there's an error checking, try a different approach
+    if (countError) {
+      console.log('Error checking customer count, trying alternative check:', countError);
+      // Try to select just one customer
+      const { data: existingCustomers, error: selectError } = await supabaseBanking
+        .from('customers')
+        .select('customer_id')
+        .limit(1);
+      
+      if (!selectError && existingCustomers && existingCustomers.length > 0) {
+        console.log('Sample data already exists (found customers), skipping...');
+        return true;
+      }
+    } else if (customerCount && customerCount > 0) {
       console.log('Sample data already exists, skipping...');
       return true;
     }
@@ -292,14 +308,19 @@ export const initializeSampleData = async () => {
       });
     }
     
-    // Insert customers
+    // Insert customers with upsert to avoid duplicates
     const { error: customerError } = await supabaseBanking
       .from('customers')
-      .insert(customers);
+      .upsert(customers, { onConflict: 'customer_id' });
     
     if (customerError) {
-      console.error('Error inserting customers:', customerError);
-      return false;
+      // Check if it's a duplicate key error
+      if (customerError.code === '23505') {
+        console.log('Customers already exist, continuing with other data...');
+      } else {
+        console.error('Error inserting customers:', customerError);
+        return false;
+      }
     }
     
     // Create sample accounts
@@ -331,11 +352,15 @@ export const initializeSampleData = async () => {
     // Insert accounts
     const { error: accountError } = await supabaseBanking
       .from('accounts')
-      .insert(accounts);
+      .upsert(accounts, { onConflict: 'account_number' });
     
     if (accountError) {
-      console.error('Error inserting accounts:', accountError);
-      return false;
+      if (accountError.code === '23505') {
+        console.log('Accounts already exist, continuing with other data...');
+      } else {
+        console.error('Error inserting accounts:', accountError);
+        return false;
+      }
     }
     
     // Create sample transactions
@@ -386,7 +411,11 @@ export const initializeSampleData = async () => {
         .insert(batch);
       
       if (txError) {
-        console.error('Error inserting transactions batch:', txError);
+        if (txError.code === '23505') {
+          console.log('Some transactions already exist, continuing...');
+        } else {
+          console.error('Error inserting transactions batch:', txError);
+        }
       }
     }
     
@@ -399,11 +428,19 @@ export const initializeSampleData = async () => {
   }
 };
 
-// Main initialization function
+// Initialize database with all required reference data
 export const initializeDatabase = async () => {
-  console.log('Starting database initialization...');
+  // Prevent concurrent initializations
+  if (isInitializing) {
+    console.log('Database initialization already in progress, skipping...');
+    return;
+  }
+  
+  isInitializing = true;
   
   try {
+    console.log('Starting database initialization...');
+    
     // Initialize reference data first
     await initializeReferenceData();
     
@@ -411,10 +448,10 @@ export const initializeDatabase = async () => {
     await initializeSampleData();
     
     console.log('Database initialization completed successfully');
-    return true;
-    
   } catch (error) {
-    console.error('Database initialization failed:', error);
-    return false;
+    console.error('Error during database initialization:', error);
+    throw error;
+  } finally {
+    isInitializing = false;
   }
 };

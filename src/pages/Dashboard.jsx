@@ -1209,6 +1209,7 @@ if (!formatNumber) {
 export default function EnhancedDashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const hasInitialized = useRef(false);
   
   // State Management
   const [loading, setLoading] = useState(true);
@@ -1299,6 +1300,13 @@ export default function EnhancedDashboard() {
   // Initialize dashboard with default data
   useEffect(() => {
     const initializeDashboard = async () => {
+      // Prevent multiple initializations
+      if (hasInitialized.current) {
+        console.log('Dashboard already initialized, skipping...');
+        return;
+      }
+      hasInitialized.current = true;
+      
       // Auto-login for demo purposes
       try {
         await autoLogin();
