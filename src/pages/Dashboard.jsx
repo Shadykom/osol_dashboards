@@ -553,43 +553,125 @@ const WIDGET_CATALOG = {
           suffix: '%'
         };
       }
-    }
-  },
-  
-  banking: {
-    active_accounts: {
-      name: 'الحسابات النشطة',
-      nameEn: 'Active Accounts',
+    },
+    total_accounts: {
+      name: 'إجمالي الحسابات',
+      nameEn: 'Total Accounts',
       icon: CreditCard,
       type: 'kpi',
       query: async (filters) => {
         try {
-          // First check if we have account_types table
-          const { data: accountTypes } = await supabaseBanking
-            .from('account_types')
-            .select('type_id')
-            .limit(1);
-          
-          if (!accountTypes || accountTypes.length === 0) {
-            // No account types, just count accounts
-            const { count, error } = await supabaseBanking
-              .from(TABLES.ACCOUNTS)
-              .select('*', { count: 'exact', head: true })
-              .eq('account_status', 'ACTIVE');
-            
-            if (error) throw error;
-            
-            return {
-              value: count || 0,
-              change: 8.2,
-              trend: 'up'
-            };
-          }
-          
-          // Account types exist, do the full query
+          // Get total count of all accounts
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('*, account_types!inner(account_category)', { count: 'exact', head: true })
+            .select('*', { count: 'exact', head: true });
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { count: totalCount, error: totalError } = await query;
+          
+          console.log('Total accounts query result:', { totalCount, totalError });
+          
+          if (totalError) {
+            console.error('Error fetching total accounts:', totalError);
+            throw totalError;
+          }
+          
+          // Get active accounts for percentage calculation
+          const { count: activeCount } = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('*', { count: 'exact', head: true })
+            .eq('account_status', 'ACTIVE');
+          
+          const activePercentage = totalCount > 0 ? ((activeCount / totalCount) * 100).toFixed(1) : 0;
+          
+          return {
+            value: totalCount || 0,
+            change: parseFloat(activePercentage),
+            trend: activePercentage > 50 ? 'up' : 'down',
+            suffix: '% active'
+          };
+        } catch (error) {
+          console.error('Error in total_accounts query:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral'
+          };
+        }
+      }
+    },
+    total_deposits: {
+      name: 'إجمالي الودائع',
+      nameEn: 'Total Deposits',
+      icon: DollarSign,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get all accounts with their balances
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('current_balance, account_status, branch_id');
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: accounts, error } = await query;
+          
+          console.log('Deposits query result:', { accountsCount: accounts?.length, error });
+          
+          if (error) {
+            console.error('Error fetching deposits:', error);
+            throw error;
+          }
+          
+          // Calculate total deposits from all accounts
+          const totalDeposits = accounts?.reduce((sum, account) => {
+            return sum + (parseFloat(account.current_balance) || 0);
+          }, 0) || 0;
+          
+          // Calculate active deposits for growth indicator
+          const activeDeposits = accounts?.reduce((sum, account) => {
+            if (account.account_status === 'ACTIVE') {
+              return sum + (parseFloat(account.current_balance) || 0);
+            }
+            return sum;
+          }, 0) || 0;
+          
+          // Mock growth rate (in real app, compare with previous period)
+          const growthRate = totalDeposits > 0 ? 15.3 : 0;
+          
+          return {
+            value: totalDeposits,
+            change: growthRate,
+            trend: growthRate > 0 ? 'up' : 'neutral'
+          };
+        } catch (error) {
+          console.error('Error in total_deposits query:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral'
+          };
+        }
+      }
+    },
+    active_accounts: {
+      name: 'الحسابات النشطة',
+      nameEn: 'Active Accounts',
+      icon: Activity,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Count only active accounts
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('*', { count: 'exact', head: true })
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter
@@ -597,33 +679,13 @@ const WIDGET_CATALOG = {
             query = query.eq('branch_id', filters.branch);
           }
           
-          // Apply product type filter
-          if (filters?.productType && filters.productType !== 'all') {
-            const productTypeMap = {
-              'savings': 'SAVINGS',
-              'current': 'CURRENT',
-              'loan': 'LOAN'
-            };
-            const accountCategory = productTypeMap[filters.productType];
-            if (accountCategory) {
-              query = query.eq('account_types.account_category', accountCategory);
-            }
-          }
-          
           const { count, error } = await query;
           
+          console.log('Active accounts query result:', { count, error });
+          
           if (error) {
-            // If join fails, try simple count
-            const { count: simpleCount } = await supabaseBanking
-              .from(TABLES.ACCOUNTS)
-              .select('*', { count: 'exact', head: true })
-              .eq('account_status', 'ACTIVE');
-            
-            return {
-              value: simpleCount || 0,
-              change: 8.2,
-              trend: 'up'
-            };
+            console.error('Error fetching active accounts:', error);
+            throw error;
           }
           
           return {
@@ -632,8 +694,7 @@ const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.log('Error in active_accounts:', error);
-          // Return 0 instead of mock data to show real state
+          console.error('Error in active_accounts query:', error);
           return {
             value: 0,
             change: 0,
@@ -652,24 +713,49 @@ const WIDGET_CATALOG = {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
           const { count, error } = await supabaseBanking
             .from(TABLES.TRANSACTIONS)
             .select('*', { count: 'exact', head: true })
-            .gte('transaction_date', today.toISOString());
+            .gte('transaction_date', today.toISOString())
+            .lt('transaction_date', tomorrow.toISOString());
           
-          if (error) throw error;
+          console.log('Daily transactions query result:', { count, error, date: today.toISOString() });
+          
+          if (error) {
+            console.error('Error fetching daily transactions:', error);
+            throw error;
+          }
+          
+          // Get yesterday's count for comparison
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          
+          const { count: yesterdayCount } = await supabaseBanking
+            .from(TABLES.TRANSACTIONS)
+            .select('*', { count: 'exact', head: true })
+            .gte('transaction_date', yesterday.toISOString())
+            .lt('transaction_date', today.toISOString());
+          
+          // Calculate change percentage
+          let change = 0;
+          if (yesterdayCount && yesterdayCount > 0) {
+            change = ((count - yesterdayCount) / yesterdayCount * 100).toFixed(1);
+          }
           
           return {
-            value: count || 8547,
-            change: -2.4,
-            trend: 'down'
+            value: count || 0,
+            change: parseFloat(change),
+            trend: change > 0 ? 'up' : change < 0 ? 'down' : 'neutral'
           };
         } catch (error) {
-          console.log('Using mock data for daily_transactions');
+          console.error('Error in daily_transactions query:', error);
           return {
-            value: 8547,
-            change: -2.4,
-            trend: 'down'
+            value: 0,
+            change: 0,
+            trend: 'neutral'
           };
         }
       }
@@ -682,43 +768,67 @@ const WIDGET_CATALOG = {
       chartType: 'pie',
       query: async (filters) => {
         try {
+          // Get all accounts with their types
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select(`
-              account_type_id,
-              branch_id,
-              account_types!inner(type_code, type_name, account_category)
-            `)
-            .eq('account_status', 'ACTIVE');
+            .select('account_type_id, account_type, branch_id');
           
           // Apply branch filter
           if (filters?.branch && filters.branch !== 'all') {
             query = query.eq('branch_id', filters.branch);
           }
           
-          // Apply product type filter
-          if (filters?.productType && filters.productType !== 'all') {
-            const productTypeMap = {
-              'savings': 'SAVINGS',
-              'current': 'CURRENT',
-              'loan': 'LOAN'
-            };
-            const accountCategory = productTypeMap[filters.productType];
-            if (accountCategory) {
-              query = query.eq('account_types.account_category', accountCategory);
-            }
+          const { data: accounts, error } = await query;
+          
+          console.log('Account types distribution query result:', { accountsCount: accounts?.length, error });
+          
+          if (error) {
+            console.error('Error fetching account types:', error);
+            throw error;
           }
           
-          const { data, error } = await query;
+          // If no accounts, return empty array
+          if (!accounts || accounts.length === 0) {
+            return [];
+          }
           
-          if (error) throw error;
+          // Try to get account type names if available
+          const { data: accountTypes } = await supabaseBanking
+            .from('account_types')
+            .select('type_id, type_name, account_category');
           
-          const distribution = data?.reduce((acc, item) => {
-            const typeName = item.account_types?.type_name || 'Other';
-            const category = item.account_types?.account_category || 'Other';
-            acc[category] = (acc[category] || 0) + 1;
+          // Create a map of type_id to type details
+          const typeMap = {};
+          if (accountTypes) {
+            accountTypes.forEach(type => {
+              typeMap[type.type_id] = {
+                name: type.type_name,
+                category: type.account_category
+              };
+            });
+          }
+          
+          // Count accounts by type
+          const distribution = accounts.reduce((acc, account) => {
+            let typeName = 'Other';
+            
+            // Try to get type name from map
+            if (account.account_type_id && typeMap[account.account_type_id]) {
+              typeName = typeMap[account.account_type_id].category || typeMap[account.account_type_id].name;
+            } else if (account.account_type) {
+              // Fallback to account_type field
+              typeName = account.account_type.replace(/_/g, ' ');
+            }
+            
+            acc[typeName] = (acc[typeName] || 0) + 1;
             return acc;
           }, {});
+          
+          console.log('Account types distribution:', distribution);
+          
+          // Validate that total matches
+          const distributionTotal = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+          console.log(`Account types total: ${distributionTotal}, Accounts count: ${accounts.length}`);
           
           const colorMap = {
             'SAVINGS': '#E6B800',
@@ -728,16 +838,16 @@ const WIDGET_CATALOG = {
             'Other': '#F687B3'
           };
           
-          const result = Object.entries(distribution || {}).map(([name, value]) => ({
-            name: name.replace(/_/g, ' '),
+          const result = Object.entries(distribution).map(([name, value]) => ({
+            name: name,
             value,
             fill: colorMap[name] || '#9F7AEA'
           }));
           
-          return result.length > 0 ? result : getMockChartData('pie');
+          return result.length > 0 ? result : [];
         } catch (error) {
-          console.log('Using mock data for account_types_distribution');
-          return getMockChartData('pie');
+          console.error('Error in account_types_distribution query:', error);
+          return [];
         }
       }
     },
@@ -1040,30 +1150,25 @@ const WIDGET_CATALOG = {
       type: 'kpi',
       query: async () => {
         try {
-          // First try to get all customers count
-          const { count: allCount, error: allError } = await supabaseBanking
+          // Get total count of all customers
+          const { count: totalCount, error: totalError } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
             .select('*', { count: 'exact', head: true });
           
-          console.log('All customers count:', allCount, 'Error:', allError);
+          console.log('Total customers query result:', { totalCount, totalError });
           
-          // Then try active customers
-          const { count, error } = await supabaseBanking
-            .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true })
-            .eq('is_active', true);
+          if (totalError) {
+            console.error('Error fetching total customers:', totalError);
+            throw totalError;
+          }
           
-          console.log('Active customers count:', count, 'Error:', error);
-          
-          if (error) throw error;
-          
-          // Use all count if active count is 0
-          const finalCount = count || allCount || 0;
+          // Calculate growth rate (mock for now, could be calculated from historical data)
+          const growthRate = totalCount > 0 ? 12.5 : 0;
           
           return {
-            value: finalCount,
-            change: 12.5,
-            trend: 'up'
+            value: totalCount || 0,
+            change: growthRate,
+            trend: growthRate > 0 ? 'up' : 'neutral'
           };
         } catch (error) {
           console.error('Error in total_customers query:', error);
@@ -1083,33 +1188,49 @@ const WIDGET_CATALOG = {
       chartType: 'pie',
       query: async () => {
         try {
-          const { data, error } = await supabaseBanking
+          // Get all customers with their segments
+          const { data: customers, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('customer_type, customer_segment')
-            .eq('is_active', true);
+            .select('customer_type, customer_segment, customer_type_id');
           
-          if (error) throw error;
+          console.log('Customer segments query result:', { customers: customers?.length, error });
           
-          const segments = data?.reduce((acc, customer) => {
-            const segment = customer.customer_segment || customer.customer_type || 'Standard';
+          if (error) {
+            console.error('Error fetching customer segments:', error);
+            throw error;
+          }
+          
+          // If no customers, return empty array
+          if (!customers || customers.length === 0) {
+            return [];
+          }
+          
+          // Count customers by segment
+          const segments = customers.reduce((acc, customer) => {
+            // Try customer_segment first, then customer_type, then customer_type_id
+            const segment = customer.customer_segment || 
+                          customer.customer_type || 
+                          (customer.customer_type_id ? `Type ${customer.customer_type_id}` : 'Standard');
             acc[segment] = (acc[segment] || 0) + 1;
             return acc;
           }, {});
           
-          const result = Object.entries(segments || {}).map(([name, value]) => ({
+          console.log('Processed segments:', segments);
+          
+          // Convert to chart format with colors
+          const colors = ['#E6B800', '#4A5568', '#22c55e', '#3b82f6', '#ef4444', '#f97316'];
+          const result = Object.entries(segments).map(([name, value], index) => ({
             name,
-            value
+            value,
+            fill: colors[index % colors.length]
           }));
           
-          return result.length > 0 ? result : getMockChartData('pie');
+          console.log('Final segments data for chart:', result);
+          
+          return result.length > 0 ? result : [];
         } catch (error) {
-          console.log('Using mock data for customer_segments');
-          return [
-            { name: 'VIP', value: 1284 },
-            { name: 'Premium', value: 3854 },
-            { name: 'Standard', value: 5139 },
-            { name: 'Basic', value: 2570 }
-          ];
+          console.error('Error in customer_segments query:', error);
+          return [];
         }
       }
     }
@@ -1253,16 +1374,45 @@ export default function EnhancedDashboard() {
   const navigate = useNavigate();
   const hasInitialized = useRef(false);
   
-  // State Management
-  const [loading, setLoading] = useState(true);
-  const [widgets, setWidgets] = useState([]);
+  // State Management - Initialize with default widgets immediately
+  const [loading, setLoading] = useState(false); // Changed from true to false
+  const [refreshing, setRefreshing] = useState(false); // Add refreshing state
+  const [widgets, setWidgets] = useState(() => {
+    // Try to load from localStorage first, otherwise use default template
+    const savedConfig = localStorage.getItem('kastle_dashboard_config');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        if (config.widgets && config.widgets.length > 0) {
+          return config.widgets;
+        }
+      } catch (error) {
+        console.error('Error loading saved config:', error);
+      }
+    }
+    // Return default executive template widgets
+    return DASHBOARD_TEMPLATES.executive.widgets;
+  });
   const [widgetData, setWidgetData] = useState({});
+  const [widgetLoadingStates, setWidgetLoadingStates] = useState({}); // Track individual widget loading
   const [selectedSection, setSelectedSection] = useState('overview');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(() => {
+    // Initialize template from saved config
+    const savedConfig = localStorage.getItem('kastle_dashboard_config');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        return config.template || 'executive';
+      } catch (error) {
+        return 'executive';
+      }
+    }
+    return 'executive';
+  });
   const [showDataSeeder, setShowDataSeeder] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState(null);
   const [isFixingData, setIsFixingData] = useState(false);
@@ -1284,6 +1434,27 @@ export default function EnhancedDashboard() {
   
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const autoRefreshInterval = useRef(null);
+
+  // Set up auto-refresh
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshInterval.current = setInterval(() => {
+        fetchDashboardData();
+      }, 30000); // Refresh every 30 seconds
+    } else {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+        autoRefreshInterval.current = null;
+      }
+    }
+    
+    return () => {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+      }
+    };
+  }, [autoRefresh]);
 
   // Fetch filter options from database
   const fetchFilterOptions = async () => {
@@ -1306,71 +1477,93 @@ export default function EnhancedDashboard() {
   };
 
   // Fetch dashboard data
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isManualRefresh = false) => {
     try {
-      setLoading(true);
+      // Set refreshing state if manual refresh
+      if (isManualRefresh) {
+        setRefreshing(true);
+      }
+      
+      // Don't set global loading anymore
       const data = {};
       const errors = [];
+      const loadingStates = {};
       
       console.log('Starting dashboard data fetch...');
       console.log('Active widgets:', widgets.length);
-      console.log('Widgets:', widgets);
       
       // If no widgets, don't fetch data
       if (!widgets || widgets.length === 0) {
         console.log('No widgets to fetch data for');
-        setLoading(false);
         return;
       }
       
-      // Fetch data for all widgets
+      // Set all widgets to loading state
+      widgets.forEach(widget => {
+        const key = `${widget.section}_${widget.widget}`;
+        loadingStates[key] = true;
+      });
+      setWidgetLoadingStates(loadingStates);
+      
+      // Fetch data for all widgets in parallel
       const widgetPromises = widgets.map(async (widget) => {
         const widgetDef = WIDGET_CATALOG[widget.section]?.[widget.widget];
+        const key = `${widget.section}_${widget.widget}`;
+        
         if (widgetDef?.query) {
           try {
-            console.log(`Fetching data for widget: ${widget.section}_${widget.widget}`);
+            console.log(`Fetching data for widget: ${key}`);
             const result = await widgetDef.query(filters);
-            const key = `${widget.section}_${widget.widget}`;
             console.log(`Data received for ${key}:`, result);
+            
+            // Update data and loading state for this specific widget
+            setWidgetData(prev => ({ ...prev, [key]: result }));
+            setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
+            
             data[key] = result;
           } catch (error) {
             console.error(`Error fetching ${widget.widget}:`, error);
             errors.push({ widget: widget.widget, error: error.message });
-            // Don't set mock data on error - let the widget handle the empty state
-            const key = `${widget.section}_${widget.widget}`;
+            
+            // Set error state for this widget
+            setWidgetData(prev => ({ ...prev, [key]: null }));
+            setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
+            
             data[key] = null;
           }
+        } else {
+          // No query function, mark as not loading
+          setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
         }
       });
       
       // Wait for all promises to complete
       await Promise.all(widgetPromises);
       
-      console.log('Final widget data:', Object.keys(data));
-      setWidgetData(data);
+      console.log('All widgets data fetched');
       
       // Show error summary if any widgets failed
       if (errors.length > 0) {
-        toast.warning('Some widgets failed to load data');
+        toast.warning(`${errors.length} widget(s) failed to load data`);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast.error('Failed to fetch dashboard data');
+      
+      // Clear all loading states on error
+      const clearedStates = {};
+      widgets.forEach(widget => {
+        const key = `${widget.section}_${widget.widget}`;
+        clearedStates[key] = false;
+      });
+      setWidgetLoadingStates(clearedStates);
     } finally {
-      setLoading(false);
+      // Clear refreshing state
+      if (isManualRefresh) {
+        setRefreshing(false);
+      }
     }
   };
-
-  // Use the data refresh hook
-  const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
-    fetchDashboardData,
-    [filters, widgets], // Refresh when filters or widgets change
-    {
-      refreshOnMount: true, // Load data automatically on mount
-      refreshInterval: autoRefresh ? 30000 : null, // Auto-refresh every 30 seconds if enabled
-      showNotification: false
-    }
-  );
 
   // Initialize dashboard with default data
   useEffect(() => {
@@ -1382,71 +1575,43 @@ export default function EnhancedDashboard() {
       }
       hasInitialized.current = true;
       
-      // Auto-login for demo purposes
-      try {
-        await autoLogin();
-      } catch (error) {
-        console.error('Error with auto-login:', error);
-      }
+      // Start fetching data immediately
+      fetchDashboardData();
       
-      // Check database status first
-      const status = await checkDatabaseStatus();
-      setDatabaseStatus(status);
-      console.log('Database status:', status);
-      
-      // If database has no data, show the data seeder
-      // Commented out to prevent automatic popup - user can click button instead
-      // if (status.isConnected && !status.hasData) {
-      //   setShowDataSeeder(true);
-      // }
-      
-      // Initialize database with proper reference data
-      try {
-        await initializeDatabase();
-      } catch (error) {
-        console.error('Error initializing database:', error);
-        // Fallback to old fix method
-        try {
-          await fixDashboard({ skipSeeding: true });
-        } catch (retryError) {
-          console.error('Error fixing dashboard (retry):', retryError);
-        }
-      }
-      
-      // Load dashboard configuration first
-      await loadDashboardConfig();
-      
-      // Fetch filter options from database
-      await fetchFilterOptions();
-      
-      // Data will be loaded automatically by useDataRefresh hook with refreshOnMount: true
+      // Run other initialization tasks in parallel
+      Promise.all([
+        // Auto-login for demo purposes
+        autoLogin().catch(error => console.error('Error with auto-login:', error)),
+        
+        // Check database status
+        checkDatabaseStatus().then(status => {
+          setDatabaseStatus(status);
+          console.log('Database status:', status);
+        }),
+        
+        // Initialize database with proper reference data
+        initializeDatabase().catch(error => {
+          console.error('Error initializing database:', error);
+          // Fallback to old fix method
+          return fixDashboard({ skipSeeding: true }).catch(retryError => {
+            console.error('Error fixing dashboard (retry):', retryError);
+          });
+        }),
+        
+        // Fetch filter options from database
+        fetchFilterOptions()
+      ]);
     };
     
     initializeDashboard();
   }, []);
 
-  // Load saved dashboard configuration
-  const loadDashboardConfig = async () => {
-    const savedConfig = localStorage.getItem('kastle_dashboard_config');
-    if (savedConfig) {
-      try {
-        const config = JSON.parse(savedConfig);
-        if (config.widgets && config.widgets.length > 0) {
-          setWidgets(config.widgets);
-          setSelectedTemplate(config.template);
-        } else {
-          // If no widgets saved, load default template
-          await loadTemplate('executive');
-        }
-      } catch (error) {
-        console.error('Error loading saved config:', error);
-        await loadTemplate('executive');
-      }
-    } else {
-      // Load default template with enhanced overview widgets
-      await loadTemplate('executive');
+  // Fetch data when widgets or filters change
+  useEffect(() => {
+    if (widgets.length > 0) {
+      fetchDashboardData();
     }
-  };
+  }, [widgets, filters]);
 
   // Save dashboard configuration
   const saveDashboardConfig = () => {
@@ -1626,75 +1791,57 @@ export default function EnhancedDashboard() {
     
     const dataKey = `${widget.section}_${widget.widget}`;
     const data = widgetData[dataKey];
-    const widgetName = widgetDef.nameEn;
+    const isLoading = widgetLoadingStates[dataKey] || false;
+    const hasData = data !== undefined && data !== null;
     
-    // Size classes - mobile-first responsive design
+    // Determine grid size classes
     const sizeClasses = {
-      small: 'col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3 xl:col-span-2',
-      medium: 'col-span-12 sm:col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-4',
-      large: 'col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6 xl:col-span-6',
-      full: 'col-span-12'
+      small: 'col-span-12 sm:col-span-6 lg:col-span-3',
+      medium: 'col-span-12 sm:col-span-6 lg:col-span-4',
+      large: 'col-span-12 sm:col-span-12 lg:col-span-6',
+      xlarge: 'col-span-12'
     };
     
     return (
       <motion.div
         key={widget.id}
-        className={cn(sizeClasses[widget.size] || sizeClasses.medium)}
+        layout
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        whileHover={!isEditMode ? { scale: 1.02 } : {}}
-        transition={{ duration: 0.2 }}
+        className={sizeClasses[widget.size || 'medium']}
       >
-        <Card 
-          className={cn(
-            "h-full cursor-pointer transition-all hover:shadow-lg relative group",
-            loading && "opacity-50"
-          )}
-          onClick={() => handleWidgetClick(widget)}
-        >
-          <CardHeader className="pb-2 px-3 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 sm:gap-2">
-                <widgetDef.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
-                <CardTitle className="text-sm sm:text-base line-clamp-1">{widgetName}</CardTitle>
+        <Card className="h-full hover:shadow-lg transition-shadow duration-200">
+          <CardHeader className="pb-2 sm:pb-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <widgetDef.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <CardTitle className="text-sm sm:text-base">
+                  {i18n.language === 'ar' ? widgetDef.name : widgetDef.nameEn}
+                </CardTitle>
               </div>
-              <div className="flex items-center gap-1">
-                {!isEditMode && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleWidgetClick(widget);
-                    }}
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {isEditMode && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeWidget(widget.id);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              {isEditMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeWidget(widget.id)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </CardHeader>
-          <CardContent className="px-3 sm:px-6">
-            {loading ? (
+          <CardContent className="pt-2 sm:pt-4">
+            {isLoading ? (
+              // Show loading state for individual widget
               <div className="h-32 flex items-center justify-center">
-                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="text-center">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary/50 mb-2" />
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                </div>
               </div>
-            ) : data ? (
+            ) : hasData ? (
               <>
                 {widgetDef.type === 'kpi' && (
                   <div className="space-y-1 sm:space-y-2">
@@ -1964,12 +2111,12 @@ export default function EnhancedDashboard() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                refresh(); // Use the refresh function from useDataRefresh
+                fetchDashboardData(true); // Pass true for manual refresh
               }}
-              disabled={isRefreshing}
+              disabled={refreshing}
               className="text-xs sm:text-sm"
             >
-              <RefreshCw className={cn("h-4 w-4 mr-1 sm:mr-2", isRefreshing && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4 mr-1 sm:mr-2", refreshing && "animate-spin")} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             
@@ -2141,7 +2288,7 @@ export default function EnhancedDashboard() {
                       productType: 'all',
                       customerSegment: 'all'
                     });
-                    refresh(); // Use the refresh function from useDataRefresh
+                    fetchDashboardData(true); // Use the refresh function from useDataRefresh
                   }}
                 >
                   Reset
@@ -2149,7 +2296,7 @@ export default function EnhancedDashboard() {
                 <Button
                   size="sm"
                   onClick={() => {
-                    refresh(); // Use the refresh function from useDataRefresh
+                    fetchDashboardData(true); // Use the refresh function from useDataRefresh
                     setShowFilters(false);
                   }}
                 >
@@ -2209,24 +2356,13 @@ export default function EnhancedDashboard() {
 
       {/* Widgets Grid */}
       <div className="flex-1 overflow-auto">
-        {loading && widgets.length === 0 ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <RefreshCw className="h-12 w-12 animate-spin mx-auto text-primary mb-4" />
-              <p className="text-muted-foreground">
-                Loading dashboard...
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-12 gap-3 sm:gap-4 px-2 sm:px-0">
-            {widgets
-              .filter(w => w.section === selectedSection)
-              .map((widget) => renderWidget(widget))}
-          </div>
-        )}
+        <div className="grid grid-cols-12 gap-3 sm:gap-4 px-2 sm:px-0">
+          {widgets
+            .filter(w => w.section === selectedSection)
+            .map((widget) => renderWidget(widget))}
+        </div>
         
-        {!loading && widgets.filter(w => w.section === selectedSection).length === 0 && (
+        {widgets.filter(w => w.section === selectedSection).length === 0 && (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
@@ -2375,7 +2511,7 @@ export default function EnhancedDashboard() {
         <Button 
           onClick={() => {
             console.log('Manually refreshing dashboard data...');
-            refresh();
+            fetchDashboardData(true);
           }}
           variant="outline"
           size="sm"

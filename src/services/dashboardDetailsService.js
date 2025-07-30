@@ -11,66 +11,96 @@ export const customerDetailsService = {
   // Get customer overview stats
   async getOverviewStats() {
     try {
-      // Total customers
-      const { count: totalCustomers } = await supabaseBanking
+      // Total customers - get all customers
+      const { count: totalCustomers, error: totalError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true });
 
+      if (totalError) {
+        console.error('Error fetching total customers:', totalError);
+      }
+
       // Active customers (with active accounts)
-      const { data: activeCustomers } = await supabaseBanking
+      const { data: activeAccounts, error: activeError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
-        .select('customer_id', { count: 'exact' })
+        .select('customer_id')
         .eq('account_status', 'ACTIVE');
       
-      const uniqueActiveCustomers = new Set(activeCustomers?.map(a => a.customer_id) || []).size;
+      if (activeError) {
+        console.error('Error fetching active accounts:', activeError);
+      }
+      
+      const uniqueActiveCustomers = new Set(activeAccounts?.map(a => a.customer_id) || []).size;
 
       // New customers this month
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
       
-      const { count: newCustomersMonth } = await supabaseBanking
+      const { count: newCustomersMonth, error: newError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
 
-      // Customer segments - handle missing foreign key gracefully
+      if (newError) {
+        console.error('Error fetching new customers:', newError);
+      }
+
+      // Customer segments - get all customers with their types
       let segmentCounts = {};
       try {
-        const { data: segments, error: segmentsError } = await supabaseBanking
+        // First try with join
+        const { data: customersWithTypes, error: joinError } = await supabaseBanking
           .from(TABLES.CUSTOMERS)
           .select(`
+            customer_id,
+            customer_type,
+            customer_segment,
             customer_type_id,
             customer_types (
               type_name
             )
-          `)
-          .order('customer_type_id');
+          `);
         
-        if (segmentsError) {
-          console.error('Error fetching customer segments:', segmentsError);
-          // Fallback to simple customer type count without join
-          const { data: customers } = await supabaseBanking
+        if (joinError) {
+          console.error('Error with customer types join:', joinError);
+          // Fallback to simple query without join
+          const { data: customers, error: simpleError } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('customer_type_id');
+            .select('customer_type, customer_segment, customer_type_id');
           
-          segmentCounts = customers?.reduce((acc, curr) => {
-            const typeId = curr.customer_type_id || 'Unknown';
-            acc[`Type ${typeId}`] = (acc[`Type ${typeId}`] || 0) + 1;
-            return acc;
-          }, {}) || {};
-        } else {
-          segmentCounts = segments?.reduce((acc, curr) => {
-            const typeName = curr.customer_types?.type_name || 'Unknown';
+          if (simpleError) {
+            console.error('Error fetching customers:', simpleError);
+          } else if (customers && customers.length > 0) {
+            // Count by segment using same logic as main dashboard
+            segmentCounts = customers.reduce((acc, curr) => {
+              const segment = curr.customer_segment || 
+                            curr.customer_type || 
+                            (curr.customer_type_id ? `Type ${curr.customer_type_id}` : 'Standard');
+              acc[segment] = (acc[segment] || 0) + 1;
+              return acc;
+            }, {});
+          }
+        } else if (customersWithTypes && customersWithTypes.length > 0) {
+          // Use join data if successful
+          segmentCounts = customersWithTypes.reduce((acc, curr) => {
+            const typeName = curr.customer_types?.type_name || 
+                           curr.customer_segment || 
+                           curr.customer_type || 
+                           (curr.customer_type_id ? `Type ${curr.customer_type_id}` : 'Standard');
             acc[typeName] = (acc[typeName] || 0) + 1;
             return acc;
-          }, {}) || {};
+          }, {});
         }
       } catch (error) {
         console.error('Error in customer segments query:', error);
-        // Use empty object as fallback
         segmentCounts = {};
       }
+
+      // Calculate growth rate
+      const growthRate = totalCustomers > 0 && newCustomersMonth > 0 
+        ? ((newCustomersMonth / totalCustomers) * 100).toFixed(2)
+        : '0.00';
 
       return {
         data: {
@@ -78,12 +108,18 @@ export const customerDetailsService = {
           activeCustomers: uniqueActiveCustomers,
           newCustomersMonth: newCustomersMonth || 0,
           segments: segmentCounts,
-          growthRate: ((newCustomersMonth || 0) / (totalCustomers || 1) * 100).toFixed(2)
+          growthRate: growthRate
         },
         error: null
       };
     } catch (error) {
-      return handleError(error, {});
+      return handleError(error, {
+        totalCustomers: 0,
+        activeCustomers: 0,
+        newCustomersMonth: 0,
+        segments: {},
+        growthRate: '0.00'
+      });
     }
   },
 
@@ -181,35 +217,78 @@ export const customerDetailsService = {
 export const accountDetailsService = {
   async getOverviewStats() {
     try {
-      // Total accounts
-      const { count: totalAccounts } = await supabaseBanking
+      // Total accounts - get all accounts
+      const { count: totalAccounts, error: totalError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true });
 
+      if (totalError) {
+        console.error('Error fetching total accounts:', totalError);
+      }
+
       // Active accounts
-      const { count: activeAccounts } = await supabaseBanking
+      const { count: activeAccounts, error: activeError } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select('*', { count: 'exact', head: true })
         .eq('account_status', 'ACTIVE');
 
-      // Account types breakdown
+      if (activeError) {
+        console.error('Error fetching active accounts:', activeError);
+      }
+
+      // Get all accounts with types for breakdown
+      const { data: accounts, error: accountsError } = await supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('account_type_id, account_type, current_balance, account_status');
+
+      if (accountsError) {
+        console.error('Error fetching accounts:', accountsError);
+      }
+
+      // Try to get account type names
       const { data: accountTypes } = await supabaseBanking
-        .from(TABLES.ACCOUNTS)
-        .select('account_type_id, account_types!inner(type_name)');
+        .from('account_types')
+        .select('type_id, type_name, account_category');
+      
+      // Create type map
+      const typeMap = {};
+      if (accountTypes) {
+        accountTypes.forEach(type => {
+          typeMap[type.type_id] = {
+            name: type.type_name,
+            category: type.account_category
+          };
+        });
+      }
 
-      const typeBreakdown = accountTypes?.reduce((acc, curr) => {
-        const typeName = curr.account_types?.type_name || 'Unknown';
-        acc[typeName] = (acc[typeName] || 0) + 1;
-        return acc;
-      }, {}) || {};
+      // Account types breakdown
+      const typeBreakdown = {};
+      if (accounts) {
+        accounts.forEach(account => {
+          let typeName = 'Other';
+          
+          if (account.account_type_id && typeMap[account.account_type_id]) {
+            typeName = typeMap[account.account_type_id].name || typeMap[account.account_type_id].category;
+          } else if (account.account_type) {
+            typeName = account.account_type.replace(/_/g, ' ');
+          }
+          
+          typeBreakdown[typeName] = (typeBreakdown[typeName] || 0) + 1;
+        });
+      }
 
-      // Total balance
-      const { data: balances } = await supabaseBanking
-        .from(TABLES.ACCOUNTS)
-        .select('current_balance')
-        .eq('account_status', 'ACTIVE');
+      // Total balance from all accounts
+      const totalBalance = accounts?.reduce((sum, acc) => {
+        return sum + (parseFloat(acc.current_balance) || 0);
+      }, 0) || 0;
 
-      const totalBalance = balances?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
+      // Active accounts balance
+      const activeBalance = accounts?.reduce((sum, acc) => {
+        if (acc.account_status === 'ACTIVE') {
+          return sum + (parseFloat(acc.current_balance) || 0);
+        }
+        return sum;
+      }, 0) || 0;
 
       return {
         data: {
@@ -218,12 +297,21 @@ export const accountDetailsService = {
           dormantAccounts: (totalAccounts || 0) - (activeAccounts || 0),
           accountTypes: typeBreakdown,
           totalBalance: totalBalance,
-          averageBalance: totalBalance / (activeAccounts || 1)
+          activeBalance: activeBalance,
+          averageBalance: activeAccounts > 0 ? activeBalance / activeAccounts : 0
         },
         error: null
       };
     } catch (error) {
-      return handleError(error, {});
+      return handleError(error, {
+        totalAccounts: 0,
+        activeAccounts: 0,
+        dormantAccounts: 0,
+        accountTypes: {},
+        totalBalance: 0,
+        activeBalance: 0,
+        averageBalance: 0
+      });
     }
   },
 
