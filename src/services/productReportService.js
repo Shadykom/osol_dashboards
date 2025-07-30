@@ -98,7 +98,20 @@ export class ProductReportService {
           loan_amount,
           overdue_amount,
           overdue_days,
-          customer_id
+          customer_id,
+          customers!inner (
+            customer_id,
+            full_name,
+            customer_type,
+            risk_category,
+            onboarding_branch,
+            branches!kastle_banking_customers_onboarding_branch_fkey (
+              branch_id,
+              branch_name,
+              city,
+              state
+            )
+          )
         `)
         .eq('product_id', productIdStr);
 
@@ -251,15 +264,18 @@ export class ProductReportService {
     const branchStats = {};
     
     loans?.forEach(loan => {
-      const branchName = loan.kastle_banking?.customers?.kastle_banking?.branches?.branch_name || 'Unknown';
-      const branchId = loan.kastle_banking?.customers?.branch_id || 'unknown';
+      // Access the joined customer and branch data
+      const customer = loan.customers;
+      const branch = customer?.branches;
+      const branchId = branch?.branch_id || 'unknown';
+      const branchName = branch?.branch_name || 'Unknown Branch';
       
       if (!branchStats[branchId]) {
         branchStats[branchId] = {
           branchId,
           branchName,
-          city: loan.kastle_banking?.customers?.kastle_banking?.branches?.city || '',
-          region: loan.kastle_banking?.customers?.kastle_banking?.branches?.region || '',
+          city: branch?.city || '',
+          region: branch?.state || '', // Using state as region for display
           totalLoans: 0,
           totalAmount: 0,
           overdueLoans: 0,
@@ -592,13 +608,13 @@ export class ProductReportService {
       .slice(0, limit)
       .map(loan => ({
         loanAccountNumber: loan.loan_account_number,
-        customerName: loan.kastle_banking?.customers?.full_name || 'Unknown',
-        customerType: loan.kastle_banking?.customers?.customer_type || 'Unknown',
-        branchName: loan.kastle_banking?.customers?.kastle_banking?.branches?.branch_name || 'Unknown',
+        customerName: loan.customers?.full_name || 'Unknown',
+        customerType: loan.customers?.customer_type || 'Unknown',
+        branchName: loan.customers?.branches?.branch_name || 'Unknown',
         loanAmount: loan.loan_amount || loan.principal_amount,
         overdueAmount: loan.overdue_amount,
         overdueDays: loan.overdue_days,
-        riskCategory: loan.kastle_banking?.customers?.risk_category || 'Unknown'
+        riskCategory: loan.customers?.risk_category || 'Unknown'
       })) || [];
   }
 

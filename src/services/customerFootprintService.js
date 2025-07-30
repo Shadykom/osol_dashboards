@@ -20,7 +20,7 @@ export class CustomerFootprintService {
     try {
       const { data, error } = await supabaseBanking
         .from(TABLES.BRANCHES)
-        .select('branch_id, branch_name, city, region')
+        .select('branch_id, branch_name, city, state')
         .order('branch_name');
 
       if (error) throw error;
@@ -289,7 +289,7 @@ export class CustomerFootprintService {
       if (data.onboarding_branch) {
         const { data: branchData } = await supabaseBanking
           .from(TABLES.BRANCHES)
-          .select('branch_id, branch_name, city, region')
+          .select('branch_id, branch_name, city, state')
           .eq('branch_id', data.onboarding_branch)
           .single();
         branch = branchData;
