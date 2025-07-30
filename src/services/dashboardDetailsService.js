@@ -1379,7 +1379,7 @@ export const chartDetailsService = {
       });
       
       loans?.forEach(loan => {
-        const branchId = loan.branch_id || 'Unknown';
+        const branchId = loan.loan_applications?.branch_id || 'Unknown';
         if (!branchAssets[branchId]) {
           branchAssets[branchId] = { deposits: 0, loans: 0 };
         }

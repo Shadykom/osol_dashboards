@@ -688,6 +688,122 @@ export default function DashboardDetail() {
           {/* Special handling for chart widgets */}
           {config.isChart && data && (
             <div className="grid gap-4">
+              {type === 'overview' && widgetId === 'total_assets' && data.overview && (
+                <>
+                  {/* Overview Statistics */}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                      title="Total Assets"
+                      value={`SAR ${(data.overview.totalAssets / 1000000000).toFixed(2)}B`}
+                      description="Combined deposits and loans"
+                      icon={DollarSign}
+                    />
+                    <StatCard
+                      title="Total Deposits"
+                      value={`SAR ${(data.overview.totalDeposits / 1000000000).toFixed(2)}B`}
+                      description={`${data.overview.depositRatio}% of total assets`}
+                      icon={CreditCard}
+                    />
+                    <StatCard
+                      title="Total Loans"
+                      value={`SAR ${(data.overview.totalLoans / 1000000000).toFixed(2)}B`}
+                      description={`${data.overview.loanRatio}% of total assets`}
+                      icon={Activity}
+                    />
+                  </div>
+
+                  {/* Account Types Breakdown */}
+                  {data.accountTypes && Object.keys(data.accountTypes).length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Deposit Accounts by Type</CardTitle>
+                        <CardDescription>Distribution of deposit accounts across different types</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {Object.entries(data.accountTypes).map(([typeId, info]) => (
+                            <div key={typeId} className="flex items-center justify-between">
+                              <div>
+                                <span className="font-medium">Account Type {typeId}</span>
+                                <p className="text-sm text-muted-foreground">{info.count} accounts</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold">SAR {(info.balance / 1000000).toFixed(1)}M</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {((info.balance / data.overview.totalDeposits) * 100).toFixed(1)}% of deposits
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Loan Products Breakdown */}
+                  {data.loanProducts && Object.keys(data.loanProducts).length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Loan Portfolio by Product</CardTitle>
+                        <CardDescription>Outstanding loan balances by product type</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {Object.entries(data.loanProducts).map(([productId, info]) => (
+                            <div key={productId} className="flex items-center justify-between">
+                              <div>
+                                <span className="font-medium">Product {productId}</span>
+                                <p className="text-sm text-muted-foreground">{info.count} loans</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold">SAR {(info.balance / 1000000).toFixed(1)}M</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {((info.balance / data.overview.totalLoans) * 100).toFixed(1)}% of loans
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Metrics Summary */}
+                  {data.metrics && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Asset Metrics</CardTitle>
+                        <CardDescription>Key performance indicators</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Average Account Balance</p>
+                            <p className="text-xl font-semibold">
+                              SAR {(data.metrics.averageAccountBalance / 1000).toFixed(1)}K
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Average Loan Balance</p>
+                            <p className="text-xl font-semibold">
+                              SAR {(data.metrics.averageLoanBalance / 1000).toFixed(1)}K
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Accounts</p>
+                            <p className="text-xl font-semibold">{data.metrics.totalAccounts.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Loan Accounts</p>
+                            <p className="text-xl font-semibold">{data.metrics.totalLoanAccounts.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+
               {type === 'customer' && data.segments && (
                 <Card>
                   <CardHeader>
