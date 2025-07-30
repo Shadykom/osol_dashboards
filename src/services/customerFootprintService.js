@@ -217,6 +217,14 @@ export class CustomerFootprintService {
    */
   static async getCustomerFootprint(customerId, filters = {}) {
     try {
+      // Validate customerId
+      if (!customerId) {
+        return {
+          success: false,
+          error: 'Customer ID is required'
+        };
+      }
+
       // Get customer profile
       const profile = await this.getCustomerProfile(customerId);
       if (!profile.success) {
@@ -269,6 +277,11 @@ export class CustomerFootprintService {
    */
   static async getCustomerProfile(customerId) {
     try {
+      // Validate customerId
+      if (!customerId) {
+        throw new Error('Customer ID is required');
+      }
+
       const { data, error } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select(`
@@ -283,6 +296,11 @@ export class CustomerFootprintService {
         .single();
 
       if (error) throw error;
+
+      // Ensure we have valid data
+      if (!data) {
+        throw new Error('Customer not found');
+      }
 
       // Get branch information
       let branch = null;
@@ -306,8 +324,10 @@ export class CustomerFootprintService {
         relationshipManager = managerData;
       }
 
-      // Calculate additional metrics
-      const customerSinceDays = differenceInDays(new Date(), parseISO(data.created_at));
+      // Calculate additional metrics - with null checks
+      const customerSinceDays = data.created_at 
+        ? differenceInDays(new Date(), parseISO(data.created_at))
+        : 0;
       
       // Get total relationship value from accounts and loans
       const { data: accountsData } = await supabaseBanking
