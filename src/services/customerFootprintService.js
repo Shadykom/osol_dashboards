@@ -14,51 +14,193 @@ import { format, parseISO, subMonths, differenceInDays } from 'date-fns';
 export class CustomerFootprintService {
   
   /**
-   * Search for customers by various criteria
+   * Get all branches
    */
-  static async searchCustomers(query, filters = {}) {
+  static async getBranches() {
     try {
-      let queryBuilder = supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select(`
-          customer_id,
-          full_name,
-          national_id,
-          email,
-          phone_number,
-          customer_type,
-          risk_category,
-          created_at,
-          branch:branches(branch_id, branch_name, city)
-        `)
-        .limit(10);
-
-      // Apply search query
-      if (query && query.trim()) {
-        queryBuilder = queryBuilder.or(`
-          full_name.ilike.%${query}%,
-          national_id.ilike.%${query}%,
-          phone_number.ilike.%${query}%,
-          email.ilike.%${query}%
-        `);
-      }
-
-      // Apply filters
-      if (filters.branch && filters.branch !== 'all') {
-        queryBuilder = queryBuilder.eq('branch_id', filters.branch);
-      }
-      
-      if (filters.riskCategory && filters.riskCategory !== 'all') {
-        queryBuilder = queryBuilder.eq('risk_category', filters.riskCategory);
-      }
-
-      const { data, error } = await queryBuilder;
+      const { data, error } = await supabaseBanking
+        .from(TABLES.BRANCHES)
+        .select('branch_id, branch_name, city, region')
+        .order('branch_name');
 
       if (error) throw error;
 
       return {
         success: true,
         data: data || []
+      };
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
+    }
+  }
+  
+  /**
+   * Search for customers by various criteria
+   */
+  static async searchCustomers(query, filters = {}) {
+    try {
+      // First, try to find customers directly
+      let queryBuilder = supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select(`
+          customer_id,
+          first_name,
+          middle_name,
+          last_name,
+          full_name,
+          nationality,
+          tax_id,
+          email,
+          customer_type_id,
+          segment,
+          risk_category,
+          created_at,
+          onboarding_branch,
+          customer_contacts!customer_contacts_customer_id_fkey (
+            contact_type,
+            contact_value
+          )
+        `)
+        .limit(20);
+
+      // Apply search query
+      if (query && query.trim()) {
+        const searchTerm = query.trim();
+        
+        // Build the OR conditions for search
+        const orConditions = [
+          `full_name.ilike.%${searchTerm}%`,
+          `first_name.ilike.%${searchTerm}%`,
+          `last_name.ilike.%${searchTerm}%`,
+          `customer_id.eq.${searchTerm}`,
+          `tax_id.eq.${searchTerm}`,
+          `email.ilike.%${searchTerm}%`
+        ];
+
+        // Search in customer table fields
+        queryBuilder = queryBuilder.or(orConditions.join(','));
+      }
+
+      // Apply filters
+      if (filters.branch && filters.branch !== 'all') {
+        queryBuilder = queryBuilder.eq('onboarding_branch', filters.branch);
+      }
+      
+      if (filters.riskCategory && filters.riskCategory !== 'all') {
+        const riskMap = {
+          'low': 'LOW',
+          'medium': 'MEDIUM',
+          'high': 'HIGH'
+        };
+        queryBuilder = queryBuilder.eq('risk_category', riskMap[filters.riskCategory] || filters.riskCategory);
+      }
+
+      const { data: customers, error } = await queryBuilder;
+
+      if (error) {
+        console.error('Error searching customers:', error);
+        throw error;
+      }
+
+      // If searching by phone number, also search in customer_contacts
+      let contactMatches = [];
+      if (query && query.trim() && /^\d+$/.test(query.trim())) {
+        const { data: contactData, error: contactError } = await supabaseBanking
+          .from(TABLES.CUSTOMER_CONTACTS)
+          .select(`
+            customer_id,
+            contact_value,
+            contact_type,
+            customer:customers!inner (
+              customer_id,
+              first_name,
+              middle_name,
+              last_name,
+              full_name,
+              nationality,
+              tax_id,
+              email,
+              customer_type_id,
+              segment,
+              risk_category,
+              created_at,
+              onboarding_branch
+            )
+          `)
+          .ilike('contact_value', `%${query.trim()}%`)
+          .in('contact_type', ['MOBILE', 'HOME', 'WORK'])
+          .limit(20);
+
+        if (!contactError && contactData) {
+          contactMatches = contactData.map(contact => ({
+            ...contact.customer,
+            phone_number: contact.contact_value,
+            customer_contacts: [{
+              contact_type: contact.contact_type,
+              contact_value: contact.contact_value
+            }]
+          }));
+        }
+      }
+
+      // Combine and deduplicate results
+      const allResults = [...(customers || [])];
+      
+      // Add contact matches that aren't already in the results
+      contactMatches.forEach(match => {
+        if (!allResults.find(c => c.customer_id === match.customer_id)) {
+          allResults.push(match);
+        }
+      });
+
+      // Get branch information
+      const branchIds = [...new Set(allResults.map(c => c.onboarding_branch).filter(Boolean))];
+      let branchMap = {};
+      
+      if (branchIds.length > 0) {
+        const { data: branches } = await supabaseBanking
+          .from(TABLES.BRANCHES)
+          .select('branch_id, branch_name, city')
+          .in('branch_id', branchIds);
+        
+        if (branches) {
+          branchMap = branches.reduce((acc, branch) => {
+            acc[branch.branch_id] = branch;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Format the results
+      const formattedResults = allResults.map(customer => {
+        // Get primary mobile number
+        const mobileContact = customer.customer_contacts?.find(c => c.contact_type === 'MOBILE') ||
+                            customer.customer_contacts?.[0];
+        
+        return {
+          customer_id: customer.customer_id,
+          full_name: customer.full_name || `${customer.first_name || ''} ${customer.middle_name || ''} ${customer.last_name || ''}`.trim(),
+          national_id: customer.tax_id || customer.nationality || 'N/A',
+          email: customer.email || 'N/A',
+          phone_number: customer.phone_number || mobileContact?.contact_value || 'N/A',
+          customer_type: customer.segment || 'RETAIL',
+          risk_category: customer.risk_category || 'LOW',
+          created_at: customer.created_at,
+          branch: branchMap[customer.onboarding_branch] || {
+            branch_id: customer.onboarding_branch,
+            branch_name: customer.onboarding_branch || 'Main Branch'
+          }
+        };
+      });
+
+      return {
+        success: true,
+        data: formattedResults
       };
     } catch (error) {
       console.error('Error searching customers:', error);
@@ -131,13 +273,38 @@ export class CustomerFootprintService {
         .from(TABLES.CUSTOMERS)
         .select(`
           *,
-          branch:branches(branch_id, branch_name, city, region),
-          relationship_manager:collection_officers(officer_id, full_name, phone_number, email)
+          customer_contacts!customer_contacts_customer_id_fkey (
+            contact_type,
+            contact_value,
+            is_primary
+          )
         `)
         .eq('customer_id', customerId)
         .single();
 
       if (error) throw error;
+
+      // Get branch information
+      let branch = null;
+      if (data.onboarding_branch) {
+        const { data: branchData } = await supabaseBanking
+          .from(TABLES.BRANCHES)
+          .select('branch_id, branch_name, city, region')
+          .eq('branch_id', data.onboarding_branch)
+          .single();
+        branch = branchData;
+      }
+
+      // Get relationship manager if exists
+      let relationshipManager = null;
+      if (data.relationship_manager) {
+        const { data: managerData } = await supabaseBanking
+          .from(TABLES.COLLECTION_OFFICERS)
+          .select('officer_id, full_name, phone_number, email')
+          .eq('officer_id', data.relationship_manager)
+          .single();
+        relationshipManager = managerData;
+      }
 
       // Calculate additional metrics
       const customerSinceDays = differenceInDays(new Date(), parseISO(data.created_at));
@@ -170,10 +337,19 @@ export class CustomerFootprintService {
         20 - (loyaltyScore - 50) / 10
       ));
 
+      // Get primary phone number
+      const primaryPhone = data.customer_contacts?.find(c => c.is_primary && c.contact_type === 'MOBILE') ||
+                          data.customer_contacts?.find(c => c.contact_type === 'MOBILE') ||
+                          data.customer_contacts?.[0];
+
       return {
         success: true,
         data: {
           ...data,
+          full_name: data.full_name || `${data.first_name || ''} ${data.middle_name || ''} ${data.last_name || ''}`.trim(),
+          phone_number: primaryPhone?.contact_value || 'N/A',
+          branch: branch,
+          relationship_manager: relationshipManager,
           customer_since_days: customerSinceDays,
           total_relationship_value: totalRelationshipValue,
           lifetime_value: lifetimeValue,

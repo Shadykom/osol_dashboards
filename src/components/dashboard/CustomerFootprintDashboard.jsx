@@ -52,9 +52,32 @@ const CustomerFootprintDashboard = () => {
   });
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [branches, setBranches] = useState([]);
 
   // Colors
   const COLORS = ['#E6B800', '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+  // Re-search when filters change
+  useEffect(() => {
+    if (searchQuery.trim() && searchResults.length > 0) {
+      handleSearch();
+    }
+  }, [filters]);
+
+  // Fetch branches on mount
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const result = await CustomerFootprintService.getBranches();
+        if (result.success) {
+          setBranches(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching branches:', error);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   // Search customers
   const handleSearch = async () => {
@@ -62,12 +85,16 @@ const CustomerFootprintDashboard = () => {
     
     setSearching(true);
     try {
-      const result = await CustomerFootprintService.searchCustomers(searchQuery);
+      const result = await CustomerFootprintService.searchCustomers(searchQuery, filters);
       if (result.success) {
         setSearchResults(result.data);
+      } else {
+        console.error('Search failed:', result.error);
+        setSearchResults([]);
       }
     } catch (error) {
       console.error('Search error:', error);
+      setSearchResults([]);
     } finally {
       setSearching(false);
     }
@@ -209,7 +236,7 @@ const CustomerFootprintDashboard = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
                     type="text"
-                    placeholder={isRTL ? "البحث بالاسم، رقم الهوية، رقم الجوال..." : "Search by name, ID, mobile number..."}
+                    placeholder={isRTL ? "البحث بالاسم، معرف العميل، رقم الهوية، رقم الجوال..." : "Search by name, customer ID, national ID, mobile number..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -236,9 +263,11 @@ const CustomerFootprintDashboard = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{isRTL ? "جميع الفروع" : "All Branches"}</SelectItem>
-                  <SelectItem value="BR001">الرياض - الفرع الرئيسي</SelectItem>
-                  <SelectItem value="BR002">جدة - فرع التحلية</SelectItem>
-                  <SelectItem value="BR003">الدمام - فرع الملك فهد</SelectItem>
+                  {branches.map(branch => (
+                    <SelectItem key={branch.branch_id} value={branch.branch_id}>
+                      {branch.branch_name} - {branch.city}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
