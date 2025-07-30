@@ -387,6 +387,15 @@ export function Reports() {
       }
 
       toast.success('Report sent successfully to all recipients!');
+      
+      // Check if mock service is being used
+      const emailService = import.meta.env.VITE_EMAIL_SERVICE || 'mock';
+      if (emailService === 'mock') {
+        toast.warning('Note: Using MOCK email service - emails were not actually delivered. Check EMAIL_CONFIGURATION_GUIDE.md to set up real email delivery.', {
+          duration: 8000
+        });
+      }
+      
       setEmailDialogOpen(false);
       setEmailForm({
         recipients: '',
@@ -398,7 +407,15 @@ export function Reports() {
       });
     } catch (error) {
       console.error('Error sending email:', error);
-      toast.error('Failed to send email: ' + error.message);
+      
+      // Provide helpful error messages
+      if (error.message.includes('API key not configured')) {
+        toast.error('Email service not configured. Please check your environment variables.');
+      } else if (error.message.includes('MOCK')) {
+        toast.info('Email logged but not sent (using mock service)');
+            } else {
+        toast.error(`Failed to send email: ${error.message}`);
+      }
     } finally {
       setIsGenerating(false);
     }

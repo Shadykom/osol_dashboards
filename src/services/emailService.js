@@ -283,11 +283,42 @@ This is an automated email from OSOL Banking System.
   }
 
   /**
-   * Mock API for sending emails (replace with actual email service)
+   * Send email via configured service
    */
   async sendEmailViaMockAPI(payload) {
-    // Simulate API call
-    console.log('Sending email with payload:', {
+    const emailService = import.meta.env.VITE_EMAIL_SERVICE || 'mock';
+    
+    console.log(`Attempting to send email via ${emailService} service...`);
+    
+    try {
+      switch (emailService) {
+        case 'sendgrid':
+          return await this.sendViaSendGrid(payload);
+        case 'resend':
+          return await this.sendViaResend(payload);
+        case 'smtp':
+          return await this.sendViaSMTP(payload);
+        case 'vercel':
+          return await this.sendViaVercelEmail(payload);
+        case 'mock':
+        default:
+          return await this.sendViaMock(payload);
+      }
+    } catch (error) {
+      console.error(`Error sending email via ${emailService}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Mock implementation (current default)
+   */
+  async sendViaMock(payload) {
+    console.log('⚠️ Using MOCK email service - emails will not be delivered!');
+    console.log('Email details:', {
       to: payload.to,
       subject: payload.subject,
       attachments: payload.attachments.length
@@ -296,18 +327,166 @@ This is an automated email from OSOL Banking System.
     // Simulate delay
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Mock success response
     return {
       success: true,
-      id: `msg_${Date.now()}`,
-      message: 'Email sent successfully (mock)'
+      id: `mock_${Date.now()}`,
+      message: 'Email sent successfully (MOCK - not actually sent)'
+    };
+  }
+
+  /**
+   * SendGrid implementation
+   */
+  async sendViaSendGrid(payload) {
+    const apiKey = import.meta.env.VITE_SENDGRID_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('SendGrid API key not configured. Please set VITE_SENDGRID_API_KEY in your .env file');
+    }
+
+    const sgPayload = {
+      personalizations: [{
+        to: payload.to,
+        cc: payload.cc,
+        bcc: payload.bcc
+      }],
+      from: payload.from,
+      subject: payload.subject,
+      content: [
+        { type: 'text/plain', value: payload.text },
+        { type: 'text/html', value: payload.html }
+      ],
+      attachments: payload.attachments.map(att => ({
+        content: att.content,
+        filename: att.filename,
+        type: att.type,
+        disposition: att.disposition
+      }))
     };
 
-    // For real implementation, you would use:
-    // - SendGrid API
-    // - AWS SES
-    // - Mailgun
-    // - Or any other email service provider
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(sgPayload)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`SendGrid error: ${error}`);
+    }
+
+    return {
+      success: true,
+      id: response.headers.get('x-message-id'),
+      message: 'Email sent successfully via SendGrid'
+    };
+  }
+
+  /**
+   * Resend implementation
+   */
+  async sendViaResend(payload) {
+    const apiKey = import.meta.env.VITE_RESEND_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('Resend API key not configured. Please set VITE_RESEND_API_KEY in your .env file');
+    }
+
+    const resendPayload = {
+      from: `${payload.from.name} <${payload.from.email}>`,
+      to: payload.to.map(t => t.email),
+      cc: payload.cc?.map(c => c.email),
+      bcc: payload.bcc?.map(b => b.email),
+      subject: payload.subject,
+      text: payload.text,
+      html: payload.html,
+      attachments: payload.attachments.map(att => ({
+        filename: att.filename,
+        content: att.content
+      }))
+    };
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(resendPayload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Resend error: ${result.message || 'Unknown error'}`);
+    }
+
+    return {
+      success: true,
+      id: result.id,
+      message: 'Email sent successfully via Resend'
+    };
+  }
+
+  /**
+   * SMTP implementation (requires server-side endpoint)
+   */
+  async sendViaSMTP(payload) {
+    // SMTP requires server-side implementation
+    // This would call your backend API endpoint
+    const endpoint = import.meta.env.VITE_EMAIL_API_ENDPOINT || '/api/send-email';
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...payload,
+        service: 'smtp'
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`SMTP error: ${result.error || 'Failed to send email'}`);
+    }
+
+    return {
+      success: true,
+      id: result.messageId,
+      message: 'Email sent successfully via SMTP'
+    };
+  }
+
+  /**
+   * Vercel Email implementation
+   */
+  async sendViaVercelEmail(payload) {
+    // Vercel Email API endpoint
+    const response = await fetch('/api/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Vercel Email error: ${result.error || 'Failed to send email'}`);
+    }
+
+    return {
+      success: true,
+      id: result.id,
+      message: 'Email sent successfully via Vercel Email'
+    };
   }
 
   /**
