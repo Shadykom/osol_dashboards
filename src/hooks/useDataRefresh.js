@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 export function useDataRefresh(refreshFunction, dependencies = [], options = {}) {
@@ -11,6 +11,7 @@ export function useDataRefresh(refreshFunction, dependencies = [], options = {})
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(null);
+  const hasMounted = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -35,14 +36,15 @@ export function useDataRefresh(refreshFunction, dependencies = [], options = {})
 
   // Refresh on mount
   useEffect(() => {
-    if (refreshOnMount) {
+    if (refreshOnMount && !hasMounted.current) {
+      hasMounted.current = true;
       refresh();
     }
-  }, []); // Only run on mount
+  }, [refresh, refreshOnMount]);
 
-  // Refresh on dependencies change
+  // Refresh on dependencies change (but not on mount)
   useEffect(() => {
-    if (dependencies.length > 0) {
+    if (hasMounted.current && dependencies.length > 0) {
       refresh();
     }
   }, dependencies);

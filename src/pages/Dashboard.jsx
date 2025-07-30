@@ -86,6 +86,7 @@ import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelpe
 import { useDashboard } from '@/hooks/useDashboard';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { DataSeeder } from '@/components/dashboard/DataSeeder';
+import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
 // Mock Supabase clients for demonstration
 const mockSupabaseBanking = {
@@ -114,28 +115,8 @@ const mockSupabaseBanking = {
 const mockSupabaseCollection = mockSupabaseBanking;
 
 // Import with fallback
-let supabaseBanking, supabaseCollection, TABLES;
 let formatCurrency, formatNumber;
 let DragDropContext, Droppable, Draggable;
-
-try {
-  const supabaseModule = await import('@/lib/supabase');
-  supabaseBanking = supabaseModule.supabaseBanking;
-  supabaseCollection = supabaseModule.supabaseCollection;
-  TABLES = supabaseModule.TABLES;
-} catch (error) {
-  console.warn('Supabase not configured, using mock data');
-  supabaseBanking = mockSupabaseBanking;
-  supabaseCollection = mockSupabaseCollection;
-  TABLES = {
-    ACCOUNTS: 'accounts',
-    TRANSACTIONS: 'transactions',
-    LOAN_ACCOUNTS: 'loan_accounts',
-    CUSTOMERS: 'customers',
-    COLLECTION_CASES: 'collection_cases',
-    PRODUCTS: 'products'
-  };
-}
 
 try {
   const formattersModule = await import('@/utils/formatters');
@@ -1209,6 +1190,7 @@ if (!formatNumber) {
 export default function EnhancedDashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const hasInitialized = useRef(false);
   
   // State Management
   const [loading, setLoading] = useState(true);
@@ -1242,6 +1224,14 @@ export default function EnhancedDashboard() {
       
       console.log('Starting dashboard data fetch...');
       console.log('Active widgets:', widgets.length);
+      console.log('Widgets:', widgets);
+      
+      // If no widgets, don't fetch data
+      if (!widgets || widgets.length === 0) {
+        console.log('No widgets to fetch data for');
+        setLoading(false);
+        return;
+      }
       
       // Fetch data for all widgets
       const widgetPromises = widgets.map(async (widget) => {
@@ -1256,13 +1246,9 @@ export default function EnhancedDashboard() {
           } catch (error) {
             console.error(`Error fetching ${widget.widget}:`, error);
             errors.push({ widget: widget.widget, error: error.message });
-            // Set mock data on error
+            // Don't set mock data on error - let the widget handle the empty state
             const key = `${widget.section}_${widget.widget}`;
-            if (widgetDef.type === 'kpi') {
-              data[key] = getMockKPIData();
-            } else if (widgetDef.type === 'chart') {
-              data[key] = getMockChartData(widgetDef.chartType);
-            }
+            data[key] = null;
           }
         }
       });
@@ -1274,8 +1260,8 @@ export default function EnhancedDashboard() {
       setWidgetData(data);
       
       // Show error summary if any widgets failed
-      if (errors.length > 0 && supabaseBanking !== mockSupabaseBanking) {
-        toast.warning('Some widgets are using sample data');
+      if (errors.length > 0) {
+        toast.warning('Some widgets failed to load data');
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -1288,7 +1274,7 @@ export default function EnhancedDashboard() {
   // Use the data refresh hook
   const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
     fetchDashboardData,
-    [filters], // Refresh when filters change
+    [filters, widgets], // Refresh when filters or widgets change
     {
       refreshOnMount: true, // Load data automatically on mount
       refreshInterval: autoRefresh ? 30000 : null, // Auto-refresh every 30 seconds if enabled
@@ -1299,6 +1285,13 @@ export default function EnhancedDashboard() {
   // Initialize dashboard with default data
   useEffect(() => {
     const initializeDashboard = async () => {
+      // Prevent multiple initializations
+      if (hasInitialized.current) {
+        console.log('Dashboard already initialized, skipping...');
+        return;
+      }
+      hasInitialized.current = true;
+      
       // Auto-login for demo purposes
       try {
         await autoLogin();
@@ -1918,9 +1911,9 @@ export default function EnhancedDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Branches</SelectItem>
-                      <SelectItem value="riyadh">Riyadh</SelectItem>
-                      <SelectItem value="jeddah">Jeddah</SelectItem>
-                      <SelectItem value="dammam">Dammam</SelectItem>
+                      <SelectItem value="BR001">Main Branch</SelectItem>
+                      <SelectItem value="BR002">Downtown Branch</SelectItem>
+                      <SelectItem value="BR003">West Side Branch</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
