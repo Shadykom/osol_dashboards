@@ -172,128 +172,21 @@ function NotFound() {
   );
 }
 
-// Safe App Component
-function SafeApp() {
+// Main App Component
+function App() {
   const { i18n } = useTranslation();
-  
-  // Ensure document language and direction are set
-  useEffect(() => {
-    const currentLang = i18n.language || 'en'; // Default to English
-    document.documentElement.lang = currentLang;
-    document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-  }, [i18n.language]);
-  
+
   return (
-    <div className="app">
+    <ErrorBoundary>
       <Router>
-        <RouteRedirect />
-        <Routes>
-          <Route element={<Layout />}>
-            {/* Main Routes */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
-            
-            {/* Dashboard Routes */}
-            <Route path="/dashboards/custom" element={<CustomDashboard />} />
-            <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
-            <Route path="/dashboards/operations" element={<OperationsDashboard />} />
-            
-            {/* Customer Routes */}
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/customers/new" element={<Customers />} />
-            <Route path="/customers/kyc-pending" element={<Customers />} />
-            <Route path="/customers/risk" element={<Customers />} />
-            <Route path="/customer-footprint" element={<CustomerFootprintDashboard />} />
-            
-            {/* Account Routes */}
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/accounts/new" element={<Accounts />} />
-            <Route path="/accounts/blocked" element={<Accounts />} />
-            <Route path="/accounts/dormant" element={<Accounts />} />
-            
-            {/* Transaction Routes */}
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/transactions/pending" element={<Transactions />} />
-            <Route path="/transactions/failed" element={<Transactions />} />
-            <Route path="/transactions/bulk" element={<Transactions />} />
-            
-            {/* Loan Routes */}
-            <Route path="/loans" element={<Loans />} />
-            <Route path="/loans/applications" element={<Loans />} />
-            <Route path="/loans/disbursed" element={<Loans />} />
-            <Route path="/loans/disbursements" element={<Loans />} />
-            <Route path="/loans/collections" element={<Loans />} />
-            <Route path="/loans/overdue" element={<Loans />} />
-            
-            {/* Reports Routes */}
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/reports/financial" element={<Reports />} />
-            <Route path="/reports/regulatory" element={<Reports />} />
-            <Route path="/reports/customers" element={<Reports />} />
-            <Route path="/reports/risk" element={<Reports />} />
-            
-            {/* Operations Routes */}
-            <Route path="/operations/branches" element={<OperationsDashboard />} />
-            <Route path="/operations/users" element={<OperationsDashboard />} />
-            <Route path="/operations/audit" element={<OperationsDashboard />} />
-            <Route path="/operations/health" element={<OperationsDashboard />} />
-            
-            {/* Other Routes */}
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/compliance" element={<Compliance />} />
-            <Route path="/database-test" element={<DatabaseTest />} />
-            <Route path="/diagnostic" element={<DiagnosticPage />} />
-            <Route path="/db-diagnostic" element={<DatabaseDiagnostic />} />
-            <Route path="/new-sidebar-demo" element={<NewSidebarDemo />} />
-            <Route path="/simple-sidebar-demo" element={<SimpleSidebarDemo />} />
-            <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
-            <Route path="/test-modern-layout" element={<TestModernLayout />} />
-            <Route path="/simple-test" element={<SimpleTest />} />
-            
-            
-            {/* Collection Routes */}
-            <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
-            <Route path="/collection/overview" element={<CollectionOverview />} />
-            <Route path="/collection/cases" element={<CollectionCases />} />
-            <Route path="/collection/reports" element={<CollectionReports />} />
-            <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
-            <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
-            <Route path="/collection/early-warning" element={<EarlyWarningDashboard />} />
-            <Route path="/collection/executive" element={<ExecutiveCollectionDashboard />} />
-            <Route path="/collection/field" element={<FieldCollectionDashboard />} />
-            <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
-            <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
-            <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
-            <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
-            <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
-            <Route path="/collection/branch-report" element={<BranchReportPage />} />
-            <Route path="/collection/product-report" element={<ProductReportPage />} />
-            {/* Legacy URL Redirects (backwards compatibility) */}
-            <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
-            <Route path="/collection-overview" element={<Navigate to="/collection/overview" replace />} />
-            <Route path="/collection-cases" element={<Navigate to="/collection/cases" replace />} />
-            <Route path="/collection-reports" element={<Navigate to="/collection/reports" replace />} />
-            <Route path="/collection-digital" element={<Navigate to="/collection/digital" replace />} />
-            <Route path="/collection-early-warning" element={<Navigate to="/collection/early-warning" replace />} />
-            <Route path="/collection-executive" element={<Navigate to="/collection/executive" replace />} />
-            <Route path="/collection-field" element={<Navigate to="/collection/field" replace />} />
-            <Route path="/collection-officer-performance" element={<Navigate to="/collection/officer-performance" replace />} />
-            <Route path="/collection-sharia-compliance" element={<Navigate to="/collection/sharia-compliance" replace />} />
-            <Route path="/collection-vintage-analysis" element={<Navigate to="/collection/vintage-analysis" replace />} />
-            
-            {/* 404 Route */}
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
-        <Toaster />
+        <AppContent />
       </Router>
-    </div>
+    </ErrorBoundary>
   );
 }
 
-// Main App Component
-function App() {
+// App Content Component that can use Router hooks
+function AppContent() {
   const { i18n } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
@@ -315,11 +208,151 @@ function App() {
     document.documentElement.lang = currentLang;
     document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
   }, [i18n.language]);
-  
+
+  // Handle language changes
+  useEffect(() => {
+    const handleLanguageChange = (lng) => {
+      const isArabic = lng === 'ar';
+      setIsRTL(isArabic);
+      document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+      document.documentElement.lang = lng;
+    };
+
+    i18n.on('languageChanged', handleLanguageChange);
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+  }, [i18n]);
+
+  // Handle dark mode
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+    
+    setIsDarkMode(shouldBeDark);
+    if (shouldBeDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
   return (
-    <ErrorBoundary>
-      <SafeApp />
-    </ErrorBoundary>
+    <div className="app">
+      <RouteRedirect />
+      <Routes>
+        <Route element={<Layout />}>
+          {/* Main Routes */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
+          
+          {/* Dashboard Routes */}
+          <Route path="/dashboards/custom" element={<CustomDashboard />} />
+          <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
+          <Route path="/dashboards/operations" element={<OperationsDashboard />} />
+          
+          {/* Customer Routes */}
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/customers/new" element={<Customers />} />
+          <Route path="/customers/kyc-pending" element={<Customers />} />
+          <Route path="/customers/risk" element={<Customers />} />
+          <Route path="/customer-footprint" element={<CustomerFootprintDashboard />} />
+          
+          {/* Account Routes */}
+          <Route path="/accounts" element={<Accounts />} />
+          <Route path="/accounts/new" element={<Accounts />} />
+          <Route path="/accounts/blocked" element={<Accounts />} />
+          <Route path="/accounts/dormant" element={<Accounts />} />
+          
+          {/* Transaction Routes */}
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/transactions/pending" element={<Transactions />} />
+          <Route path="/transactions/failed" element={<Transactions />} />
+          <Route path="/transactions/bulk" element={<Transactions />} />
+          
+          {/* Loan Routes */}
+          <Route path="/loans" element={<Loans />} />
+          <Route path="/loans/applications" element={<Loans />} />
+          <Route path="/loans/disbursed" element={<Loans />} />
+          <Route path="/loans/disbursements" element={<Loans />} />
+          <Route path="/loans/collections" element={<Loans />} />
+          <Route path="/loans/overdue" element={<Loans />} />
+          
+          {/* Reports Routes */}
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports/financial" element={<Reports />} />
+          <Route path="/reports/regulatory" element={<Reports />} />
+          <Route path="/reports/customers" element={<Reports />} />
+          <Route path="/reports/risk" element={<Reports />} />
+          
+          {/* Operations Routes */}
+          <Route path="/operations/branches" element={<OperationsDashboard />} />
+          <Route path="/operations/users" element={<OperationsDashboard />} />
+          <Route path="/operations/audit" element={<OperationsDashboard />} />
+          <Route path="/operations/health" element={<OperationsDashboard />} />
+          
+          {/* Other Routes */}
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/compliance" element={<Compliance />} />
+          <Route path="/database-test" element={<DatabaseTest />} />
+          <Route path="/diagnostic" element={<DiagnosticPage />} />
+          <Route path="/db-diagnostic" element={<DatabaseDiagnostic />} />
+          <Route path="/new-sidebar-demo" element={<NewSidebarDemo />} />
+          <Route path="/simple-sidebar-demo" element={<SimpleSidebarDemo />} />
+          <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
+          <Route path="/test-modern-layout" element={<TestModernLayout />} />
+          <Route path="/simple-test" element={<SimpleTest />} />
+          
+          
+          {/* Collection Routes */}
+          <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
+          <Route path="/collection/overview" element={<CollectionOverview />} />
+          <Route path="/collection/cases" element={<CollectionCases />} />
+          <Route path="/collection/reports" element={<CollectionReports />} />
+          <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
+          <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
+          <Route path="/collection/early-warning" element={<EarlyWarningDashboard />} />
+          <Route path="/collection/executive" element={<ExecutiveCollectionDashboard />} />
+          <Route path="/collection/field" element={<FieldCollectionDashboard />} />
+          <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
+          <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
+          <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
+          <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
+          <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
+          <Route path="/collection/branch-report" element={<BranchReportPage />} />
+          <Route path="/collection/product-report" element={<ProductReportPage />} />
+          {/* Legacy URL Redirects (backwards compatibility) */}
+          <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
+          <Route path="/collection-overview" element={<Navigate to="/collection/overview" replace />} />
+          <Route path="/collection-cases" element={<Navigate to="/collection/cases" replace />} />
+          <Route path="/collection-reports" element={<Navigate to="/collection/reports" replace />} />
+          <Route path="/collection-digital" element={<Navigate to="/collection/digital" replace />} />
+          <Route path="/collection-early-warning" element={<Navigate to="/collection/early-warning" replace />} />
+          <Route path="/collection-executive" element={<Navigate to="/collection/executive" replace />} />
+          <Route path="/collection-field" element={<Navigate to="/collection/field" replace />} />
+          <Route path="/collection-officer-performance" element={<Navigate to="/collection/officer-performance" replace />} />
+          <Route path="/collection-sharia-compliance" element={<Navigate to="/collection/sharia-compliance" replace />} />
+          <Route path="/collection-vintage-analysis" element={<Navigate to="/collection/vintage-analysis" replace />} />
+          
+          {/* 404 Route */}
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+      <Toaster />
+    </div>
   );
 }
 
