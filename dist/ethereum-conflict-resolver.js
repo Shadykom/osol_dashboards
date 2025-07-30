@@ -1,8 +1,12 @@
-// Ethereum Provider Conflict Resolver
-// This script prevents conflicts when multiple crypto wallet extensions try to inject window.ethereum
+// Enhanced Ethereum Provider Conflict Resolver with EIP-6963 Support
+// This script prevents conflicts when multiple crypto wallet extensions try to inject providers
 
 (function() {
   'use strict';
+  
+  // Store discovered providers
+  const providers = new Map();
+  let primaryProvider = null;
   
   // Store the original Object.defineProperty
   const originalDefineProperty = Object.defineProperty;
@@ -11,36 +15,100 @@
   let ethereumDefined = false;
   let ethereumValue = undefined;
   
+  // EIP-6963: Listen for provider announcements
+  window.addEventListener('eip6963:announceProvider', (event) => {
+    const detail = event.detail;
+    if (detail && detail.info && detail.provider) {
+      console.log(`EIP-6963: Discovered wallet - ${detail.info.name}`);
+      providers.set(detail.info.uuid, detail);
+      
+      // If no primary provider yet, use the first one
+      if (!primaryProvider) {
+        primaryProvider = detail.provider;
+        ethereumValue = detail.provider;
+      }
+      
+      // Dispatch custom event for the app to handle multiple wallets
+      window.dispatchEvent(new CustomEvent('walletDiscovered', {
+        detail: {
+          wallets: Array.from(providers.values()),
+          count: providers.size
+        }
+      }));
+    }
+  });
+  
+  // Request providers to announce themselves
+  window.dispatchEvent(new Event('eip6963:requestProvider'));
+  
   // Pre-define ethereum to prevent conflicts
   try {
-    // Check if ethereum already exists and is not configurable
+    // Check if ethereum already exists
     const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
     
-    if (!descriptor || descriptor.configurable !== false) {
-      // Only define if it doesn't exist or is configurable
+    if (descriptor) {
+      // If ethereum already exists, just track it
+      console.log('Ethereum already defined with descriptor:', descriptor);
+      ethereumDefined = true;
+      
+      // If it has a getter, try to get the value
+      if (descriptor.get) {
+        try {
+          ethereumValue = descriptor.get();
+        } catch (e) {
+          console.warn('Could not get ethereum value:', e);
+        }
+      } else {
+        ethereumValue = window.ethereum;
+      }
+    } else {
+      // Only define if it doesn't exist
       originalDefineProperty.call(Object, window, 'ethereum', {
         get() {
-          return ethereumValue;
+          return ethereumValue || primaryProvider;
         },
         set(value) {
           if (!ethereumValue) {
             ethereumValue = value;
             console.log('Ethereum provider set successfully');
+            
+            // If this is the first provider and we don't have EIP-6963 support,
+            // treat it as the primary provider
+            if (!primaryProvider) {
+              primaryProvider = value;
+            }
           } else {
-            console.warn('Attempted to overwrite ethereum provider, ignoring...');
+            console.warn('Attempted to overwrite ethereum provider, storing as alternative...');
+            // Store the provider even if we can't set it as primary
+            if (value && value.isMetaMask) {
+              providers.set('metamask-legacy', { 
+                info: { 
+                  uuid: 'metamask-legacy', 
+                  name: 'MetaMask', 
+                  icon: '' 
+                }, 
+                provider: value 
+              });
+            } else if (value && value.isCoinbaseWallet) {
+              providers.set('coinbase-legacy', { 
+                info: { 
+                  uuid: 'coinbase-legacy', 
+                  name: 'Coinbase Wallet', 
+                  icon: '' 
+                }, 
+                provider: value 
+              });
+            }
           }
         },
         configurable: true,
         enumerable: true
       });
       ethereumDefined = true;
-    } else {
-      console.log('Ethereum already defined and not configurable, skipping pre-definition');
-      ethereumDefined = true;
-      ethereumValue = window.ethereum;
     }
   } catch(e) {
-    console.warn('Failed to pre-define ethereum property:', e);
+    console.warn('Failed to handle ethereum property:', e);
+    ethereumDefined = true; // Mark as defined to prevent further attempts
   }
   
   // Override Object.defineProperty to intercept ethereum definitions
@@ -48,10 +116,13 @@
     // Special handling for window.ethereum
     if (obj === window && prop === 'ethereum') {
       if (ethereumDefined) {
-        console.warn('Attempted to redefine window.ethereum, ignoring...');
+        console.warn('Attempted to redefine window.ethereum, handling gracefully...');
         // Update the value if we don't have one yet
-        if (!ethereumValue && descriptor.value) {
+        if (!ethereumValue && descriptor && descriptor.value) {
           ethereumValue = descriptor.value;
+          if (!primaryProvider) {
+            primaryProvider = descriptor.value;
+          }
         }
         return obj;
       }
@@ -70,5 +141,22 @@
     }
   };
   
-  console.log('Ethereum conflict resolver initialized');
+  // Expose a method to get all discovered providers
+  window.getAllWalletProviders = function() {
+    return Array.from(providers.values());
+  };
+  
+  // Expose a method to switch providers
+  window.switchWalletProvider = function(uuid) {
+    const provider = providers.get(uuid);
+    if (provider && provider.provider) {
+      ethereumValue = provider.provider;
+      primaryProvider = provider.provider;
+      console.log(`Switched to wallet: ${provider.info.name}`);
+      return true;
+    }
+    return false;
+  };
+  
+  console.log('Enhanced Ethereum conflict resolver with EIP-6963 support initialized');
 })();
