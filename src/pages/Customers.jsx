@@ -225,6 +225,64 @@ export function Customers() {
               </div>
             )}
           </Suspense>
+          
+          {/* Pagination Controls */}
+          {!loading && !error && customers.length > 0 && pagination.total_pages > 1 && (
+            <div className="flex items-center justify-between mt-6 px-2">
+              <div className="text-sm text-muted-foreground">
+                {t('common.showingPage', 'Showing page')} {pagination.page} {t('common.of', 'of')} {pagination.total_pages}
+                {' • '}
+                {t('common.totalItems', 'Total items')}: {pagination.total}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                  disabled={pagination.page <= 1}
+                >
+                  {t('common.previous', 'Previous')}
+                </Button>
+                
+                {/* Page numbers */}
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.total_pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.total_pages - 2) {
+                      pageNum = pagination.total_pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === pagination.page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                        className="w-10"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.total_pages, prev.page + 1) }))}
+                  disabled={pagination.page >= pagination.total_pages}
+                >
+                  {t('common.next', 'Next')}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
