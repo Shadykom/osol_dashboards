@@ -34,26 +34,43 @@ export const customerDetailsService = {
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
 
-      // Customer segments
-      const { data: segments, error: segmentsError } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select(`
-          customer_type_id,
-          customer_types (
-            type_name
-          )
-        `)
-        .order('customer_type_id');
-      
-      if (segmentsError) {
-        console.error('Error fetching customer segments:', segmentsError);
+      // Customer segments - handle missing foreign key gracefully
+      let segmentCounts = {};
+      try {
+        const { data: segments, error: segmentsError } = await supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select(`
+            customer_type_id,
+            customer_types (
+              type_name
+            )
+          `)
+          .order('customer_type_id');
+        
+        if (segmentsError) {
+          console.error('Error fetching customer segments:', segmentsError);
+          // Fallback to simple customer type count without join
+          const { data: customers } = await supabaseBanking
+            .from(TABLES.CUSTOMERS)
+            .select('customer_type_id');
+          
+          segmentCounts = customers?.reduce((acc, curr) => {
+            const typeId = curr.customer_type_id || 'Unknown';
+            acc[`Type ${typeId}`] = (acc[`Type ${typeId}`] || 0) + 1;
+            return acc;
+          }, {}) || {};
+        } else {
+          segmentCounts = segments?.reduce((acc, curr) => {
+            const typeName = curr.customer_types?.type_name || 'Unknown';
+            acc[typeName] = (acc[typeName] || 0) + 1;
+            return acc;
+          }, {}) || {};
+        }
+      } catch (error) {
+        console.error('Error in customer segments query:', error);
+        // Use empty object as fallback
+        segmentCounts = {};
       }
-
-      const segmentCounts = segments?.reduce((acc, curr) => {
-        const typeName = curr.customer_types?.type_name || 'Unknown';
-        acc[typeName] = (acc[typeName] || 0) + 1;
-        return acc;
-      }, {}) || {};
 
       return {
         data: {
@@ -1278,6 +1295,11 @@ export const chartDetailsService = {
     const subType = parts[1];
 
     switch (mainType) {
+      case 'total':
+        if (subType === 'assets') {
+          return this.getTotalAssetsDetails();
+        }
+        break;
       case 'transactions':
         if (subType === 'chart' || subType === 'trend') {
           return this.getTransactionChartDetails();
@@ -1300,6 +1322,89 @@ export const chartDetailsService = {
         break;
       default:
         return { data: null, error: 'Unknown chart type' };
+    }
+  },
+
+  async getTotalAssetsDetails() {
+    try {
+      // Get account balances
+      const { data: accounts } = await supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('account_type_id, current_balance, branch_id')
+        .eq('account_status', 'ACTIVE');
+      
+      // Get loan balances
+      const { data: loans } = await supabaseBanking
+        .from(TABLES.LOAN_ACCOUNTS)
+        .select('product_id, outstanding_balance, branch_id')
+        .eq('loan_status', 'ACTIVE');
+      
+      // Calculate totals by type
+      const accountsByType = {};
+      accounts?.forEach(acc => {
+        const typeId = acc.account_type_id || 'Unknown';
+        if (!accountsByType[typeId]) {
+          accountsByType[typeId] = { count: 0, balance: 0 };
+        }
+        accountsByType[typeId].count++;
+        accountsByType[typeId].balance += acc.current_balance || 0;
+      });
+      
+      const loansByProduct = {};
+      loans?.forEach(loan => {
+        const productId = loan.product_id || 'Unknown';
+        if (!loansByProduct[productId]) {
+          loansByProduct[productId] = { count: 0, balance: 0 };
+        }
+        loansByProduct[productId].count++;
+        loansByProduct[productId].balance += loan.outstanding_balance || 0;
+      });
+      
+      const totalDeposits = accounts?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
+      const totalLoans = loans?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
+      const totalAssets = totalDeposits + totalLoans;
+      
+      // Calculate branch distribution
+      const branchAssets = {};
+      accounts?.forEach(acc => {
+        const branchId = acc.branch_id || 'Unknown';
+        if (!branchAssets[branchId]) {
+          branchAssets[branchId] = { deposits: 0, loans: 0 };
+        }
+        branchAssets[branchId].deposits += acc.current_balance || 0;
+      });
+      
+      loans?.forEach(loan => {
+        const branchId = loan.branch_id || 'Unknown';
+        if (!branchAssets[branchId]) {
+          branchAssets[branchId] = { deposits: 0, loans: 0 };
+        }
+        branchAssets[branchId].loans += loan.outstanding_balance || 0;
+      });
+      
+      return {
+        data: {
+          overview: {
+            totalAssets,
+            totalDeposits,
+            totalLoans,
+            depositRatio: totalAssets > 0 ? (totalDeposits / totalAssets * 100).toFixed(2) : 0,
+            loanRatio: totalAssets > 0 ? (totalLoans / totalAssets * 100).toFixed(2) : 0
+          },
+          accountTypes: accountsByType,
+          loanProducts: loansByProduct,
+          branchDistribution: branchAssets,
+          metrics: {
+            averageAccountBalance: accounts?.length > 0 ? totalDeposits / accounts.length : 0,
+            averageLoanBalance: loans?.length > 0 ? totalLoans / loans.length : 0,
+            totalAccounts: accounts?.length || 0,
+            totalLoanAccounts: loans?.length || 0
+          }
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
     }
   },
 
@@ -1355,19 +1460,46 @@ export const chartDetailsService = {
 
   async getCustomerSegmentDetails() {
     try {
-      // Detailed segment analysis
-      const { data: segments } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select(`
-          customer_type_id,
-          customer_types!inner(type_name, type_code),
-          accounts!inner(current_balance),
-          created_at
-        `);
+      // Detailed segment analysis - handle missing foreign key gracefully
+      let segments;
+      let useTypeId = false;
+      
+      try {
+        const { data, error } = await supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select(`
+            customer_type_id,
+            customer_types!inner(type_name, type_code),
+            accounts!inner(current_balance),
+            created_at
+          `);
+        
+        if (error) {
+          console.error('Error with customer_types join:', error);
+          // Fallback query without the join
+          const { data: fallbackData } = await supabaseBanking
+            .from(TABLES.CUSTOMERS)
+            .select(`
+              customer_type_id,
+              accounts!inner(current_balance),
+              created_at
+            `);
+          segments = fallbackData;
+          useTypeId = true;
+        } else {
+          segments = data;
+        }
+      } catch (error) {
+        console.error('Error fetching customer segments:', error);
+        segments = [];
+      }
 
       const segmentAnalysis = {};
       segments?.forEach(customer => {
-        const typeName = customer.customer_types?.type_name || 'Unknown';
+        const typeName = useTypeId 
+          ? `Type ${customer.customer_type_id || 'Unknown'}`
+          : (customer.customer_types?.type_name || 'Unknown');
+          
         if (!segmentAnalysis[typeName]) {
           segmentAnalysis[typeName] = {
             count: 0,

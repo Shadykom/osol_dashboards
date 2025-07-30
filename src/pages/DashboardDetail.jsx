@@ -244,6 +244,14 @@ export default function DashboardDetail() {
       color: 'text-purple-500',
       service: loanDetailsService
     },
+    // Overview type for dashboard widgets
+    overview: {
+      title: 'Overview Analytics',
+      icon: BarChart3,
+      color: 'text-blue-500',
+      service: chartDetailsService,
+      isChart: true
+    },
     // Generic fallback for unknown types
     default: {
       title: 'Analytics',
