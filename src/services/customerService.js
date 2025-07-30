@@ -152,7 +152,7 @@ export class CustomerService {
         }
         
         if (segment) {
-          filteredCustomers = filteredCustomers.filter(customer => customer.segment === segment);
+          filteredCustomers = filteredCustomers.filter(customer => customer.customer_segment === segment);
         }
         
         if (kyc_status) {
@@ -422,7 +422,7 @@ export class CustomerService {
 
       // Process segment data
       const segmentCounts = segmentData.reduce((acc, customer) => {
-        acc[customer.segment] = (acc[customer.segment] || 0) + 1;
+        acc[customer.customer_segment] = (acc[customer.customer_segment] || 0) + 1;
         return acc;
       }, {});
 

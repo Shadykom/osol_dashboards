@@ -201,7 +201,7 @@ export function Customers() {
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
                         <p className="font-medium">{customer.full_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer'}</p>
-                        {getSegmentBadge(customer.segment, t)}
+                        {getSegmentBadge(customer.customer_segment, t)}
                         {getKYCBadge(customer.kyc_status, t)}
                       </div>
                       <p className="text-sm text-muted-foreground">
@@ -214,7 +214,7 @@ export function Customers() {
                     <div className="text-right space-y-1">
                       <p className="font-medium">SAR {customer.annual_income?.toLocaleString() || '0'}</p>
                       <p className="text-sm text-muted-foreground">
-                        {customer.segment || 'RETAIL'}
+                        {customer.customer_segment || 'RETAIL'}
                       </p>
                       <Button variant="outline" size="sm" onClick={() => toast.info('Customer details coming soon')}>
                         {t('customers.viewDetails', 'View Details')}

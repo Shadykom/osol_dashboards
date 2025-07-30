@@ -366,7 +366,7 @@ const WIDGET_CATALOG = {
           let query = supabaseBanking
             .from(TABLES.CUSTOMERS)
             .select('*', { count: 'exact', head: true })
-            .eq('customer_status', 'ACTIVE');
+            .eq('is_active', true);
           
           // Apply customer segment filter
           if (filters?.customerSegment && filters.customerSegment !== 'all') {
@@ -995,7 +995,7 @@ const WIDGET_CATALOG = {
           const { count, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
             .select('*', { count: 'exact', head: true })
-            .eq('customer_status', 'ACTIVE');
+            .eq('is_active', true);
           
           if (error) throw error;
           
@@ -1024,13 +1024,13 @@ const WIDGET_CATALOG = {
         try {
           const { data, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('customer_type, segment')
-            .eq('customer_status', 'ACTIVE');
+            .select('customer_type, customer_segment')
+            .eq('is_active', true);
           
           if (error) throw error;
           
           const segments = data?.reduce((acc, customer) => {
-            const segment = customer.segment || customer.customer_type || 'Standard';
+            const segment = customer.customer_segment || customer.customer_type || 'Standard';
             acc[segment] = (acc[segment] || 0) + 1;
             return acc;
           }, {});
