@@ -261,8 +261,22 @@ export function Reports() {
         REPORT_CATEGORIES[key].reports.some(r => r.id === selectedReport)
       );
 
+      if (!category) {
+        console.error('No category found for report:', selectedReport);
+        console.error('Available categories:', Object.keys(REPORT_CATEGORIES));
+        console.error('All reports:', Object.values(REPORT_CATEGORIES).flatMap(cat => cat.reports.map(r => r.id)));
+        throw new Error(`Unknown report category for report: ${selectedReport}`);
+      }
+
       switch (category) {
         case 'financial':
+          data = await comprehensiveReportService.getFinancialReportData(
+            selectedReport,
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+          );
+          break;
+        case 'regulatory':
+          // For now, use financial data as placeholder for regulatory reports
           data = await comprehensiveReportService.getFinancialReportData(
             selectedReport,
             { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
@@ -281,7 +295,7 @@ export function Reports() {
           );
           break;
         default:
-          throw new Error('Unknown report category');
+          throw new Error(`Unknown report category: ${category}`);
       }
 
       setReportData(data);
