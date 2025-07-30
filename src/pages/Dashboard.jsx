@@ -1374,16 +1374,45 @@ export default function EnhancedDashboard() {
   const navigate = useNavigate();
   const hasInitialized = useRef(false);
   
-  // State Management
-  const [loading, setLoading] = useState(true);
-  const [widgets, setWidgets] = useState([]);
+  // State Management - Initialize with default widgets immediately
+  const [loading, setLoading] = useState(false); // Changed from true to false
+  const [refreshing, setRefreshing] = useState(false); // Add refreshing state
+  const [widgets, setWidgets] = useState(() => {
+    // Try to load from localStorage first, otherwise use default template
+    const savedConfig = localStorage.getItem('kastle_dashboard_config');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        if (config.widgets && config.widgets.length > 0) {
+          return config.widgets;
+        }
+      } catch (error) {
+        console.error('Error loading saved config:', error);
+      }
+    }
+    // Return default executive template widgets
+    return DASHBOARD_TEMPLATES.executive.widgets;
+  });
   const [widgetData, setWidgetData] = useState({});
+  const [widgetLoadingStates, setWidgetLoadingStates] = useState({}); // Track individual widget loading
   const [selectedSection, setSelectedSection] = useState('overview');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(() => {
+    // Initialize template from saved config
+    const savedConfig = localStorage.getItem('kastle_dashboard_config');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        return config.template || 'executive';
+      } catch (error) {
+        return 'executive';
+      }
+    }
+    return 'executive';
+  });
   const [showDataSeeder, setShowDataSeeder] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState(null);
   const [isFixingData, setIsFixingData] = useState(false);
@@ -1405,6 +1434,27 @@ export default function EnhancedDashboard() {
   
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const autoRefreshInterval = useRef(null);
+
+  // Set up auto-refresh
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshInterval.current = setInterval(() => {
+        fetchDashboardData();
+      }, 30000); // Refresh every 30 seconds
+    } else {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+        autoRefreshInterval.current = null;
+      }
+    }
+    
+    return () => {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+      }
+    };
+  }, [autoRefresh]);
 
   // Fetch filter options from database
   const fetchFilterOptions = async () => {
@@ -1427,71 +1477,93 @@ export default function EnhancedDashboard() {
   };
 
   // Fetch dashboard data
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isManualRefresh = false) => {
     try {
-      setLoading(true);
+      // Set refreshing state if manual refresh
+      if (isManualRefresh) {
+        setRefreshing(true);
+      }
+      
+      // Don't set global loading anymore
       const data = {};
       const errors = [];
+      const loadingStates = {};
       
       console.log('Starting dashboard data fetch...');
       console.log('Active widgets:', widgets.length);
-      console.log('Widgets:', widgets);
       
       // If no widgets, don't fetch data
       if (!widgets || widgets.length === 0) {
         console.log('No widgets to fetch data for');
-        setLoading(false);
         return;
       }
       
-      // Fetch data for all widgets
+      // Set all widgets to loading state
+      widgets.forEach(widget => {
+        const key = `${widget.section}_${widget.widget}`;
+        loadingStates[key] = true;
+      });
+      setWidgetLoadingStates(loadingStates);
+      
+      // Fetch data for all widgets in parallel
       const widgetPromises = widgets.map(async (widget) => {
         const widgetDef = WIDGET_CATALOG[widget.section]?.[widget.widget];
+        const key = `${widget.section}_${widget.widget}`;
+        
         if (widgetDef?.query) {
           try {
-            console.log(`Fetching data for widget: ${widget.section}_${widget.widget}`);
+            console.log(`Fetching data for widget: ${key}`);
             const result = await widgetDef.query(filters);
-            const key = `${widget.section}_${widget.widget}`;
             console.log(`Data received for ${key}:`, result);
+            
+            // Update data and loading state for this specific widget
+            setWidgetData(prev => ({ ...prev, [key]: result }));
+            setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
+            
             data[key] = result;
           } catch (error) {
             console.error(`Error fetching ${widget.widget}:`, error);
             errors.push({ widget: widget.widget, error: error.message });
-            // Don't set mock data on error - let the widget handle the empty state
-            const key = `${widget.section}_${widget.widget}`;
+            
+            // Set error state for this widget
+            setWidgetData(prev => ({ ...prev, [key]: null }));
+            setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
+            
             data[key] = null;
           }
+        } else {
+          // No query function, mark as not loading
+          setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
         }
       });
       
       // Wait for all promises to complete
       await Promise.all(widgetPromises);
       
-      console.log('Final widget data:', Object.keys(data));
-      setWidgetData(data);
+      console.log('All widgets data fetched');
       
       // Show error summary if any widgets failed
       if (errors.length > 0) {
-        toast.warning('Some widgets failed to load data');
+        toast.warning(`${errors.length} widget(s) failed to load data`);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast.error('Failed to fetch dashboard data');
+      
+      // Clear all loading states on error
+      const clearedStates = {};
+      widgets.forEach(widget => {
+        const key = `${widget.section}_${widget.widget}`;
+        clearedStates[key] = false;
+      });
+      setWidgetLoadingStates(clearedStates);
     } finally {
-      setLoading(false);
+      // Clear refreshing state
+      if (isManualRefresh) {
+        setRefreshing(false);
+      }
     }
   };
-
-  // Use the data refresh hook
-  const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
-    fetchDashboardData,
-    [filters, widgets], // Refresh when filters or widgets change
-    {
-      refreshOnMount: true, // Load data automatically on mount
-      refreshInterval: autoRefresh ? 30000 : null, // Auto-refresh every 30 seconds if enabled
-      showNotification: false
-    }
-  );
 
   // Initialize dashboard with default data
   useEffect(() => {
@@ -1503,71 +1575,43 @@ export default function EnhancedDashboard() {
       }
       hasInitialized.current = true;
       
-      // Auto-login for demo purposes
-      try {
-        await autoLogin();
-      } catch (error) {
-        console.error('Error with auto-login:', error);
-      }
+      // Start fetching data immediately
+      fetchDashboardData();
       
-      // Check database status first
-      const status = await checkDatabaseStatus();
-      setDatabaseStatus(status);
-      console.log('Database status:', status);
-      
-      // If database has no data, show the data seeder
-      // Commented out to prevent automatic popup - user can click button instead
-      // if (status.isConnected && !status.hasData) {
-      //   setShowDataSeeder(true);
-      // }
-      
-      // Initialize database with proper reference data
-      try {
-        await initializeDatabase();
-      } catch (error) {
-        console.error('Error initializing database:', error);
-        // Fallback to old fix method
-        try {
-          await fixDashboard({ skipSeeding: true });
-        } catch (retryError) {
-          console.error('Error fixing dashboard (retry):', retryError);
-        }
-      }
-      
-      // Load dashboard configuration first
-      await loadDashboardConfig();
-      
-      // Fetch filter options from database
-      await fetchFilterOptions();
-      
-      // Data will be loaded automatically by useDataRefresh hook with refreshOnMount: true
+      // Run other initialization tasks in parallel
+      Promise.all([
+        // Auto-login for demo purposes
+        autoLogin().catch(error => console.error('Error with auto-login:', error)),
+        
+        // Check database status
+        checkDatabaseStatus().then(status => {
+          setDatabaseStatus(status);
+          console.log('Database status:', status);
+        }),
+        
+        // Initialize database with proper reference data
+        initializeDatabase().catch(error => {
+          console.error('Error initializing database:', error);
+          // Fallback to old fix method
+          return fixDashboard({ skipSeeding: true }).catch(retryError => {
+            console.error('Error fixing dashboard (retry):', retryError);
+          });
+        }),
+        
+        // Fetch filter options from database
+        fetchFilterOptions()
+      ]);
     };
     
     initializeDashboard();
   }, []);
 
-  // Load saved dashboard configuration
-  const loadDashboardConfig = async () => {
-    const savedConfig = localStorage.getItem('kastle_dashboard_config');
-    if (savedConfig) {
-      try {
-        const config = JSON.parse(savedConfig);
-        if (config.widgets && config.widgets.length > 0) {
-          setWidgets(config.widgets);
-          setSelectedTemplate(config.template);
-        } else {
-          // If no widgets saved, load default template
-          await loadTemplate('executive');
-        }
-      } catch (error) {
-        console.error('Error loading saved config:', error);
-        await loadTemplate('executive');
-      }
-    } else {
-      // Load default template with enhanced overview widgets
-      await loadTemplate('executive');
+  // Fetch data when widgets or filters change
+  useEffect(() => {
+    if (widgets.length > 0) {
+      fetchDashboardData();
     }
-  };
+  }, [widgets, filters]);
 
   // Save dashboard configuration
   const saveDashboardConfig = () => {
@@ -1747,75 +1791,57 @@ export default function EnhancedDashboard() {
     
     const dataKey = `${widget.section}_${widget.widget}`;
     const data = widgetData[dataKey];
-    const widgetName = widgetDef.nameEn;
+    const isLoading = widgetLoadingStates[dataKey] || false;
+    const hasData = data !== undefined && data !== null;
     
-    // Size classes - mobile-first responsive design
+    // Determine grid size classes
     const sizeClasses = {
-      small: 'col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3 xl:col-span-2',
-      medium: 'col-span-12 sm:col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-4',
-      large: 'col-span-12 sm:col-span-12 md:col-span-12 lg:col-span-6 xl:col-span-6',
-      full: 'col-span-12'
+      small: 'col-span-12 sm:col-span-6 lg:col-span-3',
+      medium: 'col-span-12 sm:col-span-6 lg:col-span-4',
+      large: 'col-span-12 sm:col-span-12 lg:col-span-6',
+      xlarge: 'col-span-12'
     };
     
     return (
       <motion.div
         key={widget.id}
-        className={cn(sizeClasses[widget.size] || sizeClasses.medium)}
+        layout
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        whileHover={!isEditMode ? { scale: 1.02 } : {}}
-        transition={{ duration: 0.2 }}
+        className={sizeClasses[widget.size || 'medium']}
       >
-        <Card 
-          className={cn(
-            "h-full cursor-pointer transition-all hover:shadow-lg relative group",
-            loading && "opacity-50"
-          )}
-          onClick={() => handleWidgetClick(widget)}
-        >
-          <CardHeader className="pb-2 px-3 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 sm:gap-2">
-                <widgetDef.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
-                <CardTitle className="text-sm sm:text-base line-clamp-1">{widgetName}</CardTitle>
+        <Card className="h-full hover:shadow-lg transition-shadow duration-200">
+          <CardHeader className="pb-2 sm:pb-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <widgetDef.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <CardTitle className="text-sm sm:text-base">
+                  {i18n.language === 'ar' ? widgetDef.name : widgetDef.nameEn}
+                </CardTitle>
               </div>
-              <div className="flex items-center gap-1">
-                {!isEditMode && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleWidgetClick(widget);
-                    }}
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {isEditMode && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeWidget(widget.id);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              {isEditMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeWidget(widget.id)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </CardHeader>
-          <CardContent className="px-3 sm:px-6">
-            {loading ? (
+          <CardContent className="pt-2 sm:pt-4">
+            {isLoading ? (
+              // Show loading state for individual widget
               <div className="h-32 flex items-center justify-center">
-                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="text-center">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary/50 mb-2" />
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                </div>
               </div>
-            ) : data ? (
+            ) : hasData ? (
               <>
                 {widgetDef.type === 'kpi' && (
                   <div className="space-y-1 sm:space-y-2">
@@ -2085,12 +2111,12 @@ export default function EnhancedDashboard() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                refresh(); // Use the refresh function from useDataRefresh
+                fetchDashboardData(true); // Pass true for manual refresh
               }}
-              disabled={isRefreshing}
+              disabled={refreshing}
               className="text-xs sm:text-sm"
             >
-              <RefreshCw className={cn("h-4 w-4 mr-1 sm:mr-2", isRefreshing && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4 mr-1 sm:mr-2", refreshing && "animate-spin")} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             
@@ -2262,7 +2288,7 @@ export default function EnhancedDashboard() {
                       productType: 'all',
                       customerSegment: 'all'
                     });
-                    refresh(); // Use the refresh function from useDataRefresh
+                    fetchDashboardData(true); // Use the refresh function from useDataRefresh
                   }}
                 >
                   Reset
@@ -2270,7 +2296,7 @@ export default function EnhancedDashboard() {
                 <Button
                   size="sm"
                   onClick={() => {
-                    refresh(); // Use the refresh function from useDataRefresh
+                    fetchDashboardData(true); // Use the refresh function from useDataRefresh
                     setShowFilters(false);
                   }}
                 >
@@ -2330,24 +2356,13 @@ export default function EnhancedDashboard() {
 
       {/* Widgets Grid */}
       <div className="flex-1 overflow-auto">
-        {loading && widgets.length === 0 ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <RefreshCw className="h-12 w-12 animate-spin mx-auto text-primary mb-4" />
-              <p className="text-muted-foreground">
-                Loading dashboard...
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-12 gap-3 sm:gap-4 px-2 sm:px-0">
-            {widgets
-              .filter(w => w.section === selectedSection)
-              .map((widget) => renderWidget(widget))}
-          </div>
-        )}
+        <div className="grid grid-cols-12 gap-3 sm:gap-4 px-2 sm:px-0">
+          {widgets
+            .filter(w => w.section === selectedSection)
+            .map((widget) => renderWidget(widget))}
+        </div>
         
-        {!loading && widgets.filter(w => w.section === selectedSection).length === 0 && (
+        {widgets.filter(w => w.section === selectedSection).length === 0 && (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
@@ -2496,7 +2511,7 @@ export default function EnhancedDashboard() {
         <Button 
           onClick={() => {
             console.log('Manually refreshing dashboard data...');
-            refresh();
+            fetchDashboardData(true);
           }}
           variant="outline"
           size="sm"
