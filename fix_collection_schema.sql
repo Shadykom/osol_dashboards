@@ -1,5 +1,6 @@
 -- Fix for missing kastle_collection schema and tables
 -- This script creates the kastle_collection schema and essential tables
+-- Merged version combining fixes from both branches
 
 -- Create kastle_collection schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS kastle_collection;
@@ -178,15 +179,15 @@ FROM generate_series(1, 20)
 ON CONFLICT (officer_id) DO NOTHING;
 
 -- Insert sample collection buckets with all required fields
-INSERT INTO kastle_collection.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd)
+INSERT INTO kastle_collection.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd, priority_order, priority_level)
 VALUES 
-    ('CURRENT', 'Current', 0, 0, 0, 0),
-    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30),
-    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60),
-    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90),
-    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120),
-    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180),
-    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999)
+    ('CURRENT', 'Current', 0, 0, 0, 0, 1, 1),
+    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30, 2, 2),
+    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60, 3, 3),
+    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90, 4, 4),
+    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120, 5, 5),
+    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180, 6, 6),
+    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999, 7, 7)
 ON CONFLICT (bucket_code) DO NOTHING;
 
 -- Insert sample daily collection summary for the last 30 days
