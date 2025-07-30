@@ -1,4 +1,4 @@
-import { supabaseBanking } from '../config/supabase';
+import { supabaseBanking } from '../lib/supabase';
 import { formatApiResponse, formatApiError } from '../utils/apiHelpers';
 
 const TABLES = {
