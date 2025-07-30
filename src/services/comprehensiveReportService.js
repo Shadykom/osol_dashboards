@@ -37,7 +37,7 @@ class ComprehensiveReportService {
       // Get transaction data for revenue
       const { data: revenueData, error: revenueError } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
-        .select('amount, transaction_type_id, transaction_date')
+        .select('transaction_amount as amount, transaction_type_id, transaction_date')
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate)
         .in('transaction_type_id', [1, 2, 3]); // Credit transactions

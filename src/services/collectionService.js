@@ -323,7 +323,7 @@ export class CollectionService {
 
       // Build base query for cases
       let casesQuery = supabaseCollection
-        .from('kastle_collection.collection_cases')
+        .from('collection_cases')
         .select('case_id, total_outstanding, days_past_due, case_status, priority, bucket_id, assigned_to');
 
       // Apply filters
@@ -515,7 +515,7 @@ export class CollectionService {
 
       // Get daily summaries
       const { data: dailySummaries, error: summaryError } = await supabaseCollection
-        .from('kastle_collection.daily_collection_summary')
+        .from('daily_collection_summary')
         .select('*')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
