@@ -275,13 +275,16 @@ const WIDGET_CATALOG = {
           
           let loansQuery = supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
-            .select('outstanding_balance, branch_id')
+            .select(`
+              outstanding_balance,
+              loan_applications!inner(branch_id)
+            `)
             .eq('loan_status', 'ACTIVE');
           
           // Apply branch filter
           if (filters?.branch && filters.branch !== 'all') {
             accountsQuery = accountsQuery.eq('branch_id', filters.branch);
-            loansQuery = loansQuery.eq('branch_id', filters.branch);
+            loansQuery = loansQuery.eq('loan_applications.branch_id', filters.branch);
           }
           
           const accounts = await authenticatedQuery(
