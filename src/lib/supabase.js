@@ -203,47 +203,12 @@ export const TABLES = {
   COLLECTION_BUCKETS: 'collection_buckets',
   COLLECTION_RATES: 'collection_rates',
   
-  // kastle_collection schema tables
-  COLLECTION_AUDIT_TRAIL: 'kastle_collection.audit_trail',
-  COLLECTION_AUTH_USER_PROFILES: 'kastle_collection.auth_user_profiles',
-  COLLECTION_CALL_ATTEMPTS: 'kastle_collection.call_attempts',
-  COLLECTION_CASES_COLL: 'kastle_collection.collection_cases',
-  COLLECTION_INTERACTIONS: 'kastle_collection.collection_interactions',
-  COLLECTION_OFFICERS: 'kastle_collection.collection_officers',
-  COLLECTION_SCORES: 'kastle_collection.collection_scores',
-  COLLECTION_STRATEGIES: 'kastle_collection.collection_strategies',
-  COLLECTION_SYSTEM_PERFORMANCE: 'kastle_collection.system_performance',
-  COLLECTION_TEAMS: 'kastle_collection.collection_teams',
-  PROMISE_TO_PAY: 'kastle_collection.promise_to_pay',
-  LEGAL_CASES: 'kastle_collection.legal_cases',
-  DAILY_COLLECTION_SUMMARY: 'kastle_collection.daily_collection_summary',
-  DIGITAL_COLLECTION_ATTEMPTS: 'kastle_collection.digital_collection_attempts',
-  FIELD_VISITS: 'kastle_collection.field_visits',
-  HARDSHIP_APPLICATIONS: 'kastle_collection.hardship_applications',
-  OFFICER_PERFORMANCE_METRICS: 'kastle_collection.officer_performance_metrics',
-  OFFICER_PERFORMANCE_SUMMARY: 'kastle_collection.officer_performance_summary',
-  CASE_BUCKET_HISTORY: 'kastle_collection.case_bucket_history'
-};
-
-// Separate table constants for collection schema (without schema prefix)
-export const COLLECTION_TABLES = {
-  AUDIT_TRAIL: 'audit_trail',
-  AUTH_USER_PROFILES: 'auth_user_profiles',
-  CALL_ATTEMPTS: 'call_attempts',
-  COLLECTION_CASES: 'collection_cases',
-  COLLECTION_INTERACTIONS: 'collection_interactions',
+  // All collection tables are now in kastle_banking schema
   COLLECTION_OFFICERS: 'collection_officers',
-  COLLECTION_SCORES: 'collection_scores',
-  COLLECTION_STRATEGIES: 'collection_strategies',
-  SYSTEM_PERFORMANCE: 'system_performance',
   COLLECTION_TEAMS: 'collection_teams',
+  COLLECTION_INTERACTIONS: 'collection_interactions',
   PROMISE_TO_PAY: 'promise_to_pay',
-  LEGAL_CASES: 'legal_cases',
   DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',
-  DIGITAL_COLLECTION_ATTEMPTS: 'digital_collection_attempts',
-  FIELD_VISITS: 'field_visits',
-  HARDSHIP_APPLICATIONS: 'hardship_applications',
-  OFFICER_PERFORMANCE_METRICS: 'officer_performance_metrics',
   OFFICER_PERFORMANCE_SUMMARY: 'officer_performance_summary',
   CASE_BUCKET_HISTORY: 'case_bucket_history'
 };
