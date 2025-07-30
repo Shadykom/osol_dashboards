@@ -22,6 +22,13 @@ export async function checkDatabaseStatus() {
       supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
     ]);
 
+    // Log the results for debugging
+    console.log('Database status check results:', {
+      customers: { count: customersResult.count, error: customersResult.error },
+      accounts: { count: accountsResult.count, error: accountsResult.error },
+      transactions: { count: transactionsResult.count, error: transactionsResult.error }
+    });
+
     const hasData = (customersResult.count > 0) || (accountsResult.count > 0) || (transactionsResult.count > 0);
 
     return {
@@ -31,6 +38,11 @@ export async function checkDatabaseStatus() {
         customers: customersResult.count || 0,
         accounts: accountsResult.count || 0,
         transactions: transactionsResult.count || 0
+      },
+      errors: {
+        customers: customersResult.error,
+        accounts: accountsResult.error,
+        transactions: transactionsResult.error
       }
     };
   } catch (error) {
