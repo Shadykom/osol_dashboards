@@ -20,11 +20,17 @@ import {
   AlertCircle,
   Building2,
   CreditCard,
-  ArrowUpDown
+  ArrowUpDown,
+  Send,
+  Loader2,
+  RefreshCw,
+  Settings,
+  Eye
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,623 +46,1057 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import comprehensiveReportService from '@/services/comprehensiveReportService';
+import reportGenerator from '@/utils/reportGenerator';
+import emailService from '@/services/emailService';
+import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
 const REPORT_CATEGORIES = {
   financial: {
     title: 'Financial Reports',
     icon: DollarSign,
     color: 'text-green-500',
+    bgColor: 'bg-green-50',
     reports: [
-      { id: 'income_statement', name: 'Income Statement', frequency: 'Monthly' },
-      { id: 'balance_sheet', name: 'Balance Sheet', frequency: 'Quarterly' },
-      { id: 'cash_flow', name: 'Cash Flow Statement', frequency: 'Monthly' },
-      { id: 'profit_loss', name: 'Profit & Loss', frequency: 'Monthly' },
-      { id: 'budget_variance', name: 'Budget Variance Analysis', frequency: 'Monthly' }
+      { id: 'income_statement', name: 'Income Statement', frequency: 'Monthly', description: 'Revenue, expenses, and profitability analysis' },
+      { id: 'balance_sheet', name: 'Balance Sheet', frequency: 'Quarterly', description: 'Assets, liabilities, and equity position' },
+      { id: 'cash_flow', name: 'Cash Flow Statement', frequency: 'Monthly', description: 'Cash inflows and outflows analysis' },
+      { id: 'profit_loss', name: 'Profit & Loss', frequency: 'Monthly', description: 'Detailed profit and loss breakdown' },
+      { id: 'budget_variance', name: 'Budget Variance Analysis', frequency: 'Monthly', description: 'Actual vs budget comparison' }
     ]
   },
   regulatory: {
     title: 'Regulatory Reports',
     icon: Building2,
     color: 'text-blue-500',
+    bgColor: 'bg-blue-50',
     reports: [
-      { id: 'sama_monthly', name: 'SAMA Monthly Report', frequency: 'Monthly' },
-      { id: 'basel_iii', name: 'Basel III Compliance', frequency: 'Quarterly' },
-      { id: 'aml_report', name: 'AML/CFT Report', frequency: 'Monthly' },
-      { id: 'liquidity_coverage', name: 'Liquidity Coverage Ratio', frequency: 'Daily' },
-      { id: 'capital_adequacy', name: 'Capital Adequacy Report', frequency: 'Quarterly' }
+      { id: 'sama_monthly', name: 'SAMA Monthly Report', frequency: 'Monthly', description: 'Saudi Central Bank compliance report' },
+      { id: 'basel_iii', name: 'Basel III Compliance', frequency: 'Quarterly', description: 'Capital adequacy and risk metrics' },
+      { id: 'aml_report', name: 'AML/CFT Report', frequency: 'Monthly', description: 'Anti-money laundering compliance' },
+      { id: 'liquidity_coverage', name: 'Liquidity Coverage Ratio', frequency: 'Daily', description: 'LCR compliance monitoring' },
+      { id: 'capital_adequacy', name: 'Capital Adequacy Report', frequency: 'Quarterly', description: 'CAR calculation and analysis' }
     ]
   },
   customer: {
     title: 'Customer Reports',
     icon: Users,
     color: 'text-purple-500',
+    bgColor: 'bg-purple-50',
     reports: [
-      { id: 'customer_acquisition', name: 'Customer Acquisition', frequency: 'Weekly' },
-      { id: 'customer_segmentation', name: 'Customer Segmentation', frequency: 'Monthly' },
-      { id: 'customer_satisfaction', name: 'Customer Satisfaction', frequency: 'Quarterly' },
-      { id: 'dormant_accounts', name: 'Dormant Accounts', frequency: 'Monthly' },
-      { id: 'kyc_compliance', name: 'KYC Compliance Status', frequency: 'Weekly' }
+      { id: 'customer_acquisition', name: 'Customer Acquisition', frequency: 'Weekly', description: 'New customer trends and analysis' },
+      { id: 'customer_segmentation', name: 'Customer Segmentation', frequency: 'Monthly', description: 'Customer base breakdown by segments' },
+      { id: 'customer_satisfaction', name: 'Customer Satisfaction', frequency: 'Quarterly', description: 'NPS and satisfaction metrics' },
+      { id: 'dormant_accounts', name: 'Dormant Accounts', frequency: 'Monthly', description: 'Inactive account identification' },
+      { id: 'kyc_compliance', name: 'KYC Compliance Status', frequency: 'Weekly', description: 'Know Your Customer compliance tracking' }
     ]
   },
   risk: {
     title: 'Risk Reports',
     icon: AlertCircle,
     color: 'text-red-500',
+    bgColor: 'bg-red-50',
     reports: [
-      { id: 'credit_risk', name: 'Credit Risk Assessment', frequency: 'Daily' },
-      { id: 'operational_risk', name: 'Operational Risk', frequency: 'Monthly' },
-      { id: 'market_risk', name: 'Market Risk Analysis', frequency: 'Daily' },
-      { id: 'fraud_detection', name: 'Fraud Detection Report', frequency: 'Daily' },
-      { id: 'npl_analysis', name: 'NPL Analysis', frequency: 'Weekly' }
+      { id: 'credit_risk', name: 'Credit Risk Assessment', frequency: 'Daily', description: 'Loan portfolio risk analysis' },
+      { id: 'operational_risk', name: 'Operational Risk', frequency: 'Monthly', description: 'Operational incidents and controls' },
+      { id: 'market_risk', name: 'Market Risk Analysis', frequency: 'Daily', description: 'Market exposure and VaR calculations' },
+      { id: 'liquidity_risk', name: 'Liquidity Risk Report', frequency: 'Weekly', description: 'Liquidity position and stress testing' },
+      { id: 'npl_analysis', name: 'NPL Analysis', frequency: 'Weekly', description: 'Non-performing loans detailed analysis' }
     ]
   }
 };
 
-export function Reports() {
+// Mock scheduled reports data
+const MOCK_SCHEDULED_REPORTS = [
+  {
+    id: 1,
+    reportName: 'Daily Credit Risk Report',
+    reportType: 'credit_risk',
+    frequency: 'Daily',
+    recipients: ['risk@bank.com', 'cro@bank.com'],
+    lastRun: '2024-01-29 08:00',
+    nextRun: '2024-01-30 08:00',
+    status: 'active'
+  },
+  {
+    id: 2,
+    reportName: 'Monthly Income Statement',
+    reportType: 'income_statement',
+    frequency: 'Monthly',
+    recipients: ['cfo@bank.com', 'finance@bank.com'],
+    lastRun: '2024-01-01 09:00',
+    nextRun: '2024-02-01 09:00',
+    status: 'active'
+  },
+  {
+    id: 3,
+    reportName: 'Weekly NPL Analysis',
+    reportType: 'npl_analysis',
+    frequency: 'Weekly',
+    recipients: ['collections@bank.com'],
+    lastRun: '2024-01-22 07:00',
+    nextRun: '2024-01-29 07:00',
+    status: 'active'
+  }
+];
+
+// Mock report history
+const MOCK_REPORT_HISTORY = [
+  {
+    id: 1,
+    reportName: 'Income Statement - December 2023',
+    reportType: 'income_statement',
+    generatedAt: '2024-01-05 10:30',
+    generatedBy: 'John Doe',
+    size: '2.4 MB',
+    status: 'completed'
+  },
+  {
+    id: 2,
+    reportName: 'Credit Risk Assessment - Q4 2023',
+    reportType: 'credit_risk',
+    generatedAt: '2024-01-03 14:15',
+    generatedBy: 'Jane Smith',
+    size: '5.1 MB',
+    status: 'completed'
+  },
+  {
+    id: 3,
+    reportName: 'Customer Acquisition - Week 52',
+    reportType: 'customer_acquisition',
+    generatedAt: '2024-01-02 09:45',
+    generatedBy: 'System',
+    size: '1.8 MB',
+    status: 'completed'
+  }
+];
+
+export default function Reports() {
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState('financial');
-  const [recentReports, setRecentReports] = useState([]);
-  const [scheduledReports, setScheduledReports] = useState([]);
-  const [reportStats, setReportStats] = useState({
-    totalGenerated: 0,
-    pendingReports: 0,
-    scheduledReports: 0,
-    failedReports: 0
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [dateRange, setDateRange] = useState({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date())
   });
-  const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({ from: null, to: null });
-  const [reportData, setReportData] = useState({});
-  const [generatingReport, setGeneratingReport] = useState(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportData, setReportData] = useState(null);
+  const [generatedReport, setGeneratedReport] = useState(null);
+  
+  // Email form state
+  const [emailForm, setEmailForm] = useState({
+    recipients: '',
+    cc: '',
+    bcc: '',
+    message: '',
+    includeExcel: true,
+    includePDF: true
+  });
 
+  // Schedule form state
+  const [scheduleForm, setScheduleForm] = useState({
+    frequency: 'daily',
+    time: '08:00',
+    dayOfWeek: '1',
+    dayOfMonth: '1',
+    recipients: '',
+    enabled: true
+  });
+
+  // Filters
+  const [filters, setFilters] = useState({
+    branch: 'all',
+    product: 'all',
+    segment: 'all'
+  });
+
+  const [scheduledReports, setScheduledReports] = useState(MOCK_SCHEDULED_REPORTS);
+  const [reportHistory, setReportHistory] = useState(MOCK_REPORT_HISTORY);
+  const [activeTab, setActiveTab] = useState('generate');
+
+  // Load scheduled reports
   useEffect(() => {
-    fetchRecentReports();
-    fetchScheduledReports();
-    fetchReportStats();
-    generateSampleReportData();
+    loadScheduledReports();
   }, []);
 
-  const fetchRecentReports = async () => {
-    try {
-      // Mock recent reports data
-      const mockReports = [
-        {
-          id: 1,
-          name: 'Monthly Financial Statement',
-          category: 'financial',
-          generated_at: new Date().toISOString(),
-          generated_by: 'System',
-          status: 'completed',
-          size: '2.4 MB',
-          format: 'PDF'
-        },
-        {
-          id: 2,
-          name: 'SAMA Compliance Report',
-          category: 'regulatory',
-          generated_at: new Date(Date.now() - 86400000).toISOString(),
-          generated_by: 'Admin User',
-          status: 'completed',
-          size: '1.8 MB',
-          format: 'Excel'
-        },
-        {
-          id: 3,
-          name: 'Customer Segmentation Analysis',
-          category: 'customer',
-          generated_at: new Date(Date.now() - 172800000).toISOString(),
-          generated_by: 'Analytics Team',
-          status: 'completed',
-          size: '3.1 MB',
-          format: 'PDF'
-        },
-        {
-          id: 4,
-          name: 'Daily Risk Assessment',
-          category: 'risk',
-          generated_at: new Date(Date.now() - 3600000).toISOString(),
-          generated_by: 'Risk Management',
-          status: 'processing',
-          size: '-',
-          format: 'PDF'
-        }
-      ];
-      
-      setRecentReports(mockReports);
-    } catch (error) {
-      console.error('Error fetching recent reports:', error);
-      toast.error('Failed to load recent reports');
+  const loadScheduledReports = async () => {
+    const result = await emailService.getScheduledReports();
+    if (result.success && result.schedules.length > 0) {
+      setScheduledReports(result.schedules);
     }
   };
 
-  const fetchScheduledReports = async () => {
-    try {
-      // Mock scheduled reports
-      const mockScheduled = [
-        {
-          id: 1,
-          name: 'Weekly Customer Acquisition Report',
-          category: 'customer',
-          schedule: 'Every Monday at 9:00 AM',
-          next_run: new Date(Date.now() + 259200000).toISOString(),
-          recipients: ['management@bank.com', 'analytics@bank.com']
-        },
-        {
-          id: 2,
-          name: 'Daily Liquidity Coverage Ratio',
-          category: 'regulatory',
-          schedule: 'Daily at 6:00 PM',
-          next_run: new Date(Date.now() + 28800000).toISOString(),
-          recipients: ['compliance@bank.com', 'risk@bank.com']
-        },
-        {
-          id: 3,
-          name: 'Monthly Income Statement',
-          category: 'financial',
-          schedule: 'First day of month at 8:00 AM',
-          next_run: new Date(Date.now() + 604800000).toISOString(),
-          recipients: ['cfo@bank.com', 'finance@bank.com']
-        }
-      ];
-      
-      setScheduledReports(mockScheduled);
-    } catch (error) {
-      console.error('Error fetching scheduled reports:', error);
+  // Generate report
+  const handleGenerateReport = async () => {
+    if (!selectedReport) {
+      toast.error('Please select a report to generate');
+      return;
     }
-  };
 
-  const fetchReportStats = async () => {
+    setIsGenerating(true);
     try {
-      // Mock report statistics
-      setReportStats({
-        totalGenerated: 156,
-        pendingReports: 3,
-        scheduledReports: 12,
-        failedReports: 2
+      let data;
+      const reportInfo = Object.values(REPORT_CATEGORIES)
+        .flatMap(cat => cat.reports)
+        .find(r => r.id === selectedReport);
+
+      // Fetch report data based on category
+      const category = Object.keys(REPORT_CATEGORIES).find(key => 
+        REPORT_CATEGORIES[key].reports.some(r => r.id === selectedReport)
+      );
+
+      switch (category) {
+        case 'financial':
+          data = await comprehensiveReportService.getFinancialReportData(
+            selectedReport,
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+          );
+          break;
+        case 'customer':
+          data = await comprehensiveReportService.getCustomerReportData(
+            selectedReport,
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+          );
+          break;
+        case 'risk':
+          data = await comprehensiveReportService.getRiskReportData(
+            selectedReport,
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+          );
+          break;
+        default:
+          throw new Error('Unknown report category');
+      }
+
+      setReportData(data);
+
+      // Generate PDF and Excel
+      const pdf = await reportGenerator.generatePDF(data, selectedReport, reportInfo.name);
+      const excel = await reportGenerator.generateExcel(data, selectedReport, reportInfo.name);
+
+      setGeneratedReport({
+        pdf,
+        excel,
+        reportInfo,
+        data
       });
+
+      // Add to history
+      const newHistoryItem = {
+        id: reportHistory.length + 1,
+        reportName: `${reportInfo.name} - ${format(new Date(), 'MMMM yyyy')}`,
+        reportType: selectedReport,
+        generatedAt: format(new Date(), 'yyyy-MM-dd HH:mm'),
+        generatedBy: 'Current User',
+        size: '2.1 MB',
+        status: 'completed'
+      };
+      setReportHistory([newHistoryItem, ...reportHistory]);
+
+      toast.success('Report generated successfully!');
+      setPreviewDialogOpen(true);
     } catch (error) {
-      console.error('Error fetching report stats:', error);
+      console.error('Error generating report:', error);
+      toast.error('Failed to generate report: ' + error.message);
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  const generateSampleReportData = async () => {
+  // Download report
+  const handleDownload = (format) => {
+    if (!generatedReport) return;
+
+    if (format === 'pdf') {
+      reportGenerator.savePDF(generatedReport.pdf, generatedReport.reportInfo.name);
+    } else if (format === 'excel') {
+      reportGenerator.saveExcel(generatedReport.excel, generatedReport.reportInfo.name);
+    }
+    
+    toast.success(`${format.toUpperCase()} downloaded successfully!`);
+  };
+
+  // Send email
+  const handleSendEmail = async () => {
+    if (!generatedReport) {
+      toast.error('Please generate a report first');
+      return;
+    }
+
+    if (!emailForm.recipients) {
+      toast.error('Please enter recipient email addresses');
+      return;
+    }
+
+    setIsGenerating(true);
     try {
-      // Generate sample data for financial report visualization
-      const financialData = [];
-      for (let i = 11; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        financialData.push({
-          month: date.toLocaleDateString('en-US', { month: 'short' }),
-          revenue: Math.floor(Math.random() * 50000000) + 100000000,
-          expenses: Math.floor(Math.random() * 30000000) + 70000000,
-          profit: Math.floor(Math.random() * 20000000) + 20000000
+      const attachments = [];
+      
+      if (emailForm.includePDF) {
+        const pdfBlob = reportGenerator.getPDFBlob(generatedReport.pdf);
+        attachments.push({
+          filename: `${generatedReport.reportInfo.name}_${format(new Date(), 'yyyyMMdd')}.pdf`,
+          content: pdfBlob,
+          type: 'application/pdf'
         });
       }
 
-      // Customer growth data
-      const customerData = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        customerData.push({
-          date: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          new: Math.floor(Math.random() * 100) + 50,
-          churned: Math.floor(Math.random() * 30) + 10,
-          total: Math.floor(Math.random() * 1000) + 5000
+      if (emailForm.includeExcel) {
+        const excelBlob = reportGenerator.getExcelBlob(generatedReport.excel);
+        attachments.push({
+          filename: `${generatedReport.reportInfo.name}_${format(new Date(), 'yyyyMMdd')}.xlsx`,
+          content: excelBlob,
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
       }
 
-      setReportData({
-        financial: financialData,
-        customer: customerData
+      const recipients = emailForm.recipients.split(',').map(email => email.trim());
+      const ccEmails = emailForm.cc ? emailForm.cc.split(',').map(email => email.trim()) : [];
+      const bccEmails = emailForm.bcc ? emailForm.bcc.split(',').map(email => email.trim()) : [];
+
+      for (const recipient of recipients) {
+        const result = await emailService.sendReport({
+          recipientEmail: recipient,
+          recipientName: recipient.split('@')[0],
+          reportTitle: generatedReport.reportInfo.name,
+          reportType: selectedReport,
+          attachments,
+          ccEmails,
+          bccEmails
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send email');
+        }
+      }
+
+      toast.success('Report sent successfully to all recipients!');
+      setEmailDialogOpen(false);
+      setEmailForm({
+        recipients: '',
+        cc: '',
+        bcc: '',
+        message: '',
+        includeExcel: true,
+        includePDF: true
       });
     } catch (error) {
-      console.error('Error generating report data:', error);
+      console.error('Error sending email:', error);
+      toast.error('Failed to send email: ' + error.message);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const generateReport = async (reportId, reportName) => {
-    setGeneratingReport(reportId);
-    
-    // Simulate report generation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast.success(`${reportName} generated successfully`, {
-      description: 'The report is ready for download'
-    });
-    
-    setGeneratingReport(null);
-    
-    // Refresh recent reports
-    fetchRecentReports();
-  };
+  // Schedule report
+  const handleScheduleReport = async () => {
+    if (!selectedReport) {
+      toast.error('Please select a report to schedule');
+      return;
+    }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
+    if (!scheduleForm.recipients) {
+      toast.error('Please enter recipient email addresses');
+      return;
+    }
+
+    try {
+      const reportInfo = Object.values(REPORT_CATEGORIES)
+        .flatMap(cat => cat.reports)
+        .find(r => r.id === selectedReport);
+
+      const result = await emailService.scheduleReportEmail({
+        reportType: selectedReport,
+        reportTitle: reportInfo.name,
+        recipients: scheduleForm.recipients.split(',').map(email => email.trim()),
+        frequency: scheduleForm.frequency,
+        scheduleTime: scheduleForm.time,
+        dayOfWeek: scheduleForm.frequency === 'weekly' ? parseInt(scheduleForm.dayOfWeek) : null,
+        dayOfMonth: scheduleForm.frequency === 'monthly' ? parseInt(scheduleForm.dayOfMonth) : null,
+        enabled: scheduleForm.enabled
+      });
+
+      if (result.success) {
+        toast.success('Report scheduled successfully!');
+        setScheduleDialogOpen(false);
+        loadScheduledReports();
+      } else {
+        throw new Error(result.error || 'Failed to schedule report');
       }
+    } catch (error) {
+      console.error('Error scheduling report:', error);
+      toast.error('Failed to schedule report: ' + error.message);
     }
   };
 
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100
+  // Cancel scheduled report
+  const handleCancelSchedule = async (scheduleId) => {
+    try {
+      const result = await emailService.cancelScheduledReport(scheduleId);
+      if (result.success) {
+        toast.success('Schedule cancelled successfully');
+        loadScheduledReports();
+      } else {
+        throw new Error(result.error || 'Failed to cancel schedule');
       }
+    } catch (error) {
+      console.error('Error cancelling schedule:', error);
+      toast.error('Failed to cancel schedule: ' + error.message);
     }
   };
-
-  const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
-    <motion.div variants={itemVariants} whileHover={{ scale: 1.02 }}>
-      <Card className="relative overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <Icon className={`h-4 w-4 ${color}`} />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
-          {subtitle && (
-            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-          )}
-        </CardContent>
-        <div className={`absolute top-0 right-0 w-32 h-32 ${color} opacity-10 rounded-full -mr-16 -mt-16`} />
-      </Card>
-    </motion.div>
-  );
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reports Center</h1>
-          <p className="text-muted-foreground">Generate, schedule, and manage all banking reports</p>
+          <h1 className="text-3xl font-bold">Reports Center</h1>
+          <p className="text-muted-foreground mt-1">Generate, schedule, and manage all banking reports</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => toast.info('Schedule report functionality coming soon')}>
-            <Calendar className="h-4 w-4" />
-            Schedule Report
+          <Button variant="outline" onClick={() => setActiveTab('history')}>
+            <Clock className="w-4 h-4 mr-2" />
+            History
           </Button>
-          <Button className="gap-2" onClick={() => toast.info('Custom report functionality coming soon')}>
-            <FileText className="h-4 w-4" />
-            Create Custom Report
+          <Button variant="outline" onClick={() => setActiveTab('scheduled')}>
+            <Calendar className="w-4 h-4 mr-2" />
+            Scheduled
           </Button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Reports Generated"
-          value={reportStats.totalGenerated}
-          icon={FileText}
-          color="text-blue-500"
-          subtitle="This month"
-        />
-        <StatCard
-          title={t('common.pendingReports')}
-          value={reportStats.pendingReports}
-          icon={Clock}
-          color="text-yellow-500"
-          subtitle="In queue"
-        />
-        <StatCard
-          title="Scheduled Reports"
-          value={reportStats.scheduledReports}
-          icon={Calendar}
-          color="text-green-500"
-          subtitle="Active schedules"
-        />
-        <StatCard
-          title="Failed Reports"
-          value={reportStats.failedReports}
-          icon={AlertCircle}
-          color="text-red-500"
-          subtitle="Require attention"
-        />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Reports Generated</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">156</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Reports</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">3</div>
+            <p className="text-xs text-muted-foreground">In queue</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Scheduled Reports</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">12</div>
+            <p className="text-xs text-muted-foreground">Active schedules</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Failed Reports</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">2</div>
+            <p className="text-xs text-muted-foreground">Require attention</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Report Categories */}
-      <motion.div variants={itemVariants}>
-        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            {Object.entries(REPORT_CATEGORIES).map(([key, category]) => (
-              <TabsTrigger key={key} value={key} className="gap-2">
-                <category.icon className="h-4 w-4" />
-                {category.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="generate">Generate Report</TabsTrigger>
+          <TabsTrigger value="scheduled">Scheduled Reports</TabsTrigger>
+          <TabsTrigger value="history">Report History</TabsTrigger>
+        </TabsList>
 
-          {Object.entries(REPORT_CATEGORIES).map(([key, category]) => (
-            <TabsContent key={key} value={key} className="space-y-4">
+        {/* Generate Report Tab */}
+        <TabsContent value="generate" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Report Categories */}
+            <div className="lg:col-span-2 space-y-4">
+              {Object.entries(REPORT_CATEGORIES).map(([key, category]) => (
+                <Card key={key} className={selectedCategory === key ? 'ring-2 ring-primary' : ''}>
+                  <CardHeader 
+                    className="cursor-pointer"
+                    onClick={() => setSelectedCategory(key)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${category.bgColor}`}>
+                          <category.icon className={`h-5 w-5 ${category.color}`} />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{category.title}</CardTitle>
+                          <CardDescription>{category.reports.length} reports available</CardDescription>
+                        </div>
+                      </div>
+                      <Badge variant={selectedCategory === key ? 'default' : 'outline'}>
+                        {selectedCategory === key ? 'Selected' : 'Click to select'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  {selectedCategory === key && (
+                    <CardContent>
+                      <div className="space-y-2">
+                        {category.reports.map((report) => (
+                          <div
+                            key={report.id}
+                            className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                              selectedReport === report.id 
+                                ? 'bg-primary/10 border-primary' 
+                                : 'hover:bg-muted'
+                            }`}
+                            onClick={() => setSelectedReport(report.id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium">{report.name}</h4>
+                                <p className="text-sm text-muted-foreground">{report.description}</p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="secondary">{report.frequency}</Badge>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+
+            {/* Report Configuration */}
+            <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>{category.title}</CardTitle>
-                  <CardDescription>Generate and manage {category.title.toLowerCase()}</CardDescription>
+                  <CardTitle>Report Configuration</CardTitle>
+                  <CardDescription>Configure report parameters</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {category.reports.map((report) => (
-                      <motion.div
-                        key={report.id}
-                        variants={itemVariants}
-                        whileHover={{ scale: 1.02 }}
+                <CardContent className="space-y-4">
+                  {/* Date Range */}
+                  <div className="space-y-2">
+                    <Label>Date Range</Label>
+                    <DatePickerWithRange
+                      date={dateRange}
+                      setDate={setDateRange}
+                    />
+                  </div>
+
+                  {/* Filters */}
+                  <div className="space-y-2">
+                    <Label>Branch</Label>
+                    <Select value={filters.branch} onValueChange={(value) => setFilters({...filters, branch: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Branches</SelectItem>
+                        <SelectItem value="main">Main Branch</SelectItem>
+                        <SelectItem value="north">North Branch</SelectItem>
+                        <SelectItem value="south">South Branch</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Product</Label>
+                    <Select value={filters.product} onValueChange={(value) => setFilters({...filters, product: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Products</SelectItem>
+                        <SelectItem value="savings">Savings Account</SelectItem>
+                        <SelectItem value="current">Current Account</SelectItem>
+                        <SelectItem value="loan">Loans</SelectItem>
+                        <SelectItem value="credit">Credit Cards</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Customer Segment</Label>
+                    <Select value={filters.segment} onValueChange={(value) => setFilters({...filters, segment: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select segment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Segments</SelectItem>
+                        <SelectItem value="retail">Retail</SelectItem>
+                        <SelectItem value="corporate">Corporate</SelectItem>
+                        <SelectItem value="sme">SME</SelectItem>
+                        <SelectItem value="private">Private Banking</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-4 space-y-2">
+                    <Button 
+                      className="w-full" 
+                      onClick={handleGenerateReport}
+                      disabled={!selectedReport || isGenerating}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Generate Report
+                        </>
+                      )}
+                    </Button>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setScheduleDialogOpen(true)}
+                        disabled={!selectedReport}
                       >
-                        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle className="text-base">{report.name}</CardTitle>
-                                <CardDescription className="text-sm">
-                                  {report.frequency} Report
-                                </CardDescription>
-                              </div>
-                              <Badge variant="outline">{report.frequency}</Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => generateReport(report.id, report.name)}
-                                disabled={generatingReport === report.id}
-                              >
-                                {generatingReport === report.id ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2" />
-                                    Generating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Download className="h-3 w-3 mr-2" />
-                                    Generate
-                                  </>
-                                )}
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => toast.info('Schedule functionality coming soon')}>
-                                <Calendar className="h-3 w-3 mr-2" />
-                                Schedule
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => toast.info('Email functionality coming soon')}>
-                                <Mail className="h-3 w-3 mr-2" />
-                                Email
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Schedule
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => setEmailDialogOpen(true)}
+                        disabled={!generatedReport}
+                      >
+                        <Mail className="mr-2 h-4 w-4" />
+                        Email
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          ))}
-        </Tabs>
-      </motion.div>
 
-      {/* Report Visualization */}
-      {selectedCategory === 'financial' && reportData.financial && (
-        <motion.div variants={itemVariants}>
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Last Report
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview Templates
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Report Settings
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Scheduled Reports Tab */}
+        <TabsContent value="scheduled" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Financial Overview</CardTitle>
-              <CardDescription>Revenue, expenses, and profit trends</CardDescription>
+              <div className="flex items-center justify-between">
+                <CardTitle>Scheduled Reports</CardTitle>
+                <Button size="sm">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Add Schedule
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={reportData.financial}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => `SAR ${(value / 1000000).toFixed(1)}M`} />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stackId="1"
-                    stroke="#8884d8"
-                    fill="#8884d8"
-                    fillOpacity={0.6}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="profit"
-                    stackId="2"
-                    stroke="#82ca9d"
-                    fill="#82ca9d"
-                    fillOpacity={0.6}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Recent Reports */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Recent Reports</CardTitle>
-                <CardDescription>Recently generated reports</CardDescription>
-              </div>
-              <Button variant="outline" size="sm">
-                View All
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Report Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Generated</TableHead>
-                  <TableHead>Generated By</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentReports.map((report) => {
-                  const category = Object.entries(REPORT_CATEGORIES).find(
-                    ([key]) => key === report.category
-                  )?.[1];
-                  
-                  return (
-                    <TableRow key={report.id}>
-                      <TableCell className="font-medium">{report.name}</TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Report Name</TableHead>
+                    <TableHead>Frequency</TableHead>
+                    <TableHead>Recipients</TableHead>
+                    <TableHead>Last Run</TableHead>
+                    <TableHead>Next Run</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scheduledReports.map((schedule) => (
+                    <TableRow key={schedule.id}>
+                      <TableCell className="font-medium">{schedule.reportName}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {category && <category.icon className={`h-4 w-4 ${category.color}`} />}
-                          <span>{category?.title || report.category}</span>
+                        <Badge variant="outline">{schedule.frequency}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {schedule.recipients.slice(0, 2).join(', ')}
+                          {schedule.recipients.length > 2 && ` +${schedule.recipients.length - 2} more`}
                         </div>
                       </TableCell>
+                      <TableCell className="text-sm">{schedule.lastRun}</TableCell>
+                      <TableCell className="text-sm">{schedule.nextRun}</TableCell>
                       <TableCell>
-                        {new Date(report.generated_at).toLocaleString()}
+                        <Badge variant={schedule.status === 'active' ? 'success' : 'secondary'}>
+                          {schedule.status}
+                        </Badge>
                       </TableCell>
-                      <TableCell>{report.generated_by}</TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={
-                            report.status === 'completed' ? 'success' :
-                            report.status === 'processing' ? 'warning' :
-                            'destructive'
-                          }
-                        >
-                          {report.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
-                          {report.status === 'processing' && <Clock className="h-3 w-3 mr-1" />}
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="ghost">
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => handleCancelSchedule(schedule.id)}
+                          >
+                            <AlertCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Report History Tab */}
+        <TabsContent value="history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Report History</CardTitle>
+                <Button size="sm" variant="outline">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Report Name</TableHead>
+                    <TableHead>Generated At</TableHead>
+                    <TableHead>Generated By</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reportHistory.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell className="font-medium">{report.reportName}</TableCell>
+                      <TableCell className="text-sm">{report.generatedAt}</TableCell>
+                      <TableCell>{report.generatedBy}</TableCell>
+                      <TableCell className="text-sm">{report.size}</TableCell>
+                      <TableCell>
+                        <Badge variant="success">
+                          <CheckCircle className="mr-1 h-3 w-3" />
                           {report.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{report.size}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {report.status === 'completed' && (
-                            <>
-                              <Button size="sm" variant="ghost">
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="ghost">
-                                <Printer className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="ghost">
-                                <Mail className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="ghost">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost">
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost">
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </motion.div>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-      {/* Scheduled Reports */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Scheduled Reports</CardTitle>
-            <CardDescription>Automated report generation schedules</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Report Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Schedule</TableHead>
-                  <TableHead>Next Run</TableHead>
-                  <TableHead>Recipients</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {scheduledReports.map((report) => {
-                  const category = Object.entries(REPORT_CATEGORIES).find(
-                    ([key]) => key === report.category
-                  )?.[1];
-                  
-                  return (
-                    <TableRow key={report.id}>
-                      <TableCell className="font-medium">{report.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {category && <category.icon className={`h-4 w-4 ${category.color}`} />}
-                          <span>{category?.title || report.category}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{report.schedule}</TableCell>
-                      <TableCell>
-                        {new Date(report.next_run).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {report.recipients.slice(0, 2).map((email, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
-                              {email.split('@')[0]}
-                            </Badge>
-                          ))}
-                          {report.recipients.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{report.recipients.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="ghost">
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="ghost">
-                            Pause
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
+      {/* Email Dialog */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Send Report via Email</DialogTitle>
+            <DialogDescription>
+              Send the generated report to specified recipients
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="recipients">Recipients (comma-separated)</Label>
+              <Input
+                id="recipients"
+                placeholder="email1@example.com, email2@example.com"
+                value={emailForm.recipients}
+                onChange={(e) => setEmailForm({...emailForm, recipients: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cc">CC (optional)</Label>
+              <Input
+                id="cc"
+                placeholder="cc@example.com"
+                value={emailForm.cc}
+                onChange={(e) => setEmailForm({...emailForm, cc: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bcc">BCC (optional)</Label>
+              <Input
+                id="bcc"
+                placeholder="bcc@example.com"
+                value={emailForm.bcc}
+                onChange={(e) => setEmailForm({...emailForm, bcc: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="message">Additional Message (optional)</Label>
+              <Textarea
+                id="message"
+                placeholder="Add a custom message..."
+                value={emailForm.message}
+                onChange={(e) => setEmailForm({...emailForm, message: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Attachments</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="includePDF"
+                    checked={emailForm.includePDF}
+                    onCheckedChange={(checked) => setEmailForm({...emailForm, includePDF: checked})}
+                  />
+                  <label htmlFor="includePDF" className="text-sm">Include PDF version</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="includeExcel"
+                    checked={emailForm.includeExcel}
+                    onCheckedChange={(checked) => setEmailForm({...emailForm, includeExcel: checked})}
+                  />
+                  <label htmlFor="includeExcel" className="text-sm">Include Excel version</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendEmail} disabled={isGenerating}>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Schedule Report</DialogTitle>
+            <DialogDescription>
+              Set up automatic report generation and delivery
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="frequency">Frequency</Label>
+              <Select value={scheduleForm.frequency} onValueChange={(value) => setScheduleForm({...scheduleForm, frequency: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {scheduleForm.frequency === 'weekly' && (
+              <div className="grid gap-2">
+                <Label htmlFor="dayOfWeek">Day of Week</Label>
+                <Select value={scheduleForm.dayOfWeek} onValueChange={(value) => setScheduleForm({...scheduleForm, dayOfWeek: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Monday</SelectItem>
+                    <SelectItem value="2">Tuesday</SelectItem>
+                    <SelectItem value="3">Wednesday</SelectItem>
+                    <SelectItem value="4">Thursday</SelectItem>
+                    <SelectItem value="5">Friday</SelectItem>
+                    <SelectItem value="6">Saturday</SelectItem>
+                    <SelectItem value="0">Sunday</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {scheduleForm.frequency === 'monthly' && (
+              <div className="grid gap-2">
+                <Label htmlFor="dayOfMonth">Day of Month</Label>
+                <Select value={scheduleForm.dayOfMonth} onValueChange={(value) => setScheduleForm({...scheduleForm, dayOfMonth: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({length: 28}, (_, i) => i + 1).map(day => (
+                      <SelectItem key={day} value={day.toString()}>{day}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            <div className="grid gap-2">
+              <Label htmlFor="time">Time</Label>
+              <Input
+                id="time"
+                type="time"
+                value={scheduleForm.time}
+                onChange={(e) => setScheduleForm({...scheduleForm, time: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="scheduleRecipients">Recipients (comma-separated)</Label>
+              <Input
+                id="scheduleRecipients"
+                placeholder="email1@example.com, email2@example.com"
+                value={scheduleForm.recipients}
+                onChange={(e) => setScheduleForm({...scheduleForm, recipients: e.target.value})}
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="enabled"
+                checked={scheduleForm.enabled}
+                onCheckedChange={(checked) => setScheduleForm({...scheduleForm, enabled: checked})}
+              />
+              <Label htmlFor="enabled">Enable schedule immediately</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleScheduleReport}>
+              <Calendar className="mr-2 h-4 w-4" />
+              Create Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Report Preview</DialogTitle>
+            <DialogDescription>
+              {generatedReport?.reportInfo.name} - Generated successfully
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+            {reportData && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Report Summary</h3>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Type:</span> {generatedReport?.reportInfo.name}</p>
+                      <p><span className="font-medium">Period:</span> {format(dateRange.from, 'MMM dd, yyyy')} - {format(dateRange.to, 'MMM dd, yyyy')}</p>
+                      <p><span className="font-medium">Generated:</span> {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Key Metrics</h3>
+                    <div className="space-y-1 text-sm">
+                      {generatedReport?.data && Object.entries(generatedReport.data).slice(0, 3).map(([key, value]) => (
+                        <p key={key}>
+                          <span className="font-medium">{key}:</span> {
+                            typeof value === 'object' ? JSON.stringify(value).substring(0, 50) + '...' : value
+                          }
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-2">Preview</h3>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Full report preview would be displayed here. The report contains detailed analysis and data visualizations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleDownload('excel')}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Download Excel
+            </Button>
+            <Button variant="outline" onClick={() => handleDownload('pdf')}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+            <Button onClick={() => setEmailDialogOpen(true)}>
+              <Mail className="mr-2 h-4 w-4" />
+              Send Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
