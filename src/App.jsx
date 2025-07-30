@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Layout } from './components/layout';
+import ModernLayout from './components/layout/ModernLayout';
 
 import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
@@ -253,7 +253,7 @@ function AppContent() {
     <div className="app">
       <RouteRedirect />
       <Routes>
-        <Route element={<Layout />}>
+        <Route element={<ModernLayout />}>
           {/* Main Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
