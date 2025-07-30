@@ -198,7 +198,7 @@ export const TABLES = {
   COLLECTION_RATES: 'collection_rates',
   DELINQUENCIES: 'delinquencies',
   
-  // Collection tables (now in kastle_banking schema)
+  // All collection tables are now in kastle_banking schema
   COLLECTION_AUDIT_TRAIL: 'audit_trail',
   COLLECTION_AUTH_USER_PROFILES: 'auth_user_profiles',
   COLLECTION_CALL_ATTEMPTS: 'call_attempts',
@@ -230,10 +230,10 @@ export const COLLECTION_TABLES = {
   COLLECTION_CASES: 'collection_cases',
   COLLECTION_INTERACTIONS: 'collection_interactions',
   COLLECTION_OFFICERS: 'collection_officers',
+  COLLECTION_TEAMS: 'collection_teams',
   COLLECTION_SCORES: 'collection_scores',
   COLLECTION_STRATEGIES: 'collection_strategies',
-  SYSTEM_PERFORMANCE: 'system_performance',
-  COLLECTION_TEAMS: 'collection_teams',
+  COLLECTION_SYSTEM_PERFORMANCE: 'system_performance',
   PROMISE_TO_PAY: 'promise_to_pay',
   LEGAL_CASES: 'legal_cases',
   DAILY_COLLECTION_SUMMARY: 'daily_collection_summary',

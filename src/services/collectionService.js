@@ -1,5 +1,5 @@
 import { 
-  supabaseCollection, 
+  supabaseBanking, 
   supabaseBanking,
   TABLES,
   COLLECTION_TABLES, 
@@ -72,7 +72,7 @@ export class CollectionService {
         dateTo = null
       } = params;
 
-      // Build query - collection_cases is in kastle_banking schema
+      // Build query - all tables are now in kastle_banking schema
       let query = supabaseBanking
         .from(TABLES.COLLECTION_CASES)
         .select(`
@@ -158,14 +158,14 @@ export class CollectionService {
 
       if (error) throw error;
 
-      // Get officer details separately from kastle_collection schema
+      // Get officer details - now also in kastle_banking schema
       let casesWithOfficers = data || [];
       if (data && data.length > 0) {
         const officerIds = [...new Set(data.map(c => c.assigned_to).filter(id => id))];
         
         if (officerIds.length > 0) {
-          const { data: officers, error: officersError } = await supabaseCollection
-            .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+          const { data: officers, error: officersError } = await supabaseBanking
+            .from('collection_officers')
             .select('officer_id, officer_name, officer_type, team_id, contact_number')
             .in('officer_id', officerIds);
 
@@ -257,8 +257,8 @@ export class CollectionService {
 
       // Get officer details
       if (caseData.assigned_to) {
-        const { data: officer } = await supabaseCollection
-          .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+        const { data: officer } = await supabaseBanking
+          .from('collection_officers')
           .select('*')
           .eq('officer_id', caseData.assigned_to)
           .single();
@@ -267,8 +267,8 @@ export class CollectionService {
 
       // Get strategy details
       if (caseData.strategy_id) {
-        const { data: strategy } = await supabaseCollection
-          .from(TABLES.COLLECTION_STRATEGIES)
+const { data: strategy } = await supabaseBanking
+          .from('collection_strategies')
           .select('*')
           .eq('strategy_id', caseData.strategy_id)
           .single();
@@ -286,8 +286,8 @@ export class CollectionService {
       }
 
       // Get interactions
-      const { data: interactions, error: interactionsError } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_INTERACTIONS)
+      const { data: interactions, error: interactionsError } = await supabaseBanking
+        .from('collection_interactions')
         .select(`
           *,
           collection_officers!officer_id (
@@ -299,8 +299,8 @@ export class CollectionService {
         .order('interaction_datetime', { ascending: false });
 
       // Get promises to pay
-      const { data: promisesToPay, error: ptpError } = await supabaseCollection
-        .from(COLLECTION_TABLES.PROMISE_TO_PAY)
+      const { data: promisesToPay, error: ptpError } = await supabaseBanking
+        .from('promise_to_pay')
         .select(`
           *,
           collection_officers!officer_id (
@@ -311,8 +311,8 @@ export class CollectionService {
         .order('created_at', { ascending: false });
 
       // Get field visits
-      const { data: fieldVisits, error: visitsError } = await supabaseCollection
-        .from(TABLES.FIELD_VISITS)
+const { data: fieldVisits, error: visitsError } = await supabaseBanking
+        .from('field_visits')
         .select(`
           *,
           collection_officers!officer_id (
@@ -323,8 +323,8 @@ export class CollectionService {
         .order('visit_date', { ascending: false });
 
       // Get legal case if exists
-      const { data: legalCase, error: legalError } = await supabaseCollection
-        .from(TABLES.LEGAL_CASES)
+const { data: legalCase, error: legalError } = await supabaseBanking
+        .from('legal_cases')
         .select('*')
         .eq('case_id', caseId)
         .single();
@@ -339,8 +339,8 @@ export class CollectionService {
         .limit(10);
 
       // Get collection score history
-      const { data: scoreHistory, error: scoreError } = await supabaseCollection
-        .from(TABLES.COLLECTION_SCORES)
+const { data: scoreHistory, error: scoreError } = await supabaseBanking
+        .from('collection_scores')
         .select('*')
         .eq('case_id', caseId)
         .order('score_date', { ascending: false })
@@ -402,8 +402,8 @@ export class CollectionService {
       // Filter by team if needed
       let filteredCases = cases || [];
       if (team && team !== 'all') {
-        const { data: teamOfficers } = await supabaseCollection
-          .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+        const { data: teamOfficers } = await supabaseBanking
+          .from('collection_officers')
           .select('officer_id')
           .eq('team_id', team);
         
@@ -421,8 +421,8 @@ export class CollectionService {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { data: monthlyRecovery } = await supabaseCollection
-        .from(COLLECTION_TABLES.DAILY_COLLECTION_SUMMARY)
+      const { data: monthlyRecovery } = await supabaseBanking
+        .from('daily_collection_summary')
         .select('total_collected')
         .gte('summary_date', startOfMonth.toISOString().split('T')[0]);
 
@@ -479,8 +479,8 @@ export class CollectionService {
       });
 
       // Get team performance
-      const { data: teams } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_TEAMS)
+      const { data: teams } = await supabaseBanking
+        .from('collection_teams')
         .select(`
           team_id,
           team_name,
@@ -496,8 +496,8 @@ export class CollectionService {
         
         // Get team recovery
         const { data: teamRecovery } = teamOfficerIds.length > 0
-          ? await supabaseCollection
-              .from(COLLECTION_TABLES.OFFICER_PERFORMANCE_SUMMARY)
+          ? await supabaseBanking
+              .from('officer_performance_summary')
               .select('total_collected')
               .in('officer_id', teamOfficerIds)
               .gte('summary_date', startOfMonth.toISOString().split('T')[0])
@@ -615,8 +615,8 @@ export class CollectionService {
       }
 
       // Get daily summaries
-      const { data: dailySummaries, error: summaryError } = await supabaseCollection
-        .from(COLLECTION_TABLES.DAILY_COLLECTION_SUMMARY)
+      const { data: dailySummaries, error: summaryError } = await supabaseBanking
+        .from('daily_collection_summary')
         .select('*')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -625,8 +625,8 @@ export class CollectionService {
       if (summaryError) throw summaryError;
 
       // Get top officers performance
-      const { data: officerPerformance, error: officersError } = await supabaseCollection
-        .from(COLLECTION_TABLES.OFFICER_PERFORMANCE_SUMMARY)
+      const { data: officerPerformance, error: officersError } = await supabaseBanking
+        .from('officer_performance_summary')
         .select(`
           *,
           collection_officers!officer_id (
@@ -643,18 +643,18 @@ export class CollectionService {
         .limit(10);
 
       // Get team comparison
-      const { data: teams, error: teamsError } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_TEAMS)
+      const { data: teams, error: teamsError } = await supabaseBanking
+        .from('collection_teams')
         .select('*');
 
       const teamComparison = await Promise.all((teams || []).map(async (team) => {
-        const { data: teamData } = await supabaseCollection
-          .from(COLLECTION_TABLES.OFFICER_PERFORMANCE_SUMMARY)
+        const { data: teamData } = await supabaseBanking
+          .from('officer_performance_summary')
           .select('total_collected, total_cases, contact_rate')
           .eq('summary_date', endDate.toISOString().split('T')[0])
           .in('officer_id', 
-            supabaseCollection
-              .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+            supabaseBanking
+              .from('collection_officers')
               .select('officer_id')
               .eq('team_id', team.team_id)
           );
@@ -676,16 +676,16 @@ export class CollectionService {
       }));
 
       // Get campaign effectiveness
-      const { data: campaigns, error: campaignsError } = await supabaseCollection
-        .from(TABLES.COLLECTION_CAMPAIGNS)
+const { data: campaigns, error: campaignsError } = await supabaseBanking
+        .from('collection_campaigns')
         .select('*')
         .in('status', ['ACTIVE', 'COMPLETED'])
         .order('created_at', { ascending: false })
         .limit(5);
 
       // Get channel performance
-      const { data: channelPerformance } = await supabaseCollection
-        .from(TABLES.DIGITAL_COLLECTION_ATTEMPTS)
+const { data: channelPerformance } = await supabaseBanking
+        .from('digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -853,8 +853,8 @@ export class CollectionService {
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - (period === 'daily' ? 1 : period === 'weekly' ? 3 : 12));
 
-      const { data: trends, error: trendsError } = await supabaseCollection
-        .from(COLLECTION_TABLES.DAILY_COLLECTION_SUMMARY)
+      const { data: trends, error: trendsError } = await supabaseBanking
+        .from('daily_collection_summary')
         .select('summary_date, total_collected, collection_rate, calls_made')
         .gte('summary_date', startDate.toISOString().split('T')[0])
         .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -863,8 +863,8 @@ export class CollectionService {
       if (trendsError) throw trendsError;
 
       // Get bucket movement analysis
-      const { data: bucketMovements, error: bucketError } = await supabaseCollection
-        .from(TABLES.CASE_BUCKET_HISTORY)
+const { data: bucketMovements, error: bucketError } = await supabaseBanking
+        .from('case_bucket_history')
         .select(`
           from_bucket_id,
           to_bucket_id,
@@ -879,8 +879,8 @@ export class CollectionService {
         .order('movement_date', { ascending: false });
 
       // Get PTP analysis
-      const { data: ptpData, error: ptpError } = await supabaseCollection
-        .from(COLLECTION_TABLES.PROMISE_TO_PAY)
+      const { data: ptpData, error: ptpError } = await supabaseBanking
+        .from('promise_to_pay')
         .select('status, ptp_amount, created_at, kept_date, broken_date')
         .gte('created_at', startDate.toISOString());
 
@@ -895,8 +895,8 @@ export class CollectionService {
       })) || [];
 
       // Channel effectiveness from digital attempts
-      const { data: digitalAttempts } = await supabaseCollection
-        .from(TABLES.DIGITAL_COLLECTION_ATTEMPTS)
+const { data: digitalAttempts } = await supabaseBanking
+        .from('digital_collection_attempts')
         .select('channel_type, payment_made, payment_amount, response_received')
         .gte('sent_datetime', startDate.toISOString());
 
@@ -1002,8 +1002,8 @@ export class CollectionService {
       switch (reportType) {
         case 'summary':
           // Get overall collection summary
-          const { data: summary } = await supabaseCollection
-            .from(COLLECTION_TABLES.DAILY_COLLECTION_SUMMARY)
+          const { data: summary } = await supabaseBanking
+            .from('daily_collection_summary')
             .select('*')
             .gte('summary_date', startDate.toISOString().split('T')[0])
             .lte('summary_date', endDate.toISOString().split('T')[0])
@@ -1026,8 +1026,8 @@ export class CollectionService {
 
         case 'detailed':
           // Get detailed collection data by officer
-          const { data: officerData } = await supabaseCollection
-            .from(COLLECTION_TABLES.OFFICER_PERFORMANCE_SUMMARY)
+          const { data: officerData } = await supabaseBanking
+            .from('officer_performance_summary')
             .select(`
               *,
               collection_officers (
@@ -1050,8 +1050,8 @@ export class CollectionService {
 
         case 'bucket':
           // Get collection by bucket
-          const { data: bucketData } = await supabaseCollection
-            .from(TABLES.COLLECTION_CASES)
+const { data: bucketData } = await supabaseBanking
+            .from('collection_cases')
             .select(`
               bucket_id,
               total_outstanding,
@@ -1097,8 +1097,8 @@ export class CollectionService {
 
         case 'team':
           // Get collection by team
-          const { data: teams } = await supabaseCollection
-            .from(COLLECTION_TABLES.COLLECTION_TEAMS)
+          const { data: teams } = await supabaseBanking
+            .from('collection_teams')
             .select(`
               *,
               collection_officers!collection_officers_team_id_fkey (
@@ -1111,8 +1111,8 @@ export class CollectionService {
             const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
             
             const { data: teamData } = officerIds.length > 0
-              ? await supabaseCollection
-                  .from(COLLECTION_TABLES.OFFICER_PERFORMANCE_SUMMARY)
+              ? await supabaseBanking
+                  .from('officer_performance_summary')
                   .select('total_collected, total_cases, contact_rate')
                   .in('officer_id', officerIds)
                   .gte('summary_date', startDate.toISOString().split('T')[0])
@@ -1177,8 +1177,8 @@ export class CollectionService {
           break;
       }
 
-      const { data: officerPerformance, error: officersError } = await supabaseCollection
-        .from(COLLECTION_TABLES.OFFICER_PERFORMANCE_SUMMARY)
+      const { data: officerPerformance, error: officersError } = await supabaseBanking
+        .from('officer_performance_summary')
         .select(`
           *,
           collection_officers!officer_id (
@@ -1241,8 +1241,8 @@ export class CollectionService {
           break;
       }
 
-      const { data: teams, error: teamsError } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_TEAMS)
+      const { data: teams, error: teamsError } = await supabaseBanking
+        .from('collection_teams')
         .select(`
           *,
           collection_officers!collection_officers_team_id_fkey (
@@ -1257,8 +1257,8 @@ export class CollectionService {
         const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
         
         const { data: teamData } = officerIds.length > 0
-          ? await supabaseCollection
-              .from(COLLECTION_TABLES.OFFICER_PERFORMANCE_SUMMARY)
+          ? await supabaseBanking
+              .from('officer_performance_summary')
               .select('total_collected, total_cases, contact_rate, ptp_rate')
               .in('officer_id', officerIds)
               .gte('summary_date', startDate.toISOString().split('T')[0])
@@ -1303,8 +1303,8 @@ export class CollectionService {
     try {
       const { teamId, officerType, status = 'ACTIVE' } = filters;
 
-      let query = supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+      let query = supabaseBanking
+        .from('collection_officers')
         .select(`
           *,
           collection_teams!collection_officers_team_id_fkey (
@@ -1342,8 +1342,8 @@ export class CollectionService {
   static async getSpecialists() {
     try {
       // First get the officers
-      const { data: officers, error: officersError } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+      const { data: officers, error: officersError } = await supabaseBanking
+        .from('collection_officers')
         .select(`
           officer_id, 
           officer_name, 
@@ -1363,8 +1363,8 @@ export class CollectionService {
         const teamIds = [...new Set(officers.map(o => o.team_id).filter(id => id))];
         
         if (teamIds.length > 0) {
-          const { data: teams, error: teamsError } = await supabaseCollection
-            .from(COLLECTION_TABLES.COLLECTION_TEAMS)
+          const { data: teams, error: teamsError } = await supabaseBanking
+            .from('collection_teams')
             .select('team_id, team_name, team_type')
             .in('team_id', teamIds);
 
@@ -1410,8 +1410,8 @@ export class CollectionService {
       } = filters;
 
       // Get specialist info
-      const { data: specialist, error: specialistError } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+      const { data: specialist, error: specialistError } = await supabaseBanking
+        .from('collection_officers')
         .select('*')
         .eq('officer_id', specialistId)
         .single();
@@ -1419,8 +1419,8 @@ export class CollectionService {
       if (specialistError) throw specialistError;
 
       // Get cases assigned to specialist with all loan details
-      let casesQuery = supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+let casesQuery = supabaseBanking
+        .from('collection_cases')
         .select(`
           *,
           loan_accounts!loan_account_number (
@@ -1463,8 +1463,8 @@ export class CollectionService {
       if (casesError) throw casesError;
 
       // Get communication logs for the specialist
-      const { data: communicationLogs, error: commError } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_INTERACTIONS)
+      const { data: communicationLogs, error: commError } = await supabaseBanking
+        .from('collection_interactions')
         .select(`
           *,
           collection_cases!case_id (
@@ -1477,8 +1477,8 @@ export class CollectionService {
         .order('interaction_datetime', { ascending: false });
 
       // Get promises to pay
-      const { data: promisesToPay, error: ptpError } = await supabaseCollection
-        .from(COLLECTION_TABLES.PROMISE_TO_PAY)
+      const { data: promisesToPay, error: ptpError } = await supabaseBanking
+        .from('promise_to_pay')
         .select(`
           *,
           collection_cases!case_id (
@@ -1659,8 +1659,8 @@ export class CollectionService {
    */
   static async createCollectionCase(caseData) {
     try {
-      const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+const { data, error } = await supabaseBanking
+        .from('collection_cases')
         .insert([{
           ...caseData,
           case_number: `CASE-${Date.now()}`,
@@ -1673,8 +1673,8 @@ export class CollectionService {
       if (error) throw error;
 
       // Create initial collection score
-      await supabaseCollection
-        .from(TABLES.COLLECTION_SCORES)
+await supabaseBanking
+        .from('collection_scores')
         .insert([{
           case_id: data.case_id,
           score_date: new Date().toISOString(),
@@ -1695,8 +1695,8 @@ export class CollectionService {
    */
   static async updateCollectionCase(caseId, updates) {
     try {
-      const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_CASES)
+const { data, error } = await supabaseBanking
+        .from('collection_cases')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -1719,8 +1719,8 @@ export class CollectionService {
    */
   static async logInteraction(interactionData) {
     try {
-      const { data, error } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_INTERACTIONS)
+      const { data, error } = await supabaseBanking
+        .from('collection_interactions')
         .insert([{
           ...interactionData,
           interaction_datetime: new Date().toISOString()
@@ -1747,8 +1747,8 @@ export class CollectionService {
    */
   static async createPromiseToPay(ptpData) {
     try {
-      const { data, error } = await supabaseCollection
-        .from(COLLECTION_TABLES.PROMISE_TO_PAY)
+      const { data, error } = await supabaseBanking
+        .from('promise_to_pay')
         .insert([{
           ...ptpData,
           status: 'ACTIVE',
@@ -1782,8 +1782,8 @@ export class CollectionService {
         updateData.broken_date = new Date().toISOString();
       }
 
-      const { data, error } = await supabaseCollection
-        .from(COLLECTION_TABLES.PROMISE_TO_PAY)
+      const { data, error } = await supabaseBanking
+        .from('promise_to_pay')
         .update(updateData)
         .eq('ptp_id', ptpId)
         .select()
@@ -1803,8 +1803,8 @@ export class CollectionService {
    */
   static async scheduleFieldVisit(visitData) {
     try {
-      const { data, error } = await supabaseCollection
-        .from(TABLES.FIELD_VISITS)
+const { data, error } = await supabaseBanking
+        .from('field_visits')
         .insert([{
           ...visitData,
           status: 'SCHEDULED',
@@ -1979,8 +1979,8 @@ export class CollectionService {
    */
   static async getTeams() {
     try {
-      const { data, error } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_TEAMS)
+      const { data, error } = await supabaseBanking
+        .from('collection_teams')
         .select('*')
         .order('team_name');
 
@@ -1998,8 +1998,8 @@ export class CollectionService {
    */
   static async getStrategies() {
     try {
-      const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_STRATEGIES)
+const { data, error } = await supabaseBanking
+        .from('collection_strategies')
         .select('*')
         .eq('is_active', true)
         .order('strategy_name');
@@ -2018,8 +2018,8 @@ export class CollectionService {
    */
   static async getBuckets() {
     try {
-      const { data, error } = await supabaseCollection
-        .from(TABLES.COLLECTION_BUCKETS)
+const { data, error } = await supabaseBanking
+        .from('collection_buckets')
         .select('*')
         .order('min_days');
 
