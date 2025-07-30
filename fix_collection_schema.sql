@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS kastle_collection.collection_buckets (
     max_dpd INTEGER NOT NULL DEFAULT 9999,
     description TEXT,
     priority_order INTEGER,
+    priority_level INTEGER NOT NULL DEFAULT 1,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS kastle_banking.collection_buckets (
     max_dpd INTEGER NOT NULL DEFAULT 9999,
     description TEXT,
     priority_order INTEGER,
+    priority_level INTEGER NOT NULL DEFAULT 1,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -52,15 +53,15 @@ WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'kast
 ON CONFLICT (bucket_code) DO NOTHING;
 
 -- If no buckets exist, create default ones
-INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd, priority_order)
+INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd, priority_order, priority_level)
 VALUES 
-    ('CURRENT', 'Current', 0, 0, 0, 0, 1),
-    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30, 2),
-    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60, 3),
-    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90, 4),
-    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120, 5),
-    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180, 6),
-    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999, 7)
+    ('CURRENT', 'Current', 0, 0, 0, 0, 1, 1),
+    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30, 2, 2),
+    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60, 3, 3),
+    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90, 4, 4),
+    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120, 5, 5),
+    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180, 6, 6),
+    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999, 7, 7)
 ON CONFLICT (bucket_code) DO NOTHING;
 
 -- Create collection_cases in kastle_banking if it doesn't exist

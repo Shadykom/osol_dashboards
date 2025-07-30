@@ -51,6 +51,16 @@ BEGIN
             ADD COLUMN is_active BOOLEAN DEFAULT true;
         END IF;
         
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_schema = 'kastle_banking' 
+            AND table_name = 'collection_buckets' 
+            AND column_name = 'priority_level'
+        ) THEN
+            ALTER TABLE kastle_banking.collection_buckets 
+            ADD COLUMN priority_level INTEGER NOT NULL DEFAULT 1;
+        END IF;
+        
         -- Update existing rows to set min_dpd and max_dpd based on min_days and max_days
         UPDATE kastle_banking.collection_buckets 
         SET 
@@ -72,6 +82,21 @@ BEGIN
                 ELSE 99
             END
         WHERE priority_order IS NULL;
+        
+        -- Set priority level based on bucket order (same as priority_order)
+        UPDATE kastle_banking.collection_buckets 
+        SET priority_level = 
+            CASE bucket_code
+                WHEN 'CURRENT' THEN 1
+                WHEN 'BUCKET_1' THEN 2
+                WHEN 'BUCKET_2' THEN 3
+                WHEN 'BUCKET_3' THEN 4
+                WHEN 'BUCKET_4' THEN 5
+                WHEN 'BUCKET_5' THEN 6
+                WHEN 'BUCKET_6' THEN 7
+                ELSE 99
+            END
+        WHERE priority_level IS NULL;
     END IF;
     
     -- Check if kastle_collection.collection_buckets exists
@@ -111,22 +136,24 @@ BEGIN
 END $$;
 
 -- Now try to insert the default buckets again with all required fields
-INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd, priority_order)
+INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd, priority_order, priority_level)
 VALUES 
-    ('CURRENT', 'Current', 0, 0, 0, 0, 1),
-    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30, 2),
-    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60, 3),
-    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90, 4),
-    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120, 5),
-    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180, 6),
-    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999, 7)
+    ('CURRENT', 'Current', 0, 0, 0, 0, 1, 1),
+    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30, 2, 2),
+    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60, 3, 3),
+    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90, 4, 4),
+    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120, 5, 5),
+    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180, 6, 6),
+    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999, 7, 7)
 ON CONFLICT (bucket_code) 
 DO UPDATE SET 
     min_dpd = EXCLUDED.min_dpd,
     max_dpd = EXCLUDED.max_dpd,
-    priority_order = EXCLUDED.priority_order
+    priority_order = EXCLUDED.priority_order,
+    priority_level = EXCLUDED.priority_level
 WHERE kastle_banking.collection_buckets.min_dpd IS NULL 
-   OR kastle_banking.collection_buckets.max_dpd IS NULL;
+   OR kastle_banking.collection_buckets.max_dpd IS NULL
+   OR kastle_banking.collection_buckets.priority_level IS NULL;
 
 -- Verify the fix
 DO $$
