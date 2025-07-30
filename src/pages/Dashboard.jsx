@@ -1040,24 +1040,37 @@ const WIDGET_CATALOG = {
       type: 'kpi',
       query: async () => {
         try {
+          // First try to get all customers count
+          const { count: allCount, error: allError } = await supabaseBanking
+            .from(TABLES.CUSTOMERS)
+            .select('*', { count: 'exact', head: true });
+          
+          console.log('All customers count:', allCount, 'Error:', allError);
+          
+          // Then try active customers
           const { count, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
             .select('*', { count: 'exact', head: true })
             .eq('is_active', true);
           
+          console.log('Active customers count:', count, 'Error:', error);
+          
           if (error) throw error;
           
+          // Use all count if active count is 0
+          const finalCount = count || allCount || 0;
+          
           return {
-            value: count || 12847,
+            value: finalCount,
             change: 12.5,
             trend: 'up'
           };
         } catch (error) {
-          console.log('Using mock data for total_customers');
+          console.error('Error in total_customers query:', error);
           return {
-            value: 12847,
-            change: 12.5,
-            trend: 'up'
+            value: 0,
+            change: 0,
+            trend: 'neutral'
           };
         }
       }
@@ -2348,7 +2361,7 @@ export default function EnhancedDashboard() {
       </Dialog>
 
       {/* Schema Test Button - Add this for debugging */}
-      <div className="mb-6">
+      <div className="mb-6 flex gap-2">
         <Button 
           onClick={handleSchemaTest}
           variant="outline"
@@ -2357,6 +2370,19 @@ export default function EnhancedDashboard() {
         >
           <Database className="h-4 w-4" />
           Test Database Schema
+        </Button>
+
+        <Button 
+          onClick={() => {
+            console.log('Manually refreshing dashboard data...');
+            refresh();
+          }}
+          variant="outline"
+          size="sm"
+          className="gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh Data
         </Button>
       </div>
     </div>
