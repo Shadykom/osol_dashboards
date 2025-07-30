@@ -1,5 +1,5 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 
@@ -110,7 +110,7 @@ class ReportGenerator {
       ['Total Revenue', this.formatCurrency(data.revenue.totalRevenue)]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)']],
       body: revenueData,
@@ -136,7 +136,7 @@ class ReportGenerator {
       ['Total Expenses', this.formatCurrency(data.expenses.totalExpenses)]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)']],
       body: expensesData,
@@ -185,7 +185,7 @@ class ReportGenerator {
       ['Total Assets', this.formatCurrency(data.assets.totalAssets)]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)']],
       body: assetsData,
@@ -210,7 +210,7 @@ class ReportGenerator {
       ['Total Liabilities', this.formatCurrency(data.liabilities.totalLiabilities)]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)']],
       body: liabilitiesData,
@@ -235,7 +235,7 @@ class ReportGenerator {
       ['Total Equity', this.formatCurrency(data.equity.totalEquity)]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)']],
       body: equityData,
@@ -282,7 +282,7 @@ class ReportGenerator {
       ['Closing Cash Balance', '', this.formatCurrency(data.closingBalance)]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Item', 'Amount (SAR)', 'Total (SAR)']],
       body: cashFlowData,
@@ -320,7 +320,7 @@ class ReportGenerator {
       ['Capital Adequacy Ratio', `${data.capitalAdequacyRatio}%`]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Metric', 'Value']],
       body: metricsData,
@@ -345,7 +345,7 @@ class ReportGenerator {
       ['Critical Risk', data.riskDistribution.critical]
     ];
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Risk Category', 'Number of Accounts']],
       body: riskData,
@@ -400,7 +400,7 @@ class ReportGenerator {
 
     const segmentData = Object.entries(data.acquisitionBySegment).map(([segment, count]) => [segment, count]);
 
-    pdf.autoTable({
+    autoTable(pdf, {
       startY: y,
       head: [['Segment', 'New Customers']],
       body: segmentData,

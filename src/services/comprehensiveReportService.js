@@ -37,7 +37,7 @@ class ComprehensiveReportService {
       // Get transaction data for revenue
       const { data: revenueData, error: revenueError } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
-        .select('transaction_amount as amount, transaction_type_id, transaction_date')
+        .select('transaction_amount, transaction_type_id, transaction_date')
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate)
         .in('transaction_type_id', [1, 2, 3]); // Credit transactions
@@ -53,7 +53,7 @@ class ComprehensiveReportService {
       if (loanError) throw loanError;
 
       // Calculate totals
-      const totalRevenue = revenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+      const totalRevenue = revenueData?.reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
       const interestIncome = loanData?.reduce((sum, loan) => {
         return sum + ((loan.outstanding_balance * loan.interest_rate / 100 / 12) || 0);
       }, 0) || 0;
