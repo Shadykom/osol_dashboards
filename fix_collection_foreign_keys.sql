@@ -36,26 +36,31 @@ CREATE TABLE IF NOT EXISTS kastle_banking.collection_buckets (
     bucket_code VARCHAR(20) UNIQUE,
     min_days INTEGER,
     max_days INTEGER,
+    min_dpd INTEGER NOT NULL DEFAULT 0,
+    max_dpd INTEGER NOT NULL DEFAULT 9999,
     description TEXT,
+    priority_order INTEGER,
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Copy buckets from kastle_collection if they exist there
-INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days)
-SELECT bucket_code, bucket_name, min_days, max_days
+INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd)
+SELECT bucket_code, bucket_name, min_days, max_days, COALESCE(min_dpd, min_days, 0), COALESCE(max_dpd, max_days, 9999)
 FROM kastle_collection.collection_buckets
+WHERE EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'kastle_collection' AND table_name = 'collection_buckets')
 ON CONFLICT (bucket_code) DO NOTHING;
 
 -- If no buckets exist, create default ones
-INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days)
+INSERT INTO kastle_banking.collection_buckets (bucket_code, bucket_name, min_days, max_days, min_dpd, max_dpd, priority_order)
 VALUES 
-    ('CURRENT', 'Current', 0, 0),
-    ('BUCKET_1', '1-30 Days', 1, 30),
-    ('BUCKET_2', '31-60 Days', 31, 60),
-    ('BUCKET_3', '61-90 Days', 61, 90),
-    ('BUCKET_4', '91-120 Days', 91, 120),
-    ('BUCKET_5', '121-180 Days', 121, 180),
-    ('BUCKET_6', '180+ Days', 181, 9999)
+    ('CURRENT', 'Current', 0, 0, 0, 0, 1),
+    ('BUCKET_1', '1-30 Days', 1, 30, 1, 30, 2),
+    ('BUCKET_2', '31-60 Days', 31, 60, 31, 60, 3),
+    ('BUCKET_3', '61-90 Days', 61, 90, 61, 90, 4),
+    ('BUCKET_4', '91-120 Days', 91, 120, 91, 120, 5),
+    ('BUCKET_5', '121-180 Days', 121, 180, 121, 180, 6),
+    ('BUCKET_6', '180+ Days', 181, 9999, 181, 9999, 7)
 ON CONFLICT (bucket_code) DO NOTHING;
 
 -- Create collection_cases in kastle_banking if it doesn't exist

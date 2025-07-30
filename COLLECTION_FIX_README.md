@@ -15,6 +15,7 @@ The application was experiencing multiple database errors related to the `kastle
 - `relation "kastle_banking.kastle_collection.collection_cases" does not exist`
 - `Could not find a relationship between 'kastle_collection.collection_officers' and 'collection_teams'`
 - `relation "kastle_banking.report_schedules" does not exist`
+- `null value in column "min_dpd" of relation "collection_buckets" violates not-null constraint`
 - Various 400 errors when querying collection-related endpoints
 
 ## Solution Applied
@@ -62,9 +63,16 @@ The application was experiencing multiple database errors related to the `kastle
 
 ### Option 2: Manual SQL Execution
 1. Go to your Supabase SQL Editor
-2. Run `fix_collection_schema.sql`
-3. Run `fix_collection_foreign_keys.sql`
-4. The table references in code have already been fixed
+2. **IMPORTANT**: First run `fix_collection_buckets_hotfix.sql` if you get min_dpd errors
+3. Run `fix_collection_schema.sql`
+4. Run `fix_collection_foreign_keys.sql`
+5. The table references in code have already been fixed
+
+### If You Get the min_dpd Error
+If you encounter the error `null value in column "min_dpd" violates not-null constraint`:
+1. Run `fix_collection_buckets_hotfix.sql` first
+2. This will add the missing columns and update existing data
+3. Then proceed with the other scripts
 
 ### Option 3: Using Node.js Script
 ```bash
@@ -135,6 +143,7 @@ If you still see errors after applying fixes:
 
 - `/fix_collection_schema.sql` - Main schema creation
 - `/fix_collection_foreign_keys.sql` - Foreign key fixes
+- `/fix_collection_buckets_hotfix.sql` - Hotfix for min_dpd constraint error
 - `/scripts/fix-table-references.js` - Code fixes
 - `/scripts/apply-collection-fixes.sh` - Automated fix script
 - `/scripts/fix-collection-schema.js` - Node.js SQL runner
