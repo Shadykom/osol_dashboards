@@ -1,4 +1,4 @@
-# Reports Page Error Fix Summary
+# Reports Page Error Fix Summary (Updated for Unified Schema)
 
 ## Problem Description
 
@@ -55,7 +55,17 @@ Created `run_reports_fix.sh` to easily apply the database fixes.
 
 ## How to Apply the Fix
 
-1. **Run the database fix script**:
+### For Unified Schema (All tables in kastle_banking):
+
+1. **Run the unified database fix script**:
+   ```bash
+   ./run_reports_fix_unified.sh
+   ```
+   Enter your database password when prompted.
+
+### For Separate Schemas (if you haven't moved tables):
+
+1. **Run the original database fix script**:
    ```bash
    ./run_reports_fix.sh
    ```
@@ -80,12 +90,17 @@ Created `run_reports_fix.sh` to easily apply the database fixes.
 3. **Data Migration**: If there's existing collection data in other tables, it needs to be migrated
 4. **Testing**: Add integration tests to catch these issues earlier
 
-## Files Modified
+## Files Modified/Created
 
-- `/workspace/fix_reports_errors.sql` - Database fix script
-- `/workspace/run_reports_fix.sh` - Deployment script
-- `/workspace/src/services/comprehensiveReportService.js` - Fixed column name
-- `/workspace/src/services/collectionService.js` - Fixed table references
+### Database Scripts:
+- `/workspace/fix_reports_errors.sql` - Original fix script (creates kastle_collection schema)
+- `/workspace/fix_reports_errors_unified_schema.sql` - Unified schema fix script (all in kastle_banking)
+- `/workspace/run_reports_fix.sh` - Deployment script for original fix
+- `/workspace/run_reports_fix_unified.sh` - Deployment script for unified schema
+
+### Code Changes:
+- `/workspace/src/services/comprehensiveReportService.js` - Fixed column name (amount → transaction_amount)
+- `/workspace/src/services/collectionService.js` - Fixed table references (removed schema prefix)
 
 ## Verification
 
