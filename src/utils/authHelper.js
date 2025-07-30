@@ -50,13 +50,24 @@ export const createAuthenticatedClient = async () => {
 // Execute authenticated query - no authentication required
 export const authenticatedQuery = async (queryFn, options = {}) => {
   try {
-    // Just execute the query directly
-    return await queryFn(supabase);
+    // If queryFn is already a query object (has .select, .from, etc.), execute it directly
+    if (queryFn && typeof queryFn.then === 'function') {
+      const { data, error } = await queryFn;
+      if (error) throw error;
+      return data;
+    }
+    
+    // If it's a function, call it (but don't pass supabase since queries use supabaseBanking)
+    const query = typeof queryFn === 'function' ? queryFn() : queryFn;
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return data;
   } catch (error) {
     console.error('Query error:', error);
     
-    // Return empty data on error
-    return { data: [], error };
+    // Return empty array on error
+    return [];
   }
 };
 
