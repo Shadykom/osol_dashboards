@@ -44,6 +44,11 @@ export class CustomerFootprintService {
    */
   static async searchCustomers(query, filters = {}) {
     try {
+      // Extract pagination parameters
+      const page = filters.page || 1;
+      const limit = filters.limit || 20;
+      const offset = (page - 1) * limit;
+      
       // First, try to find customers directly
       let queryBuilder = supabaseBanking
         .from(TABLES.CUSTOMERS)
@@ -65,8 +70,9 @@ export class CustomerFootprintService {
             contact_type,
             contact_value
           )
-        `)
-        .limit(20);
+        `, { count: 'exact' })
+        .range(offset, offset + limit - 1)
+        .order('created_at', { ascending: false });
 
       // Apply search query
       if (query && query.trim()) {
@@ -100,7 +106,7 @@ export class CustomerFootprintService {
         queryBuilder = queryBuilder.eq('risk_category', riskMap[filters.riskCategory] || filters.riskCategory);
       }
 
-      const { data: customers, error } = await queryBuilder;
+      const { data: customers, error, count } = await queryBuilder;
 
       if (error) {
         console.error('Error searching customers:', error);
@@ -109,7 +115,7 @@ export class CustomerFootprintService {
 
       // If searching by phone number, also search in customer_contacts
       let contactMatches = [];
-      if (query && query.trim() && /^\d+$/.test(query.trim())) {
+      if (query && query.trim() && /^\d+$/.test(query.trim()) && page === 1) {
         const { data: contactData, error: contactError } = await supabaseBanking
           .from(TABLES.CUSTOMER_CONTACTS)
           .select(`
@@ -200,14 +206,22 @@ export class CustomerFootprintService {
 
       return {
         success: true,
-        data: formattedResults
+        data: formattedResults,
+        total: count || formattedResults.length,
+        page,
+        limit,
+        hasMore: formattedResults.length === limit
       };
     } catch (error) {
       console.error('Error searching customers:', error);
       return {
         success: false,
         error: error.message,
-        data: []
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        hasMore: false
       };
     }
   }
