@@ -248,7 +248,12 @@ class ReportGenerator {
       netIncome = totalRevenue - totalExpenses;
     }
     
-    pdf.setTextColor(netIncome >= 0 ? 72, 187, 120 : 245, 101, 101); // Green for profit, red for loss
+    // Set color based on profit/loss
+    if (netIncome >= 0) {
+      pdf.setTextColor(72, 187, 120); // Green for profit
+    } else {
+      pdf.setTextColor(245, 101, 101); // Red for loss
+    }
     pdf.text(this.formatCurrency(netIncome), pdf.internal.pageSize.width - 15, y + 5, { align: 'right' });
 
     return y + 25;
