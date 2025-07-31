@@ -137,10 +137,89 @@ html, body, #root {
   body {
     background: white;
     color: black;
+    font-size: 12pt;
+    line-height: 1.5;
   }
   
   .no-print {
     display: none !important;
+  }
+  
+  /* Hide dialog elements except content */
+  [role="dialog"] > div:first-child,
+  [role="dialog"] > div:last-child,
+  .dialog-header,
+  .dialog-footer,
+  button,
+  .scroll-area-scrollbar {
+    display: none !important;
+  }
+  
+  /* Show only the report content */
+  .scroll-area-viewport {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* Report specific styles */
+  .bg-gradient-to-r {
+    background: #E6B800 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Ensure proper page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+  
+  .page-break-after {
+    page-break-after: always;
+  }
+  
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+  
+  /* Ensure colors are printed */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Format tables for print */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  /* Ensure images are sized properly */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* Add page margins */
+  @page {
+    margin: 1in 0.75in;
+  }
+  
+  /* Report header should repeat on each page */
+  thead {
+    display: table-header-group;
+  }
+  
+  /* Avoid breaking inside important elements */
+  .card,
+  .report-section {
+    page-break-inside: avoid;
   }
 }
 

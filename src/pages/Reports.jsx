@@ -346,6 +346,17 @@ export function Reports() {
     toast.success(`${format.toUpperCase()} downloaded successfully!`);
   };
 
+  // Print report
+  const handlePrint = () => {
+    if (!generatedReport) return;
+    
+    // Add a small delay to ensure dialog is ready
+    setTimeout(() => {
+      window.print();
+      toast.success('Print dialog opened');
+    }, 100);
+  };
+
   // Send email
   const handleSendEmail = async () => {
     if (!generatedReport) {
@@ -1071,7 +1082,7 @@ export function Reports() {
       {/* Preview Dialog */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
         <DialogContent className="w-[95vw] max-w-6xl h-[90vh] max-h-[900px] p-0 overflow-hidden">
-          <DialogHeader className="p-4 sm:p-6 pb-0">
+          <DialogHeader className="p-4 sm:p-6 pb-0 no-print">
             <DialogTitle className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
               <img src="/osol-logo.png" alt="OSOL Logo" className="h-6 sm:h-8 w-auto" />
               <span>Report Preview</span>
@@ -1085,7 +1096,7 @@ export function Reports() {
               {reportData && (
                 <div className="space-y-4">
                   {/* OSOL Branded Header */}
-                  <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-3 sm:p-4 rounded-lg">
+                  <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-3 sm:p-4 rounded-lg avoid-break">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex items-center gap-2 sm:gap-3">
                         <img src="/osol-logo.png" alt="OSOL" className="h-8 sm:h-10 w-auto filter brightness-0 invert" />
@@ -1101,10 +1112,10 @@ export function Reports() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="font-semibold mb-2 text-[#4A5568] text-sm sm:text-base">Report Summary</h3>
-                      <div className="space-y-1 text-xs sm:text-sm bg-gray-50 p-2 sm:p-3 rounded-lg">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 avoid-break">
+                      <div>
+                        <h3 className="font-semibold mb-2 text-[#4A5568] text-sm sm:text-base">Report Summary</h3>
+                        <div className="space-y-1 text-xs sm:text-sm bg-gray-50 p-2 sm:p-3 rounded-lg">
                         <p><span className="font-medium">Type:</span> {generatedReport?.reportInfo.name}</p>
                         <p><span className="font-medium">Period:</span> {format(dateRange.from, 'MMM dd, yyyy')} - {format(dateRange.to, 'MMM dd, yyyy')}</p>
                         <p><span className="font-medium">Generated:</span> {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
@@ -1246,7 +1257,7 @@ export function Reports() {
               )}
             </div>
           </ScrollArea>
-          <DialogFooter className="border-t p-4 sm:p-6">
+          <DialogFooter className="border-t p-4 sm:p-6 no-print">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
               <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
                 <img src="/osol-logo.png" alt="OSOL" className="h-4 w-auto opacity-50" />
@@ -1270,6 +1281,15 @@ export function Reports() {
                   <FileDown className="mr-2 h-4 w-4" />
                   <span className="sm:hidden">PDF</span>
                   <span className="hidden sm:inline">Download PDF</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handlePrint}
+                  className="w-full sm:w-auto text-sm"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  <span className="sm:hidden">Print</span>
+                  <span className="hidden sm:inline">Print Report</span>
                 </Button>
                 <Button 
                   onClick={() => setEmailDialogOpen(true)} 
