@@ -357,10 +357,10 @@ export function ExecutiveDashboard() {
         comparison: comparisonSettings
       };
       
-      const data = await DashboardService.getExecutiveDashboard(filters);
+      const response = await DashboardService.getExecutiveDashboard(filters);
       
-      if (data) {
-        setDashboardData(data);
+      if (response && response.success && response.data) {
+        setDashboardData(response.data);
       } else {
         toast.error('Failed to load dashboard data');
       }

@@ -90,10 +90,13 @@ const ComparisonControls = ({ onComparisonChange, className }) => {
   };
 
   const handleMetricToggle = (metric) => {
+    let newMetrics;
+    
     if (metric === 'all') {
+      newMetrics = ['all'];
       setSelectedMetrics(['all']);
     } else {
-      const newMetrics = selectedMetrics.includes('all') 
+      newMetrics = selectedMetrics.includes('all') 
         ? [metric]
         : selectedMetrics.includes(metric)
           ? selectedMetrics.filter(m => m !== metric)
