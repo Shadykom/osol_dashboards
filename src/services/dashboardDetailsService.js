@@ -1880,7 +1880,7 @@ export const chartDetailsService = {
         break;
       case 'monthly':
         if (subType === 'revenue') {
-          return this.getMonthlyRevenueDetails();
+          return revenueDetailsService.getMonthlyRevenueDetails();
         }
         break;
       case 'customer':
