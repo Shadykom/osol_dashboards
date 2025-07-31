@@ -48,6 +48,10 @@
     "arabic": "العربية",
     "customerList": "Customer List",
     "customersFound": "customers found",
+    "badges": {
+      "live": "LIVE",
+      "new": "NEW"
+    },
     "accounts": "accounts",
     "account": "account",
     "approved": "APPROVED",
@@ -79,6 +83,12 @@
     "expired": "Expired"
   },
   "navigation": {
+    "sections": {
+      "overview": "OVERVIEW",
+      "dashboards": "DASHBOARDS",
+      "collections": "COLLECTIONS",
+      "bankingOperations": "BANKING OPERATIONS"
+    },
     "overview": "Overview",
     "mainDashboard": "Main Dashboard",
     "dashboards": "Dashboards",
@@ -126,7 +136,7 @@
     "digitalCollection": "Digital Collection",
     "earlyWarning": "Early Warning",
     "executiveCollection": "Executive Collection",
-    "delinquencyExecutive": "Executive Delinquency Dashboard",
+    "delinquencyExecutive": "Delinquency Executive",
     "fieldCollection": "Field Collection",
     "officerPerformance": "Officer Performance",
     "shariaCompliance": "Sharia Compliance",
@@ -172,7 +182,98 @@
     "recentTransactions": "Recent Transactions",
     "topCustomers": "Top Customers",
     "performanceMetrics": "Performance Metrics",
-    "quickActions": "Quick Actions"
+    "quickActions": "Quick Actions",
+    "sections": {
+      "overview": "Overview",
+      "banking": "Banking Services",
+      "lending": "Loans & Financing",
+      "collections": "Collections",
+      "customers": "Customers",
+      "risk": "Risk & Compliance"
+    },
+    "sectionDescriptions": {
+      "overview": "Comprehensive performance summary",
+      "banking": "Accounts and transactions",
+      "lending": "Loan portfolio and financing",
+      "collections": "Collection management and follow-up",
+      "customers": "Customer analytics",
+      "risk": "Risk management"
+    },
+    "widgets": {
+      "totalAssets": "Total Assets",
+      "performanceIndicators": "Performance Indicators",
+      "monthlyRevenue": "Monthly Revenue",
+      "customerGrowth": "Customer Growth",
+      "transactionVolume": "Transaction Volume",
+      "profitMargin": "Profit Margin",
+      "branchPerformance": "Branch Performance",
+      "productDistribution": "Product Distribution",
+      "riskMetrics": "Risk Metrics",
+      "digitalAdoption": "Digital Adoption",
+      "totalAccounts": "Total Accounts",
+      "activeAccounts": "Active Accounts",
+      "dailyTransactions": "Daily Transactions",
+      "accountTypesDistribution": "Account Types Distribution",
+      "transactionTrends": "Transaction Trends",
+      "loanPortfolio": "Loan Portfolio",
+      "nplRatio": "NPL Ratio",
+      "loansByProduct": "Loans by Product",
+      "activeCases": "Active Cases",
+      "collectionRate": "Collection Rate",
+      "dpdDistribution": "DPD Distribution",
+      "customerSegments": "Customer Segments",
+      "riskScore": "Risk Score",
+      "complianceStatus": "Compliance Status"
+    },
+    "filters": {
+      "dateRange": "Date Range",
+      "branch": "Branch",
+      "productType": "Product Type",
+      "customerSegment": "Customer Segment",
+      "allBranches": "All Branches",
+      "allProducts": "All Products",
+      "allSegments": "All Segments",
+      "today": "Today",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "last90Days": "Last 90 Days",
+      "lastQuarter": "Last Quarter",
+      "lastYear": "Last Year",
+      "custom": "Custom",
+      "apply": "Apply Filters",
+      "reset": "Reset"
+    },
+    "actions": {
+      "editMode": "Edit Mode",
+      "viewMode": "View Mode",
+      "addWidget": "Add Widget",
+      "removeWidget": "Remove Widget",
+      "refreshData": "Refresh Data",
+      "exportDashboard": "Export Dashboard",
+      "printDashboard": "Print Dashboard",
+      "saveLayout": "Save Layout",
+      "loadTemplate": "Load Template",
+      "testDatabaseSchema": "Test Database Schema",
+      "seedData": "Seed Dashboard Data"
+    },
+    "templates": {
+      "dashboardTemplates": "Dashboard Templates",
+      "chooseTemplate": "Choose a pre-built template to get started quickly",
+      "active": "Active",
+      "widgets": "widgets"
+    },
+    "noWidgets": {
+      "title": "No widgets in this section",
+      "description": "Add widgets to customize your dashboard"
+    },
+    "chartTypes": {
+      "performanceIndicator": "Performance Indicator",
+      "chart": "Chart"
+    },
+    "addWidgetDialog": {
+      "title": "Add Widget",
+      "description": "Choose a widget to add to {{section}} section"
+    }
   },
   "customers": {
     "title": "Customers",

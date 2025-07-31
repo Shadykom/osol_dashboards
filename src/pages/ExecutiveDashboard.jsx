@@ -535,7 +535,7 @@ export function ExecutiveDashboard() {
       
       // Calculate Quarterly Data
       const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-      const currentYear = new Date().getFullYear();
+      // currentYear is already declared above
       const quarterlyPerformance = [];
       const quarterlyTargets = [];
       
