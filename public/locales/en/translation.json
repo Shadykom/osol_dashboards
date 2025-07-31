@@ -48,6 +48,10 @@
     "arabic": "العربية",
     "customerList": "Customer List",
     "customersFound": "customers found",
+    "badges": {
+      "live": "LIVE",
+      "new": "NEW"
+    },
     "accounts": "accounts",
     "account": "account",
     "approved": "APPROVED",
@@ -79,6 +83,12 @@
     "expired": "Expired"
   },
   "navigation": {
+    "sections": {
+      "overview": "OVERVIEW",
+      "dashboards": "DASHBOARDS",
+      "collections": "COLLECTIONS",
+      "bankingOperations": "BANKING OPERATIONS"
+    },
     "overview": "Overview",
     "mainDashboard": "Main Dashboard",
     "dashboards": "Dashboards",
@@ -126,7 +136,7 @@
     "digitalCollection": "Digital Collection",
     "earlyWarning": "Early Warning",
     "executiveCollection": "Executive Collection",
-    "delinquencyExecutive": "Executive Delinquency Dashboard",
+    "delinquencyExecutive": "Delinquency Executive",
     "fieldCollection": "Field Collection",
     "officerPerformance": "Officer Performance",
     "shariaCompliance": "Sharia Compliance",

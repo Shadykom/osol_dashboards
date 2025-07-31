@@ -59,68 +59,68 @@ import osoulLogo from '@/assets/osol-logo.png';
 // Navigation configuration
 const getNavigationConfig = (t) => [
   {
-    section: 'OVERVIEW',
+    section: t('navigation.sections.overview'),
     items: [
       {
         id: 'dashboard',
-        title: 'Main Dashboard',
+        title: t('navigation.mainDashboard'),
         href: '/dashboard',
         icon: Home,
-        badge: 'LIVE',
+        badge: t('common.badges.live'),
         badgeClass: 'bg-green-500'
       }
     ]
   },
   {
-    section: 'DASHBOARDS',
+    section: t('navigation.sections.dashboards'),
     items: [
       {
         id: 'executive',
-        title: 'Executive Dashboard',
+        title: t('navigation.executiveDashboard'),
         href: '/dashboards/executive',
         icon: Building2
       },
       {
         id: 'operations',
-        title: 'Operations Dashboard',
+        title: t('navigation.operationsDashboard'),
         href: '/dashboards/operations',
         icon: Activity
       },
       {
         id: 'custom',
-        title: 'Custom Dashboard',
+        title: t('navigation.customDashboard'),
         href: '/dashboards/custom',
         icon: Target
       }
     ]
   },
   {
-    section: 'COLLECTIONS',
+    section: t('navigation.sections.collections'),
     expanded: true,
     items: [
       {
         id: 'collection-overview',
-        title: 'Collection Overview',
+        title: t('navigation.collectionOverview'),
         href: '/collection/overview',
         icon: Eye
       },
       {
         id: 'daily-collection',
-        title: 'Daily Collection',
+        title: t('navigation.dailyCollection'),
         href: '/collection/daily',
         icon: Calendar,
-        badge: 'LIVE',
+        badge: t('common.badges.live'),
         badgeClass: 'bg-blue-500'
       },
       {
         id: 'digital-collection',
-        title: 'Digital Collection',
+        title: t('navigation.digitalCollection'),
         href: '/collection/digital',
         icon: Smartphone
       },
       {
         id: 'early-warning',
-        title: 'Early Warning',
+        title: t('navigation.earlyWarning'),
         href: '/collection/early-warning',
         icon: AlertTriangle,
         badge: '45',
@@ -128,69 +128,69 @@ const getNavigationConfig = (t) => [
       },
       {
         id: 'executive-collection',
-        title: 'Executive Collection',
+        title: t('navigation.executiveCollection'),
         href: '/collection/executive',
         icon: Building2
       },
       {
         id: 'delinquency-executive',
-        title: 'Delinquency Executive',
+        title: t('navigation.delinquencyExecutive'),
         href: '/collection/delinquency-executive',
         icon: TrendingUp,
-        badge: 'NEW',
+        badge: t('common.badges.new'),
         badgeClass: 'bg-purple-500'
       },
       {
         id: 'field-collection',
-        title: 'Field Collection',
+        title: t('navigation.fieldCollection'),
         href: '/collection/field',
         icon: MapPin
       },
       {
         id: 'officer-performance',
-        title: 'Officer Performance',
+        title: t('navigation.officerPerformance'),
         href: '/collection/officer-performance',
         icon: Trophy
       },
       {
         id: 'sharia-compliance',
-        title: 'Sharia Compliance',
+        title: t('navigation.shariaCompliance'),
         href: '/collection/sharia-compliance',
         icon: BookOpen
       },
       {
         id: 'vintage-analysis',
-        title: 'Vintage Analysis',
+        title: t('navigation.vintageAnalysis'),
         href: '/collection/vintage-analysis',
         icon: Layers
       },
       {
         id: 'specialist-report',
-        title: 'Specialist Report',
+        title: t('navigation.specialistReport'),
         href: '/collection/specialist-report',
         icon: UserSearch,
-        badge: 'NEW',
+        badge: t('common.badges.new'),
         badgeClass: 'bg-purple-500'
       },
       {
         id: 'collection-reports',
-        title: 'Collection Reports',
+        title: t('navigation.collectionReports'),
         icon: FileText,
         children: [
           {
             id: 'branch-report',
-            title: 'Branch Level Report',
+            title: t('navigation.branchLevelReport'),
             href: '/collection/branch-report',
             icon: Building2,
-            badge: 'NEW',
+            badge: t('common.badges.new'),
             badgeClass: 'bg-purple-500'
           },
           {
             id: 'product-report',
-            title: 'Product Level Report',
+            title: t('navigation.productLevelReport'),
             href: '/collection/product-report',
             icon: Package,
-            badge: 'NEW',
+            badge: t('common.badges.new'),
             badgeClass: 'bg-purple-500'
           }
         ]
@@ -198,16 +198,16 @@ const getNavigationConfig = (t) => [
     ]
   },
   {
-    section: 'BANKING OPERATIONS',
+    section: t('navigation.sections.bankingOperations'),
     items: [
       {
         id: 'customers',
-        title: 'Customers',
+        title: t('navigation.customers'),
         icon: Users,
         children: [
           {
             id: 'all-customers',
-            title: 'All Customers',
+            title: t('navigation.allCustomers'),
             href: '/customers',
             icon: Users,
             badge: '12.5k',
@@ -215,13 +215,13 @@ const getNavigationConfig = (t) => [
           },
           {
             id: 'add-customer',
-            title: 'Add Customer',
+            title: t('navigation.addCustomer'),
             href: '/customers/new',
             icon: UserCheck
           },
           {
             id: 'kyc-pending',
-            title: 'KYC Pending',
+            title: t('navigation.kycPending'),
             href: '/customers/kyc-pending',
             icon: FileWarning,
             badge: '23',
@@ -229,7 +229,7 @@ const getNavigationConfig = (t) => [
           },
           {
             id: 'risk-assessment',
-            title: 'Risk Assessment',
+            title: t('navigation.riskAssessment'),
             href: '/customers/risk',
             icon: AlertTriangle
           }
@@ -237,24 +237,24 @@ const getNavigationConfig = (t) => [
       },
       {
         id: 'accounts',
-        title: 'Accounts',
+        title: t('navigation.accounts'),
         icon: CreditCard,
         children: [
           {
             id: 'all-accounts',
-            title: 'All Accounts',
+            title: t('navigation.allAccounts'),
             href: '/accounts',
             icon: CreditCard
           },
           {
             id: 'open-account',
-            title: 'Open Account',
+            title: t('navigation.openAccount'),
             href: '/accounts/new',
             icon: CreditCard
           },
           {
             id: 'blocked-accounts',
-            title: 'Blocked Accounts',
+            title: t('navigation.blockedAccounts'),
             href: '/accounts/blocked',
             icon: AlertTriangle,
             badge: '5',
@@ -262,7 +262,7 @@ const getNavigationConfig = (t) => [
           },
           {
             id: 'dormant-accounts',
-            title: 'Dormant Accounts',
+            title: t('navigation.dormantAccounts'),
             href: '/accounts/dormant',
             icon: Moon,
             badge: '12',
@@ -272,18 +272,18 @@ const getNavigationConfig = (t) => [
       },
       {
         id: 'transactions',
-        title: 'Transactions',
+        title: t('navigation.transactions'),
         icon: ArrowUpDown,
         children: [
           {
             id: 'all-transactions',
-            title: 'All Transactions',
+            title: t('navigation.allTransactions'),
             href: '/transactions',
             icon: ArrowUpDown
           },
           {
             id: 'pending-approval',
-            title: 'Pending Approval',
+            title: t('navigation.pendingApproval'),
             href: '/transactions/pending',
             icon: Clock,
             badge: '156',
@@ -291,7 +291,7 @@ const getNavigationConfig = (t) => [
           },
           {
             id: 'failed-transactions',
-            title: 'Failed Transactions',
+            title: t('navigation.failedTransactions'),
             href: '/transactions/failed',
             icon: X,
             badge: '23',
@@ -299,7 +299,7 @@ const getNavigationConfig = (t) => [
           },
           {
             id: 'bulk-upload',
-            title: 'Bulk Upload',
+            title: t('navigation.bulkUpload'),
             href: '/transactions/bulk',
             icon: FileText
           }
@@ -307,18 +307,18 @@ const getNavigationConfig = (t) => [
       },
       {
         id: 'loans',
-        title: 'Loans',
+        title: t('navigation.loans'),
         icon: Wallet,
         children: [
           {
             id: 'all-loans',
-            title: 'All Loans',
+            title: t('navigation.allLoans'),
             href: '/loans',
             icon: Wallet
           },
           {
             id: 'loan-applications',
-            title: 'Loan Applications',
+            title: t('navigation.loanApplications'),
             href: '/loans/applications',
             icon: FileText,
             badge: '45',
@@ -326,19 +326,19 @@ const getNavigationConfig = (t) => [
           },
           {
             id: 'disbursements',
-            title: 'Disbursements',
+            title: t('navigation.disbursements'),
             href: '/loans/disbursements',
             icon: DollarSign
           },
           {
             id: 'collections',
-            title: 'Collections',
+            title: t('navigation.collections'),
             href: '/loans/collections',
             icon: Coins
           },
           {
             id: 'overdue-loans',
-            title: 'Overdue Loans',
+            title: t('navigation.overdueLoans'),
             href: '/loans/overdue',
             icon: AlertTriangle,
             badge: '89',
