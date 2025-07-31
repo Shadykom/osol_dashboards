@@ -159,26 +159,80 @@ export function ExecutiveDashboard() {
     try {
       // Fetch KPIs using DashboardService
       const kpisResponse = await DashboardService.getExecutiveKPIs();
+      console.log('DashboardService KPIs Response:', kpisResponse);
       
-      // Fetch customer data
-      const { count: totalCustomers } = await supabaseBanking
+      // Fetch customer data - try both count and data methods
+      const { count: totalCustomers, error: totalError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true });
         
-      const { count: activeCustomers } = await supabaseBanking
+      if (totalError) {
+        console.error('Error fetching total customers:', totalError);
+      }
+      
+      // If count doesn't work, try fetching actual data
+      let actualTotalCustomers = totalCustomers;
+      if (totalCustomers === null || totalCustomers === undefined) {
+        const { data: allCustomerData, error: allDataError } = await supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select('customer_id');
+        
+        if (!allDataError && allCustomerData) {
+          actualTotalCustomers = allCustomerData.length;
+          console.log('Used data length for total customers:', actualTotalCustomers);
+        }
+      }
+        
+      const { count: activeCustomers, error: activeError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true })
         .eq('is_active', true);
+        
+      if (activeError) {
+        console.error('Error fetching active customers:', activeError);
+      }
+      
+      // If count doesn't work for active customers, try fetching actual data
+      let actualActiveCustomers = activeCustomers;
+      if (activeCustomers === null || activeCustomers === undefined) {
+        const { data: activeCustomerData, error: activeDataError } = await supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select('customer_id')
+          .eq('is_active', true);
+        
+        if (!activeDataError && activeCustomerData) {
+          actualActiveCustomers = activeCustomerData.length;
+          console.log('Used data length for active customers:', actualActiveCustomers);
+        }
+      }
         
       // Fetch new customers this month
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
       
-      const { count: newCustomersThisMonth } = await supabaseBanking
+      const { count: newCustomersThisMonth, error: newCustomersError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
+        
+      if (newCustomersError) {
+        console.error('Error fetching new customers:', newCustomersError);
+      }
+      
+      // If count doesn't work for new customers, try fetching actual data
+      let actualNewCustomers = newCustomersThisMonth;
+      if (newCustomersThisMonth === null || newCustomersThisMonth === undefined) {
+        const { data: newCustomerData, error: newDataError } = await supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select('customer_id')
+          .gte('created_at', startOfMonth.toISOString());
+        
+        if (!newDataError && newCustomerData) {
+          actualNewCustomers = newCustomerData.length;
+          console.log('Used data length for new customers:', actualNewCustomers);
+        }
+      }
         
       // Fetch account balances for deposits
       const { data: accounts } = await supabaseBanking
@@ -199,8 +253,29 @@ export function ExecutiveDashboard() {
       const nplAmount = nplLoans.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0);
       const nplRatio = totalLoans > 0 ? (nplAmount / totalLoans) * 100 : 0;
       
+      // Use actual values
+      const finalTotalCustomers = actualTotalCustomers ?? totalCustomers ?? 0;
+      const finalActiveCustomers = actualActiveCustomers ?? activeCustomers ?? 0;
+      const finalNewCustomers = actualNewCustomers ?? newCustomersThisMonth ?? 0;
+      
+      // Debug logging
+      console.log('Customer data debug:', {
+        totalCustomers,
+        activeCustomers,
+        newCustomersThisMonth,
+        actualTotalCustomers,
+        actualActiveCustomers,
+        actualNewCustomers,
+        finalTotalCustomers,
+        finalActiveCustomers,
+        finalNewCustomers,
+        totalError,
+        activeError,
+        newCustomersError
+      });
+      
       // Calculate customer growth rate
-      const customerGrowthRate = totalCustomers > 0 ? ((newCustomersThisMonth / totalCustomers) * 100) : 0;
+      const customerGrowthRate = finalTotalCustomers > 0 ? ((finalNewCustomers / finalTotalCustomers) * 100) : 0;
       
       // Fetch customer segments
       const { data: customers } = await supabaseBanking
@@ -220,6 +295,13 @@ export function ExecutiveDashboard() {
         percentage: totalSegmentCount > 0 ? Math.round((count / totalSegmentCount) * 100) : 0
       }));
       
+      // Final customer counts are already calculated above
+      console.log('Final customer counts:', {
+        total: finalTotalCustomers,
+        active: finalActiveCustomers,
+        new: finalNewCustomers
+      });
+      
       // Set the dashboard data
       setDashboardData({
         kpis: {
@@ -233,9 +315,9 @@ export function ExecutiveDashboard() {
           costIncomeRatio: 42.5,
           nplRatio: nplRatio.toFixed(2),
           capitalAdequacyRatio: 16.8,
-          totalCustomers: totalCustomers || 0,
-          activeCustomers: activeCustomers || 0,
-          newCustomersThisMonth: newCustomersThisMonth || 0,
+                      totalCustomers: finalTotalCustomers,
+            activeCustomers: finalActiveCustomers,
+            newCustomersThisMonth: finalNewCustomers,
           customerGrowthRate: customerGrowthRate.toFixed(2)
         },
         monthlyPerformance: [
