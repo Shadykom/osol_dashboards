@@ -2496,8 +2496,8 @@ export default function EnhancedDashboard() {
                       <div>
                         <CardTitle className="text-base font-medium flex items-center justify-between">
                           <span className="flex items-center gap-2">
-                            <widgetDef.icon className="h-4 w-4" />
-                            {widgetName}
+                            <LayoutGrid className="h-4 w-4" />
+                            {template.name}
                           </span>
                           {selectedTemplate === key && (
                             <Badge className="bg-green-500">
