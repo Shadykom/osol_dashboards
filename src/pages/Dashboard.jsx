@@ -177,62 +177,38 @@ const getMockChartData = (type) => {
 const DASHBOARD_SECTIONS = {
   overview: {
     id: 'overview',
-    name: 'نظرة عامة',
-    nameEn: 'Overview',
     icon: Home,
     color: 'bg-blue-500',
-    description: 'ملخص شامل للأداء',
-    descriptionEn: 'Comprehensive performance summary',
     gradient: 'from-blue-500 to-blue-600'
   },
   banking: {
     id: 'banking',
-    name: 'الخدمات المصرفية',
-    nameEn: 'Banking Services',
     icon: Building2,
     color: 'bg-green-500',
-    description: 'الحسابات والمعاملات',
-    descriptionEn: 'Accounts and transactions',
     gradient: 'from-green-500 to-green-600'
   },
   lending: {
     id: 'lending',
-    name: 'القروض والتمويل',
-    nameEn: 'Loans & Financing',
     icon: Banknote,
     color: 'bg-purple-500',
-    description: 'محفظة القروض والتمويل',
-    descriptionEn: 'Loan portfolio and financing',
     gradient: 'from-purple-500 to-purple-600'
   },
   collections: {
     id: 'collections',
-    name: 'التحصيل',
-    nameEn: 'Collections',
     icon: Scale,
     color: 'bg-red-500',
-    description: 'إدارة التحصيل والمتابعة',
-    descriptionEn: 'Collection management and follow-up',
     gradient: 'from-red-500 to-red-600'
   },
   customers: {
     id: 'customers',
-    name: 'العملاء',
-    nameEn: 'Customers',
     icon: Users,
     color: 'bg-indigo-500',
-    description: 'تحليلات العملاء',
-    descriptionEn: 'Customer analytics',
     gradient: 'from-indigo-500 to-indigo-600'
   },
   risk: {
     id: 'risk',
-    name: 'المخاطر والامتثال',
-    nameEn: 'Risk & Compliance',
     icon: Shield,
     color: 'bg-orange-500',
-    description: 'إدارة المخاطر',
-    descriptionEn: 'Risk management',
     gradient: 'from-orange-500 to-orange-600'
   }
 };
@@ -241,8 +217,7 @@ const DASHBOARD_SECTIONS = {
 const WIDGET_CATALOG = {
   overview: {
     total_assets: {
-      name: 'إجمالي الأصول',
-      nameEn: 'Total Assets',
+      widgetKey: 'totalAssets',
       icon: DollarSign,
       type: 'kpi',
       query: async (filters) => {
@@ -304,8 +279,7 @@ const WIDGET_CATALOG = {
       }
     },
     performance_radar: {
-      name: 'مؤشرات الأداء',
-      nameEn: 'Performance Indicators',
+      widgetKey: 'performanceIndicators',
       icon: Target,
       type: 'chart',
       chartType: 'radar',
@@ -357,8 +331,7 @@ const WIDGET_CATALOG = {
       }
     },
     monthly_revenue: {
-      name: 'الإيرادات الشهرية',
-      nameEn: 'Monthly Revenue',
+      widgetKey: 'monthlyRevenue',
       icon: TrendingUp,
       type: 'chart',
       chartType: 'area',
@@ -410,8 +383,7 @@ const WIDGET_CATALOG = {
       }
     },
     customer_growth: {
-      name: 'نمو العملاء',
-      nameEn: 'Customer Growth',
+      widgetKey: 'customerGrowth',
       icon: Users,
       type: 'kpi',
       query: async (filters) => {
@@ -1838,10 +1810,13 @@ export default function EnhancedDashboard() {
     const widgetDef = WIDGET_CATALOG[widget.section]?.[widget.widget];
     if (!widgetDef) return null;
     
-    const dataKey = `${widget.section}_${widget.widget}`;
-    const data = widgetData[dataKey];
-    const isLoading = widgetLoadingStates[dataKey] || false;
-    const hasData = data !== undefined && data !== null;
+    const widgetData = widgetDataCache[widget.id] || {};
+    const isLoading = loadingWidgets[widget.id];
+    const hasError = errorWidgets.includes(widget.id);
+    
+    // Get widget name from translations
+    const widgetName = widgetDef.widgetKey ? t(`dashboard.widgets.${widgetDef.widgetKey}`) : 
+                      (i18n.language === 'ar' ? widgetDef.name : widgetDef.nameEn);
     
     // Determine grid size classes
     const sizeClasses = {
@@ -1899,31 +1874,38 @@ export default function EnhancedDashboard() {
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 </div>
               </div>
-            ) : hasData ? (
+            ) : hasError ? (
+              <div className="h-32 flex items-center justify-center text-red-500">
+                <div className="text-center">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-red-500" />
+                  <p className="text-sm">Error loading data</p>
+                </div>
+              </div>
+            ) : (
               <>
                 {widgetDef.type === 'kpi' && (
                   <div className="space-y-1 sm:space-y-2">
                     <div className="text-xl sm:text-2xl md:text-3xl font-bold">
-                      {typeof data.value === 'number' && data.value >= 1000000 
-                        ? formatCurrency(data.value)
-                        : formatNumber(data.value || 0)
+                      {typeof widgetData.value === 'number' && widgetData.value >= 1000000 
+                        ? formatCurrency(widgetData.value)
+                        : formatNumber(widgetData.value || 0)
                       }
-                      {data.suffix}
+                      {widgetData.suffix}
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                      {data.trend === 'up' ? (
+                      {widgetData.trend === 'up' ? (
                         <TrendingUp className="h-4 w-4 text-green-500" />
-                      ) : data.trend === 'down' ? (
+                      ) : widgetData.trend === 'down' ? (
                         <TrendingDown className="h-4 w-4 text-red-500" />
                       ) : (
                         <Activity className="h-4 w-4 text-gray-500" />
                       )}
                       <span className={
-                        data.trend === 'up' ? 'text-green-500' : 
-                        data.trend === 'down' ? 'text-red-500' : 
+                        widgetData.trend === 'up' ? 'text-green-500' : 
+                        widgetData.trend === 'down' ? 'text-red-500' : 
                         'text-gray-500'
                       }>
-                        {data.change > 0 ? '+' : ''}{data.change || 0}%
+                        {widgetData.change > 0 ? '+' : ''}{widgetData.change || 0}%
                       </span>
                       <span className="text-muted-foreground">
                         vs last period
@@ -1932,18 +1914,18 @@ export default function EnhancedDashboard() {
                   </div>
                 )}
                 
-                {widgetDef.type === 'chart' && Array.isArray(data) && data.length > 0 && (
+                {widgetDef.type === 'chart' && Array.isArray(widgetData) && widgetData.length > 0 && (
                   <div className="h-48 sm:h-56 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       {widgetDef.chartType === 'line' && (
-                        <RechartsLineChart data={data}>
+                        <RechartsLineChart data={widgetData}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey={Object.keys(data[0] || {})[0]} />
+                          <XAxis dataKey={Object.keys(widgetData[0] || {})[0]} />
                           <YAxis />
                           <Tooltip />
                           <Line 
                             type="monotone" 
-                            dataKey={Object.keys(data[0] || {})[1]} 
+                            dataKey={Object.keys(widgetData[0] || {})[1]} 
                             stroke="#E6B800" 
                             strokeWidth={2}
                           />
@@ -1951,10 +1933,10 @@ export default function EnhancedDashboard() {
                       )}
                       
                       {widgetDef.chartType === 'area' && (
-                        <AreaChart data={data}>
+                        <AreaChart data={widgetData}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis 
-                            dataKey={Object.keys(data[0] || {})[0]} 
+                            dataKey={Object.keys(widgetData[0] || {})[0]} 
                             tick={{ fontSize: 12 }}
                             interval={'preserveStartEnd'}
                           />
@@ -1965,16 +1947,16 @@ export default function EnhancedDashboard() {
                           />
                           <Area 
                             type="monotone" 
-                            dataKey={Object.keys(data[0] || {})[1]} 
+                            dataKey={Object.keys(widgetData[0] || {})[1]} 
                             stroke="#E6B800" 
                             fill="#E6B800"
                             fillOpacity={0.3}
                             name="Revenue"
                           />
-                          {Object.keys(data[0] || {}).length > 2 && (
+                          {Object.keys(widgetData[0] || {}).length > 2 && (
                             <Area 
                               type="monotone" 
-                              dataKey={Object.keys(data[0] || {})[2]} 
+                              dataKey={Object.keys(widgetData[0] || {})[2]} 
                               stroke="#4A5568" 
                               fill="#4A5568"
                               fillOpacity={0.3}
@@ -1986,10 +1968,10 @@ export default function EnhancedDashboard() {
                       )}
                       
                       {widgetDef.chartType === 'bar' && (
-                        <BarChart data={data}>
+                        <BarChart data={widgetData}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis 
-                            dataKey={data[0]?.branch ? "branch" : "name"} 
+                            dataKey={widgetData[0]?.branch ? "branch" : "name"} 
                             tick={{ fontSize: 10 }}
                             angle={-45}
                             textAnchor="end"
@@ -2003,9 +1985,9 @@ export default function EnhancedDashboard() {
                             }}
                             contentStyle={{ fontSize: '12px' }}
                           />
-                          <Bar dataKey={data[0]?.revenue ? "revenue" : "amount"} fill="#E6B800" name="Revenue" />
-                          {(data[0]?.customers !== undefined || data[0]?.count !== undefined) && (
-                            <Bar dataKey={data[0]?.customers ? "customers" : "count"} fill="#4A5568" name="Customers" />
+                          <Bar dataKey={widgetData[0]?.revenue ? "revenue" : "amount"} fill="#E6B800" name="Revenue" />
+                          {(widgetData[0]?.customers !== undefined || widgetData[0]?.count !== undefined) && (
+                            <Bar dataKey={widgetData[0]?.customers ? "customers" : "count"} fill="#4A5568" name="Customers" />
                           )}
                           <Legend wrapperStyle={{ fontSize: '12px' }} />
                         </BarChart>
@@ -2014,7 +1996,7 @@ export default function EnhancedDashboard() {
                       {widgetDef.chartType === 'pie' && (
                         <RechartsPieChart>
                           <Pie
-                            data={data}
+                            data={widgetData}
                             cx="50%"
                             cy="50%"
                             innerRadius={0}
@@ -2023,7 +2005,7 @@ export default function EnhancedDashboard() {
                             label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                             labelLine={false}
                           >
-                            {data.map((entry, index) => (
+                            {widgetData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.fill || COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
@@ -2041,7 +2023,7 @@ export default function EnhancedDashboard() {
                       )}
                       
                       {widgetDef.chartType === 'radar' && (
-                        <RadarChart data={data}>
+                        <RadarChart data={widgetData}>
                           <PolarGrid />
                           <PolarAngleAxis dataKey="metric" />
                           <PolarRadiusAxis />
@@ -2058,7 +2040,7 @@ export default function EnhancedDashboard() {
                           cy="50%" 
                           innerRadius="10%" 
                           outerRadius="80%" 
-                          data={data}
+                          data={widgetData}
                         >
                           <RadialBar dataKey="value" />
                           <Legend />
@@ -2069,13 +2051,6 @@ export default function EnhancedDashboard() {
                   </div>
                 )}
               </>
-            ) : (
-              <div className="h-32 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">No data to display</p>
-                </div>
-              </div>
             )}
           </CardContent>
         </Card>
@@ -2503,8 +2478,16 @@ export default function EnhancedDashboard() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-base">
-                          {template.nameEn}
+                        <CardTitle className="text-base font-medium flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <widgetDef.icon className="h-4 w-4" />
+                            {widgetName}
+                          </span>
+                          {selectedTemplate === key && (
+                            <Badge className="bg-green-500">
+                              Active
+                            </Badge>
+                          )}
                         </CardTitle>
                       </div>
                       {selectedTemplate === key && (

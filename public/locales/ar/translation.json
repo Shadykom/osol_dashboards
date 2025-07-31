@@ -194,7 +194,98 @@
     "recentTransactions": "المعاملات الأخيرة",
     "topCustomers": "أفضل العملاء",
     "performanceMetrics": "مقاييس الأداء",
-    "quickActions": "إجراءات سريعة"
+    "quickActions": "إجراءات سريعة",
+    "sections": {
+      "overview": "نظرة عامة",
+      "banking": "الخدمات المصرفية",
+      "lending": "القروض والتمويل",
+      "collections": "التحصيل",
+      "customers": "العملاء",
+      "risk": "المخاطر والامتثال"
+    },
+    "sectionDescriptions": {
+      "overview": "ملخص شامل للأداء",
+      "banking": "الحسابات والمعاملات",
+      "lending": "محفظة القروض والتمويل",
+      "collections": "إدارة التحصيل والمتابعة",
+      "customers": "تحليلات العملاء",
+      "risk": "إدارة المخاطر"
+    },
+    "widgets": {
+      "totalAssets": "إجمالي الأصول",
+      "performanceIndicators": "مؤشرات الأداء",
+      "monthlyRevenue": "الإيرادات الشهرية",
+      "customerGrowth": "نمو العملاء",
+      "transactionVolume": "حجم المعاملات",
+      "profitMargin": "هامش الربح",
+      "branchPerformance": "أداء الفروع",
+      "productDistribution": "توزيع المنتجات",
+      "riskMetrics": "مؤشرات المخاطر",
+      "digitalAdoption": "التحول الرقمي",
+      "totalAccounts": "إجمالي الحسابات",
+      "activeAccounts": "الحسابات النشطة",
+      "dailyTransactions": "المعاملات اليومية",
+      "accountTypesDistribution": "توزيع أنواع الحسابات",
+      "transactionTrends": "اتجاهات المعاملات",
+      "loanPortfolio": "محفظة القروض",
+      "nplRatio": "نسبة القروض المتعثرة",
+      "loansByProduct": "القروض حسب المنتج",
+      "activeCases": "الحالات النشطة",
+      "collectionRate": "معدل التحصيل",
+      "dpdDistribution": "توزيع أيام التأخير",
+      "customerSegments": "شرائح العملاء",
+      "riskScore": "مؤشر المخاطر",
+      "complianceStatus": "حالة الامتثال"
+    },
+    "filters": {
+      "dateRange": "النطاق الزمني",
+      "branch": "الفرع",
+      "productType": "نوع المنتج",
+      "customerSegment": "شريحة العملاء",
+      "allBranches": "جميع الفروع",
+      "allProducts": "جميع المنتجات",
+      "allSegments": "جميع الشرائح",
+      "today": "اليوم",
+      "last7Days": "آخر 7 أيام",
+      "last30Days": "آخر 30 يوماً",
+      "last90Days": "آخر 90 يوماً",
+      "lastQuarter": "الربع الأخير",
+      "lastYear": "السنة الماضية",
+      "custom": "مخصص",
+      "apply": "تطبيق الفلاتر",
+      "reset": "إعادة تعيين"
+    },
+    "actions": {
+      "editMode": "وضع التحرير",
+      "viewMode": "وضع العرض",
+      "addWidget": "إضافة أداة",
+      "removeWidget": "إزالة الأداة",
+      "refreshData": "تحديث البيانات",
+      "exportDashboard": "تصدير لوحة التحكم",
+      "printDashboard": "طباعة لوحة التحكم",
+      "saveLayout": "حفظ التخطيط",
+      "loadTemplate": "تحميل قالب",
+      "testDatabaseSchema": "اختبار مخطط قاعدة البيانات",
+      "seedData": "تعبئة بيانات لوحة التحكم"
+    },
+    "templates": {
+      "dashboardTemplates": "قوالب لوحة التحكم",
+      "chooseTemplate": "اختر قالباً جاهزاً للبدء بسرعة",
+      "active": "نشط",
+      "widgets": "أدوات"
+    },
+    "noWidgets": {
+      "title": "لا توجد أدوات في هذا القسم",
+      "description": "أضف أدوات لتخصيص لوحة التحكم الخاصة بك"
+    },
+    "chartTypes": {
+      "performanceIndicator": "مؤشر الأداء",
+      "chart": "رسم بياني"
+    },
+    "addWidgetDialog": {
+      "title": "إضافة أداة",
+      "description": "اختر أداة لإضافتها إلى قسم {{section}}"
+    }
   },
   "customers": {
     "title": "العملاء",
