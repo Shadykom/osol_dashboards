@@ -44,6 +44,7 @@ export function ChartWidget({
   showTooltip = true,
   showLegend = false,
   clickable = true,
+  multiLine = null,
   ...props
 }) {
   const navigate = useNavigate();
@@ -114,13 +115,26 @@ export function ChartWidget({
             <YAxis />
             {showTooltip && <Tooltip />}
             {showLegend && <Legend />}
-            <Line
-              type="monotone"
-              dataKey={yAxisKey}
-              stroke={CHART_COLORS[0]}
-              strokeWidth={2}
-              dot={{ fill: CHART_COLORS[0] }}
-            />
+            {multiLine && multiLine.length > 0 ? (
+              multiLine.map((lineKey, index) => (
+                <Line
+                  key={lineKey}
+                  type="monotone"
+                  dataKey={lineKey}
+                  stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_COLORS[index % CHART_COLORS.length] }}
+                />
+              ))
+            ) : (
+              <Line
+                type="monotone"
+                dataKey={yAxisKey}
+                stroke={CHART_COLORS[0]}
+                strokeWidth={2}
+                dot={{ fill: CHART_COLORS[0] }}
+              />
+            )}
           </LineChart>
         );
     }
