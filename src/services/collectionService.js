@@ -521,9 +521,19 @@ export class CollectionService {
         .lte('summary_date', endDate.toISOString().split('T')[0])
         .order('summary_date', { ascending: true });
 
-      if (summaryError) throw summaryError;
+      if (summaryError) {
+        console.error('Error fetching daily summaries:', summaryError);
+        throw summaryError;
+      }
 
       // Get top officers performance
+      // Use current date or last day of current month for officer performance
+      const today = new Date();
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const queryDate = lastDayOfMonth.toISOString().split('T')[0];
+      
+      console.log('Querying officer performance for date:', queryDate); // Debug log
+      
       const { data: officerPerformance, error: officersError } = await supabaseCollection
         .from('officer_performance_summary')
         .select(`
@@ -537,9 +547,24 @@ export class CollectionService {
             )
           )
         `)
-        .eq('summary_date', endDate.toISOString().split('T')[0])
+        .lte('summary_date', queryDate)
+        .order('summary_date', { ascending: false })
         .order('total_collected', { ascending: false })
         .limit(10);
+
+      if (officersError) {
+        console.error('Error fetching officer performance:', officersError);
+        // Return empty array instead of throwing to avoid breaking the UI
+        return {
+          success: true,
+          data: {
+            summary: dailySummaries || [],
+            topOfficers: [],
+            teamComparison: [],
+            performanceTrend: []
+          }
+        };
+      }
 
       // Get team comparison
       const { data: teams, error: teamsError } = await supabaseCollection
@@ -550,7 +575,7 @@ export class CollectionService {
         const { data: teamData } = await supabaseCollection
           .from('officer_performance_summary')
           .select('total_collected, total_cases, contact_rate')
-          .eq('summary_date', endDate.toISOString().split('T')[0])
+          .lte('summary_date', queryDate)
           .in('officer_id', 
             supabaseCollection
               .from('collection_officers')
@@ -621,9 +646,9 @@ export class CollectionService {
 
       const topOfficers = officerPerformance?.map(o => ({
         officerId: o.officer_id,
-        officerName: o.kastle_collection?.collection_officers?.officer_name || 'Unknown',
-        officerType: o.kastle_collection?.collection_officers?.officer_type || 'Unknown',
-        teamName: o.kastle_collection?.collection_officers?.kastle_collection?.collection_teams?.team_name || 'Unknown',
+        officerName: o.collection_officers?.officer_name || 'Unknown',
+        officerType: o.collection_officers?.officer_type || 'Unknown',
+        teamName: o.collection_officers?.collection_teams?.team_name || 'Unknown',
         totalCollected: o.total_collected || 0,
         totalCases: o.total_cases || 0,
         totalCalls: o.total_calls || 0,
