@@ -254,7 +254,7 @@ export function ExecutiveDashboard() {
           { product: 'Loans', revenue: 62.4, growth: 18.9 },
           { product: 'Cards', revenue: 28.9, growth: 15.2 },
           { product: 'Digital', revenue: 19.3, growth: 32.1 }
-        ]
+        ],
         riskMetrics: [
           { category: 'Credit Risk', score: 85, status: 'Good', trend: 'stable' },
           { category: 'Market Risk', score: 78, status: 'Moderate', trend: 'improving' },
