@@ -1,4 +1,5 @@
 import { supabaseBanking, TABLES } from '@/lib/supabase';
+import { profitMarginDetailsService } from './profitMarginDetailsService';
 
 // Helper function to handle database errors
 const handleError = (error, defaultData = null) => {
@@ -1917,7 +1918,7 @@ export const chartDetailsService = {
         break;
       case 'overview':
         if (subType === 'profit') {
-          return this.getProfitMarginDetails();
+          return profitMarginDetailsService.getProfitMarginDetails();
         }
         break;
       default:

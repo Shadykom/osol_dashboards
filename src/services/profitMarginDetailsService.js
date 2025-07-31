@@ -1,4 +1,8 @@
-import { handleError } from './utils/errorHandler';
+// Helper function to handle errors
+const handleError = (error, defaultData = null) => {
+  console.error('Profit margin details error:', error);
+  return { data: defaultData, error: error.message };
+};
 
 export const profitMarginDetailsService = {
   async getProfitMarginDetails() {
