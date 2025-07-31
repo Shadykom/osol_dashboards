@@ -151,3 +151,67 @@ export const exportToCSV = async (data) => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+// Default export with methods expected by Reports.jsx
+export default {
+  generatePDF: async (data, reportType, reportName) => {
+    const doc = new jsPDF();
+    
+    // Add header
+    doc.setFontSize(20);
+    doc.text(reportName || 'Report', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.text(`Report Type: ${reportType}`, 20, 30);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, 40);
+    
+    // Add data content
+    if (data && data.length > 0) {
+      const headers = Object.keys(data[0]);
+      const rows = data.map(item => headers.map(key => String(item[key] || '')));
+      
+      doc.autoTable({
+        head: [headers],
+        body: rows,
+        startY: 50,
+        theme: 'grid'
+      });
+    }
+    
+    return doc;
+  },
+  
+  generateExcel: async (data, reportType, reportName) => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data || []);
+    XLSX.utils.book_append_sheet(wb, ws, reportType || 'Report');
+    return wb;
+  },
+  
+  savePDF: (doc, filename) => {
+    if (doc && doc.save) {
+      doc.save(`${filename}_${Date.now()}.pdf`);
+    }
+  },
+  
+  saveExcel: (wb, filename) => {
+    if (wb) {
+      XLSX.writeFile(wb, `${filename}_${Date.now()}.xlsx`);
+    }
+  },
+  
+  getPDFBlob: (doc) => {
+    if (doc && doc.output) {
+      return doc.output('blob');
+    }
+    return null;
+  },
+  
+  getExcelBlob: (wb) => {
+    if (wb) {
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    }
+    return null;
+  }
+};
