@@ -1325,6 +1325,414 @@ const WIDGET_CATALOG = {
         }
       }
     }
+  },
+  
+  banking: {
+    account_summary: {
+      name: 'ملخص الحسابات',
+      nameEn: 'Account Summary',
+      icon: Wallet,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get account statistics
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('account_status, account_type, current_balance, branch_id');
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: accounts, error } = await query;
+          
+          if (error) throw error;
+          
+          // Calculate statistics
+          const stats = accounts?.reduce((acc, account) => {
+            acc.total++;
+            if (account.account_status === 'ACTIVE') acc.active++;
+            if (account.account_status === 'DORMANT') acc.dormant++;
+            if (account.account_status === 'CLOSED') acc.closed++;
+            acc.totalBalance += parseFloat(account.current_balance) || 0;
+            return acc;
+          }, { total: 0, active: 0, dormant: 0, closed: 0, totalBalance: 0 }) || { total: 0, active: 0, dormant: 0, closed: 0, totalBalance: 0 };
+          
+          return {
+            value: stats.active,
+            change: stats.total > 0 ? ((stats.active / stats.total) * 100).toFixed(1) : 0,
+            trend: stats.active > stats.dormant ? 'up' : 'down',
+            suffix: `/${stats.total} total`
+          };
+        } catch (error) {
+          console.error('Error fetching account summary:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral',
+            suffix: '/0 total'
+          };
+        }
+      }
+    },
+    
+    transaction_volume: {
+      name: 'حجم المعاملات',
+      nameEn: 'Transaction Volume',
+      icon: Activity,
+      type: 'chart',
+      chartType: 'line',
+      query: async (filters) => {
+        try {
+          // Get transaction volume for the last 7 days
+          const endDate = new Date();
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - 7);
+          
+          const { data: transactions, error } = await supabaseBanking
+            .from(TABLES.TRANSACTIONS)
+            .select('transaction_date, transaction_amount, transaction_type')
+            .gte('transaction_date', startDate.toISOString())
+            .lte('transaction_date', endDate.toISOString())
+            .order('transaction_date', { ascending: true });
+          
+          if (error) throw error;
+          
+          // Group by date and type
+          const volumeByDate = {};
+          const dates = [];
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            dates.push(dateStr);
+            volumeByDate[dateStr] = { date: dateStr, deposits: 0, withdrawals: 0, transfers: 0 };
+          }
+          
+          transactions?.forEach(tx => {
+            const date = tx.transaction_date.split('T')[0];
+            if (volumeByDate[date]) {
+              const amount = parseFloat(tx.transaction_amount) || 0;
+              if (tx.transaction_type === 'DEPOSIT') {
+                volumeByDate[date].deposits += amount;
+              } else if (tx.transaction_type === 'WITHDRAWAL') {
+                volumeByDate[date].withdrawals += amount;
+              } else if (tx.transaction_type === 'TRANSFER') {
+                volumeByDate[date].transfers += amount;
+              }
+            }
+          });
+          
+          return Object.values(volumeByDate);
+        } catch (error) {
+          console.error('Error fetching transaction volume:', error);
+          return [];
+        }
+      }
+    },
+    
+    balance_trends: {
+      name: 'اتجاهات الأرصدة',
+      nameEn: 'Balance Trends',
+      icon: TrendingUp,
+      type: 'chart',
+      chartType: 'area',
+      query: async (filters) => {
+        try {
+          // Get account balances grouped by type
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('account_type, current_balance, branch_id')
+            .eq('account_status', 'ACTIVE');
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: accounts, error } = await query;
+          
+          if (error) throw error;
+          
+          // Group by account type
+          const balanceByType = accounts?.reduce((acc, account) => {
+            const type = account.account_type || 'OTHER';
+            if (!acc[type]) {
+              acc[type] = { type, balance: 0, count: 0 };
+            }
+            acc[type].balance += parseFloat(account.current_balance) || 0;
+            acc[type].count++;
+            return acc;
+          }, {}) || {};
+          
+          // Convert to array and sort by balance
+          const result = Object.values(balanceByType)
+            .sort((a, b) => b.balance - a.balance)
+            .map(item => ({
+              name: item.type.replace(/_/g, ' '),
+              balance: item.balance,
+              accounts: item.count
+            }));
+          
+          return result;
+        } catch (error) {
+          console.error('Error fetching balance trends:', error);
+          return [];
+        }
+      }
+    },
+    
+    branch_deposits: {
+      name: 'الودائع حسب الفرع',
+      nameEn: 'Deposits by Branch',
+      icon: Building2,
+      type: 'chart',
+      chartType: 'bar',
+      query: async () => {
+        try {
+          // Get deposits grouped by branch
+          const { data: accounts, error: accountsError } = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select(`
+              current_balance,
+              branch_id,
+              branches!inner(branch_name)
+            `)
+            .eq('account_status', 'ACTIVE');
+          
+          if (accountsError) throw accountsError;
+          
+          // Group by branch
+          const depositsByBranch = accounts?.reduce((acc, account) => {
+            const branchName = account.branches?.branch_name || 'Unknown Branch';
+            if (!acc[branchName]) {
+              acc[branchName] = { branch: branchName, deposits: 0, accounts: 0 };
+            }
+            acc[branchName].deposits += parseFloat(account.current_balance) || 0;
+            acc[branchName].accounts++;
+            return acc;
+          }, {}) || {};
+          
+          // Convert to array and sort by deposits
+          const result = Object.values(depositsByBranch)
+            .sort((a, b) => b.deposits - a.deposits)
+            .slice(0, 10); // Top 10 branches
+          
+          return result;
+        } catch (error) {
+          console.error('Error fetching branch deposits:', error);
+          return [];
+        }
+      }
+    },
+    
+    account_growth: {
+      name: 'نمو الحسابات',
+      nameEn: 'Account Growth',
+      icon: Users,
+      type: 'chart',
+      chartType: 'composed',
+      query: async () => {
+        try {
+          // Get account creation dates for the last 30 days
+          const endDate = new Date();
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - 30);
+          
+          const { data: accounts, error } = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('created_at, account_type')
+            .gte('created_at', startDate.toISOString())
+            .order('created_at', { ascending: true });
+          
+          if (error) throw error;
+          
+          // Group by date
+          const growthByDate = {};
+          let cumulativeTotal = 0;
+          
+          // Initialize all dates
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            growthByDate[dateStr] = { date: dateStr, new: 0, cumulative: 0 };
+          }
+          
+          // Count new accounts per day
+          accounts?.forEach(account => {
+            const date = account.created_at.split('T')[0];
+            if (growthByDate[date]) {
+              growthByDate[date].new++;
+            }
+          });
+          
+          // Calculate cumulative total
+          Object.keys(growthByDate).sort().forEach(date => {
+            cumulativeTotal += growthByDate[date].new;
+            growthByDate[date].cumulative = cumulativeTotal;
+          });
+          
+          return Object.values(growthByDate);
+        } catch (error) {
+          console.error('Error fetching account growth:', error);
+          return [];
+        }
+      }
+    },
+    
+    transaction_types: {
+      name: 'أنواع المعاملات',
+      nameEn: 'Transaction Types',
+      icon: PieChart,
+      type: 'chart',
+      chartType: 'pie',
+      query: async (filters) => {
+        try {
+          // Get transaction types for the selected period
+          let days = 30;
+          if (filters?.dateRange === 'today') days = 1;
+          else if (filters?.dateRange === 'last_7_days') days = 7;
+          else if (filters?.dateRange === 'last_30_days') days = 30;
+          else if (filters?.dateRange === 'last_quarter') days = 90;
+          else if (filters?.dateRange === 'last_year') days = 365;
+          
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - days);
+          
+          const { data: transactions, error } = await supabaseBanking
+            .from(TABLES.TRANSACTIONS)
+            .select('transaction_type, transaction_amount')
+            .gte('transaction_date', startDate.toISOString());
+          
+          if (error) throw error;
+          
+          // Group by transaction type
+          const typeDistribution = transactions?.reduce((acc, tx) => {
+            const type = tx.transaction_type || 'OTHER';
+            if (!acc[type]) {
+              acc[type] = { name: type, value: 0, count: 0 };
+            }
+            acc[type].value += parseFloat(tx.transaction_amount) || 0;
+            acc[type].count++;
+            return acc;
+          }, {}) || {};
+          
+          // Define colors for each type
+          const colorMap = {
+            'DEPOSIT': '#22c55e',
+            'WITHDRAWAL': '#ef4444',
+            'TRANSFER': '#3b82f6',
+            'PAYMENT': '#f59e0b',
+            'OTHER': '#8b5cf6'
+          };
+          
+          // Convert to array format for pie chart
+          const result = Object.values(typeDistribution).map(item => ({
+            name: item.name.replace(/_/g, ' '),
+            value: Math.round(item.value),
+            fill: colorMap[item.name] || '#6b7280'
+          }));
+          
+          return result;
+        } catch (error) {
+          console.error('Error fetching transaction types:', error);
+          return [];
+        }
+      }
+    },
+    
+    average_balance: {
+      name: 'متوسط الرصيد',
+      nameEn: 'Average Balance',
+      icon: DollarSign,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get average balance by account type
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('current_balance, account_type, branch_id')
+            .eq('account_status', 'ACTIVE');
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: accounts, error } = await query;
+          
+          if (error) throw error;
+          
+          // Calculate average
+          const stats = accounts?.reduce((acc, account) => {
+            const balance = parseFloat(account.current_balance) || 0;
+            acc.total += balance;
+            acc.count++;
+            return acc;
+          }, { total: 0, count: 0 }) || { total: 0, count: 0 };
+          
+          const average = stats.count > 0 ? stats.total / stats.count : 0;
+          
+          return {
+            value: average,
+            change: 5.2, // Mock change
+            trend: 'up'
+          };
+        } catch (error) {
+          console.error('Error fetching average balance:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral'
+          };
+        }
+      }
+    },
+    
+    dormant_accounts: {
+      name: 'الحسابات الخاملة',
+      nameEn: 'Dormant Accounts',
+      icon: AlertCircle,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get dormant accounts count
+          let query = supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('*', { count: 'exact', head: true })
+            .eq('account_status', 'DORMANT');
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { count, error } = await query;
+          
+          if (error) throw error;
+          
+          // Get total accounts for percentage
+          const { count: totalCount } = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('*', { count: 'exact', head: true });
+          
+          const percentage = totalCount > 0 ? ((count / totalCount) * 100).toFixed(1) : 0;
+          
+          return {
+            value: count || 0,
+            change: parseFloat(percentage),
+            trend: 'down',
+            suffix: `% of total`
+          };
+        } catch (error) {
+          console.error('Error fetching dormant accounts:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral',
+            suffix: '% of total'
+          };
+        }
+      }
+    }
   }
 };
 
@@ -1346,10 +1754,14 @@ const DASHBOARD_TEMPLATES = {
       { id: 'overview_product_distribution_1', widget: 'product_distribution', section: 'overview', size: 'large' },
       { id: 'overview_risk_metrics_1', widget: 'risk_metrics', section: 'overview', size: 'medium' },
       { id: 'overview_digital_adoption_1', widget: 'digital_adoption', section: 'overview', size: 'medium' },
-      { id: 'banking_active_accounts_1', widget: 'active_accounts', section: 'banking', size: 'medium' },
-      { id: 'banking_daily_transactions_1', widget: 'daily_transactions', section: 'banking', size: 'medium' },
-      { id: 'banking_account_types_1', widget: 'account_types_distribution', section: 'banking', size: 'large' },
-      { id: 'banking_transaction_trends_1', widget: 'transaction_trends', section: 'banking', size: 'large' },
+      { id: 'banking_account_summary_1', widget: 'account_summary', section: 'banking', size: 'medium' },
+      { id: 'banking_average_balance_1', widget: 'average_balance', section: 'banking', size: 'medium' },
+      { id: 'banking_dormant_accounts_1', widget: 'dormant_accounts', section: 'banking', size: 'medium' },
+      { id: 'banking_transaction_volume_1', widget: 'transaction_volume', section: 'banking', size: 'large' },
+      { id: 'banking_balance_trends_1', widget: 'balance_trends', section: 'banking', size: 'large' },
+      { id: 'banking_branch_deposits_1', widget: 'branch_deposits', section: 'banking', size: 'large' },
+      { id: 'banking_account_growth_1', widget: 'account_growth', section: 'banking', size: 'large' },
+      { id: 'banking_transaction_types_1', widget: 'transaction_types', section: 'banking', size: 'medium' },
       { id: 'lending_loan_portfolio_1', widget: 'loan_portfolio', section: 'lending', size: 'medium' },
       { id: 'lending_npl_ratio_1', widget: 'npl_ratio', section: 'lending', size: 'medium' },
       { id: 'lending_loan_by_product_1', widget: 'loan_by_product', section: 'lending', size: 'large' },
@@ -1363,8 +1775,10 @@ const DASHBOARD_TEMPLATES = {
     nameEn: 'Operations Dashboard',
     sections: ['banking', 'collections'],
     widgets: [
-      { id: 'banking_daily_transactions_2', widget: 'daily_transactions', section: 'banking', size: 'medium' },
-      { id: 'banking_transaction_trends_2', widget: 'transaction_trends', section: 'banking', size: 'large' },
+      { id: 'banking_account_summary_2', widget: 'account_summary', section: 'banking', size: 'medium' },
+      { id: 'banking_transaction_volume_2', widget: 'transaction_volume', section: 'banking', size: 'large' },
+      { id: 'banking_transaction_types_2', widget: 'transaction_types', section: 'banking', size: 'medium' },
+      { id: 'banking_branch_deposits_2', widget: 'branch_deposits', section: 'banking', size: 'large' },
       { id: 'collections_active_cases_1', widget: 'active_cases', section: 'collections', size: 'medium' },
       { id: 'collections_collection_rate_1', widget: 'collection_rate', section: 'collections', size: 'medium' },
       { id: 'collections_dpd_distribution_1', widget: 'dpd_distribution', section: 'collections', size: 'large' }
