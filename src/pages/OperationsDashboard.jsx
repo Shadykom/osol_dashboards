@@ -216,7 +216,7 @@ export function OperationsDashboard() {
       
       const { data: todayTransactions, error: txError } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
-        .select('transaction_amount, transaction_date, status, channel_id')
+        .select('transaction_amount, transaction_date, status, channel')
         .gte('transaction_date', today.toISOString());
         
       if (txError) throw txError;
