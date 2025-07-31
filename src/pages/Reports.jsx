@@ -324,8 +324,41 @@ export function Reports() {
       };
       setReportHistory([newHistoryItem, ...reportHistory]);
 
-      toast.success('Report generated successfully!');
-      setPreviewDialogOpen(true);
+      // Show success toast with action buttons
+      toast.success(
+        <div className="flex items-center justify-between w-full">
+          <span>Report generated successfully!</span>
+          <div className="flex gap-2 ml-4">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                setPreviewDialogOpen(true);
+                toast.dismiss();
+              }}
+            >
+              <Eye className="mr-1 h-3 w-3" />
+              Preview
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                handlePrint();
+                toast.dismiss();
+              }}
+            >
+              <Printer className="mr-1 h-3 w-3" />
+              Print
+            </Button>
+          </div>
+        </div>,
+        {
+          duration: 10000,
+        }
+      );
     } catch (error) {
       console.error('Error generating report:', error);
       toast.error('Failed to generate report: ' + error.message);
@@ -723,6 +756,26 @@ export function Reports() {
                       )}
                     </Button>
                     
+                    {/* Show additional actions when report is generated */}
+                    {generatedReport && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button 
+                          variant="outline"
+                          onClick={() => setPreviewDialogOpen(true)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Preview
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={handlePrint}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print
+                        </Button>
+                      </div>
+                    )}
+                    
                     <div className="grid grid-cols-2 gap-2">
                       <Button 
                         variant="outline" 
@@ -751,18 +804,52 @@ export function Reports() {
                   <CardTitle className="text-base">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start" size="sm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Last Report
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" size="sm">
-                    <Eye className="mr-2 h-4 w-4" />
-                    Preview Templates
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" size="sm">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Report Settings
-                  </Button>
+                  {generatedReport ? (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        size="sm"
+                        onClick={() => handleDownload('pdf')}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        size="sm"
+                        onClick={() => handleDownload('excel')}
+                      >
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Download Excel
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        size="sm"
+                        onClick={handlePrint}
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print Report
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="outline" className="w-full justify-start" size="sm" disabled>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Last Report
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" size="sm">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Preview Templates
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" size="sm">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Report Settings
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
