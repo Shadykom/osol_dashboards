@@ -1,0 +1,40 @@
+EXECUTIVE DASHBOARD FIX INSTRUCTIONS
+
+ERROR: ReferenceError: executiveKPIs is not defined
+
+SOLUTION:
+The error occurs because executiveKPIs is not properly initialized in the component state.
+
+1. In your ExecutiveDashboard component, make sure to initialize the state:
+
+const [executiveKPIs, setExecutiveKPIs] = useState({
+  totalRevenue: 0,
+  totalCustomers: 0,
+  activeLoans: 0,
+  totalDisbursed: 0,
+  totalCollected: 0,
+  overdueAmount: 0,
+  portfolioAtRisk: 0,
+  averageLoanSize: 0,
+});
+
+2. Create an API endpoint /api/executive/kpis that returns this data structure
+
+3. In the useEffect, fetch the data:
+
+useEffect(() => {
+  fetchExecutiveKPIs();
+}, []);
+
+const fetchExecutiveKPIs = async () => {
+  try {
+    const response = await axios.get('/api/executive/kpis');
+    setExecutiveKPIs(response.data);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
+
+4. Make sure all references to executiveKPIs use the state variable
+
+This should resolve the undefined error.
