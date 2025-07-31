@@ -123,25 +123,80 @@ export function Analytics() {
   };
 
   const fetchKPIs = async () => {
-    // Mock KPI data with realistic values
-    return {
-      revenue: 125000000,
-      revenueGrowth: 15.2,
-      customers: 45678,
-      customerGrowth: 8.5,
-      transactions: 234567,
-      transactionGrowth: 12.3,
-      avgTransactionValue: 532,
-      avgTransactionGrowth: 3.2,
-      customerAcquisitionCost: 125,
-      cacChange: -5.4,
-      churnRate: 2.8,
-      churnChange: -0.3,
-      netPromoterScore: 72,
-      npsChange: 4,
-      operationalEfficiency: 87,
-      efficiencyChange: 2.1
-    };
+    try {
+      // Fetch real customer count
+      const { count: totalCustomers, error: customerError } = await supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('*', { count: 'exact', head: true });
+      
+      if (customerError) {
+        console.error('Error fetching customer count:', customerError);
+      }
+      
+      // Fetch customers from last month for growth calculation
+      const lastMonthDate = new Date();
+      lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+      
+      const { count: lastMonthCustomers, error: lastMonthError } = await supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', lastMonthDate.toISOString());
+      
+      if (lastMonthError) {
+        console.error('Error fetching last month customers:', lastMonthError);
+      }
+      
+      // Calculate customer growth
+      const customerGrowth = lastMonthCustomers && lastMonthCustomers > 0 
+        ? ((totalCustomers - lastMonthCustomers) / lastMonthCustomers) * 100 
+        : 0;
+      
+      // Fetch transaction data (keeping mock for now as it's not the focus)
+      const { count: totalTransactions } = await supabaseBanking
+        .from(TABLES.TRANSACTIONS)
+        .select('*', { count: 'exact', head: true });
+      
+      // Return KPIs with real customer data and some mock data for other metrics
+      return {
+        revenue: 125000000,
+        revenueGrowth: 15.2,
+        customers: totalCustomers || 0,
+        customerGrowth: customerGrowth || 0,
+        transactions: totalTransactions || 234567,
+        transactionGrowth: 12.3,
+        avgTransactionValue: 532,
+        avgTransactionGrowth: 3.2,
+        customerAcquisitionCost: 125,
+        cacChange: -5.4,
+        churnRate: 2.8,
+        churnChange: -0.3,
+        netPromoterScore: 72,
+        npsChange: 4,
+        operationalEfficiency: 87,
+        efficiencyChange: 2.1
+      };
+    } catch (error) {
+      console.error('Error fetching KPIs:', error);
+      // Return default values if there's an error
+      return {
+        revenue: 0,
+        revenueGrowth: 0,
+        customers: 0,
+        customerGrowth: 0,
+        transactions: 0,
+        transactionGrowth: 0,
+        avgTransactionValue: 0,
+        avgTransactionGrowth: 0,
+        customerAcquisitionCost: 0,
+        cacChange: 0,
+        churnRate: 0,
+        churnChange: 0,
+        netPromoterScore: 0,
+        npsChange: 0,
+        operationalEfficiency: 0,
+        efficiencyChange: 0
+      };
+    }
   };
 
   const fetchTrendData = async () => {

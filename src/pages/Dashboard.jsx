@@ -418,8 +418,7 @@ const WIDGET_CATALOG = {
         try {
           let query = supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true })
-            .eq('is_active', true);
+            .select('*', { count: 'exact', head: true });
           
           // Apply customer segment filter
           if (filters?.customerSegment && filters.customerSegment !== 'all') {
@@ -447,15 +446,16 @@ const WIDGET_CATALOG = {
           else if (filters?.dateRange === 'last_year') change = 35.6;
           
           return {
-            value: count || 12847,
+            value: count || 0,
             change: change,
             trend: 'up'
           };
         } catch (error) {
+          console.error('Error fetching customer count:', error);
           return {
-            value: 12847,
-            change: 18.3,
-            trend: 'up'
+            value: 0,
+            change: 0,
+            trend: 'stable'
           };
         }
       }
