@@ -38,8 +38,7 @@ import {
   PolarRadiusAxis,
   Radar,
   ComposedChart,
-  Scatter,
-  MoreVertical
+  Scatter
 } from 'recharts';
 import { 
   TrendingUp, 
@@ -76,7 +75,8 @@ import {
   Globe,
   Building2,
   Briefcase,
-  TrendingUpIcon
+  TrendingUpIcon,
+  MoreVertical
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
