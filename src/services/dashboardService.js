@@ -373,5 +373,48 @@ export class DashboardService {
       });
     }
   }
+
+  /**
+   * Get complete executive dashboard data
+   * Combines all necessary data for the executive dashboard view
+   */
+  static async getExecutiveDashboard(filters = {}) {
+    try {
+      // Fetch all dashboard components in parallel
+      const [
+        kpis,
+        transactions,
+        transactionAnalytics,
+        loanAnalytics,
+        monthlyComparison,
+        branchComparison,
+        realTimeMetrics
+      ] = await Promise.all([
+        this.getExecutiveKPIs(),
+        this.getRecentTransactions(),
+        this.getTransactionAnalytics(),
+        this.getLoanAnalytics(),
+        this.getMonthlyComparison(),
+        this.getBranchComparison(),
+        this.getRealTimeMetrics()
+      ]);
+
+      // Combine all data into a single response
+      return formatApiResponse({
+        kpis: kpis.data,
+        recentTransactions: transactions.data,
+        transactionAnalytics: transactionAnalytics.data,
+        loanAnalytics: loanAnalytics.data,
+        monthlyComparison: monthlyComparison.data,
+        branchComparison: branchComparison.data,
+        realTimeMetrics: realTimeMetrics.data,
+        filters,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error fetching executive dashboard:', error);
+      return formatApiResponse(null, error.message);
+    }
+  }
 }
 
