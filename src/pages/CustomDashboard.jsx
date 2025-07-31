@@ -343,8 +343,24 @@ export function CustomDashboard() {
   const [selectedWidget, setSelectedWidget] = useState(null);
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
 
-  // Load saved configuration on mount
+  // Component mount effect
   useEffect(() => {
+    // Validate WIDGET_CATALOG structure
+    if (!WIDGET_CATALOG || typeof WIDGET_CATALOG !== 'object') {
+      console.error('WIDGET_CATALOG is not properly initialized');
+      return;
+    }
+
+    // Check each category
+    const requiredCategories = ['kpis', 'charts', 'comparison', 'monitoring'];
+    requiredCategories.forEach(category => {
+      if (!WIDGET_CATALOG[category]) {
+        console.error(`Missing category in WIDGET_CATALOG: ${category}`);
+      } else if (!WIDGET_CATALOG[category].widgets) {
+        console.error(`Missing widgets object in WIDGET_CATALOG category: ${category}`);
+      }
+    });
+
     loadDashboardConfiguration();
     fetchDashboardData();
   }, []);
@@ -359,6 +375,24 @@ export function CustomDashboard() {
       return () => clearInterval(interval);
     }
   }, [autoRefresh, refreshInterval]);
+
+  // Initialize widget data
+  useEffect(() => {
+    const initializeWidgetData = () => {
+      const initialData = {};
+      widgets.forEach(widget => {
+        // Add defensive check
+        if (!widget || !widget.type || !widget.category) {
+          console.error('Invalid widget structure:', widget);
+          return;
+        }
+        initialData[`${widget.category}_${widget.type}`] = null;
+      });
+      setWidgetData(initialData);
+    };
+
+    initializeWidgetData();
+  }, [widgets]);
 
   // Load dashboard configuration from localStorage
   const loadDashboardConfiguration = () => {
@@ -417,17 +451,33 @@ export function CustomDashboard() {
 
     // Add template widgets
     const newWidgets = template.widgets.map((widget, index) => {
-      const widgetDef = WIDGET_CATALOG[widget.category].widgets[widget.type];
+      const categoryDef = WIDGET_CATALOG[widget.category];
+      if (!categoryDef || !categoryDef.widgets) {
+        console.error(`Widget category "${widget.category}" not found in WIDGET_CATALOG`);
+        return null;
+      }
+      
+      const widgetDef = categoryDef.widgets[widget.type];
+      if (!widgetDef) {
+        console.error(`Widget type "${widget.type}" not found in category "${widget.category}"`);
+        return null;
+      }
+      
       return {
         id: `${widget.type}_${Date.now()}_${index}`,
         type: widget.type,
         category: widget.category,
         config: {
           title: widgetDef.name,
-          ...widgetDef
+          description: widgetDef.description,
+          dataKey: widgetDef.dataKey,
+          dataSource: widgetDef.dataSource,
+          chartType: widgetDef.chartType,
+          minW: widgetDef.minW,
+          minH: widgetDef.minH
         }
       };
-    });
+    }).filter(Boolean); // Remove any null widgets
 
     setWidgets(newWidgets);
     setDashboardName(template.name);
@@ -510,8 +560,19 @@ export function CustomDashboard() {
 
   // Add widget
   const addWidget = (widgetType, category) => {
-    const widgetDef = WIDGET_CATALOG[category].widgets[widgetType];
-    if (!widgetDef) return;
+    const categoryDef = WIDGET_CATALOG[category];
+    if (!categoryDef || !categoryDef.widgets) {
+      console.error(`Widget category "${category}" not found in WIDGET_CATALOG`);
+      toast.error('Invalid widget category');
+      return;
+    }
+    
+    const widgetDef = categoryDef.widgets[widgetType];
+    if (!widgetDef) {
+      console.error(`Widget type "${widgetType}" not found in category "${category}"`);
+      toast.error('Invalid widget type');
+      return;
+    }
 
     const newWidget = {
       id: `${widgetType}_${Date.now()}`,
@@ -519,7 +580,12 @@ export function CustomDashboard() {
       category,
       config: {
         title: widgetDef.name,
-        ...widgetDef
+        description: widgetDef.description,
+        dataKey: widgetDef.dataKey,
+        dataSource: widgetDef.dataSource,
+        chartType: widgetDef.chartType,
+        minW: widgetDef.minW,
+        minH: widgetDef.minH
       }
     };
 
@@ -611,7 +677,28 @@ export function CustomDashboard() {
 
   // Render individual widget
   const renderWidget = (widget) => {
+    // Validate widget structure
+    if (!widget || !widget.type || !widget.category) {
+      console.error('Invalid widget structure in renderWidget:', widget);
+      return (
+        <div className="flex items-center justify-center h-full bg-red-50 dark:bg-red-900/20 rounded-lg">
+          <p className="text-red-600 dark:text-red-400">Invalid widget configuration</p>
+        </div>
+      );
+    }
+
     const { type, category, config } = widget;
+
+    // Validate widget definition exists
+    const categoryDef = WIDGET_CATALOG[category];
+    if (!categoryDef || !categoryDef.widgets || !categoryDef.widgets[type]) {
+      console.error(`Widget definition not found for category: ${category}, type: ${type}`);
+      return (
+        <div className="flex items-center justify-center h-full bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+          <p className="text-yellow-600 dark:text-yellow-400">Widget type not found</p>
+        </div>
+      );
+    }
 
     // KPI Widgets
     if (category === 'kpis') {
@@ -863,6 +950,26 @@ export function CustomDashboard() {
     return null;
   };
 
+  // Safe widget renderer
+  const safeRenderWidget = (widget) => {
+    try {
+      return renderWidget(widget);
+    } catch (error) {
+      console.error('Error rendering widget:', widget, error);
+      return (
+        <Card className="h-full">
+          <CardContent className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Widget failed to render</p>
+              <p className="text-xs text-red-500 mt-1">{error.message}</p>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[600px]">
@@ -1006,7 +1113,7 @@ export function CustomDashboard() {
                   widget.type === 'branch_performance' ? 'lg:col-span-2' : ''
                 )}
               >
-                {renderWidget(widget)}
+                {safeRenderWidget(widget)}
               </motion.div>
             ))}
           </AnimatePresence>
@@ -1060,7 +1167,7 @@ export function CustomDashboard() {
                     <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
                     <div className="flex flex-wrap gap-1">
                       {template.widgets.slice(0, 5).map((widget, idx) => {
-                        const widgetDef = WIDGET_CATALOG[widget.category]?.widgets[widget.type];
+                        const widgetDef = WIDGET_CATALOG[widget.category]?.widgets?.[widget.type];
                         return widgetDef ? (
                           <Badge key={idx} variant="secondary" className="text-xs">
                             <widgetDef.icon className="h-3 w-3 mr-1" />
