@@ -1428,6 +1428,7 @@ export default function EnhancedDashboard() {
   });
   const [widgetData, setWidgetData] = useState({});
   const [widgetLoadingStates, setWidgetLoadingStates] = useState({}); // Track individual widget loading
+  const [widgetErrorStates, setWidgetErrorStates] = useState([]); // Track widgets with errors
   const [selectedSection, setSelectedSection] = useState('overview');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -1531,12 +1532,13 @@ export default function EnhancedDashboard() {
         return;
       }
       
-      // Set all widgets to loading state
+      // Set all widgets to loading state and clear errors
       widgets.forEach(widget => {
         const key = `${widget.section}_${widget.widget}`;
         loadingStates[key] = true;
       });
       setWidgetLoadingStates(loadingStates);
+      setWidgetErrorStates([]); // Clear all error states when starting fresh
       
       // Fetch data for all widgets in parallel
       const widgetPromises = widgets.map(async (widget) => {
@@ -1552,6 +1554,7 @@ export default function EnhancedDashboard() {
             // Update data and loading state for this specific widget
             setWidgetData(prev => ({ ...prev, [key]: result }));
             setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
+            setWidgetErrorStates(prev => prev.filter(id => id !== widget.id));
             
             data[key] = result;
           } catch (error) {
@@ -1561,6 +1564,7 @@ export default function EnhancedDashboard() {
             // Set error state for this widget
             setWidgetData(prev => ({ ...prev, [key]: null }));
             setWidgetLoadingStates(prev => ({ ...prev, [key]: false }));
+            setWidgetErrorStates(prev => [...prev, widget.id]);
             
             data[key] = null;
           }
@@ -1822,9 +1826,9 @@ export default function EnhancedDashboard() {
     const widgetDef = WIDGET_CATALOG[widget.section]?.[widget.widget];
     if (!widgetDef) return null;
     
-    const widgetData = widgetDataCache[widget.id] || {};
-    const isLoading = loadingWidgets[widget.id];
-    const hasError = errorWidgets.includes(widget.id);
+    const currentWidgetData = widgetData[widget.id] || {};
+    const isLoading = widgetLoadingStates[widget.id];
+    const hasError = widgetErrorStates.includes(widget.id);
     
     // Get widget name from translations
     const widgetName = widgetDef.widgetKey ? t(`dashboard.widgets.${widgetDef.widgetKey}`) : 
@@ -1898,26 +1902,26 @@ export default function EnhancedDashboard() {
                 {widgetDef.type === 'kpi' && (
                   <div className="space-y-1 sm:space-y-2">
                     <div className="text-xl sm:text-2xl md:text-3xl font-bold">
-                      {typeof widgetData.value === 'number' && widgetData.value >= 1000000 
-                        ? formatCurrency(widgetData.value)
-                        : formatNumber(widgetData.value || 0)
+                      {typeof currentWidgetData.value === 'number' && currentWidgetData.value >= 1000000 
+                        ? formatCurrency(currentWidgetData.value)
+                        : formatNumber(currentWidgetData.value || 0)
                       }
-                      {widgetData.suffix}
+                      {currentWidgetData.suffix}
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                      {widgetData.trend === 'up' ? (
+                      {currentWidgetData.trend === 'up' ? (
                         <TrendingUp className="h-4 w-4 text-green-500" />
-                      ) : widgetData.trend === 'down' ? (
+                      ) : currentWidgetData.trend === 'down' ? (
                         <TrendingDown className="h-4 w-4 text-red-500" />
                       ) : (
                         <Activity className="h-4 w-4 text-gray-500" />
                       )}
                       <span className={
-                        widgetData.trend === 'up' ? 'text-green-500' : 
-                        widgetData.trend === 'down' ? 'text-red-500' : 
+                        currentWidgetData.trend === 'up' ? 'text-green-500' : 
+                        currentWidgetData.trend === 'down' ? 'text-red-500' : 
                         'text-gray-500'
                       }>
-                        {widgetData.change > 0 ? '+' : ''}{widgetData.change || 0}%
+                        {currentWidgetData.change > 0 ? '+' : ''}{currentWidgetData.change || 0}%
                       </span>
                       <span className="text-muted-foreground">
                         vs last period
@@ -1926,18 +1930,18 @@ export default function EnhancedDashboard() {
                   </div>
                 )}
                 
-                {widgetDef.type === 'chart' && Array.isArray(widgetData) && widgetData.length > 0 && (
+                {widgetDef.type === 'chart' && Array.isArray(currentWidgetData) && currentWidgetData.length > 0 && (
                   <div className="h-48 sm:h-56 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       {widgetDef.chartType === 'line' && (
-                        <RechartsLineChart data={widgetData}>
+                        <RechartsLineChart data={currentWidgetData}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey={Object.keys(widgetData[0] || {})[0]} />
+                          <XAxis dataKey={Object.keys(currentWidgetData[0] || {})[0]} />
                           <YAxis />
                           <Tooltip />
                           <Line 
                             type="monotone" 
-                            dataKey={Object.keys(widgetData[0] || {})[1]} 
+                            dataKey={Object.keys(currentWidgetData[0] || {})[1]} 
                             stroke="#E6B800" 
                             strokeWidth={2}
                           />
@@ -1945,10 +1949,10 @@ export default function EnhancedDashboard() {
                       )}
                       
                       {widgetDef.chartType === 'area' && (
-                        <AreaChart data={widgetData}>
+                        <AreaChart data={currentWidgetData}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis 
-                            dataKey={Object.keys(widgetData[0] || {})[0]} 
+                            dataKey={Object.keys(currentWidgetData[0] || {})[0]} 
                             tick={{ fontSize: 12 }}
                             interval={'preserveStartEnd'}
                           />
@@ -1959,16 +1963,16 @@ export default function EnhancedDashboard() {
                           />
                           <Area 
                             type="monotone" 
-                            dataKey={Object.keys(widgetData[0] || {})[1]} 
+                            dataKey={Object.keys(currentWidgetData[0] || {})[1]} 
                             stroke="#E6B800" 
                             fill="#E6B800"
                             fillOpacity={0.3}
                             name="Revenue"
                           />
-                          {Object.keys(widgetData[0] || {}).length > 2 && (
+                          {Object.keys(currentWidgetData[0] || {}).length > 2 && (
                             <Area 
                               type="monotone" 
-                              dataKey={Object.keys(widgetData[0] || {})[2]} 
+                              dataKey={Object.keys(currentWidgetData[0] || {})[2]} 
                               stroke="#4A5568" 
                               fill="#4A5568"
                               fillOpacity={0.3}
@@ -1980,10 +1984,10 @@ export default function EnhancedDashboard() {
                       )}
                       
                       {widgetDef.chartType === 'bar' && (
-                        <BarChart data={widgetData}>
+                        <BarChart data={currentWidgetData}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis 
-                            dataKey={widgetData[0]?.branch ? "branch" : "name"} 
+                            dataKey={currentWidgetData[0]?.branch ? "branch" : "name"} 
                             tick={{ fontSize: 10 }}
                             angle={-45}
                             textAnchor="end"
@@ -1997,9 +2001,9 @@ export default function EnhancedDashboard() {
                             }}
                             contentStyle={{ fontSize: '12px' }}
                           />
-                          <Bar dataKey={widgetData[0]?.revenue ? "revenue" : "amount"} fill="#E6B800" name="Revenue" />
-                          {(widgetData[0]?.customers !== undefined || widgetData[0]?.count !== undefined) && (
-                            <Bar dataKey={widgetData[0]?.customers ? "customers" : "count"} fill="#4A5568" name="Customers" />
+                          <Bar dataKey={currentWidgetData[0]?.revenue ? "revenue" : "amount"} fill="#E6B800" name="Revenue" />
+                          {(currentWidgetData[0]?.customers !== undefined || currentWidgetData[0]?.count !== undefined) && (
+                            <Bar dataKey={currentWidgetData[0]?.customers ? "customers" : "count"} fill="#4A5568" name="Customers" />
                           )}
                           <Legend wrapperStyle={{ fontSize: '12px' }} />
                         </BarChart>
@@ -2008,7 +2012,7 @@ export default function EnhancedDashboard() {
                       {widgetDef.chartType === 'pie' && (
                         <RechartsPieChart>
                           <Pie
-                            data={widgetData}
+                            data={currentWidgetData}
                             cx="50%"
                             cy="50%"
                             innerRadius={0}
@@ -2017,7 +2021,7 @@ export default function EnhancedDashboard() {
                             label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                             labelLine={false}
                           >
-                            {widgetData.map((entry, index) => (
+                            {currentWidgetData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={entry.fill || COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
