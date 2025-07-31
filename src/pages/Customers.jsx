@@ -472,13 +472,13 @@ const Customers = () => {
       <div className="flex h-[calc(100vh-80px)]">
         {/* Customer List Sidebar - Desktop */}
         {!isMobile && showCustomerList && (
-          <div className="w-80 bg-white border-r flex flex-col">
+          <div className="w-80 bg-gray-50 border-r flex flex-col h-full">
             <CustomerListSidebar />
           </div>
         )}
 
         {/* Main Content */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto bg-gray-50">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -1441,9 +1441,9 @@ const Customers = () => {
   // Customer List Sidebar Component
   function CustomerListSidebar() {
     return (
-      <>
+      <div className="h-full bg-white flex flex-col">
         {/* Search Section */}
-        <div className="p-4 border-b">
+        <div className="p-4 border-b bg-white">
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
@@ -1486,11 +1486,11 @@ const Customers = () => {
 
         {/* Customer List */}
         <ScrollArea 
-          className="flex-1" 
+          className="flex-1 bg-gray-50" 
           onScroll={handleScroll}
           ref={scrollRef}
         >
-          <div className="p-2">
+          <div className="p-2 min-h-full bg-gray-50">
             {searching ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -1575,7 +1575,7 @@ const Customers = () => {
             )}
           </div>
         </ScrollArea>
-      </>
+      </div>
     );
   }
 };
