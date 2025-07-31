@@ -48,17 +48,22 @@ export const FilterProvider = ({ children }) => {
     loadFilterOptions();
   }, []);
 
-  const loadFilterOptions = async () => {
+  const loadFilterOptions = async (options) => {
     try {
-      // Placeholder: fetch branches/products/segments
-      const branches = [];
-      const products = [];
-      const segments = [];
-      setFilterOptions({
-        branches,
-        products,
-        customerSegments: segments
-      });
+      if (options) {
+        // If options are provided, use them directly
+        setFilterOptions(options);
+      } else {
+        // Otherwise fetch from services (to be implemented)
+        const branches = [];
+        const products = [];
+        const segments = [];
+        setFilterOptions({
+          branches,
+          products,
+          customerSegments: segments
+        });
+      }
     } catch (error) {
       console.error('Error loading filter options:', error);
     }

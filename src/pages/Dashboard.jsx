@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDataRefresh } from '@/hooks/useDataRefresh';
+import { useFilters } from '@/contexts/FilterContext';
 import { 
   LayoutGrid, Save, RefreshCw, Settings, Plus, X, Eye, Filter,
   TrendingUp, Users, DollarSign, CreditCard, PiggyBank, Activity,
@@ -1407,6 +1408,9 @@ export default function EnhancedDashboard() {
   const navigate = useNavigate();
   const hasInitialized = useRef(false);
   
+  // Use FilterContext instead of local state
+  const { filters, filterOptions, updateFilter, updateFilters, resetFilters, loadFilterOptions } = useFilters();
+  
   // State Management - Initialize with default widgets immediately
   const [loading, setLoading] = useState(false); // Changed from true to false
   const [refreshing, setRefreshing] = useState(false); // Add refreshing state
@@ -1451,21 +1455,6 @@ export default function EnhancedDashboard() {
   const [databaseStatus, setDatabaseStatus] = useState(null);
   const [isFixingData, setIsFixingData] = useState(false);
   
-  // Filters
-  const [filters, setFilters] = useState({
-    dateRange: 'last_30_days',
-    branch: 'all',
-    productType: 'all',
-    customerSegment: 'all'
-  });
-  
-  // Filter options from database
-  const [filterOptions, setFilterOptions] = useState({
-    branches: [],
-    products: [],
-    customerSegments: []
-  });
-  
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
   const autoRefreshInterval = useRef(null);
@@ -1499,7 +1488,7 @@ export default function EnhancedDashboard() {
         CustomerSegmentService.getCustomerSegments()
       ]);
 
-      setFilterOptions({
+      loadFilterOptions({
         branches: branchesResult.data || [],
         products: productsResult.data || [],
         customerSegments: segmentsResult.data || []
@@ -1778,8 +1767,8 @@ export default function EnhancedDashboard() {
   const handleWidgetClick = (widget) => {
     if (isEditMode) return;
     
-    // Navigate to detail page with widget information
-    navigate(`/dashboard/detail/${widget.section}/${widget.widget}`);
+    // Navigate to enhanced detail page with widget information
+    navigate(`/dashboard/detail-new/${widget.section}/${widget.widget}`);
   };
 
   // Export dashboard
@@ -2260,7 +2249,7 @@ export default function EnhancedDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <div>
                   <Label className="text-sm">Date Range</Label>
-                  <Select value={filters.dateRange} onValueChange={(value) => setFilters({...filters, dateRange: value})}>
+                  <Select value={filters.dateRange} onValueChange={(value) => updateFilter('dateRange', value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -2276,7 +2265,7 @@ export default function EnhancedDashboard() {
                 
                 <div>
                   <Label className="text-sm">Branch</Label>
-                  <Select value={filters.branch} onValueChange={(value) => setFilters({...filters, branch: value})}>
+                  <Select value={filters.branch} onValueChange={(value) => updateFilter('branch', value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
