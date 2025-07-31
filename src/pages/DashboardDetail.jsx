@@ -694,19 +694,31 @@ export default function DashboardDetail() {
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard
                       title="Total Assets"
-                      value={`SAR ${(data.overview.totalAssets / 1000000000).toFixed(2)}B`}
+                      value={data.overview.totalAssets >= 1000000000 
+                        ? `SAR ${(data.overview.totalAssets / 1000000000).toFixed(2)}B`
+                        : data.overview.totalAssets >= 1000000
+                        ? `SAR ${(data.overview.totalAssets / 1000000).toFixed(2)}M`
+                        : `SAR ${data.overview.totalAssets.toLocaleString()}`}
                       description="Combined deposits and loans"
                       icon={DollarSign}
                     />
                     <StatCard
                       title="Total Deposits"
-                      value={`SAR ${(data.overview.totalDeposits / 1000000000).toFixed(2)}B`}
+                      value={data.overview.totalDeposits >= 1000000000
+                        ? `SAR ${(data.overview.totalDeposits / 1000000000).toFixed(2)}B`
+                        : data.overview.totalDeposits >= 1000000
+                        ? `SAR ${(data.overview.totalDeposits / 1000000).toFixed(2)}M`
+                        : `SAR ${data.overview.totalDeposits.toLocaleString()}`}
                       description={`${data.overview.depositRatio}% of total assets`}
                       icon={CreditCard}
                     />
                     <StatCard
                       title="Total Loans"
-                      value={`SAR ${(data.overview.totalLoans / 1000000000).toFixed(2)}B`}
+                      value={data.overview.totalLoans >= 1000000000
+                        ? `SAR ${(data.overview.totalLoans / 1000000000).toFixed(2)}B`
+                        : data.overview.totalLoans >= 1000000
+                        ? `SAR ${(data.overview.totalLoans / 1000000).toFixed(2)}M`
+                        : `SAR ${data.overview.totalLoans.toLocaleString()}`}
                       description={`${data.overview.loanRatio}% of total assets`}
                       icon={Activity}
                     />
@@ -801,6 +813,147 @@ export default function DashboardDetail() {
                       </CardContent>
                     </Card>
                   )}
+                </>
+              )}
+
+              {(type === 'monthly' || type === 'overview' && widgetId === 'monthly_revenue') && data.overview && (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                      title="Current Month Revenue"
+                      value={`SAR ${(data.overview.currentMonthRevenue / 1000000).toFixed(2)}M`}
+                      description="Month to date"
+                      icon={DollarSign}
+                    />
+                    <StatCard
+                      title="Previous Month Revenue"
+                      value={`SAR ${(data.overview.previousMonthRevenue / 1000000).toFixed(2)}M`}
+                      description="Last month total"
+                      icon={Calendar}
+                    />
+                    <StatCard
+                      title="Average Monthly Revenue"
+                      value={`SAR ${(data.overview.avgMonthlyRevenue / 1000000).toFixed(2)}M`}
+                      description="6-month average"
+                      icon={TrendingUp}
+                    />
+                  </div>
+                </>
+              )}
+
+              {(type === 'customer' && widgetId === 'customer_growth' || type === 'overview' && widgetId === 'customer_growth') && data.overview && (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                      title="Total Customers"
+                      value={data.overview.totalCustomers.toLocaleString()}
+                      change={`+${data.overview.growthRate}%`}
+                      trend="up"
+                      description="All active customers"
+                      icon={Users}
+                    />
+                    <StatCard
+                      title="New This Month"
+                      value={data.overview.newThisMonth.toLocaleString()}
+                      description="Newly registered"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="New Last Month"
+                      value={data.overview.newLastMonth.toLocaleString()}
+                      description="Previous month"
+                      icon={Calendar}
+                    />
+                    <StatCard
+                      title="Avg Monthly Growth"
+                      value={Math.round(data.overview.avgMonthlyGrowth).toLocaleString()}
+                      description="12-month average"
+                      icon={TrendingUp}
+                    />
+                  </div>
+                </>
+              )}
+
+              {(type === 'transaction' && widgetId === 'transaction_volume' || type === 'overview' && widgetId === 'transaction_volume') && data.overview && (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                      title="Today's Volume"
+                      value={`SAR ${(data.overview.todayVolume / 1000000).toFixed(2)}M`}
+                      description={`${data.overview.todayCount.toLocaleString()} transactions`}
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="This Week"
+                      value={`SAR ${(data.overview.weekVolume / 1000000).toFixed(2)}M`}
+                      description={`${data.overview.weekCount.toLocaleString()} transactions`}
+                      icon={Calendar}
+                    />
+                    <StatCard
+                      title="This Month"
+                      value={`SAR ${(data.overview.monthVolume / 1000000).toFixed(2)}M`}
+                      description={`${data.overview.monthCount.toLocaleString()} transactions`}
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="Avg Transaction Size"
+                      value={`SAR ${(data.overview.avgTransactionSize / 1000).toFixed(1)}K`}
+                      description="Monthly average"
+                      icon={BarChart3}
+                    />
+                  </div>
+                </>
+              )}
+
+              {(type === 'performance' && widgetId === 'performance_radar' || type === 'overview' && widgetId === 'performance_radar') && data.overview && (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                      title="Overall Score"
+                      value={`${data.overview.overallScore.toFixed(1)}/100`}
+                      trend="up"
+                      description="Combined performance score"
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="Total Revenue"
+                      value={`SAR ${(data.overview.totalRevenue / 1000000000).toFixed(2)}B`}
+                      description={`Score: ${data.overview.performanceMetrics.revenue.toFixed(0)}/100`}
+                      icon={DollarSign}
+                    />
+                    <StatCard
+                      title="Customer Base"
+                      value={data.overview.customerCount.toLocaleString()}
+                      description={`Score: ${data.overview.performanceMetrics.customers.toFixed(0)}/100`}
+                      icon={Users}
+                    />
+                  </div>
+                  
+                  {/* Performance Metrics Grid */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Performance Metrics</CardTitle>
+                      <CardDescription>Current performance vs targets</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {Object.entries(data.overview.performanceMetrics).map(([metric, score]) => (
+                          <div key={metric} className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium capitalize">{metric}</span>
+                              <span className="text-sm font-bold">{score.toFixed(0)}/100</span>
+                            </div>
+                            <div className="w-full bg-secondary rounded-full h-2">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${score}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </>
               )}
 
@@ -961,6 +1114,64 @@ export default function DashboardDetail() {
               )}
             </div>
           )}
+          
+          {/* Special handling for chart widgets that have breakdown data */}
+          {config.isChart && data && data.breakdown && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {type === 'overview' && widgetId === 'total_assets' && (
+                <>
+                  <BreakdownCard title="By Category" data={data.breakdown.byCategory || {}} />
+                  <BreakdownCard title="By Product Type" data={data.breakdown.byProductType || {}} type="bar" />
+                  <BreakdownCard title="By Branch" data={data.breakdown.byBranch || {}} />
+                </>
+              )}
+              
+              {(type === 'monthly' || type === 'overview' && widgetId === 'monthly_revenue') && (
+                <>
+                  <BreakdownCard title="By Month" data={
+                    Object.entries(data.breakdown.byMonth || {}).reduce((acc, [month, info]) => {
+                      acc[month] = info.revenue || 0;
+                      return acc;
+                    }, {})
+                  } type="bar" />
+                  <BreakdownCard title="By Revenue Type" data={data.breakdown.byType || {}} />
+                </>
+              )}
+              
+              {(type === 'customer' && widgetId === 'customer_growth' || type === 'overview' && widgetId === 'customer_growth') && (
+                <>
+                  <BreakdownCard title="By Segment" data={data.breakdown.bySegment || {}} />
+                  <BreakdownCard title="By Acquisition Channel" data={data.breakdown.byAcquisitionChannel || {}} />
+                  <BreakdownCard title="Monthly Growth" data={data.breakdown.byMonth || {}} type="bar" />
+                </>
+              )}
+              
+              {(type === 'transaction' && widgetId === 'transaction_volume' || type === 'overview' && widgetId === 'transaction_volume') && (
+                <>
+                  <BreakdownCard title="By Type" data={
+                    Object.entries(data.breakdown.byType || {}).reduce((acc, [type, info]) => {
+                      acc[type] = info.volume || 0;
+                      return acc;
+                    }, {})
+                  } />
+                  <BreakdownCard title="By Volume Range" data={data.breakdown.byVolumeRange || {}} type="bar" />
+                </>
+              )}
+              
+              {(type === 'performance' && widgetId === 'performance_radar' || type === 'overview' && widgetId === 'performance_radar') && (
+                <>
+                  <BreakdownCard title="Current vs Target" data={
+                    Object.entries(data.breakdown.byMetric || {}).reduce((acc, [metric, score]) => {
+                      acc[`${metric} (Current)`] = score;
+                      acc[`${metric} (Target)`] = data.breakdown.targets?.[metric] || 0;
+                      return acc;
+                    }, {})
+                  } type="bar" />
+                  <BreakdownCard title="Performance Gaps" data={data.breakdown.gaps || {}} />
+                </>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-4 mt-4">
@@ -1053,6 +1264,116 @@ export default function DashboardDetail() {
                     chartType={type === 'transactions' ? 'bar' : 'line'}
                     xAxisKey={type === 'transactions' ? 'hour' : 'date'}
                     yAxisKey="value"
+                    height={300}
+                    clickable={false}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Special handling for chart widgets that have trends data */}
+          {config.isChart && data && data.trends && (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {type === 'overview' && widgetId === 'total_assets' ? 'Asset Growth Trend' : 
+                   type === 'overview' && widgetId === 'monthly_revenue' ? 'Revenue Trend' :
+                   type === 'overview' && widgetId === 'customer_growth' ? 'Customer Growth Trend' :
+                   type === 'overview' && widgetId === 'transaction_volume' ? 'Transaction Volume Trend' :
+                   type === 'overview' && widgetId === 'performance_radar' ? 'Performance Trend' :
+                   '30-Day Trend'}
+                </CardTitle>
+                <CardDescription>
+                  {type === 'overview' && widgetId === 'total_assets' 
+                    ? 'Total assets, deposits, and loans over the last 30 days' 
+                    : type === 'overview' && widgetId === 'monthly_revenue'
+                    ? 'Revenue and profit trends over the last 6 months'
+                    : type === 'overview' && widgetId === 'customer_growth'
+                    ? 'Customer acquisition trends over the last 12 months'
+                    : type === 'overview' && widgetId === 'transaction_volume'
+                    ? 'Daily transaction volume and count trends'
+                    : type === 'overview' && widgetId === 'performance_radar'
+                    ? 'Performance metrics evolution over time'
+                    : `${config.title} trends over the last 30 days`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {type === 'overview' && widgetId === 'total_assets' && (
+                  <ChartWidget
+                    data={data.trends.dates?.map((date, index) => ({
+                      date: date,
+                      totalAssets: (data.trends.totalAssets[index] / 1000000).toFixed(2),
+                      deposits: (data.trends.deposits[index] / 1000000).toFixed(2),
+                      loans: (data.trends.loans[index] / 1000000).toFixed(2)
+                    }))}
+                    chartType="line"
+                    xAxisKey="date"
+                    yAxisKey="totalAssets"
+                    height={300}
+                    clickable={false}
+                  />
+                )}
+                
+                {(type === 'monthly' || type === 'overview' && widgetId === 'monthly_revenue') && (
+                  <ChartWidget
+                    data={data.trends.dates?.map((date, index) => ({
+                      month: date,
+                      revenue: (data.trends.revenue[index] / 1000000).toFixed(2),
+                      profit: (data.trends.profit[index] / 1000000).toFixed(2)
+                    }))}
+                    chartType="area"
+                    xAxisKey="month"
+                    yAxisKey="revenue"
+                    height={300}
+                    clickable={false}
+                  />
+                )}
+                
+                {(type === 'customer' && widgetId === 'customer_growth' || type === 'overview' && widgetId === 'customer_growth') && (
+                  <ChartWidget
+                    data={data.trends.dates?.map((date, index) => ({
+                      month: date,
+                      newCustomers: data.trends.values[index],
+                      cumulative: data.trends.cumulative?.[index] || 0
+                    }))}
+                    chartType="line"
+                    xAxisKey="month"
+                    yAxisKey="newCustomers"
+                    height={300}
+                    clickable={false}
+                  />
+                )}
+                
+                {(type === 'transaction' && widgetId === 'transaction_volume' || type === 'overview' && widgetId === 'transaction_volume') && (
+                  <ChartWidget
+                    data={data.trends.dates?.map((date, index) => ({
+                      date: date,
+                      volume: (data.trends.volume[index] / 1000000).toFixed(2),
+                      count: data.trends.count[index]
+                    }))}
+                    chartType="area"
+                    xAxisKey="date"
+                    yAxisKey="volume"
+                    height={300}
+                    clickable={false}
+                  />
+                )}
+                
+                {(type === 'performance' && widgetId === 'performance_radar' || type === 'overview' && widgetId === 'performance_radar') && (
+                  <ChartWidget
+                    data={data.trends.dates?.map((date, index) => ({
+                      month: date,
+                      revenue: data.trends.revenue[index],
+                      customers: data.trends.customers[index],
+                      efficiency: data.trends.efficiency[index],
+                      risk: data.trends.risk[index],
+                      compliance: data.trends.compliance[index],
+                      innovation: data.trends.innovation[index]
+                    }))}
+                    chartType="line"
+                    xAxisKey="month"
+                    yAxisKey="revenue"
                     height={300}
                     clickable={false}
                   />
