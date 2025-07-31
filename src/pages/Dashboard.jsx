@@ -227,9 +227,11 @@ const DASHBOARD_SECTIONS = {
 };
 
 // Enhanced Widget Catalog with fallback data
-const WIDGET_CATALOG = {
+export const WIDGET_CATALOG = {
   overview: {
     total_assets: {
+      name: 'إجمالي الأصول',
+      nameEn: 'Total Assets',
       widgetKey: 'totalAssets',
       icon: DollarSign,
       type: 'kpi',
@@ -292,6 +294,8 @@ const WIDGET_CATALOG = {
       }
     },
     performance_radar: {
+      name: 'مؤشرات الأداء',
+      nameEn: 'Performance Indicators',
       widgetKey: 'performanceIndicators',
       icon: Target,
       type: 'chart',
@@ -344,6 +348,8 @@ const WIDGET_CATALOG = {
       }
     },
     monthly_revenue: {
+      name: 'الإيرادات الشهرية',
+      nameEn: 'Monthly Revenue',
       widgetKey: 'monthlyRevenue',
       icon: TrendingUp,
       type: 'chart',
@@ -396,6 +402,8 @@ const WIDGET_CATALOG = {
       }
     },
     customer_growth: {
+      name: 'نمو العملاء',
+      nameEn: 'Customer Growth',
       widgetKey: 'customerGrowth',
       icon: Users,
       type: 'kpi',
@@ -2284,7 +2292,7 @@ export default function EnhancedDashboard() {
               <div className="flex items-center gap-2">
                 <widgetDef.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 <CardTitle className="text-sm sm:text-base">
-                  {i18n.language === 'ar' ? widgetDef.name : widgetDef.nameEn}
+                  {widgetName || 'Widget'}
                 </CardTitle>
               </div>
               {isEditMode && (

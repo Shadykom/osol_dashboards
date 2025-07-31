@@ -5,6 +5,18 @@
 import { supabaseBanking, TABLES } from '../lib/supabase';
 import { getDateFilter, getPreviousPeriodData, calculatePercentageChange } from '../utils/dateFilters.js';
 
+// Import the widget catalog to access widget definitions
+const getWidgetCatalog = async () => {
+  try {
+    // Dynamically import to avoid circular dependencies
+    const dashboardModule = await import('../pages/Dashboard.jsx');
+    return dashboardModule.WIDGET_CATALOG || {};
+  } catch (error) {
+    console.error('Error loading widget catalog:', error);
+    return {};
+  }
+};
+
 export const enhancedDashboardDetailsService = {
   async getWidgetDetails(section, widgetId, filters = {}) {
     try {
@@ -14,17 +26,55 @@ export const enhancedDashboardDetailsService = {
       let trendsData = {};
       let rawData = {};
 
-      switch (widgetKey) {
-        case 'overview_total_assets':
-          overviewData = await this.getTotalAssetsOverview(filters);
-          breakdownData = await this.getTotalAssetsBreakdown(filters);
-          trendsData = await this.getTrendsData(section, widgetId, filters);
-          rawData = await this.getRawData(section, widgetId, filters);
-          break;
-        // Add more cases for other widgets
-        default:
-          break;
+      // Get the widget catalog
+      const WIDGET_CATALOG = await getWidgetCatalog();
+      const widgetDef = WIDGET_CATALOG[section]?.[widgetId];
+
+      if (widgetDef) {
+        // Use the widget's query function to get data
+        if (widgetDef.query) {
+          const widgetData = await widgetDef.query(filters);
+          
+          // Handle different widget types
+          if (widgetDef.type === 'chart') {
+            // For chart widgets, the data is usually an array
+            overviewData = {
+              data: Array.isArray(widgetData) ? widgetData : widgetData.data || [],
+              widgetName: widgetDef.nameEn || widgetDef.name || widgetId,
+              widgetType: widgetDef.type,
+              chartType: widgetDef.chartType,
+              ...widgetData // Include any additional properties
+            };
+          } else {
+            // For KPI widgets
+            overviewData = {
+              ...widgetData,
+              widgetName: widgetDef.nameEn || widgetDef.name || widgetId,
+              widgetType: widgetDef.type,
+              chartType: widgetDef.chartType
+            };
+          }
+        }
+
+        // Get breakdown data based on widget type
+        breakdownData = await this.getGenericBreakdown(section, widgetId, filters);
+        trendsData = await this.getTrendsData(section, widgetId, filters);
+        rawData = await this.getRawData(section, widgetId, filters);
+      } else {
+        // Fallback for specific widgets
+        switch (widgetKey) {
+          case 'overview_total_assets':
+            overviewData = await this.getTotalAssetsOverview(filters);
+            breakdownData = await this.getTotalAssetsBreakdown(filters);
+            trendsData = await this.getTrendsData(section, widgetId, filters);
+            rawData = await this.getRawData(section, widgetId, filters);
+            break;
+          // Add more cases for other widgets
+          default:
+            break;
+        }
       }
+
       return {
         success: true,
         data: {
@@ -35,7 +85,7 @@ export const enhancedDashboardDetailsService = {
           metadata: {
             widgetId,
             section,
-            title: widgetId,
+            title: widgetDef?.nameEn || widgetDef?.name || widgetId,
             filters,
             timestamp: new Date().toISOString()
           }
@@ -411,5 +461,133 @@ export const enhancedDashboardDetailsService = {
     }
     
     return csv;
+  },
+
+  async getBankingBreakdown(widgetId, filters) {
+    try {
+      const dateFilter = getDateFilter(filters.dateRange);
+      
+      switch (widgetId) {
+        case 'total_accounts':
+          const accountTypes = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('account_type')
+            .gte('created_at', dateFilter.start)
+            .lte('created_at', dateFilter.end);
+          
+          const typeBreakdown = {};
+          accountTypes.data?.forEach(acc => {
+            typeBreakdown[acc.account_type] = (typeBreakdown[acc.account_type] || 0) + 1;
+          });
+          
+          return { byType: typeBreakdown };
+          
+        case 'total_deposits':
+          const deposits = await supabaseBanking
+            .from(TABLES.ACCOUNTS)
+            .select('account_type, current_balance')
+            .gte('created_at', dateFilter.start)
+            .lte('created_at', dateFilter.end);
+          
+          const depositBreakdown = {};
+          deposits.data?.forEach(acc => {
+            depositBreakdown[acc.account_type] = (depositBreakdown[acc.account_type] || 0) + acc.current_balance;
+          });
+          
+          return { byType: depositBreakdown };
+          
+        default:
+          return {};
+      }
+    } catch (error) {
+      console.error('Error in getBankingBreakdown:', error);
+      return {};
+    }
+  },
+
+  async getLendingBreakdown(widgetId, filters) {
+    try {
+      const dateFilter = getDateFilter(filters.dateRange);
+      
+      switch (widgetId) {
+        case 'loan_portfolio':
+          const loans = await supabaseBanking
+            .from(TABLES.LOAN_ACCOUNTS)
+            .select('loan_type, outstanding_balance')
+            .gte('created_at', dateFilter.start)
+            .lte('created_at', dateFilter.end);
+          
+          const loanBreakdown = {};
+          loans.data?.forEach(loan => {
+            loanBreakdown[loan.loan_type] = (loanBreakdown[loan.loan_type] || 0) + loan.outstanding_balance;
+          });
+          
+          return { byType: loanBreakdown };
+          
+        default:
+          return {};
+      }
+    } catch (error) {
+      console.error('Error in getLendingBreakdown:', error);
+      return {};
+    }
+  },
+
+  async getCollectionsBreakdown(widgetId, filters) {
+    try {
+      const dateFilter = getDateFilter(filters.dateRange);
+      
+      switch (widgetId) {
+        case 'active_cases':
+          // Get collection cases breakdown by status
+          const cases = await supabaseBanking
+            .from(TABLES.LOAN_ACCOUNTS)
+            .select('loan_status, outstanding_balance')
+            .in('loan_status', ['OVERDUE', 'DEFAULT'])
+            .gte('created_at', dateFilter.start)
+            .lte('created_at', dateFilter.end);
+          
+          const caseBreakdown = {};
+          cases.data?.forEach(loan => {
+            caseBreakdown[loan.loan_status] = (caseBreakdown[loan.loan_status] || 0) + 1;
+          });
+          
+          return { byStatus: caseBreakdown };
+          
+        default:
+          return {};
+      }
+    } catch (error) {
+      console.error('Error in getCollectionsBreakdown:', error);
+      return {};
+    }
+  },
+
+  async getCustomersBreakdown(widgetId, filters) {
+    try {
+      const dateFilter = getDateFilter(filters.dateRange);
+      
+      switch (widgetId) {
+        case 'total_customers':
+          const customers = await supabaseBanking
+            .from(TABLES.CUSTOMERS)
+            .select('customer_type')
+            .gte('created_at', dateFilter.start)
+            .lte('created_at', dateFilter.end);
+          
+          const customerBreakdown = {};
+          customers.data?.forEach(cust => {
+            customerBreakdown[cust.customer_type] = (customerBreakdown[cust.customer_type] || 0) + 1;
+          });
+          
+          return { byType: customerBreakdown };
+          
+        default:
+          return {};
+      }
+    } catch (error) {
+      console.error('Error in getCustomersBreakdown:', error);
+      return {};
+    }
   }
 };

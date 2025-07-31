@@ -229,9 +229,9 @@ const DashboardDetailNew = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">total_assets</h1>
+            <h1 className="text-2xl font-bold">{detailData.metadata?.title || widgetId}</h1>
             <p className="text-sm text-muted-foreground">
-              Detailed analytics and insights
+              Detailed analytics and insights for {section} section
             </p>
           </div>
         </div>
@@ -264,57 +264,117 @@ const DashboardDetailNew = () => {
             </div>
           ) : detailData.overview ? (
             <>
-              {/* Overview Statistics */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard
-                  title="Total Assets"
-                  value={formatCurrency(detailData.overview.totalAssets || 0)}
-                  change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
-                  trend={detailData.overview.trend}
-                  description="Combined deposits and loans"
-                  icon={DollarSign}
-                />
-                <StatCard
-                  title="Total Deposits"
-                  value={formatCurrency(detailData.overview.totalDeposits || 0)}
-                  description={`${detailData.overview.depositRatio || 0}% of total assets`}
-                  icon={CreditCard}
-                />
-                <StatCard
-                  title="Total Loans"
-                  value={formatCurrency(detailData.overview.totalLoans || 0)}
-                  description={`${detailData.overview.loanRatio || 0}% of total assets`}
-                  icon={TrendingUp}
-                />
-                <StatCard
-                  title="Account Count"
-                  value={(detailData.overview.accountCount || 0).toLocaleString()}
-                  description="Total number of accounts"
-                  icon={Users}
-                />
-              </div>
+              {/* Dynamic Overview based on widget type */}
+              {detailData.overview.widgetType === 'kpi' ? (
+                // KPI Widget Overview
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <StatCard
+                    title={detailData.metadata?.title || widgetId}
+                    value={
+                      typeof detailData.overview.value === 'number' && detailData.overview.value >= 1000000
+                        ? formatCurrency(detailData.overview.value)
+                        : (detailData.overview.value || 0).toLocaleString() + (detailData.overview.suffix || '')
+                    }
+                    change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                    trend={detailData.overview.trend}
+                    description={`${section} metrics`}
+                    icon={DollarSign}
+                  />
+                  {/* Additional context cards if available */}
+                  {detailData.overview.totalAssets && (
+                    <>
+                      <StatCard
+                        title="Total Deposits"
+                        value={formatCurrency(detailData.overview.totalDeposits || 0)}
+                        description={`${detailData.overview.depositRatio || 0}% of total assets`}
+                        icon={CreditCard}
+                      />
+                      <StatCard
+                        title="Total Loans"
+                        value={formatCurrency(detailData.overview.totalLoans || 0)}
+                        description={`${detailData.overview.loanRatio || 0}% of total assets`}
+                        icon={TrendingUp}
+                      />
+                    </>
+                  )}
+                </div>
+              ) : detailData.overview.widgetType === 'chart' ? (
+                // Chart Widget Overview
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{detailData.metadata?.title || widgetId}</CardTitle>
+                    <CardDescription>Chart visualization and metrics</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {detailData.overview.data ? (
+                      <ChartWidget
+                        data={detailData.overview.data}
+                        chartType={detailData.overview.chartType || 'line'}
+                        height={300}
+                        showLegend={true}
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        No chart data available
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                // Fallback for specific widgets (like total_assets)
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                      title="Total Assets"
+                      value={formatCurrency(detailData.overview.totalAssets || 0)}
+                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                      trend={detailData.overview.trend}
+                      description="Combined deposits and loans"
+                      icon={DollarSign}
+                    />
+                    <StatCard
+                      title="Total Deposits"
+                      value={formatCurrency(detailData.overview.totalDeposits || 0)}
+                      description={`${detailData.overview.depositRatio || 0}% of total assets`}
+                      icon={CreditCard}
+                    />
+                    <StatCard
+                      title="Total Loans"
+                      value={formatCurrency(detailData.overview.totalLoans || 0)}
+                      description={`${detailData.overview.loanRatio || 0}% of total assets`}
+                      icon={TrendingUp}
+                    />
+                    <StatCard
+                      title="Account Count"
+                      value={(detailData.overview.accountCount || 0).toLocaleString()}
+                      description="Total number of accounts"
+                      icon={Users}
+                    />
+                  </div>
 
-              {/* Additional Metrics */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <StatCard
-                  title="Loan Count"
-                  value={(detailData.overview.loanCount || 0).toLocaleString()}
-                  description="Total number of loans"
-                  icon={Activity}
-                />
-                <StatCard
-                  title="Average Account Balance"
-                  value={formatCurrency(detailData.overview.avgAccountBalance || 0)}
-                  description="Per account average"
-                  icon={BarChart3}
-                />
-                <StatCard
-                  title="Average Loan Balance"
-                  value={formatCurrency(detailData.overview.avgLoanBalance || 0)}
-                  description="Per loan average"
-                  icon={PieChart}
-                />
-              </div>
+                  {/* Additional Metrics */}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                      title="Loan Count"
+                      value={(detailData.overview.loanCount || 0).toLocaleString()}
+                      description="Total number of loans"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="Average Account Balance"
+                      value={formatCurrency(detailData.overview.avgAccountBalance || 0)}
+                      description="Per account average"
+                      icon={BarChart3}
+                    />
+                    <StatCard
+                      title="Average Loan Balance"
+                      value={formatCurrency(detailData.overview.avgLoanBalance || 0)}
+                      description="Per loan average"
+                      icon={PieChart}
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Asset Composition Chart */}
               <Card>
