@@ -745,7 +745,7 @@ export const revenueDetailsService = {
       const { count: totalCustomers } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+        ;
       
       // Get monthly new customers for last 12 months
       const monthlyGrowth = {};
@@ -1712,7 +1712,7 @@ export const productDetailsService = {
       const { count: activeProducts } = await supabaseBanking
         .from(TABLES.PRODUCTS)
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+        ;
 
       // Product performance
       const { data: productLoans } = await supabaseBanking
@@ -2441,7 +2441,7 @@ export const chartDetailsService = {
       const { count: totalCustomers } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+        ;
       
       // Get monthly new customers for last 12 months
       const monthlyGrowth = {};
