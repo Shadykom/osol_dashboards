@@ -40,6 +40,10 @@
     "arabic": "العربية",
     "customerList": "قائمة العملاء",
     "customersFound": "عملاء تم العثور عليهم",
+    "badges": {
+      "live": "مباشر",
+      "new": "جديد"
+    },
     "accounts": "حسابات",
     "account": "حساب",
     "approved": "موافق عليه",
@@ -91,6 +95,12 @@
     "yanbu": "ينبع"
   },
   "navigation": {
+    "sections": {
+      "overview": "نظرة عامة",
+      "dashboards": "لوحات التحكم",
+      "collections": "التحصيل",
+      "bankingOperations": "العمليات المصرفية"
+    },
     "overview": "نظرة عامة",
     "mainDashboard": "لوحة التحكم الرئيسية",
     "dashboards": "لوحات التحكم",
@@ -138,7 +148,7 @@
     "digitalCollection": "التحصيل الرقمي",
     "earlyWarning": "الإنذار المبكر",
     "executiveCollection": "التحصيل التنفيذي",
-    "delinquencyExecutive": "لوحة المتأخرات التنفيذية",
+    "delinquencyExecutive": "المتأخرات التنفيذية",
     "fieldCollection": "التحصيل الميداني",
     "officerPerformance": "أداء الموظف",
     "shariaCompliance": "الامتثال الشرعي",
