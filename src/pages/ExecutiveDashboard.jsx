@@ -8,6 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataRefresh } from '@/hooks/useDataRefresh';
 import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { DashboardService } from '@/services/dashboardService';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BranchReportService } from '@/services/branchReportService';
 import {
   LineChart,
   Line,
@@ -130,6 +133,12 @@ export function ExecutiveDashboard() {
   const { t } = useTranslation();
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+    to: new Date()
+  });
   const [dashboardData, setDashboardData] = useState({
     kpis: {
       totalAssets: 0,
@@ -352,8 +361,22 @@ export function ExecutiveDashboard() {
     }
   };
 
+  // Fetch branches on component mount
+  const fetchBranches = async () => {
+    try {
+      const response = await BranchReportService.getBranches();
+      if (response.success && response.data) {
+        setBranches(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+      toast.error('Failed to fetch branches');
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
+    fetchBranches();
   }, []);
 
   // Use the data refresh hook
