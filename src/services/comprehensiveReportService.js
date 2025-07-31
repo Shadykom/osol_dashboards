@@ -306,39 +306,160 @@ class ComprehensiveReportService {
    */
   async getCashFlowStatement(startDate, endDate) {
     try {
-      const { data: transactions, error } = await supabaseBanking
+      // Get all transactions for the period
+      const { data: transactions, error: transactionError } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
-        .select('amount, transaction_type_id, transaction_date')
+        .select(`
+          transaction_amount,
+          transaction_type_id,
+          transaction_date,
+          transaction_types!inner(type_name)
+        `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
 
-      if (error) throw error;
+      if (transactionError) throw transactionError;
 
-      const inflows = transactions?.filter(t => t.transaction_type_id <= 3).reduce((sum, t) => sum + t.amount, 0) || 0;
-      const outflows = transactions?.filter(t => t.transaction_type_id > 3).reduce((sum, t) => sum + t.amount, 0) || 0;
+      // Get loan data for interest calculations
+      const { data: loans, error: loanError } = await supabaseBanking
+        .from(TABLES.LOANS)
+        .select('loan_amount, interest_rate, disbursement_date, loan_status')
+        .lte('disbursement_date', endDate);
+
+      if (loanError) throw loanError;
+
+      // Get account balances for opening/closing cash
+      const { data: accountBalances, error: balanceError } = await supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('balance, account_type_id')
+        .eq('account_type_id', 1); // Cash accounts
+
+      if (balanceError) throw balanceError;
+
+      // Calculate Operating Activities
+      const operatingTransactions = transactions?.filter(t => 
+        ['Fee', 'Interest', 'Commission'].some(type => 
+          t.transaction_types?.type_name?.includes(type)
+        )
+      ) || [];
+
+      const cashFromOperations = operatingTransactions
+        .filter(t => t.transaction_amount > 0)
+        .reduce((sum, t) => sum + t.transaction_amount, 0);
+
+      const interestReceived = loans
+        ?.filter(l => l.loan_status === 'Active')
+        .reduce((sum, l) => sum + (l.loan_amount * (l.interest_rate / 100) / 12), 0) || 0;
+
+      const operatingExpenses = operatingTransactions
+        .filter(t => t.transaction_amount < 0)
+        .reduce((sum, t) => sum + Math.abs(t.transaction_amount), 0);
+
+      const interestPaid = operatingExpenses * 0.1; // Estimate 10% of expenses as interest paid
+
+      const netOperating = cashFromOperations + interestReceived - operatingExpenses;
+
+      // Calculate Investing Activities
+      const investmentTransactions = transactions?.filter(t => 
+        ['Investment', 'Asset'].some(type => 
+          t.transaction_types?.type_name?.includes(type)
+        )
+      ) || [];
+
+      const purchaseOfInvestments = investmentTransactions
+        .filter(t => t.transaction_amount < 0)
+        .reduce((sum, t) => sum + t.transaction_amount, 0);
+
+      const saleOfInvestments = investmentTransactions
+        .filter(t => t.transaction_amount > 0)
+        .reduce((sum, t) => sum + t.transaction_amount, 0);
+
+      const netInvesting = purchaseOfInvestments + saleOfInvestments;
+
+      // Calculate Financing Activities
+      const financingTransactions = transactions?.filter(t => 
+        ['Loan', 'Borrowing', 'Dividend', 'Capital'].some(type => 
+          t.transaction_types?.type_name?.includes(type)
+        )
+      ) || [];
+
+      const proceedsFromBorrowings = financingTransactions
+        .filter(t => t.transaction_amount > 0 && t.transaction_types?.type_name?.includes('Borrowing'))
+        .reduce((sum, t) => sum + t.transaction_amount, 0);
+
+      const repaymentOfBorrowings = financingTransactions
+        .filter(t => t.transaction_amount < 0 && t.transaction_types?.type_name?.includes('Loan'))
+        .reduce((sum, t) => sum + t.transaction_amount, 0);
+
+      const dividendsPaid = financingTransactions
+        .filter(t => t.transaction_amount < 0 && t.transaction_types?.type_name?.includes('Dividend'))
+        .reduce((sum, t) => sum + t.transaction_amount, 0);
+
+      const netFinancing = proceedsFromBorrowings + repaymentOfBorrowings + dividendsPaid;
+
+      // Calculate total cash flow
+      const netCashFlow = netOperating + netInvesting + netFinancing;
+
+      // Calculate opening and closing balances
+      const currentCashBalance = accountBalances?.reduce((sum, acc) => sum + acc.balance, 0) || 0;
+      const openingBalance = currentCashBalance - netCashFlow; // Approximate opening balance
+      const closingBalance = currentCashBalance;
+
+      // Get monthly trend data for the last 6 months
+      const monthlyTrend = [];
+      for (let i = 5; i >= 0; i--) {
+        const monthStart = startOfMonth(subMonths(new Date(endDate), i));
+        const monthEnd = endOfMonth(subMonths(new Date(endDate), i));
+        
+        const monthTransactions = transactions?.filter(t => 
+          new Date(t.transaction_date) >= monthStart && 
+          new Date(t.transaction_date) <= monthEnd
+        ) || [];
+
+        const monthInflows = monthTransactions
+          .filter(t => t.transaction_amount > 0)
+          .reduce((sum, t) => sum + t.transaction_amount, 0);
+
+        const monthOutflows = monthTransactions
+          .filter(t => t.transaction_amount < 0)
+          .reduce((sum, t) => sum + Math.abs(t.transaction_amount), 0);
+
+        monthlyTrend.push({
+          month: format(monthStart, 'MMM yyyy'),
+          inflows: monthInflows,
+          outflows: monthOutflows,
+          netFlow: monthInflows - monthOutflows
+        });
+      }
 
       return {
         period: { startDate, endDate },
         operatingActivities: {
-          cashFromOperations: inflows * 0.7,
-          interestReceived: inflows * 0.1,
-          interestPaid: outflows * 0.05,
-          netOperating: inflows * 0.75
+          cashFromOperations,
+          interestReceived,
+          interestPaid,
+          operatingExpenses,
+          netOperating
         },
         investingActivities: {
-          purchaseOfInvestments: -outflows * 0.2,
-          saleOfInvestments: inflows * 0.1,
-          netInvesting: -outflows * 0.1
+          purchaseOfInvestments,
+          saleOfInvestments,
+          netInvesting
         },
         financingActivities: {
-          proceedsFromBorrowings: inflows * 0.15,
-          repaymentOfBorrowings: -outflows * 0.1,
-          dividendsPaid: -outflows * 0.05,
-          netFinancing: inflows * 0.05
+          proceedsFromBorrowings,
+          repaymentOfBorrowings,
+          dividendsPaid,
+          netFinancing
         },
-        netCashFlow: inflows - outflows,
-        openingBalance: 1000000,
-        closingBalance: 1000000 + (inflows - outflows)
+        netCashFlow,
+        openingBalance,
+        closingBalance,
+        monthlyTrend,
+        // Additional metrics
+        cashFlowRatio: netOperating > 0 ? netOperating / operatingExpenses : 0,
+        freeCashFlow: netOperating + purchaseOfInvestments,
+        cashConversionCycle: 45 // Placeholder - would need more data
       };
     } catch (error) {
       console.error('Error generating cash flow statement:', error);
