@@ -44,7 +44,7 @@ const DashboardCard = ({
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box>
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              {title}
+              {title || 'Untitled Card'}
             </Typography>
             <Typography variant="h4" component="div">
               {currency} {formatValue(value)}
