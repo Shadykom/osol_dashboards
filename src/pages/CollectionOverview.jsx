@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
 import { useTranslation } from 'react-i18next';
+import CollectionDebugPanel from '../components/CollectionDebugPanel';
 
 const CollectionOverview = () => {
   const { t } = useTranslation();
