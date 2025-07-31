@@ -157,13 +157,18 @@ const DashboardDetailNew = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        console.log('Fetching data for:', { section, widgetId });
         const result = await enhancedDashboardDetailsService.getWidgetDetails(
           section,
           widgetId,
           filters
         );
+        console.log('Service returned:', result);
         if (result.success) {
+          console.log('Setting detail data:', result.data);
           setDetailData(result.data);
+        } else {
+          console.error('Service returned error:', result.error);
         }
       } catch (error) {
         console.error('Error fetching widget details:', error);

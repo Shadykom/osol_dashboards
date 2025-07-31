@@ -21,6 +21,8 @@ export const enhancedDashboardDetailsService = {
   async getWidgetDetails(section, widgetId, filters = {}) {
     try {
       const widgetKey = `${section}_${widgetId}`;
+      console.log('Getting widget details for:', { section, widgetId, widgetKey });
+      
       let overviewData = {};
       let breakdownData = {};
       let trendsData = {};
@@ -29,14 +31,22 @@ export const enhancedDashboardDetailsService = {
       // Get the widget catalog
       const WIDGET_CATALOG = await getWidgetCatalog();
       const widgetDef = WIDGET_CATALOG[section]?.[widgetId];
+      
+      console.log('Widget definition found:', !!widgetDef, widgetDef?.type);
 
       if (widgetDef) {
         // Use the widget's query function to get data
         if (widgetDef.query) {
           const widgetData = await widgetDef.query(filters);
+          console.log('Widget query returned:', widgetData);
           
-          // Handle different widget types
-          if (widgetDef.type === 'chart') {
+          // Special handling for total_assets widget
+          if (section === 'overview' && widgetId === 'total_assets') {
+            // For total_assets detail view, we need more detailed data
+            overviewData = await this.getTotalAssetsOverview(filters);
+            overviewData.widgetType = widgetDef.type;
+            overviewData.widgetName = widgetDef.nameEn || widgetDef.name || widgetId;
+          } else if (widgetDef.type === 'chart') {
             // For chart widgets, the data is usually an array
             overviewData = {
               data: Array.isArray(widgetData) ? widgetData : widgetData.data || [],
@@ -74,6 +84,8 @@ export const enhancedDashboardDetailsService = {
             break;
         }
       }
+
+      console.log('Final overview data:', overviewData);
 
       return {
         success: true,
@@ -589,5 +601,19 @@ export const enhancedDashboardDetailsService = {
       console.error('Error in getCustomersBreakdown:', error);
       return {};
     }
+  },
+
+  async getGenericBreakdown(section, widgetId, filters) {
+    // Special handling for total_assets
+    if (section === 'overview' && widgetId === 'total_assets') {
+      return await this.getTotalAssetsBreakdown(filters);
+    }
+    
+    // Skeleton for generic breakdown - to be implemented per widget
+    return {
+      byCategory: {},
+      byType: {},
+      byBranch: {}
+    };
   }
 };
