@@ -41,6 +41,7 @@ import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
 import DashboardDetail from './pages/DashboardDetail';
 import ReportsHealthCheck from './pages/ReportsHealthCheck';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -263,7 +264,11 @@ function AppContent() {
           <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
           
           {/* Dashboard Routes */}
-          <Route path="/dashboards/custom" element={<CustomDashboard />} />
+          <Route path="/dashboards/custom" element={
+            <ErrorBoundary>
+              <CustomDashboard />
+            </ErrorBoundary>
+          } />
           <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
           <Route path="/dashboards/operations" element={<OperationsDashboard />} />
           
