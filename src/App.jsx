@@ -38,6 +38,7 @@ import { BasicSidebarTest } from './pages/BasicSidebarTest';
 import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
 import DashboardDetail from './pages/DashboardDetail';
+import ReportsHealthCheck from './pages/ReportsHealthCheck';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -310,6 +311,7 @@ function AppContent() {
           <Route path="/database-test" element={<DatabaseTest />} />
           <Route path="/diagnostic" element={<DiagnosticPage />} />
           <Route path="/db-diagnostic" element={<DatabaseDiagnostic />} />
+          <Route path="/reports-health-check" element={<ReportsHealthCheck />} />
           <Route path="/new-sidebar-demo" element={<NewSidebarDemo />} />
           <Route path="/simple-sidebar-demo" element={<SimpleSidebarDemo />} />
           <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
