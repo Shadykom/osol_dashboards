@@ -1869,13 +1869,25 @@ export const chartDetailsService = {
   async getDetailsByChartType(chartType, widgetId) {
     // Extract the specific chart type from widget ID
     const parts = widgetId.split('_');
-    const mainType = parts[0];
-    const subType = parts[1];
+    
+    // Handle different widget ID formats
+    let mainType, subType;
+    if (parts[0] === 'overview' || parts[0] === 'lending' || parts[0] === 'customers') {
+      // Format: overview_total_assets, lending_loan_portfolio, etc.
+      mainType = parts[1];
+      subType = parts.slice(2).join('_');
+    } else {
+      // Format: total_assets, monthly_revenue, etc.
+      mainType = parts[0];
+      subType = parts.slice(1).join('_');
+    }
 
     switch (mainType) {
       case 'total':
         if (subType === 'assets') {
           return this.getTotalAssetsDetails();
+        } else if (subType === 'customers') {
+          return this.getTotalCustomersDetails();
         }
         break;
       case 'monthly':
@@ -1915,9 +1927,51 @@ export const chartDetailsService = {
           return this.getRevenueTrendDetails();
         }
         break;
+      case 'profit':
+        if (subType === 'margin') {
+          return this.getProfitMarginDetails();
+        }
+        break;
+      case 'branch':
+        if (subType === 'performance') {
+          return this.getBranchPerformanceDetails();
+        }
+        break;
+      case 'product':
+        if (subType === 'distribution') {
+          return this.getProductDistributionDetails();
+        }
+        break;
+      case 'risk':
+        if (subType === 'metrics') {
+          return this.getRiskMetricsDetails();
+        }
+        break;
+      case 'digital':
+        if (subType === 'adoption') {
+          return this.getDigitalAdoptionDetails();
+        }
+        break;
+      case 'loan':
+        if (subType === 'portfolio') {
+          return this.getLoanPortfolioDetails();
+        } else if (subType === 'by_product') {
+          return this.getLoanByProductDetails();
+        }
+        break;
+      case 'npl':
+        if (subType === 'ratio') {
+          return this.getNplRatioDetails();
+        }
+        break;
       default:
-        return { data: null, error: 'Unknown chart type' };
+        console.warn(`Unknown chart type: ${mainType}_${subType} from widget: ${widgetId}`);
+        return { data: null, error: `Unknown chart type: ${widgetId}` };
     }
+    
+    // If we reach here, it means the subType didn't match
+    console.warn(`Unhandled subtype: ${subType} for mainType: ${mainType} from widget: ${widgetId}`);
+    return { data: null, error: `Unhandled widget type: ${widgetId}` };
   },
 
   async getTotalAssetsDetails() {
@@ -2683,5 +2737,204 @@ export const chartDetailsService = {
     } catch (error) {
       return handleError(error, {});
     }
+  },
+
+  async getProfitMarginDetails() {
+    try {
+      return {
+        data: {
+          currentMargin: 15.7,
+          previousMargin: 14.2,
+          trend: 'up',
+          monthlyData: [
+            { month: 'Jan', margin: 14.2 },
+            { month: 'Feb', margin: 14.5 },
+            { month: 'Mar', margin: 14.8 },
+            { month: 'Apr', margin: 15.1 },
+            { month: 'May', margin: 15.4 },
+            { month: 'Jun', margin: 15.7 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getBranchPerformanceDetails() {
+    try {
+      return {
+        data: {
+          branches: [
+            { name: 'Main Branch', revenue: 12500000, customers: 8500, efficiency: 92 },
+            { name: 'Downtown', revenue: 9800000, customers: 6200, efficiency: 88 },
+            { name: 'Westside', revenue: 7600000, customers: 4800, efficiency: 85 },
+            { name: 'Eastside', revenue: 6400000, customers: 3900, efficiency: 82 },
+            { name: 'North Branch', revenue: 5200000, customers: 3100, efficiency: 79 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getProductDistributionDetails() {
+    try {
+      return {
+        data: {
+          products: [
+            { name: 'Savings Accounts', value: 35, count: 12500 },
+            { name: 'Current Accounts', value: 25, count: 8900 },
+            { name: 'Term Deposits', value: 20, count: 7100 },
+            { name: 'Loans', value: 15, count: 5300 },
+            { name: 'Credit Cards', value: 5, count: 1800 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getRiskMetricsDetails() {
+    try {
+      return {
+        data: {
+          metrics: [
+            { name: 'Credit Risk', score: 85, status: 'low' },
+            { name: 'Market Risk', score: 78, status: 'medium' },
+            { name: 'Operational Risk', score: 92, status: 'low' },
+            { name: 'Liquidity Risk', score: 88, status: 'low' }
+          ],
+          trends: {
+            credit: [82, 83, 84, 85, 85, 85],
+            market: [75, 76, 77, 78, 78, 78],
+            operational: [90, 91, 91, 92, 92, 92],
+            liquidity: [86, 87, 87, 88, 88, 88]
+          }
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getDigitalAdoptionDetails() {
+    try {
+      return {
+        data: {
+          adoptionRate: 67.5,
+          monthlyGrowth: 2.3,
+          channels: {
+            mobile: 45,
+            web: 32,
+            atm: 15,
+            branch: 8
+          },
+          userGrowth: [
+            { month: 'Jan', users: 18500 },
+            { month: 'Feb', users: 19200 },
+            { month: 'Mar', users: 20100 },
+            { month: 'Apr', users: 21300 },
+            { month: 'May', users: 22800 },
+            { month: 'Jun', users: 24000 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getLoanPortfolioDetails() {
+    try {
+      return {
+        data: {
+          totalLoans: 3456789012,
+          activeLoans: 8543,
+          averageLoanSize: 404532,
+          portfolio: [
+            { type: 'Personal Loans', amount: 1234567890, count: 4321 },
+            { type: 'Home Loans', amount: 987654321, count: 876 },
+            { type: 'Business Loans', amount: 765432109, count: 543 },
+            { type: 'Auto Loans', amount: 469134692, count: 2803 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getLoanByProductDetails() {
+    try {
+      return {
+        data: {
+          products: [
+            { name: 'Personal Loans', value: 35.7, amount: 1234567890 },
+            { name: 'Home Loans', value: 28.6, amount: 987654321 },
+            { name: 'Business Loans', value: 22.1, amount: 765432109 },
+            { name: 'Auto Loans', value: 13.6, amount: 469134692 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getNplRatioDetails() {
+    try {
+      return {
+        data: {
+          currentRatio: 3.2,
+          previousRatio: 3.8,
+          trend: 'down',
+          monthlyData: [
+            { month: 'Jan', ratio: 3.8 },
+            { month: 'Feb', ratio: 3.7 },
+            { month: 'Mar', ratio: 3.6 },
+            { month: 'Apr', ratio: 3.5 },
+            { month: 'May', ratio: 3.3 },
+            { month: 'Jun', ratio: 3.2 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
+  },
+
+  async getTotalCustomersDetails() {
+    try {
+      return {
+        data: {
+          totalCustomers: 32547,
+          newCustomers: 1234,
+          activeCustomers: 28976,
+          growthRate: 3.8,
+          monthlyGrowth: [
+            { month: 'Jan', total: 29800, new: 980 },
+            { month: 'Feb', total: 30200, new: 1050 },
+            { month: 'Mar', total: 30800, new: 1120 },
+            { month: 'Apr', total: 31500, new: 1180 },
+            { month: 'May', total: 32000, new: 1200 },
+            { month: 'Jun', total: 32547, new: 1234 }
+          ]
+        },
+        error: null
+      };
+    } catch (error) {
+      return handleError(error, {});
+    }
   }
-}
+};
