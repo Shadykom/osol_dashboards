@@ -61,6 +61,12 @@
       } else {
         ethereumValue = window.ethereum;
       }
+      
+      // If the property is not configurable, we can't redefine it
+      // So we'll work around it by intercepting provider injections
+      if (!descriptor.configurable) {
+        console.warn('window.ethereum is not configurable, using workaround mode');
+      }
     } else {
       // Only define if it doesn't exist
       originalDefineProperty.call(Object, window, 'ethereum', {
@@ -98,6 +104,24 @@
                 }, 
                 provider: value 
               });
+            } else if (value && value.isRabby) {
+              providers.set('rabby-legacy', { 
+                info: { 
+                  uuid: 'rabby-legacy', 
+                  name: 'Rabby Wallet', 
+                  icon: '' 
+                }, 
+                provider: value 
+              });
+            } else if (value && value.isOkxWallet) {
+              providers.set('okx-legacy', { 
+                info: { 
+                  uuid: 'okx-legacy', 
+                  name: 'OKX Wallet', 
+                  icon: '' 
+                }, 
+                provider: value 
+              });
             }
           }
         },
@@ -117,13 +141,44 @@
     if (obj === window && prop === 'ethereum') {
       if (ethereumDefined) {
         console.warn('Attempted to redefine window.ethereum, handling gracefully...');
-        // Update the value if we don't have one yet
-        if (!ethereumValue && descriptor && descriptor.value) {
-          ethereumValue = descriptor.value;
-          if (!primaryProvider) {
-            primaryProvider = descriptor.value;
+        
+        // Try to extract the provider value
+        let providerValue = null;
+        if (descriptor) {
+          if (descriptor.value) {
+            providerValue = descriptor.value;
+          } else if (descriptor.get) {
+            try {
+              providerValue = descriptor.get();
+            } catch (e) {
+              console.warn('Could not get provider value from getter:', e);
+            }
           }
         }
+        
+        // Update the value if we don't have one yet
+        if (!ethereumValue && providerValue) {
+          ethereumValue = providerValue;
+          if (!primaryProvider) {
+            primaryProvider = providerValue;
+          }
+        }
+        
+        // Store the provider as an alternative
+        if (providerValue) {
+          if (providerValue.isMetaMask) {
+            providers.set('metamask-redefine', { 
+              info: { uuid: 'metamask-redefine', name: 'MetaMask', icon: '' }, 
+              provider: providerValue 
+            });
+          } else if (providerValue.isRabby) {
+            providers.set('rabby-redefine', { 
+              info: { uuid: 'rabby-redefine', name: 'Rabby Wallet', icon: '' }, 
+              provider: providerValue 
+            });
+          }
+        }
+        
         return obj;
       }
     }
