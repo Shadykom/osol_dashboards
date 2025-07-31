@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Content Security Policy to prevent extension interference -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co;">
+    <!-- Content Security Policy - relaxed to allow extensions -->
+    <!-- Remove or adjust this if you need stricter security -->
+    <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co;"> -->
     <title>Osol Dashboard - Modern Finance Solutions</title>
     <!-- Google Fonts for Arabic support -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,6 +14,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700&family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
     <!-- Early error handler - must be loaded first -->
     <script src="/early-error-handler.js"></script>
+    <!-- Enhanced error handler to suppress extension errors -->
+    <script src="/enhanced-error-handler.js"></script>
     <!-- Removed ethereum-conflict-resolver.js as it's not needed for a banking app -->
   </head>
   <body dir="ltr">
