@@ -13,6 +13,14 @@ if (localStorage.getItem('i18nextLng') === 'ar' && !localStorage.getItem('langua
 
 // Add global error handler
 window.addEventListener('error', (event) => {
+  // Ignore extension-related errors
+  if (event.error?.message?.includes('extension://') || 
+      event.error?.stack?.includes('extension://') ||
+      event.filename?.includes('extension://')) {
+    event.preventDefault();
+    return;
+  }
+  
   console.error('Global error:', event.error);
   document.body.innerHTML = `
     <div style="padding: 20px; font-family: Arial, sans-serif;">
@@ -25,6 +33,13 @@ window.addEventListener('error', (event) => {
 });
 
 window.addEventListener('unhandledrejection', (event) => {
+  // Ignore extension-related rejections
+  const reason = String(event.reason);
+  if (reason.includes('extension://') || reason.includes('chrome-extension://')) {
+    event.preventDefault();
+    return;
+  }
+  
   console.error('Unhandled promise rejection:', event.reason);
 });
 

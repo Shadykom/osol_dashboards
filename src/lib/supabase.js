@@ -1,6 +1,10 @@
 // lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
 
+// Singleton instances
+let supabaseInstance = null;
+let supabaseBankingInstance = null;
+
 // Get environment variables with better debugging
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -113,61 +117,71 @@ const customFetch = (url, options = {}) => {
 };
 
 // Create main Supabase client or mock if not configured
-export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      db: {
-        schema: 'kastle_banking'
-      },
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        storage: window.localStorage,
-        storageKey: 'osol-auth'
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 10
-        }
-      },
-      global: {
-        headers: {
-          'apikey': supabaseAnonKey
-        },
-        fetch: customFetch
-      }
-    })
-  : createMockClient();
+export const supabase = (() => {
+  if (!supabaseInstance) {
+    supabaseInstance = isSupabaseConfigured 
+      ? createClient(supabaseUrl, supabaseAnonKey, {
+          db: {
+            schema: 'kastle_banking'
+          },
+          auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true,
+            storage: window.localStorage,
+            storageKey: 'osol-auth'
+          },
+          realtime: {
+            params: {
+              eventsPerSecond: 10
+            }
+          },
+          global: {
+            headers: {
+              'apikey': supabaseAnonKey
+            },
+            fetch: customFetch
+          }
+        })
+      : createMockClient();
+  }
+  return supabaseInstance;
+})();
 
 // Create a client specifically for kastle_banking schema
-export const supabaseBanking = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      db: {
-        schema: 'kastle_banking'
-      },
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        storage: window.localStorage,
-        storageKey: 'osol-auth'
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 10
-        }
-      },
-      global: {
-        headers: {
-          'apikey': supabaseAnonKey,
-          'Prefer': 'return=representation',
-          'Accept-Profile': 'kastle_banking',
-          'Content-Profile': 'kastle_banking'
-        },
-        fetch: customFetch
-      }
-    })
-  : createMockClient();
+export const supabaseBanking = (() => {
+  if (!supabaseBankingInstance) {
+    supabaseBankingInstance = isSupabaseConfigured
+      ? createClient(supabaseUrl, supabaseAnonKey, {
+          db: {
+            schema: 'kastle_banking'
+          },
+          auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true,
+            storage: window.localStorage,
+            storageKey: 'osol-auth'
+          },
+          realtime: {
+            params: {
+              eventsPerSecond: 10
+            }
+          },
+          global: {
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Prefer': 'return=representation',
+              'Accept-Profile': 'kastle_banking',
+              'Content-Profile': 'kastle_banking'
+            },
+            fetch: customFetch
+          }
+        })
+      : createMockClient();
+  }
+  return supabaseBankingInstance;
+})();
 
 // The supabaseCollection client now also points to kastle_banking schema
 // This maintains backward compatibility while using the unified schema
