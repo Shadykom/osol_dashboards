@@ -332,7 +332,7 @@ function ModernRiskScoreCard({ category, score, status, trend, details }) {
   );
 }
 
-export default function ExecutiveDashboard() {
+export function ExecutiveDashboard() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
