@@ -31,7 +31,6 @@ import DiagnosticPage from './pages/DiagnosticPage';
 import DatabaseDiagnostic from './pages/DatabaseDiagnostic';
 import BranchReportPage from '@/pages/collection/BranchReport';
 import ProductReportPage from '@/pages/collection/ProductReport';
-import CustomerFootprintDashboard from './components/dashboard/CustomerFootprintDashboard';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
 import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
 import { BasicSidebarTest } from './pages/BasicSidebarTest';
@@ -269,7 +268,6 @@ function AppContent() {
           <Route path="/customers/new" element={<Customers />} />
           <Route path="/customers/kyc-pending" element={<Customers />} />
           <Route path="/customers/risk" element={<Customers />} />
-          <Route path="/customer-footprint" element={<CustomerFootprintDashboard />} />
           
           {/* Account Routes */}
           <Route path="/accounts" element={<Accounts />} />

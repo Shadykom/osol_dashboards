@@ -79,9 +79,8 @@ const navigationData = [
   {
     title: 'BANKING OPERATIONS',
     items: [
-      { id: 'customers', title: 'All Customers', href: '/customers', icon: Users, badge: '12.5k' },
-      { id: 'customer-footprint', title: 'Customer Footprint', href: '/customer-footprint', icon: User, badge: 'NEW' },
-      { id: 'add-customer', title: 'Add Customer', href: '/customers/new', icon: UserCheck },
+          { id: 'customers', title: 'All Customers', href: '/customers', icon: Users, badge: '12.5k' },
+    { id: 'add-customer', title: 'Add Customer', href: '/customers/new', icon: UserCheck },
       { id: 'kyc-pending', title: 'KYC Pending', href: '/customers/kyc-pending', icon: FileWarning, badge: '23' },
       { id: 'accounts', title: 'All Accounts', href: '/accounts', icon: CreditCard },
       { id: 'open-account', title: 'Open Account', href: '/accounts/new', icon: CreditCard },

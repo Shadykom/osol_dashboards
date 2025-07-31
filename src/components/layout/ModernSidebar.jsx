@@ -220,12 +220,6 @@ const ModernSidebar = () => {
           icon: Users
         },
         {
-          id: 'customer-footprint',
-          label: t('sidebar.customerFootprint'),
-          path: '/customer-footprint',
-          icon: User
-        },
-        {
           id: 'accounts',
           label: t('sidebar.accounts'),
           path: '/accounts',
