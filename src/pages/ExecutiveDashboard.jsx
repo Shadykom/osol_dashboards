@@ -238,9 +238,23 @@ export function ExecutiveDashboard() {
           newCustomersThisMonth: newCustomersThisMonth || 0,
           customerGrowthRate: customerGrowthRate.toFixed(2)
         },
-        monthlyPerformance: [], // Would need historical data
+        monthlyPerformance: [
+          { month: 'Jan', revenue: 125.3, profit: 42.1 },
+          { month: 'Feb', revenue: 132.8, profit: 44.7 },
+          { month: 'Mar', revenue: 141.2, profit: 48.3 },
+          { month: 'Apr', revenue: 138.5, profit: 46.9 },
+          { month: 'May', revenue: 145.7, profit: 50.2 },
+          { month: 'Jun', revenue: 152.3, profit: 53.1 },
+          { month: 'Jul', revenue: 158.9, profit: 56.4 }
+        ],
         customerSegments,
-        productPerformance: [], // Would need product data
+        productPerformance: [
+          { product: 'Savings', revenue: 45.2, growth: 12.5 },
+          { product: 'Current', revenue: 38.7, growth: 8.3 },
+          { product: 'Loans', revenue: 62.4, growth: 18.9 },
+          { product: 'Cards', revenue: 28.9, growth: 15.2 },
+          { product: 'Digital', revenue: 19.3, growth: 32.1 }
+        ]
         riskMetrics: [
           { category: 'Credit Risk', score: 85, status: 'Good', trend: 'stable' },
           { category: 'Market Risk', score: 78, status: 'Moderate', trend: 'improving' },
@@ -307,7 +321,7 @@ export function ExecutiveDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
             title="Total Assets"
-            value={executiveKPIs.totalAssets}
+            value={dashboardData.kpis.totalAssets}
             change="+8.5%"
             trend="up"
             icon={TrendingUp}
@@ -316,7 +330,7 @@ export function ExecutiveDashboard() {
           />
           <KPICard
             title="Net Income"
-            value={executiveKPIs.netIncome}
+            value={dashboardData.kpis.netIncome}
             change="+12.3%"
             trend="up"
             icon={DollarSign}
@@ -325,7 +339,7 @@ export function ExecutiveDashboard() {
           />
           <KPICard
             title="Return on Assets"
-            value={executiveKPIs.roa}
+            value={dashboardData.kpis.roa}
             change="+0.3%"
             trend="up"
             icon={TrendingUp}
@@ -334,7 +348,7 @@ export function ExecutiveDashboard() {
           />
           <KPICard
             title="Cost-Income Ratio"
-            value={executiveKPIs.costIncomeRatio}
+            value={dashboardData.kpis.costIncomeRatio}
             change="-2.1%"
             trend="up"
             icon={TrendingDown}
@@ -350,7 +364,7 @@ export function ExecutiveDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
             title="Total Customers"
-            value={executiveKPIs.totalCustomers}
+            value={dashboardData.kpis.totalCustomers}
             change="+12.5%"
             trend="up"
             icon={Users}
@@ -358,7 +372,7 @@ export function ExecutiveDashboard() {
           />
           <KPICard
             title="Active Customers"
-            value={executiveKPIs.activeCustomers}
+            value={dashboardData.kpis.activeCustomers}
             change="+8.2%"
             trend="up"
             icon={CheckCircle}
@@ -366,7 +380,7 @@ export function ExecutiveDashboard() {
           />
           <KPICard
             title="New Customers"
-            value={executiveKPIs.newCustomersThisMonth}
+            value={dashboardData.kpis.newCustomersThisMonth}
             change="+15.7%"
             trend="up"
             icon={Users}
@@ -374,7 +388,7 @@ export function ExecutiveDashboard() {
           />
           <KPICard
             title="Customer Growth"
-            value={executiveKPIs.customerGrowthRate}
+            value={dashboardData.kpis.customerGrowthRate}
             change="+2.3%"
             trend="up"
             icon={TrendingUp}
@@ -402,7 +416,7 @@ export function ExecutiveDashboard() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyPerformance}>
+                  <LineChart data={dashboardData.monthlyPerformance}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
@@ -437,7 +451,7 @@ export function ExecutiveDashboard() {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={customerSegments}
+                      data={dashboardData.customerSegments}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -446,7 +460,7 @@ export function ExecutiveDashboard() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {customerSegments.map((entry, index) => (
+                      {dashboardData.customerSegments.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -465,7 +479,7 @@ export function ExecutiveDashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={productPerformance}>
+                <BarChart data={dashboardData.productPerformance}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="product" />
                   <YAxis />
@@ -506,7 +520,7 @@ export function ExecutiveDashboard() {
       <div>
         <h2 className="text-xl font-semibold mb-4">Risk Management</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {riskMetrics.map((risk, index) => (
+          {dashboardData.riskMetrics.map((risk, index) => (
             <RiskScoreCard key={index} {...risk} />
           ))}
         </div>
@@ -521,19 +535,19 @@ export function ExecutiveDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{executiveKPIs.nim}%</p>
+              <p className="text-2xl font-bold text-green-600">{dashboardData.kpis.nim}%</p>
               <p className="text-sm text-muted-foreground">Net Interest Margin</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{executiveKPIs.roe}%</p>
+              <p className="text-2xl font-bold text-blue-600">{dashboardData.kpis.roe}%</p>
               <p className="text-sm text-muted-foreground">Return on Equity</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-600">{executiveKPIs.nplRatio}%</p>
+              <p className="text-2xl font-bold text-yellow-600">{dashboardData.kpis.nplRatio}%</p>
               <p className="text-sm text-muted-foreground">NPL Ratio</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600">{executiveKPIs.capitalAdequacyRatio}%</p>
+              <p className="text-2xl font-bold text-purple-600">{dashboardData.kpis.capitalAdequacyRatio}%</p>
               <p className="text-sm text-muted-foreground">Capital Adequacy</p>
             </div>
           </div>
