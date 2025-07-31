@@ -311,11 +311,14 @@ export const initializeSampleData = async () => {
     // Insert customers with upsert to avoid duplicates
     const { error: customerError } = await supabaseBanking
       .from('customers')
-      .upsert(customers, { onConflict: 'customer_id' });
+      .upsert(customers, { 
+        onConflict: 'customer_id',
+        ignoreDuplicates: true 
+      });
     
     if (customerError) {
       // Check if it's a duplicate key error
-      if (customerError.code === '23505') {
+      if (customerError.code === '23505' || customerError.code === '409') {
         console.log('Customers already exist, continuing with other data...');
       } else {
         console.error('Error inserting customers:', customerError);
@@ -349,13 +352,17 @@ export const initializeSampleData = async () => {
       }
     });
     
-    // Insert accounts
+    // Insert accounts with upsert to avoid duplicates
     const { error: accountError } = await supabaseBanking
       .from('accounts')
-      .upsert(accounts, { onConflict: 'account_number' });
+      .upsert(accounts, { 
+        onConflict: 'account_number',
+        ignoreDuplicates: true 
+      });
     
     if (accountError) {
-      if (accountError.code === '23505') {
+      // Check if it's a duplicate key error
+      if (accountError.code === '23505' || accountError.code === '409') {
         console.log('Accounts already exist, continuing with other data...');
       } else {
         console.error('Error inserting accounts:', accountError);
