@@ -17,8 +17,8 @@ const DashboardCard = ({
   const navigate = useNavigate();
 
   const handleCardClick = () => {
-    // Navigate to specific detail page based on card type
-    navigate(`/dashboard/detail-new/${cardType}`);
+    // Navigate to modern detail page based on card type
+    navigate(`/dashboard/modern-detail/${cardType}`);
   };
 
   const formatValue = (val) => {
