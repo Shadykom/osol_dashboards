@@ -459,14 +459,14 @@ export function CustomDashboard() {
           npl_ratio: 2.5,
           avg_balance: kpisResponse.data.totalDeposits ? Math.round(kpisResponse.data.totalDeposits / kpisResponse.data.totalAccounts) : 0
         } : {
-          total_customers: 12847,
-          total_accounts: 18293,
-          total_deposits: 2400000000,
-          total_loans: 1800000000,
-          daily_transactions: 8547,
-          monthly_revenue: 45200000,
-          npl_ratio: 2.5,
-          avg_balance: 131250
+          total_customers: 0,
+          total_accounts: 0,
+          total_deposits: 0,
+          total_loans: 0,
+          daily_transactions: 0,
+          monthly_revenue: 0,
+          npl_ratio: 0,
+          avg_balance: 0
         },
         comparison: comparisonResponse.success ? comparisonResponse.data : {
           current_month: {
@@ -483,54 +483,19 @@ export function CustomDashboard() {
           }
         },
         customerAnalytics: {
-          by_segment: [
-            { segment: 'Premium', count: 2500, value: 35 },
-            { segment: 'Standard', count: 8000, value: 45 },
-            { segment: 'Basic', count: 2347, value: 20 }
-          ]
+          by_segment: []
         },
         loans: {
-          by_type: [
-            { type: 'Personal', amount: 5000000, value: 25 },
-            { type: 'Mortgage', amount: 15000000, value: 48 },
-            { type: 'Auto', amount: 3000000, value: 12 },
-            { type: 'Business', amount: 8000000, value: 15 }
-          ]
+          by_type: []
         },
         transactions: {
-          recent: [
-            { time: '2 min ago', type: 'Deposit', amount: 5000, status: 'completed' },
-            { time: '5 min ago', type: 'Withdrawal', amount: 2000, status: 'completed' },
-            { time: '8 min ago', type: 'Transfer', amount: 10000, status: 'pending' },
-            { time: '12 min ago', type: 'Payment', amount: 1500, status: 'completed' },
-            { time: '15 min ago', type: 'Deposit', amount: 25000, status: 'completed' }
-          ],
-          volume: [
-            { day: 'Mon', volume: 125000 },
-            { day: 'Tue', volume: 145000 },
-            { day: 'Wed', volume: 138000 },
-            { day: 'Thu', volume: 152000 },
-            { day: 'Fri', volume: 168000 },
-            { day: 'Sat', volume: 98000 },
-            { day: 'Sun', volume: 85000 }
-          ]
+          recent: [],
+          volume: []
         },
         accounts: {
-          growth: [
-            { month: 'Jul', accounts: 450 },
-            { month: 'Aug', accounts: 520 },
-            { month: 'Sep', accounts: 480 },
-            { month: 'Oct', accounts: 590 },
-            { month: 'Nov', accounts: 650 },
-            { month: 'Dec', accounts: 720 }
-          ]
+          growth: []
         },
-        branches: [
-          { name: 'Riyadh Main', revenue: 12500000, customers: 3500, efficiency: 92 },
-          { name: 'Jeddah Central', revenue: 10200000, customers: 2800, efficiency: 88 },
-          { name: 'Dammam', revenue: 7800000, customers: 2100, efficiency: 85 },
-          { name: 'Mecca', revenue: 6500000, customers: 1900, efficiency: 90 }
-        ]
+        branches: []
       };
 
       setWidgetData(newData);
