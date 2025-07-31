@@ -1,0 +1,23 @@
+# Report Error Fixes Summary
+
+## 1. Loan Accounts Query Fix
+The error shows that loan_accounts table doesn't have a direct relationship with loan_types.
+
+### Solution:
+Query through loan_applications table instead:
+- loan_accounts -> loan_applications -> loan_types
+
+## 2. Undefined Table Fix
+Add table name validation before queries.
+
+## 3. Missing Report Types
+Implement handlers for:
+- sama_monthly
+- basel_iii  
+- aml_report
+- liquidity_coverage
+- capital_adequacy
+
+## 4. Database Schema Check
+Run: SELECT * FROM information_schema.foreign_keys WHERE table_name = 'loan_accounts';
+
