@@ -177,36 +177,48 @@ const getMockChartData = (type) => {
 const DASHBOARD_SECTIONS = {
   overview: {
     id: 'overview',
+    nameEn: 'Overview',
+    descriptionEn: 'Key metrics and performance indicators',
     icon: Home,
     color: 'bg-blue-500',
     gradient: 'from-blue-500 to-blue-600'
   },
   banking: {
     id: 'banking',
+    nameEn: 'Banking',
+    descriptionEn: 'Accounts, deposits, and transactions',
     icon: Building2,
     color: 'bg-green-500',
     gradient: 'from-green-500 to-green-600'
   },
   lending: {
     id: 'lending',
+    nameEn: 'Lending',
+    descriptionEn: 'Loan portfolio and performance',
     icon: Banknote,
     color: 'bg-purple-500',
     gradient: 'from-purple-500 to-purple-600'
   },
   collections: {
     id: 'collections',
+    nameEn: 'Collections',
+    descriptionEn: 'Collection performance and recovery',
     icon: Scale,
     color: 'bg-red-500',
     gradient: 'from-red-500 to-red-600'
   },
   customers: {
     id: 'customers',
+    nameEn: 'Customers',
+    descriptionEn: 'Customer analytics and insights',
     icon: Users,
     color: 'bg-indigo-500',
     gradient: 'from-indigo-500 to-indigo-600'
   },
   risk: {
     id: 'risk',
+    nameEn: 'Risk',
+    descriptionEn: 'Risk assessment and monitoring',
     icon: Shield,
     color: 'bg-orange-500',
     gradient: 'from-orange-500 to-orange-600'
@@ -2352,8 +2364,8 @@ export default function EnhancedDashboard() {
                 className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3"
               >
                 <section.icon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden xs:inline">{section.nameEn}</span>
-                <span className="xs:hidden">{section.nameEn.split(' ')[0]}</span>
+                <span className="hidden xs:inline">{section.nameEn || key}</span>
+                <span className="xs:hidden">{section.nameEn?.split(' ')[0] || key}</span>
               </Button>
             ))}
           </div>
@@ -2368,10 +2380,10 @@ export default function EnhancedDashboard() {
               <div className={cn("p-2 rounded-lg", DASHBOARD_SECTIONS[selectedSection].color)}>
                 {React.createElement(DASHBOARD_SECTIONS[selectedSection].icon, { className: "h-5 w-5 text-white" })}
               </div>
-              {DASHBOARD_SECTIONS[selectedSection].nameEn}
+              {DASHBOARD_SECTIONS[selectedSection]?.nameEn || selectedSection}
             </h2>
-            <p className="text-muted-foreground text-sm mt-1">
-              {DASHBOARD_SECTIONS[selectedSection].descriptionEn}
+                          <p className="text-muted-foreground text-sm mt-1">
+                {DASHBOARD_SECTIONS[selectedSection]?.descriptionEn || ''}
             </p>
           </div>
           
@@ -2424,7 +2436,7 @@ export default function EnhancedDashboard() {
               Add Widget
             </DialogTitle>
             <DialogDescription>
-              Choose a widget to add to {DASHBOARD_SECTIONS[selectedSection].nameEn} section
+              Choose a widget to add to {DASHBOARD_SECTIONS[selectedSection]?.nameEn || selectedSection} section
             </DialogDescription>
           </DialogHeader>
           
@@ -2501,7 +2513,7 @@ export default function EnhancedDashboard() {
                     <div className="flex flex-wrap gap-2">
                       {template.sections.map((section) => (
                         <Badge key={section} variant="outline">
-                          {DASHBOARD_SECTIONS[section].nameEn}
+                          {DASHBOARD_SECTIONS[section]?.nameEn || section}
                         </Badge>
                       ))}
                     </div>
