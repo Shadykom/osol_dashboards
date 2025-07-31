@@ -1512,8 +1512,9 @@ export default function EnhancedDashboard() {
       const errors = [];
       const loadingStates = {};
       
-      console.log('Starting dashboard data fetch...');
-      console.log('Active widgets:', widgets.length);
+      console.log('🔍 Starting dashboard data fetch...');
+      console.log('📦 Active widgets:', widgets.length);
+      console.log('🔧 Current filters:', filters);
       
       // If no widgets, don't fetch data
       if (!widgets || widgets.length === 0) {
@@ -1536,9 +1537,14 @@ export default function EnhancedDashboard() {
         
         if (widgetDef?.query) {
           try {
-            console.log(`Fetching data for widget: ${key}`);
+            console.log(`🔄 Fetching data for widget: ${key}`);
             const result = await widgetDef.query(filters);
-            console.log(`Data received for ${key}:`, result);
+            console.log(`✅ Data received for ${key}:`, result);
+            
+            // Validate the result
+            if (!result && result !== 0) {
+              console.warn(`⚠️ Widget ${key} returned empty data`);
+            }
             
             // Update data and loading state for this specific widget
             setWidgetData(prev => ({ ...prev, [key]: result }));
@@ -1547,7 +1553,10 @@ export default function EnhancedDashboard() {
             
             data[key] = result;
           } catch (error) {
-            console.error(`Error fetching ${widget.widget}:`, error);
+            console.error(`❌ Error fetching ${widget.widget}:`, error);
+            console.error(`   Widget section: ${widget.section}`);
+            console.error(`   Widget ID: ${widget.id}`);
+            console.error(`   Error details:`, error.message || error);
             errors.push({ widget: widget.widget, error: error.message });
             
             // Set error state for this widget
@@ -1767,8 +1776,16 @@ export default function EnhancedDashboard() {
   const handleWidgetClick = (widget) => {
     if (isEditMode) return;
     
+    console.log('🖱️ Widget clicked:', {
+      section: widget.section,
+      widget: widget.widget,
+      id: widget.id
+    });
+    
     // Navigate to enhanced detail page with widget information
-    navigate(`/dashboard/detail-new/${widget.section}/${widget.widget}`);
+    const detailPath = `/dashboard/detail-new/${widget.section}/${widget.widget}`;
+    console.log('🔗 Navigating to:', detailPath);
+    navigate(detailPath);
   };
 
   // Export dashboard
@@ -1815,8 +1832,9 @@ export default function EnhancedDashboard() {
     const widgetDef = WIDGET_CATALOG[widget.section]?.[widget.widget];
     if (!widgetDef) return null;
     
-    const currentWidgetData = widgetData[widget.id] || {};
-    const isLoading = widgetLoadingStates[widget.id];
+    const dataKey = `${widget.section}_${widget.widget}`;
+    const currentWidgetData = widgetData[dataKey] || {};
+    const isLoading = widgetLoadingStates[dataKey];
     const hasError = widgetErrorStates.includes(widget.id);
     
     // Get widget name from translations
