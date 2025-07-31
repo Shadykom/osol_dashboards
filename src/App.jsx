@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import ModernLayout from './components/layout/ModernLayout';
+import { FilterProvider } from './contexts/FilterContext';
 
 // Import test utility for debugging
 import './utils/testCustomerCount';
@@ -40,6 +41,8 @@ import { BasicSidebarTest } from './pages/BasicSidebarTest';
 import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
 import DashboardDetail from './pages/DashboardDetail';
+import DashboardDetailNew from './pages/DashboardDetailNew';
+import DashboardReports from './pages/DashboardReports';
 import ReportsHealthCheck from './pages/ReportsHealthCheck';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -114,9 +117,11 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <AppContent />
-      </Router>
+      <FilterProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </FilterProvider>
     </ErrorBoundary>
   );
 }
@@ -194,6 +199,8 @@ function AppContent() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
+          <Route path="/dashboard/detail-new/:section/:widgetId" element={<DashboardDetailNew />} />
+          <Route path="/dashboard/reports" element={<DashboardReports />} />
           
           {/* Dashboard Routes */}
           <Route path="/dashboards/custom" element={
