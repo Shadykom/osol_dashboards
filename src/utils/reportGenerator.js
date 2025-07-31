@@ -541,6 +541,11 @@ class ReportGenerator {
     const flattenObject = (obj, prefix = '') => {
       const flattened = {};
       
+      // Add validation to ensure obj is an object with keys
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+        return flattened;
+      }
+      
       Object.keys(obj).forEach(key => {
         if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
           Object.assign(flattened, flattenObject(obj[key], prefix + key + '_'));
@@ -562,28 +567,37 @@ class ReportGenerator {
     try {
       const wb = XLSX.utils.book_new();
       
+      // Add validation for data
+      if (!data) {
+        const ws = XLSX.utils.json_to_sheet([{ message: 'No data available' }]);
+        XLSX.utils.book_append_sheet(wb, ws, 'Report Data');
+        return wb;
+      }
+      
       if (Array.isArray(data)) {
         // Direct array data
         const ws = XLSX.utils.json_to_sheet(data);
         XLSX.utils.book_append_sheet(wb, ws, 'Report Data');
       } else if (typeof data === 'object') {
         // Object with multiple sections
-        Object.keys(data).forEach(key => {
-          if (Array.isArray(data[key])) {
-            const ws = XLSX.utils.json_to_sheet(data[key]);
-            XLSX.utils.book_append_sheet(wb, ws, key);
-          } else if (typeof data[key] === 'object') {
-            // Convert object to array format
-            const dataArray = [data[key]];
-            const ws = XLSX.utils.json_to_sheet(dataArray);
-            XLSX.utils.book_append_sheet(wb, ws, key);
-          }
-        });
+        const keys = Object.keys(data);
         
-        // If no sheets were added, add the entire object as one sheet
-        if (wb.SheetNames.length === 0) {
-          const dataArray = this.convertObjectToArray(data);
-          const ws = XLSX.utils.json_to_sheet(dataArray);
+        // Ensure keys is an array before using forEach
+        if (Array.isArray(keys) && keys.length > 0) {
+          keys.forEach(key => {
+            if (Array.isArray(data[key])) {
+              const ws = XLSX.utils.json_to_sheet(data[key]);
+              XLSX.utils.book_append_sheet(wb, ws, key);
+            } else if (typeof data[key] === 'object' && data[key] !== null) {
+              // Convert object to array format
+              const dataArray = [data[key]];
+              const ws = XLSX.utils.json_to_sheet(dataArray);
+              XLSX.utils.book_append_sheet(wb, ws, key);
+            }
+          });
+        } else {
+          // If no valid keys, create a single sheet with the data
+          const ws = XLSX.utils.json_to_sheet([data]);
           XLSX.utils.book_append_sheet(wb, ws, 'Report Data');
         }
       }
