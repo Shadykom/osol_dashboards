@@ -348,13 +348,18 @@ export function Reports() {
 
   // Print report
   const handlePrint = () => {
-    if (!generatedReport) return;
+    if (!generatedReport || !generatedReport.pdf) {
+      toast.error('Please generate a report first');
+      return;
+    }
     
-    // Add a small delay to ensure dialog is ready
-    setTimeout(() => {
-      window.print();
+    try {
+      reportGenerator.printReport(generatedReport.pdf);
       toast.success('Print dialog opened');
-    }, 100);
+    } catch (error) {
+      console.error('Error printing report:', error);
+      toast.error('Failed to print report');
+    }
   };
 
   // Send email
