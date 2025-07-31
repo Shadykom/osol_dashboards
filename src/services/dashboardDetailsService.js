@@ -1915,6 +1915,11 @@ export const chartDetailsService = {
           return this.getRevenueTrendDetails();
         }
         break;
+      case 'overview':
+        if (subType === 'profit') {
+          return this.getProfitMarginDetails();
+        }
+        break;
       default:
         return { data: null, error: 'Unknown chart type' };
     }
