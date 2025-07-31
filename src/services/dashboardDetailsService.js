@@ -2743,17 +2743,39 @@ export const chartDetailsService = {
     try {
       return {
         data: {
-          currentMargin: 15.7,
-          previousMargin: 14.2,
-          trend: 'up',
-          monthlyData: [
-            { month: 'Jan', margin: 14.2 },
-            { month: 'Feb', margin: 14.5 },
-            { month: 'Mar', margin: 14.8 },
-            { month: 'Apr', margin: 15.1 },
-            { month: 'May', margin: 15.4 },
-            { month: 'Jun', margin: 15.7 }
-          ]
+          overview: {
+            currentMargin: 15.7,
+            targetMargin: 18.0,
+            previousMargin: 14.2,
+            changePercent: 10.56,
+            trend: 'up'
+          },
+          breakdown: {
+            byProduct: [
+              { name: 'Loans', margin: 22.5, revenue: 450000000 },
+              { name: 'Deposits', margin: 8.2, revenue: 120000000 },
+              { name: 'Cards', margin: 35.8, revenue: 85000000 },
+              { name: 'Insurance', margin: 28.4, revenue: 65000000 },
+              { name: 'Investment', margin: 18.9, revenue: 55000000 }
+            ],
+            byBranch: [
+              { name: 'Main Branch', margin: 18.5 },
+              { name: 'Downtown', margin: 16.2 },
+              { name: 'Westside', margin: 14.8 },
+              { name: 'Eastside', margin: 15.1 },
+              { name: 'Airport', margin: 13.9 }
+            ]
+          },
+          trends: {
+            monthly: [
+              { month: 'Jan', margin: 14.2 },
+              { month: 'Feb', margin: 14.5 },
+              { month: 'Mar', margin: 14.8 },
+              { month: 'Apr', margin: 15.1 },
+              { month: 'May', margin: 15.4 },
+              { month: 'Jun', margin: 15.7 }
+            ]
+          }
         },
         error: null
       };
@@ -2766,13 +2788,60 @@ export const chartDetailsService = {
     try {
       return {
         data: {
+          overview: {
+            totalBranches: 5,
+            averagePerformance: 82.4,
+            topPerformer: 'Main Branch',
+            improvementRate: 5.2
+          },
           branches: [
-            { name: 'Main Branch', revenue: 12500000, customers: 8500, efficiency: 92 },
-            { name: 'Downtown', revenue: 9800000, customers: 6200, efficiency: 88 },
-            { name: 'Westside', revenue: 7600000, customers: 4800, efficiency: 85 },
-            { name: 'Eastside', revenue: 6400000, customers: 3900, efficiency: 82 },
-            { name: 'North Branch', revenue: 5200000, customers: 3100, efficiency: 79 }
-          ]
+            {
+              name: 'Main Branch',
+              score: 92.5,
+              revenue: 125000000,
+              customers: 45000,
+              transactions: 850000,
+              efficiency: 88.5
+            },
+            {
+              name: 'Downtown',
+              score: 85.2,
+              revenue: 98000000,
+              customers: 38000,
+              transactions: 720000,
+              efficiency: 82.1
+            },
+            {
+              name: 'Westside',
+              score: 78.9,
+              revenue: 76000000,
+              customers: 29000,
+              transactions: 540000,
+              efficiency: 75.4
+            },
+            {
+              name: 'Eastside',
+              score: 81.3,
+              revenue: 82000000,
+              customers: 31000,
+              transactions: 580000,
+              efficiency: 78.9
+            },
+            {
+              name: 'Airport',
+              score: 74.1,
+              revenue: 65000000,
+              customers: 22000,
+              transactions: 410000,
+              efficiency: 71.2
+            }
+          ],
+          metrics: {
+            revenue: { weight: 30, average: 89200000 },
+            customers: { weight: 25, average: 33000 },
+            transactions: { weight: 25, average: 620000 },
+            efficiency: { weight: 20, average: 79.2 }
+          }
         },
         error: null
       };
@@ -2785,13 +2854,57 @@ export const chartDetailsService = {
     try {
       return {
         data: {
-          products: [
-            { name: 'Savings Accounts', value: 35, count: 12500 },
-            { name: 'Current Accounts', value: 25, count: 8900 },
-            { name: 'Term Deposits', value: 20, count: 7100 },
-            { name: 'Loans', value: 15, count: 5300 },
-            { name: 'Credit Cards', value: 5, count: 1800 }
-          ]
+          overview: {
+            totalProducts: 5,
+            totalValue: 6913579134,
+            dominantProduct: 'Loans',
+            diversificationIndex: 0.72
+          },
+          distribution: [
+            {
+              name: 'Loans',
+              value: 3456789567,
+              percentage: 50,
+              count: 125000,
+              growth: 8.5
+            },
+            {
+              name: 'Deposits',
+              value: 2074073740,
+              percentage: 30,
+              count: 450000,
+              growth: 5.2
+            },
+            {
+              name: 'Cards',
+              value: 691357913,
+              percentage: 10,
+              count: 85000,
+              growth: 12.3
+            },
+            {
+              name: 'Insurance',
+              value: 414644348,
+              percentage: 6,
+              count: 32000,
+              growth: 15.7
+            },
+            {
+              name: 'Investment',
+              value: 276543174,
+              percentage: 4,
+              count: 18000,
+              growth: 22.1
+            }
+          ],
+          trends: {
+            quarterly: [
+              { quarter: 'Q1', loans: 48, deposits: 32, cards: 9, insurance: 5, investment: 6 },
+              { quarter: 'Q2', loans: 49, deposits: 31, cards: 10, insurance: 5, investment: 5 },
+              { quarter: 'Q3', loans: 50, deposits: 30, cards: 10, insurance: 6, investment: 4 },
+              { quarter: 'Q4', loans: 50, deposits: 30, cards: 10, insurance: 6, investment: 4 }
+            ]
+          }
         },
         error: null
       };
@@ -2804,17 +2917,58 @@ export const chartDetailsService = {
     try {
       return {
         data: {
-          metrics: [
-            { name: 'Credit Risk', score: 85, status: 'low' },
-            { name: 'Market Risk', score: 78, status: 'medium' },
-            { name: 'Operational Risk', score: 92, status: 'low' },
-            { name: 'Liquidity Risk', score: 88, status: 'low' }
+          overview: {
+            overallRiskScore: 72.5,
+            riskLevel: 'Medium',
+            trend: 'improving',
+            changePercent: -5.2
+          },
+          categories: [
+            {
+              name: 'Credit Risk',
+              score: 68.5,
+              level: 'Medium',
+              indicators: {
+                nplRatio: 2.8,
+                provisionCoverage: 145,
+                defaultRate: 1.2
+              }
+            },
+            {
+              name: 'Market Risk',
+              score: 75.2,
+              level: 'Low',
+              indicators: {
+                var: 2500000,
+                stressTestResult: 'Pass',
+                exposureLimit: 85
+              }
+            },
+            {
+              name: 'Operational Risk',
+              score: 71.8,
+              level: 'Medium',
+              indicators: {
+                incidentCount: 12,
+                lossAmount: 450000,
+                controlEffectiveness: 88
+              }
+            },
+            {
+              name: 'Liquidity Risk',
+              score: 78.4,
+              level: 'Low',
+              indicators: {
+                lcr: 125,
+                nsfr: 118,
+                cashRatio: 22
+              }
+            }
           ],
-          trends: {
-            credit: [82, 83, 84, 85, 85, 85],
-            market: [75, 76, 77, 78, 78, 78],
-            operational: [90, 91, 91, 92, 92, 92],
-            liquidity: [86, 87, 87, 88, 88, 88]
+          mitigation: {
+            activeMeasures: 24,
+            implemented: 18,
+            effectiveness: 85.5
           }
         },
         error: null
@@ -2828,22 +2982,48 @@ export const chartDetailsService = {
     try {
       return {
         data: {
-          adoptionRate: 67.5,
-          monthlyGrowth: 2.3,
-          channels: {
-            mobile: 45,
-            web: 32,
-            atm: 15,
-            branch: 8
+          overview: {
+            adoptionRate: 67.8,
+            activeUsers: 285000,
+            monthlyGrowth: 4.5,
+            targetRate: 80.0
           },
-          userGrowth: [
-            { month: 'Jan', users: 18500 },
-            { month: 'Feb', users: 19200 },
-            { month: 'Mar', users: 20100 },
-            { month: 'Apr', users: 21300 },
-            { month: 'May', users: 22800 },
-            { month: 'Jun', users: 24000 }
-          ]
+          channels: {
+            mobile: {
+              users: 185000,
+              percentage: 64.9,
+              transactions: 2450000,
+              growth: 8.2
+            },
+            web: {
+              users: 75000,
+              percentage: 26.3,
+              transactions: 890000,
+              growth: 3.5
+            },
+            atm: {
+              users: 25000,
+              percentage: 8.8,
+              transactions: 450000,
+              growth: -2.1
+            }
+          },
+          features: {
+            mobilePayments: { adoption: 78.5, satisfaction: 4.2 },
+            onlineTransfers: { adoption: 82.3, satisfaction: 4.4 },
+            digitalStatements: { adoption: 91.2, satisfaction: 4.6 },
+            cardlessWithdrawal: { adoption: 45.6, satisfaction: 3.9 },
+            virtualCards: { adoption: 34.2, satisfaction: 4.1 }
+          },
+          demographics: {
+            byAge: [
+              { group: '18-25', rate: 92.5 },
+              { group: '26-35', rate: 85.3 },
+              { group: '36-45', rate: 72.1 },
+              { group: '46-55', rate: 58.4 },
+              { group: '56+', rate: 41.2 }
+            ]
+          }
         },
         error: null
       };
@@ -2856,15 +3036,35 @@ export const chartDetailsService = {
     try {
       return {
         data: {
-          totalLoans: 3456789012,
-          activeLoans: 8543,
-          averageLoanSize: 404532,
-          portfolio: [
-            { type: 'Personal Loans', amount: 1234567890, count: 4321 },
-            { type: 'Home Loans', amount: 987654321, count: 876 },
-            { type: 'Business Loans', amount: 765432109, count: 543 },
-            { type: 'Auto Loans', amount: 469134692, count: 2803 }
-          ]
+          overview: {
+            totalLoans: 3456789567,
+            activeLoans: 125000,
+            averageLoanSize: 27654,
+            portfolioGrowth: 8.5
+          },
+          breakdown: {
+            byType: [
+              { type: 'Personal Loans', amount: 1037036870, count: 65000, avgSize: 15954 },
+              { type: 'Home Loans', amount: 1728394784, count: 25000, avgSize: 69136 },
+              { type: 'Business Loans', amount: 518518435, count: 20000, avgSize: 25926 },
+              { type: 'Auto Loans', amount: 172839478, count: 15000, avgSize: 11523 }
+            ],
+            byStatus: [
+              { status: 'Current', amount: 3215013197, percentage: 93 },
+              { status: 'Overdue', amount: 138271583, percentage: 4 },
+              { status: 'NPL', amount: 103504787, percentage: 3 }
+            ]
+          },
+          trends: {
+            monthly: [
+              { month: 'Jan', disbursed: 285000000, repaid: 245000000 },
+              { month: 'Feb', disbursed: 295000000, repaid: 255000000 },
+              { month: 'Mar', disbursed: 310000000, repaid: 265000000 },
+              { month: 'Apr', disbursed: 325000000, repaid: 275000000 },
+              { month: 'May', disbursed: 340000000, repaid: 285000000 },
+              { month: 'Jun', disbursed: 355000000, repaid: 295000000 }
+            ]
+          }
         },
         error: null
       };
@@ -2877,12 +3077,58 @@ export const chartDetailsService = {
     try {
       return {
         data: {
+          overview: {
+            totalProducts: 4,
+            topProduct: 'Home Loans',
+            averageInterestRate: 8.75,
+            portfolioYield: 10.2
+          },
           products: [
-            { name: 'Personal Loans', value: 35.7, amount: 1234567890 },
-            { name: 'Home Loans', value: 28.6, amount: 987654321 },
-            { name: 'Business Loans', value: 22.1, amount: 765432109 },
-            { name: 'Auto Loans', value: 13.6, amount: 469134692 }
-          ]
+            {
+              name: 'Personal Loans',
+              amount: 1037036870,
+              count: 65000,
+              avgSize: 15954,
+              interestRate: 12.5,
+              nplRate: 3.2,
+              growth: 15.3
+            },
+            {
+              name: 'Home Loans',
+              amount: 1728394784,
+              count: 25000,
+              avgSize: 69136,
+              interestRate: 7.5,
+              nplRate: 1.8,
+              growth: 8.7
+            },
+            {
+              name: 'Business Loans',
+              amount: 518518435,
+              count: 20000,
+              avgSize: 25926,
+              interestRate: 9.5,
+              nplRate: 4.5,
+              growth: 12.1
+            },
+            {
+              name: 'Auto Loans',
+              amount: 172839478,
+              count: 15000,
+              avgSize: 11523,
+              interestRate: 8.0,
+              nplRate: 2.1,
+              growth: 6.4
+            }
+          ],
+          performance: {
+            byProduct: [
+              { product: 'Personal Loans', yield: 11.8, cost: 5.2, margin: 6.6 },
+              { product: 'Home Loans', yield: 7.2, cost: 3.8, margin: 3.4 },
+              { product: 'Business Loans', yield: 9.1, cost: 4.5, margin: 4.6 },
+              { product: 'Auto Loans', yield: 7.6, cost: 4.1, margin: 3.5 }
+            ]
+          }
         },
         error: null
       };
@@ -2895,17 +3141,41 @@ export const chartDetailsService = {
     try {
       return {
         data: {
-          currentRatio: 3.2,
-          previousRatio: 3.8,
-          trend: 'down',
-          monthlyData: [
-            { month: 'Jan', ratio: 3.8 },
-            { month: 'Feb', ratio: 3.7 },
-            { month: 'Mar', ratio: 3.6 },
-            { month: 'Apr', ratio: 3.5 },
-            { month: 'May', ratio: 3.3 },
-            { month: 'Jun', ratio: 3.2 }
-          ]
+          overview: {
+            currentNPL: 2.8,
+            previousNPL: 3.2,
+            targetNPL: 2.5,
+            trend: 'improving',
+            changePercent: -12.5
+          },
+          breakdown: {
+            byProduct: [
+              { product: 'Personal Loans', npl: 3.2, amount: 33185180 },
+              { product: 'Home Loans', npl: 1.8, amount: 31111106 },
+              { product: 'Business Loans', npl: 4.5, amount: 23333330 },
+              { product: 'Auto Loans', npl: 2.1, amount: 3631629 }
+            ],
+            byAge: [
+              { days: '31-60', amount: 45000000, percentage: 35 },
+              { days: '61-90', amount: 32000000, percentage: 25 },
+              { days: '91-180', amount: 28000000, percentage: 22 },
+              { days: '180+', amount: 23000000, percentage: 18 }
+            ]
+          },
+          recovery: {
+            totalRecovered: 15000000,
+            recoveryRate: 35.5,
+            writtenOff: 8000000,
+            underLitigation: 12000000
+          },
+          trends: {
+            quarterly: [
+              { quarter: 'Q1', npl: 3.5, recovered: 12000000 },
+              { quarter: 'Q2', npl: 3.2, recovered: 13500000 },
+              { quarter: 'Q3', npl: 3.0, recovered: 14200000 },
+              { quarter: 'Q4', npl: 2.8, recovered: 15000000 }
+            ]
+          }
         },
         error: null
       };
@@ -2918,18 +3188,46 @@ export const chartDetailsService = {
     try {
       return {
         data: {
-          totalCustomers: 32547,
-          newCustomers: 1234,
-          activeCustomers: 28976,
-          growthRate: 3.8,
-          monthlyGrowth: [
-            { month: 'Jan', total: 29800, new: 980 },
-            { month: 'Feb', total: 30200, new: 1050 },
-            { month: 'Mar', total: 30800, new: 1120 },
-            { month: 'Apr', total: 31500, new: 1180 },
-            { month: 'May', total: 32000, new: 1200 },
-            { month: 'Jun', total: 32547, new: 1234 }
-          ]
+          overview: {
+            totalCustomers: 425000,
+            activeCustomers: 385000,
+            newCustomers: 12500,
+            churnRate: 2.3,
+            growthRate: 5.8
+          },
+          segments: {
+            retail: { count: 380000, percentage: 89.4, growth: 6.2 },
+            corporate: { count: 35000, percentage: 8.2, growth: 4.5 },
+            sme: { count: 10000, percentage: 2.4, growth: 12.3 }
+          },
+          demographics: {
+            byAge: [
+              { range: '18-25', count: 85000, percentage: 20 },
+              { range: '26-35', count: 127500, percentage: 30 },
+              { range: '36-45', count: 106250, percentage: 25 },
+              { range: '46-55', count: 63750, percentage: 15 },
+              { range: '56+', count: 42500, percentage: 10 }
+            ],
+            byGender: [
+              { gender: 'Male', count: 238000, percentage: 56 },
+              { gender: 'Female', count: 187000, percentage: 44 }
+            ]
+          },
+          activity: {
+            highlyActive: { count: 212500, percentage: 50 },
+            moderatelyActive: { count: 127500, percentage: 30 },
+            lowActivity: { count: 85000, percentage: 20 }
+          },
+          trends: {
+            monthly: [
+              { month: 'Jan', total: 405000, new: 8500, churned: 2100 },
+              { month: 'Feb', total: 408000, new: 9200, churned: 2200 },
+              { month: 'Mar', total: 412000, new: 10100, churned: 2100 },
+              { month: 'Apr', total: 416500, new: 11000, churned: 2500 },
+              { month: 'May', total: 421000, new: 11800, churned: 2300 },
+              { month: 'Jun', total: 425000, new: 12500, churned: 2500 }
+            ]
+          }
         },
         error: null
       };
