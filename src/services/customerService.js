@@ -98,7 +98,7 @@ export class CustomerService {
 
         // Apply segment filter
         if (segment) {
-          query = query.eq('segment', segment);
+          query = query.eq('customer_segment', segment);
         }
 
         // Apply KYC status filter

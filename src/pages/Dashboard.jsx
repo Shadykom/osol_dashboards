@@ -393,7 +393,7 @@ export const WIDGET_CATALOG = {
           
           // Apply customer segment filter
           if (filters?.customerSegment && filters.customerSegment !== 'all') {
-            query = query.eq('segment', filters.customerSegment);
+            query = query.eq('customer_segment', filters.customerSegment);
           }
           
           const { count, error } = await query;
