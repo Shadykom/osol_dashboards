@@ -65,6 +65,8 @@ import emailService from '@/services/emailService';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import VisualReportView from '@/components/reports/VisualReportView';
 import IncomeStatementReport from '@/components/reports/IncomeStatementReport';
+import BalanceSheetReport from '@/components/reports/BalanceSheetReport';
+import GenericOSOLReport from '@/components/reports/GenericOSOLReport';
 
 const REPORT_CATEGORIES = {
   financial: {
@@ -301,15 +303,18 @@ export function ReportsResponsive() {
 
       setReportData(data);
 
-      // Generate PDF and Excel with enhanced branding for Income Statement
-      let pdf, excel;
-      if (selectedReport === 'income_statement') {
-        pdf = reportGenerator.generateIncomeStatementPDF(data, t(reportInfo.name));
-        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
-      } else {
-        pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name));
-        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
-      }
+             // Generate PDF and Excel with enhanced branding for supported reports
+       let pdf, excel;
+       if (selectedReport === 'income_statement') {
+         pdf = reportGenerator.generateIncomeStatementPDF(data, t(reportInfo.name));
+         excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
+       } else if (selectedReport === 'balance_sheet') {
+         pdf = reportGenerator.generateBalanceSheetPDF(data, t(reportInfo.name));
+         excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
+       } else {
+         pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name));
+         excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
+       }
 
       setGeneratedReport({
         pdf,
@@ -871,29 +876,26 @@ export function ReportsResponsive() {
         <TabsContent value="preview" className="space-y-4">
           {generatedReport && reportData ? (
             <div className="space-y-4">
-              {/* Enhanced Income Statement Report */}
+              {/* Enhanced Reports with OSOL Branding */}
               {selectedReport === 'income_statement' ? (
                 <IncomeStatementReport 
                   reportData={reportData}
                   reportType={selectedReport}
                   dateRange={dateRange}
                 />
+              ) : selectedReport === 'balance_sheet' ? (
+                <BalanceSheetReport 
+                  reportData={reportData}
+                  reportType={selectedReport}
+                  dateRange={dateRange}
+                />
               ) : (
-                /* Fallback to original VisualReportView for other reports */
-                <div className="bg-white rounded-lg border p-6">
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-[#2D3748] mb-2">
-                      {t(generatedReport.reportInfo.name)}
-                    </h2>
-                    <p className="text-[#718096]">
-                      Generated on {format(new Date(), 'dd MMMM yyyy HH:mm')}
-                    </p>
-                  </div>
-                  <VisualReportView 
-                    reportData={reportData}
-                    reportType={selectedReport}
-                  />
-                </div>
+                /* Use Generic OSOL Report for all other report types */
+                <GenericOSOLReport 
+                  reportData={reportData}
+                  reportType={selectedReport}
+                  dateRange={dateRange}
+                />
               )}
               
               {/* Action Buttons */}
