@@ -194,6 +194,7 @@ export const TABLES = {
   ACCOUNTS: 'accounts',
   TRANSACTIONS: 'transactions',
   LOAN_ACCOUNTS: 'loan_accounts',
+  LOAN_TYPES: 'loan_types',
   BRANCHES: 'branches',
   CURRENCIES: 'currencies',
   COUNTRIES: 'countries',
