@@ -149,7 +149,7 @@ export const enhancedDashboardDetailsService = {
       // Fetch accounts and loans data
       const [accountsResult, loansResult, branchesResult] = await Promise.all([
         supabaseBanking.from(TABLES.ACCOUNTS)
-          .select('account_type, current_balance, status, branch_id, currency')
+          .select('account_type_id, current_balance, status, branch_id, currency, account_types!inner(type_name)')
           .gte('created_at', dateFilter.start)
           .lte('created_at', dateFilter.end),
         supabaseBanking.from(TABLES.LOAN_ACCOUNTS)
@@ -179,7 +179,7 @@ export const enhancedDashboardDetailsService = {
       // Breakdown by Account Type
       const byAccountType = {};
       accounts.forEach(acc => {
-        const type = acc.account_type || 'Other';
+        const type = acc.account_types?.type_name || 'Other';
         byAccountType[type] = (byAccountType[type] || 0) + (acc.current_balance || 0);
       });
 
@@ -346,7 +346,7 @@ export const enhancedDashboardDetailsService = {
         accounts: accounts.map(acc => ({
           account_id: acc.account_id,
           account_number: acc.account_number,
-          account_type: acc.account_type,
+          account_type: acc.account_types?.type_name || 'Unknown',
           current_balance: acc.current_balance,
           status: acc.status,
           created_at: acc.created_at,
@@ -468,7 +468,7 @@ export const enhancedDashboardDetailsService = {
       csv += 'Top Accounts\n';
       csv += 'Account Number,Type,Balance,Status,Created\n';
       data.raw.accounts.slice(0, 10).forEach(acc => {
-        csv += `${acc.account_number},${acc.account_type},${acc.current_balance},${acc.status},${acc.created_at}\n`;
+        csv += `${acc.account_number},${acc.account_types?.type_name || 'Unknown'},${acc.current_balance},${acc.status},${acc.created_at}\n`;
       });
     }
     
@@ -483,13 +483,14 @@ export const enhancedDashboardDetailsService = {
         case 'total_accounts':
           const accountTypes = await supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_type')
+            .select('account_type_id, account_types!inner(type_name)')
             .gte('created_at', dateFilter.start)
             .lte('created_at', dateFilter.end);
           
           const typeBreakdown = {};
           accountTypes.data?.forEach(acc => {
-            typeBreakdown[acc.account_type] = (typeBreakdown[acc.account_type] || 0) + 1;
+            const typeName = acc.account_types?.type_name || 'Unknown';
+            typeBreakdown[typeName] = (typeBreakdown[typeName] || 0) + 1;
           });
           
           return { byType: typeBreakdown };
@@ -497,13 +498,14 @@ export const enhancedDashboardDetailsService = {
         case 'total_deposits':
           const deposits = await supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_type, current_balance')
+            .select('account_type_id, current_balance, account_types!inner(type_name)')
             .gte('created_at', dateFilter.start)
             .lte('created_at', dateFilter.end);
           
           const depositBreakdown = {};
           deposits.data?.forEach(acc => {
-            depositBreakdown[acc.account_type] = (depositBreakdown[acc.account_type] || 0) + acc.current_balance;
+            const typeName = acc.account_types?.type_name || 'Unknown';
+            depositBreakdown[typeName] = (depositBreakdown[typeName] || 0) + acc.current_balance;
           });
           
           return { byType: depositBreakdown };
