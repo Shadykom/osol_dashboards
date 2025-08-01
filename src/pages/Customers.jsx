@@ -464,7 +464,29 @@ const Customers = () => {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <CustomerListSidebar />
+            <CustomerListSidebar 
+              isRTL={isRTL}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleSearch={handleSearch}
+              filters={filters}
+              setFilters={setFilters}
+              branches={branches}
+              handleScroll={handleScroll}
+              scrollRef={scrollRef}
+              searching={searching}
+              searchResults={searchResults}
+              selectedCustomer={selectedCustomer}
+              handleCustomerSelect={handleCustomerSelect}
+              isMobile={isMobile}
+              setMobileMenuOpen={setMobileMenuOpen}
+              getRiskColor={getRiskColor}
+              allCustomers={allCustomers}
+              loadAllCustomers={loadAllCustomers}
+              currentPage={currentPage}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+            />
           </div>
         </div>
       )}
@@ -473,7 +495,29 @@ const Customers = () => {
         {/* Customer List Sidebar - Desktop */}
         {!isMobile && showCustomerList && (
           <div className="w-80 bg-gray-50 border-r flex flex-col h-full">
-            <CustomerListSidebar />
+            <CustomerListSidebar 
+              isRTL={isRTL}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleSearch={handleSearch}
+              filters={filters}
+              setFilters={setFilters}
+              branches={branches}
+              handleScroll={handleScroll}
+              scrollRef={scrollRef}
+              searching={searching}
+              searchResults={searchResults}
+              selectedCustomer={selectedCustomer}
+              handleCustomerSelect={handleCustomerSelect}
+              isMobile={isMobile}
+              setMobileMenuOpen={setMobileMenuOpen}
+              getRiskColor={getRiskColor}
+              allCustomers={allCustomers}
+              loadAllCustomers={loadAllCustomers}
+              currentPage={currentPage}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+            />
           </div>
         )}
 
@@ -1438,146 +1482,170 @@ const Customers = () => {
     </div>
   );
 
-  // Customer List Sidebar Component
-  function CustomerListSidebar() {
-    return (
-      <div className="h-full bg-white flex flex-col">
-        {/* Search Section */}
-        <div className="p-4 border-b bg-white">
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder={isRTL ? "البحث عن العملاء..." : "Search customers..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="pl-10 w-full text-sm"
-            />
-          </div>
-          
-          {/* Filters */}
-          <Select value={filters.branch} onValueChange={(v) => setFilters({...filters, branch: v})}>
-            <SelectTrigger className="w-full mb-2 text-sm">
-              <SelectValue placeholder={isRTL ? "الفرع" : "Branch"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{isRTL ? "جميع الفروع" : "All Branches"}</SelectItem>
-              {branches.map(branch => (
-                <SelectItem key={branch.branch_id} value={branch.branch_id}>
-                  {branch.branch_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
-          <Select value={filters.riskCategory} onValueChange={(v) => setFilters({...filters, riskCategory: v})}>
-            <SelectTrigger className="w-full text-sm">
-              <SelectValue placeholder={isRTL ? "فئة المخاطر" : "Risk Category"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{isRTL ? "جميع الفئات" : "All Categories"}</SelectItem>
-              <SelectItem value="low">{isRTL ? "منخفض" : "Low"}</SelectItem>
-              <SelectItem value="medium">{isRTL ? "متوسط" : "Medium"}</SelectItem>
-              <SelectItem value="high">{isRTL ? "عالي" : "High"}</SelectItem>
-            </SelectContent>
-          </Select>
+};
+
+// Customer List Sidebar Component
+const CustomerListSidebar = ({ 
+  isRTL, 
+  searchQuery, 
+  setSearchQuery, 
+  handleSearch, 
+  filters, 
+  setFilters, 
+  branches, 
+  handleScroll, 
+  scrollRef, 
+  searching, 
+  searchResults, 
+  selectedCustomer, 
+  handleCustomerSelect, 
+  isMobile, 
+  setMobileMenuOpen, 
+  getRiskColor, 
+  allCustomers, 
+  loadAllCustomers, 
+  currentPage, 
+  hasMore, 
+  loadingMore 
+}) => {
+  return (
+    <div className="h-full bg-white flex flex-col">
+      {/* Search Section */}
+      <div className="p-4 border-b bg-white">
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Input
+            type="text"
+            placeholder={isRTL ? "البحث عن العملاء..." : "Search customers..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            className="pl-10 w-full text-sm"
+          />
         </div>
+        
+        {/* Filters */}
+        <Select value={filters.branch} onValueChange={(v) => setFilters({...filters, branch: v})}>
+          <SelectTrigger className="w-full mb-2 text-sm">
+            <SelectValue placeholder={isRTL ? "الفرع" : "Branch"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{isRTL ? "جميع الفروع" : "All Branches"}</SelectItem>
+            {branches.map(branch => (
+              <SelectItem key={branch.branch_id} value={branch.branch_id}>
+                {branch.branch_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        {/* Customer List */}
-        <ScrollArea 
-          className="flex-1 bg-gray-50" 
-          onScroll={handleScroll}
-          ref={scrollRef}
-        >
-          <div className="p-2 min-h-full bg-gray-50">
-            {searching ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : (
-              <>
-                {/* Search Results */}
-                {searchResults.length > 0 ? (
-                  <>
-                    <p className="text-sm text-gray-600 px-2 mb-2">
-                      {isRTL ? 'نتائج البحث' : 'Search Results'} ({searchResults.length})
-                    </p>
-                    {searchResults.map((customer) => (
-                      <CustomerListItem
-                        key={customer.customer_id}
-                        customer={customer}
-                        isSelected={selectedCustomer?.customer_id === customer.customer_id}
-                        onClick={() => {
-                          handleCustomerSelect(customer);
-                          if (isMobile) setMobileMenuOpen(false);
-                        }}
-                        getRiskColor={getRiskColor}
-                      />
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    {/* All Customers with Pagination */}
-                    <div className="flex items-center justify-between px-2 mb-2">
-                      <p className="text-sm text-gray-600">
-                        {isRTL ? 'جميع العملاء' : 'All Customers'}
-                      </p>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => loadAllCustomers(currentPage - 1)}
-                          disabled={currentPage === 1}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="text-xs text-gray-600 px-2">
-                          {currentPage}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => loadAllCustomers(currentPage + 1)}
-                          disabled={!hasMore}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    {allCustomers.map((customer) => (
-                      <CustomerListItem
-                        key={customer.customer_id}
-                        customer={customer}
-                        isSelected={selectedCustomer?.customer_id === customer.customer_id}
-                        onClick={() => {
-                          handleCustomerSelect(customer);
-                          if (isMobile) setMobileMenuOpen(false);
-                        }}
-                        getRiskColor={getRiskColor}
-                      />
-                    ))}
-                    {loadingMore && (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      </div>
-                    )}
-                    {!hasMore && allCustomers.length > 0 && (
-                      <p className="text-center text-sm text-gray-500 py-4">
-                        {isRTL ? 'لا يوجد المزيد من العملاء' : 'No more customers'}
-                      </p>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </ScrollArea>
+        <Select value={filters.riskCategory} onValueChange={(v) => setFilters({...filters, riskCategory: v})}>
+          <SelectTrigger className="w-full text-sm">
+            <SelectValue placeholder={isRTL ? "فئة المخاطر" : "Risk Category"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{isRTL ? "جميع الفئات" : "All Categories"}</SelectItem>
+            <SelectItem value="low">{isRTL ? "منخفض" : "Low"}</SelectItem>
+            <SelectItem value="medium">{isRTL ? "متوسط" : "Medium"}</SelectItem>
+            <SelectItem value="high">{isRTL ? "عالي" : "High"}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-    );
-  }
+
+      {/* Customer List */}
+      <ScrollArea 
+        className="flex-1 bg-gray-50" 
+        onScroll={handleScroll}
+        ref={scrollRef}
+      >
+        <div className="p-2 min-h-full bg-gray-50">
+          {searching ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* Search Results */}
+              {searchResults.length > 0 ? (
+                <>
+                  <p className="text-sm text-gray-600 px-2 mb-2">
+                    {isRTL ? 'نتائج البحث' : 'Search Results'} ({searchResults.length})
+                  </p>
+                  {searchResults.map((customer) => (
+                    <CustomerListItem
+                      key={customer.customer_id}
+                      customer={customer}
+                      isSelected={selectedCustomer?.customer_id === customer.customer_id}
+                      onClick={() => {
+                        handleCustomerSelect(customer);
+                        if (isMobile) setMobileMenuOpen(false);
+                      }}
+                      getRiskColor={getRiskColor}
+                    />
+                  ))}
+                </>
+              ) : (
+                <>
+                  {/* All Customers with Pagination */}
+                  <div className="flex items-center justify-between px-2 mb-2">
+                    <p className="text-sm text-gray-600">
+                      {isRTL ? 'جميع العملاء' : 'All Customers'}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => loadAllCustomers(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-7 w-7 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs text-gray-600 px-2">
+                        {currentPage}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => loadAllCustomers(currentPage + 1)}
+                        disabled={!hasMore}
+                        className="h-7 w-7 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {allCustomers.map((customer) => (
+                    <CustomerListItem
+                      key={customer.customer_id}
+                      customer={customer}
+                      isSelected={selectedCustomer?.customer_id === customer.customer_id}
+                      onClick={() => {
+                        handleCustomerSelect(customer);
+                        if (isMobile) setMobileMenuOpen(false);
+                      }}
+                      getRiskColor={getRiskColor}
+                    />
+                  ))}
+                  {loadingMore && (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  )}
+                  {!hasMore && allCustomers.length > 0 && (
+                    <p className="text-center text-sm text-gray-500 py-4">
+                      {isRTL ? 'لا يوجد المزيد من العملاء' : 'No more customers'}
+                    </p>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
 };
 
 // Customer List Item Component
