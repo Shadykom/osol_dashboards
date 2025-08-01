@@ -1,0 +1,165 @@
+/* Mobile-specific styles for Reports */
+@media (max-width: 640px) {
+  /* Report container */
+  .report-container {
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Charts responsiveness */
+  .recharts-wrapper {
+    font-size: 10px !important;
+  }
+
+  .recharts-cartesian-axis-tick-value {
+    font-size: 10px !important;
+  }
+
+  .recharts-legend-wrapper {
+    font-size: 11px !important;
+  }
+
+  /* Pie chart labels */
+  .recharts-pie-label-text {
+    font-size: 10px !important;
+  }
+
+  /* Card grid on mobile */
+  .grid.grid-cols-1.sm\\:grid-cols-2 {
+    gap: 0.75rem !important;
+  }
+
+  /* Card content spacing */
+  .card .p-4 {
+    padding: 0.75rem !important;
+  }
+
+  /* Header adjustments */
+  .bg-white.border-b-4 {
+    padding: 0.75rem 0;
+  }
+
+  /* Logo size on mobile */
+  .h-8.w-8 {
+    height: 32px !important;
+    width: 32px !important;
+  }
+
+  /* Text sizes for better readability */
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+
+  .text-base {
+    font-size: 0.875rem !important;
+  }
+
+  /* Chart containers */
+  .h-\\[250px\\] {
+    height: 200px !important;
+  }
+
+  .h-\\[300px\\] {
+    height: 250px !important;
+  }
+
+  /* Footer spacing */
+  .bg-gradient-to-r.from-\\[\\#E6B800\\] {
+    padding: 1.5rem 0 !important;
+  }
+
+  /* RTL support for mobile */
+  .rtl .space-x-3 {
+    margin-right: 0.75rem;
+    margin-left: 0;
+  }
+
+  .rtl .mr-2 {
+    margin-right: 0;
+    margin-left: 0.5rem;
+  }
+
+  /* Responsive table for metadata */
+  .grid.grid-cols-1.sm\\:grid-cols-2.md\\:grid-cols-3 {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Mobile landscape adjustments */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .min-h-screen {
+      min-height: auto;
+    }
+
+    .h-\\[250px\\] {
+      height: 150px !important;
+    }
+
+    .py-6 {
+      padding-top: 0.75rem !important;
+      padding-bottom: 0.75rem !important;
+    }
+  }
+}
+
+/* Tablet-specific adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Chart heights for tablets */
+  .h-\\[300px\\] {
+    height: 280px !important;
+  }
+
+  /* Grid adjustments */
+  .lg\\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Card spacing */
+  .gap-6 {
+    gap: 1rem !important;
+  }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .card {
+    min-height: 80px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .hover\\:shadow-md:hover {
+    box-shadow: none !important;
+  }
+
+  /* Larger clickable areas */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .text-\\[\\#718096\\] {
+    color: #4a5568 !important;
+  }
+
+  .border-\\[\\#E6B800\\] {
+    border-color: #b8860b !important;
+  }
+
+  .bg-\\[\\#E6B800\\] {
+    background-color: #b8860b !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

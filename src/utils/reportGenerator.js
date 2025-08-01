@@ -10,6 +10,7 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import osolLogo from '@/assets/osol-logo.png';
 
 // OSOL Brand Colors for PDF
 const OSOL_BRAND = {
@@ -58,15 +59,23 @@ class ReportGenerator {
     doc.setFillColor(...OSOL_BRAND.primary);
     doc.rect(0, 0, doc.internal.pageSize.width, 45, 'F');
     
-    // Logo placeholder with golden background
-    doc.setFillColor(...OSOL_BRAND.primaryDark);
-    doc.roundedRect(20, 12, 20, 20, 3, 3, 'F');
-    
-    // Logo text (you can replace this with actual image when available)
-    doc.setTextColor(...OSOL_BRAND.white);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('OSOL', 30, 23, { align: 'center' });
+    // Add actual logo image
+    try {
+      // Convert image to base64 if needed
+      const img = new Image();
+      img.src = osolLogo;
+      
+      // Add logo with proper dimensions
+      doc.addImage(osolLogo, 'PNG', 20, 12, 20, 20);
+    } catch (error) {
+      // Fallback to text logo if image fails
+      doc.setFillColor(...OSOL_BRAND.primaryDark);
+      doc.roundedRect(20, 12, 20, 20, 3, 3, 'F');
+      doc.setTextColor(...OSOL_BRAND.white);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('OSOL', 30, 23, { align: 'center' });
+    }
     
     // Company name and title
     doc.setFontSize(18);
@@ -132,7 +141,13 @@ class ReportGenerator {
 
   // Generate Enhanced Income Statement PDF with OSOL Branding
   generateIncomeStatementPDF(data, reportName) {
-    const doc = new jsPDF();
+    // Create PDF with A4 dimensions
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
     let currentY = this.addOSOLHeader(doc, 'Income Statement', 'Financial Report');
     
     if (!data || typeof data !== 'object') {
@@ -206,10 +221,18 @@ class ReportGenerator {
         1: { cellWidth: 60, halign: 'right' },
         2: { cellWidth: 40 }
       },
-      margin: { left: 20, right: 20 }
+      margin: { left: 20, right: 20 },
+      pageBreak: 'avoid'
     });
 
     currentY = doc.lastAutoTable.finalY + 20;
+
+    // Check if we need a new page
+    const pageHeight = doc.internal.pageSize.height;
+    if (currentY > pageHeight - 80) {
+      doc.addPage();
+      currentY = 20;
+    }
 
     // Revenue Breakdown Section
     doc.setFontSize(14);
@@ -246,7 +269,8 @@ class ReportGenerator {
         1: { cellWidth: 50, halign: 'right' },
         2: { cellWidth: 30, halign: 'center' }
       },
-      margin: { left: 20, right: 20 }
+      margin: { left: 20, right: 20 },
+      pageBreak: 'avoid'
     });
 
     currentY = doc.lastAutoTable.finalY + 20;
@@ -294,10 +318,19 @@ class ReportGenerator {
         1: { cellWidth: 50, halign: 'right' },
         2: { cellWidth: 30, halign: 'center' }
       },
-      margin: { left: 20, right: 20 }
+      margin: { left: 20, right: 20 },
+      pageBreak: 'avoid'
     });
 
     currentY = doc.lastAutoTable.finalY + 20;
+
+    // Check if we need a new page before performance summary
+    if (currentY > pageHeight - 100) {
+      this.addOSOLFooter(doc, doc.internal.getNumberOfPages());
+      doc.addPage();
+      currentY = this.addOSOLHeader(doc, 'Income Statement', 'Financial Report - Continued');
+      currentY += 20;
+    }
 
     // Financial Performance Summary
     doc.setFontSize(14);
@@ -324,26 +357,19 @@ class ReportGenerator {
       `• Profit margin indicates ${profitMargin >= 10 ? 'strong' : profitMargin >= 5 ? 'moderate' : 'weak'} operational efficiency`
     ];
 
-    performanceText.forEach((line, index) => {
-      if (line.startsWith('•')) {
-        doc.setTextColor(...OSOL_BRAND.textMuted);
-        doc.text(line, 25, currentY);
-      } else if (line === 'Key Observations:') {
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...OSOL_BRAND.text);
-        doc.text(line, 20, currentY);
-      } else if (line === '') {
-        // Skip empty lines but advance Y position
-      } else {
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...OSOL_BRAND.text);
-        doc.text(line, 20, currentY);
+    performanceText.forEach((text, index) => {
+      if (currentY > pageHeight - 40) {
+        this.addOSOLFooter(doc, doc.internal.getNumberOfPages());
+        doc.addPage();
+        currentY = this.addOSOLHeader(doc, 'Income Statement', 'Financial Report - Continued');
+        currentY += 20;
       }
-      currentY += line === '' ? 3 : 6;
+      doc.text(text, 20, currentY);
+      currentY += 6;
     });
 
-    // Add footer to final page
-    this.addOSOLFooter(doc, doc.internal.pages.length - 1);
+    // Add footer to the last page
+    this.addOSOLFooter(doc, doc.internal.getNumberOfPages());
     
     return doc;
   }
