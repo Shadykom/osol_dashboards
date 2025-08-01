@@ -8,6 +8,7 @@ class RiskReportService {
   async getCreditRiskReport(startDate, endDate) {
     try {
       // Get loan portfolio data
+      // First get loans with customer data
       const { data: loans, error: loanError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
@@ -20,13 +21,30 @@ class RiskReportService {
           maturity_date,
           customer_id,
           loan_type_id,
-          loan_types!inner(type_name),
           customers!inner(risk_rating, customer_type_id)
         `)
         .gte('disbursement_date', startDate)
         .lte('disbursement_date', endDate);
 
       if (loanError) throw loanError;
+
+      // Fetch loan types for the loans
+      if (loans && loans.length > 0) {
+        const loanTypeIds = [...new Set(loans.map(l => l.loan_type_id).filter(Boolean))];
+        if (loanTypeIds.length > 0) {
+          const { data: loanTypes, error: typeError } = await supabaseBanking
+            .from(TABLES.LOAN_TYPES)
+            .select('loan_type_id, type_name')
+            .in('loan_type_id', loanTypeIds);
+          
+          if (!typeError && loanTypes) {
+            const typeMap = new Map(loanTypes.map(t => [t.loan_type_id, t]));
+            loans.forEach(loan => {
+              loan.loan_types = typeMap.get(loan.loan_type_id) || null;
+            });
+          }
+        }
+      }
 
       // Calculate risk metrics
       const totalLoans = loans?.length || 0;
@@ -359,7 +377,6 @@ class RiskReportService {
           days_past_due,
           customer_id,
           loan_type_id,
-          loan_types!inner(type_name),
           customers!inner(
             first_name,
             last_name,
@@ -372,6 +389,24 @@ class RiskReportService {
         .lte('updated_at', endDate);
 
       if (nplError) throw nplError;
+
+      // Fetch loan types for NPL loans
+      if (nplLoans && nplLoans.length > 0) {
+        const loanTypeIds = [...new Set(nplLoans.map(l => l.loan_type_id).filter(Boolean))];
+        if (loanTypeIds.length > 0) {
+          const { data: loanTypes, error: typeError } = await supabaseBanking
+            .from(TABLES.LOAN_TYPES)
+            .select('loan_type_id, type_name')
+            .in('loan_type_id', loanTypeIds);
+          
+          if (!typeError && loanTypes) {
+            const typeMap = new Map(loanTypes.map(t => [t.loan_type_id, t]));
+            nplLoans.forEach(loan => {
+              loan.loan_types = typeMap.get(loan.loan_type_id) || null;
+            });
+          }
+        }
+      }
 
       // Get all loans for ratio calculation
       const { data: allLoans, error: allLoansError } = await supabaseBanking
