@@ -27,6 +27,9 @@ import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { toast } from 'sonner';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { useIsMobile, responsiveClasses } from '@/utils/responsive';
+import { useRTLClasses } from '@/components/ui/rtl-wrapper';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -65,7 +68,9 @@ const TRANSACTION_STATUS = {
 };
 
 export function Transactions() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isMobile = useIsMobile();
+  const rtl = useRTLClasses();
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState({
     totalTransactions: 0,
@@ -341,14 +346,23 @@ export function Transactions() {
   };
 
   const StatCard = ({ title, value, icon: Icon, trend, color, subtitle }) => (
-    <motion.div variants={itemVariants} whileHover={{ scale: 1.02 }}>
+    <motion.div variants={itemVariants} whileHover={{ scale: isMobile ? 1 : 1.02 }}>
       <Card className="relative overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <Icon className={`h-4 w-4 ${color}`} />
+        <CardHeader className={cn(
+          "flex flex-row items-center justify-between space-y-0",
+          isMobile ? "pb-2 p-3" : "pb-2"
+        )}>
+          <CardTitle className={cn(
+            "font-medium",
+            isMobile ? "text-xs" : "text-sm"
+          )}>{title}</CardTitle>
+          <Icon className={cn(`${color}`, isMobile ? "h-3 w-3" : "h-4 w-4")} />
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
+        <CardContent className={isMobile ? "p-3 pt-0" : ""}>
+          <div className={cn(
+            "font-bold",
+            isMobile ? "text-xl" : "text-2xl"
+          )}>{value}</div>
           {subtitle && (
             <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
           )}
@@ -376,15 +390,30 @@ export function Transactions() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6"
+      className={cn(
+        "space-y-4 sm:space-y-6",
+        isMobile ? "p-3" : "p-4 sm:p-6"
+      )}
     >
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className={cn(
+        "flex justify-between",
+        isMobile ? "flex-col gap-3" : "items-center"
+      )}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Transaction Management</h1>
-          <p className="text-muted-foreground">Monitor and manage all banking transactions</p>
+          <h1 className={cn(
+            "font-bold tracking-tight",
+            isMobile ? "text-xl" : "text-3xl"
+          )}>
+            {t('transactions.title', 'Transaction Management')}
+          </h1>
+          {!isMobile && (
+            <p className="text-muted-foreground">
+              {t('transactions.subtitle', 'Monitor and manage all banking transactions')}
+            </p>
+          )}
         </div>
-        <div className="flex gap-2">
+        <div className={cn("flex gap-2", rtl.flexRow)}>
           <Button 
             variant="outline" 
             size="sm"
@@ -402,7 +431,10 @@ export function Transactions() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={cn(
+        "grid gap-4",
+        isMobile ? "grid-cols-1" : "md:grid-cols-2 lg:grid-cols-4"
+      )}>
         <StatCard
           title="Total Transactions"
           value={stats.totalTransactions.toLocaleString()}
@@ -435,7 +467,10 @@ export function Transactions() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={cn(
+        "grid gap-4",
+        isMobile ? "grid-cols-1" : "md:grid-cols-2"
+      )}>
         <motion.div variants={itemVariants}>
           <Card>
             <CardHeader>

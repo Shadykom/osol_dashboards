@@ -169,6 +169,7 @@
     "helpSupport": "Help & Support"
   },
   "dashboard": {
+    "title": "Comprehensive Dashboard",
     "welcomeBack": "Welcome back",
     "totalCustomers": "Total Customers",
     "activeAccounts": "Active Accounts",
@@ -273,6 +274,47 @@
     "addWidgetDialog": {
       "title": "Add Widget",
       "description": "Choose a widget to add to {{section}} section"
+    },
+    "details": {
+      "subtitle": "Detailed analytics and insights",
+      "tabs": {
+        "overview": "Overview",
+        "breakdown": "Breakdown",
+        "trends": "Trends"
+      },
+      "customers": {
+        "title": "Customer Analytics"
+      },
+      "accounts": {
+        "title": "Account Analytics"
+      },
+      "revenue": {
+        "title": "Revenue Analytics"
+      },
+      "transactions": {
+        "title": "Transaction Analytics"
+      },
+      "loans": {
+        "title": "Loan Portfolio Analytics"
+      },
+      "loan": {
+        "title": "Loan Portfolio Analytics"
+      },
+      "branches": {
+        "title": "Branch Performance Analytics"
+      },
+      "branch": {
+        "title": "Branch Performance Analytics"
+      },
+      "collections": {
+        "title": "Collection Analytics"
+      },
+      "products": {
+        "title": "Product Analytics"
+      },
+      "charts": {
+        "title": "Chart Analytics"
+      }
     }
   },
   "customers": {

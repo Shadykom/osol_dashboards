@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,19 +32,34 @@ import {
 } from '@/services/dashboardDetailsService';
 import { ChartWidget } from '@/components/widgets/ChartWidget';
 import { cn } from '@/lib/utils';
+import { useIsMobile, responsiveClasses } from '@/utils/responsive';
+import { useRTLClasses } from '@/components/ui/rtl-wrapper';
 
 // Stat Card Component
 const StatCard = ({ title, value, change, trend, description, icon: Icon }) => {
+  const isMobile = useIsMobile();
+  
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className="h-full">
+      <CardHeader className={cn(
+        isMobile ? "pb-2 p-3" : "pb-2"
+      )}>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+          <CardTitle className={cn(
+            "font-medium text-muted-foreground",
+            isMobile ? "text-xs" : "text-sm"
+          )}>{title}</CardTitle>
+          {Icon && <Icon className={cn(
+            "text-muted-foreground",
+            isMobile ? "h-3 w-3" : "h-4 w-4"
+          )} />}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+      <CardContent className={isMobile ? "p-3 pt-0" : ""}>
+        <div className={cn(
+          "font-bold",
+          isMobile ? "text-xl" : "text-2xl"
+        )}>{value}</div>
         {change && (
           <div className="flex items-center space-x-1 mt-1">
             {trend === 'up' ? (
@@ -60,7 +76,10 @@ const StatCard = ({ title, value, change, trend, description, icon: Icon }) => {
           </div>
         )}
         {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          <p className={cn(
+            "text-muted-foreground mt-1",
+            isMobile ? "text-xs" : "text-xs"
+          )}>{description}</p>
         )}
       </CardContent>
     </Card>
@@ -123,6 +142,9 @@ const BreakdownCard = ({ title, data, type = 'list' }) => {
 export default function DashboardDetail() {
   const { type, widgetId } = useParams();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const isMobile = useIsMobile();
+  const rtl = useRTLClasses();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -373,53 +395,98 @@ export default function DashboardDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn(
+      "space-y-4 sm:space-y-6",
+      isMobile ? "p-2" : "p-4 md:p-6"
+    )}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className={cn(
+        "flex justify-between",
+        isMobile ? "flex-col gap-3" : "items-center"
+      )}>
+        <div className="flex items-center space-x-2 sm:space-x-4">
           <Button
             variant="ghost"
-            size="icon"
+            size={isMobile ? "sm" : "icon"}
             onClick={() => navigate('/dashboard')}
           >
             <ArrowLeft className="h-4 w-4" />
+            {isMobile && <span className="ml-1">Back</span>}
           </Button>
-          <div className="flex items-center space-x-3">
-            <div className={cn("p-2 rounded-lg bg-secondary", config.color)}>
-              <IconComponent className="h-6 w-6" />
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className={cn(
+              "rounded-lg bg-secondary",
+              config.color,
+              isMobile ? "p-1.5" : "p-2"
+            )}>
+              <IconComponent className={isMobile ? "h-4 w-4" : "h-6 w-6"} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">{config.title}</h1>
-              <p className="text-sm text-muted-foreground">
-                Detailed analytics and insights
-              </p>
+              <h1 className={cn(
+                "font-bold",
+                isMobile ? "text-lg" : "text-2xl"
+              )}>{t(`dashboard.details.${type}.title`, config.title)}</h1>
+              {!isMobile && (
+                <p className="text-sm text-muted-foreground">
+                  {t('dashboard.details.subtitle', 'Detailed analytics and insights')}
+                </p>
+              )}
             </div>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={fetchData}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
+        <div className={cn(
+          "flex items-center space-x-2",
+          isMobile && "justify-end"
+        )}>
+          <Button 
+            variant="outline" 
+            size={isMobile ? "sm" : "sm"} 
+            onClick={fetchData}
+          >
+            <RefreshCw className={cn(
+              isMobile ? "h-3 w-3" : "h-4 w-4",
+              !isMobile && "mr-2"
+            )} />
+            {!isMobile && t('common.refresh', 'Refresh')}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Export
+          <Button 
+            variant="outline" 
+            size={isMobile ? "sm" : "sm"} 
+            onClick={handleExport}
+          >
+            <Download className={cn(
+              isMobile ? "h-3 w-3" : "h-4 w-4",
+              !isMobile && "mr-2"
+            )} />
+            {!isMobile && t('common.export', 'Export')}
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
+        <TabsList className={cn(
+          "grid w-full",
+          isMobile ? "grid-cols-3" : "grid-cols-3 max-w-md"
+        )}>
+          <TabsTrigger value="overview" className={isMobile ? "text-xs" : ""}>
+            {t('dashboard.details.tabs.overview', 'Overview')}
+          </TabsTrigger>
+          <TabsTrigger value="breakdown" className={isMobile ? "text-xs" : ""}>
+            {t('dashboard.details.tabs.breakdown', 'Breakdown')}
+          </TabsTrigger>
+          <TabsTrigger value="trends" className={isMobile ? "text-xs" : ""}>
+            {t('dashboard.details.tabs.trends', 'Trends')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-4">
           {/* Overview Stats */}
           {data && (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className={cn(
+              "grid gap-4",
+              isMobile ? "grid-cols-1" : "md:grid-cols-2 lg:grid-cols-4"
+            )}>
               {type === 'customers' && (
                 <>
                   <StatCard
@@ -788,7 +855,10 @@ export default function DashboardDetail() {
                         <CardDescription>Key performance indicators</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className={cn(
+                          "grid gap-4",
+                          isMobile ? "grid-cols-1" : "grid-cols-2"
+                        )}>
                           <div>
                             <p className="text-sm text-muted-foreground">Average Account Balance</p>
                             <p className="text-xl font-semibold">
@@ -818,7 +888,10 @@ export default function DashboardDetail() {
 
               {(type === 'monthly' || type === 'overview' && widgetId === 'monthly_revenue') && data.overview && (
                 <>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className={cn(
+                    "grid gap-4",
+                    isMobile ? "grid-cols-1" : "md:grid-cols-2 lg:grid-cols-3"
+                  )}>
                     <StatCard
                       title="Current Month Revenue"
                       value={`SAR ${(data.overview.currentMonthRevenue / 1000000).toFixed(2)}M`}

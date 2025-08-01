@@ -32,10 +32,14 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import CustomerFootprintService from '@/services/customerFootprintService';
 import '@/styles/customer-footprint.css';
+import { useIsMobile, responsiveClasses } from '@/utils/responsive';
+import { useRTLClasses } from '@/components/ui/rtl-wrapper';
 
 const Customers = () => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
+  const isMobile = useIsMobile();
+  const rtl = useRTLClasses();
   
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,25 +61,18 @@ const Customers = () => {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [branches, setBranches] = useState([]);
-  const [showCustomerList, setShowCustomerList] = useState(true);
+  const [showCustomerList, setShowCustomerList] = useState(!isMobile);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const scrollRef = useRef(null);
 
-  // Check if mobile
+  // Update customer list visibility on mobile
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth < 768) {
-        setShowCustomerList(false);
-      }
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    if (isMobile) {
+      setShowCustomerList(false);
+    }
+  }, [isMobile]);
 
   // Colors
   const COLORS = ['#E6B800', '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -370,9 +367,15 @@ const Customers = () => {
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-4">
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className={cn(
+          "max-w-7xl mx-auto",
+          isMobile ? "px-3" : "px-4 sm:px-6 lg:px-8"
+        )}>
+          <div className={cn(
+            "flex justify-between gap-4",
+            isMobile ? "flex-col py-3" : "flex-col sm:flex-row items-start sm:items-center py-4"
+          )}>
+            <div className={cn("flex items-center gap-3 w-full sm:w-auto", rtl.flexRow)}>
               {isMobile && (
                 <Button
                   variant="ghost"
@@ -383,14 +386,22 @@ const Customers = () => {
                   <Menu className="h-5 w-5" />
                 </Button>
               )}
-              <User className="h-6 sm:h-8 w-6 sm:w-8 text-primary flex-shrink-0" />
+              <User className={cn(
+                "text-primary flex-shrink-0",
+                isMobile ? "h-5 w-5" : "h-6 sm:h-8 w-6 sm:w-8"
+              )} />
               <div className="flex-1">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
-                  {isRTL ? 'العملاء' : 'Customers'}
+                <h1 className={cn(
+                  "font-bold text-gray-900",
+                  isMobile ? "text-base" : "text-lg sm:text-2xl"
+                )}>
+                  {t('customers.title', 'Customers')}
                 </h1>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-                  {isRTL ? 'تحليل شامل لسلوك وتفاعلات العملاء' : 'Comprehensive analysis of customer behavior and interactions'}
-                </p>
+                {!isMobile && (
+                  <p className="text-xs sm:text-sm text-gray-600">
+                    {t('customers.subtitle', 'Comprehensive analysis of customer behavior and interactions')}
+                  </p>
+                )}
               </div>
             </div>
             
@@ -491,10 +502,17 @@ const Customers = () => {
         </div>
       )}
 
-      <div className="flex h-[calc(100vh-80px)]">
+      <div className={cn(
+        "flex",
+        isMobile ? "h-[calc(100vh-60px)]" : "h-[calc(100vh-80px)]"
+      )}>
         {/* Customer List Sidebar - Desktop */}
         {!isMobile && showCustomerList && (
-          <div className="w-80 bg-gray-50 border-r flex flex-col h-full">
+          <div className={cn(
+            "bg-gray-50 border-r flex flex-col h-full",
+            rtl.isRTL ? "border-l border-r-0" : "",
+            "w-80"
+          )}>
             <CustomerListSidebar 
               isRTL={isRTL}
               searchQuery={searchQuery}
@@ -531,12 +549,27 @@ const Customers = () => {
               </div>
             </div>
           ) : customerData ? (
-            <div className="p-4 sm:p-6">
+            <div className={cn(
+              isMobile ? "p-3" : "p-4 sm:p-6"
+            )}>
               {/* Customer Header */}
-              <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
-                  <div className="flex items-start gap-3 sm:gap-4 w-full lg:w-auto">
-                    <div className="h-12 w-12 sm:h-16 sm:w-16 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className={cn(
+                "bg-white rounded-lg shadow-sm mb-6",
+                isMobile ? "p-3" : "p-4 sm:p-6"
+              )}>
+                <div className={cn(
+                  "flex justify-between",
+                  isMobile ? "flex-col gap-3" : "flex-col lg:flex-row items-start lg:items-center gap-4 sm:gap-6"
+                )}>
+                  <div className={cn(
+                    "flex items-start w-full lg:w-auto",
+                    isMobile ? "gap-3" : "gap-3 sm:gap-4",
+                    rtl.flexRow
+                  )}>
+                    <div className={cn(
+                      "bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0",
+                      isMobile ? "h-10 w-10" : "h-12 w-12 sm:h-16 sm:w-16"
+                    )}>
                       <User className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                     </div>
                     <div className="flex-1">

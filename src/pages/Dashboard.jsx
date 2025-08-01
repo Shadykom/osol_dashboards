@@ -98,6 +98,8 @@ import { fixDashboardData, checkDatabaseStatus } from '@/utils/fixDashboardData'
 // Import with fallback - using regular imports
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { useIsMobile, responsiveClasses } from '@/utils/responsive';
+import { useRTLClasses } from '@/components/ui/rtl-wrapper';
 
 const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181', '#F6AD55'];
 
@@ -1785,6 +1787,8 @@ export default function EnhancedDashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const hasInitialized = useRef(false);
+  const isMobile = useIsMobile();
+  const rtl = useRTLClasses();
   
   // Use FilterContext instead of local state
   const { filters, filterOptions, updateFilter, updateFilters, resetFilters, loadFilterOptions } = useFilters();
@@ -2219,10 +2223,10 @@ export default function EnhancedDashboard() {
     const widgetName = widgetDef.widgetKey ? t(`dashboard.widgets.${widgetDef.widgetKey}`) : 
                       (i18n.language === 'ar' ? widgetDef.name : widgetDef.nameEn);
     
-    // Determine grid size classes
+    // Determine grid size classes with better mobile support
     const sizeClasses = {
-      small: 'col-span-12 sm:col-span-6 lg:col-span-3',
-      medium: 'col-span-12 sm:col-span-6 lg:col-span-4',
+      small: isMobile ? 'col-span-12' : 'col-span-12 sm:col-span-6 lg:col-span-3',
+      medium: isMobile ? 'col-span-12' : 'col-span-12 sm:col-span-6 lg:col-span-4',
       large: 'col-span-12 sm:col-span-12 lg:col-span-6',
       xlarge: 'col-span-12'
     };
@@ -2244,7 +2248,7 @@ export default function EnhancedDashboard() {
           onClick={() => !isEditMode && handleWidgetClick(widget)}
         >
           <CardHeader className="pb-2 sm:pb-4">
-            <div className="flex items-start justify-between">
+            <div className={cn("flex items-start justify-between", rtl.flexRow)}>
               <div className="flex items-center gap-2">
                 <widgetDef.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 <CardTitle className="text-sm sm:text-base">
@@ -2466,7 +2470,10 @@ export default function EnhancedDashboard() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 max-w-[1600px] mx-auto">
+    <div className={cn(
+      "space-y-4 sm:space-y-6 max-w-[1600px] mx-auto",
+      isMobile ? "p-2" : "p-4 md:p-6"
+    )}>
       {/* Database Status Alert */}
       {databaseStatus && !databaseStatus.isConnected && (
         <Alert variant="destructive" className="mb-4">
@@ -2519,10 +2526,13 @@ export default function EnhancedDashboard() {
         {/* Title and Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-4">
-            <h1 className="text-xl sm:text-2xl font-bold">
-              Comprehensive Dashboard
+            <h1 className={cn(
+              "font-bold",
+              isMobile ? "text-lg" : "text-xl sm:text-2xl"
+            )}>
+              {t('dashboard.title', 'Comprehensive Dashboard')}
             </h1>
-            {selectedTemplate && (
+            {selectedTemplate && !isMobile && (
               <Badge variant="outline" className="hidden sm:inline-flex">
                 <Layers className="w-3 h-3 mr-1" />
                 {DASHBOARD_TEMPLATES[selectedTemplate].nameEn}
@@ -2640,9 +2650,15 @@ export default function EnhancedDashboard() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
+              className={cn(
+                "bg-gray-50 dark:bg-gray-900 rounded-lg",
+                isMobile ? "p-3" : "p-4"
+              )}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <div className={cn(
+                "grid gap-3 sm:gap-4",
+                isMobile ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+              )}>
                 <div>
                   <Label className="text-sm">Date Range</Label>
                   <Select value={filters.dateRange} onValueChange={(value) => updateFilter('dateRange', value)}>
@@ -2743,18 +2759,25 @@ export default function EnhancedDashboard() {
 
         {/* Section Tabs */}
         <ScrollArea className="w-full -mx-2 px-2 sm:mx-0 sm:px-0">
-          <div className="flex gap-1 sm:gap-2 pb-2">
+          <div className="flex gap-1 sm:gap-2 pb-2 min-w-max">
             {Object.entries(DASHBOARD_SECTIONS).map(([key, section]) => (
               <Button
                 key={key}
                 variant={selectedSection === key ? 'default' : 'ghost'}
-                size="sm"
+                size={isMobile ? "sm" : "sm"}
                 onClick={() => setSelectedSection(key)}
-                className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-3"
+                className={cn(
+                  "whitespace-nowrap transition-all",
+                  isMobile ? "text-xs px-2 py-1" : "text-sm px-3 py-2"
+                )}
               >
-                <section.icon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden xs:inline">{section.nameEn || key}</span>
-                <span className="xs:hidden">{section.nameEn?.split(' ')[0] || key}</span>
+                <section.icon className={cn(
+                  "mr-1",
+                  isMobile ? "h-3 w-3" : "h-4 w-4"
+                )} />
+                <span className={isMobile && key !== selectedSection ? "hidden" : ""}>
+                  {section.nameEn || key}
+                </span>
               </Button>
             ))}
           </div>

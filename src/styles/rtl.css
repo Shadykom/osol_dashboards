@@ -1,0 +1,115 @@
+/* RTL-specific styles for Arabic language support */
+
+/* RTL direction for Arabic */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Flip layout direction for RTL */
+[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+/* Adjust spacing for RTL */
+[dir="rtl"] .space-x-2 > * + * {
+  margin-right: 0.5rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-4 > * + * {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+
+/* Flip icons in RTL */
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* Adjust chart direction for RTL */
+[dir="rtl"] .recharts-wrapper {
+  direction: ltr;
+}
+
+/* Adjust dropdown alignment for RTL */
+[dir="rtl"] [data-radix-popper-content-wrapper] {
+  text-align: right;
+}
+
+/* Adjust dialog content for RTL */
+[dir="rtl"] [role="dialog"] {
+  text-align: right;
+}
+
+/* Adjust button groups for RTL */
+[dir="rtl"] .btn-group {
+  flex-direction: row-reverse;
+}
+
+/* Adjust navigation items for RTL */
+[dir="rtl"] .nav-item {
+  flex-direction: row-reverse;
+}
+
+/* Adjust form labels for RTL */
+[dir="rtl"] label {
+  text-align: right;
+}
+
+/* Adjust table alignment for RTL */
+[dir="rtl"] table {
+  text-align: right;
+}
+
+[dir="rtl"] th,
+[dir="rtl"] td {
+  text-align: right;
+}
+
+/* Adjust progress bars for RTL */
+[dir="rtl"] .progress-bar {
+  direction: ltr;
+}
+
+/* Adjust badges position for RTL */
+[dir="rtl"] .badge {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Mobile-specific RTL adjustments */
+@media (max-width: 768px) {
+  [dir="rtl"] .mobile-nav {
+    flex-direction: row-reverse;
+  }
+  
+  [dir="rtl"] .mobile-menu {
+    right: auto;
+    left: 0;
+  }
+}
+
+/* Ensure numbers stay in English format */
+[dir="rtl"] .number,
+[dir="rtl"] .currency,
+[dir="rtl"] .percentage {
+  direction: ltr;
+  display: inline-block;
+  unicode-bidi: embed;
+}
+
+/* Fix scrollbar position for RTL */
+[dir="rtl"] .overflow-y-auto,
+[dir="rtl"] .overflow-y-scroll,
+[dir="rtl"] .overflow-auto,
+[dir="rtl"] .overflow-scroll {
+  direction: ltr;
+}
+
+[dir="rtl"] .overflow-y-auto > *,
+[dir="rtl"] .overflow-y-scroll > *,
+[dir="rtl"] .overflow-auto > *,
+[dir="rtl"] .overflow-scroll > * {
+  direction: rtl;
+}
