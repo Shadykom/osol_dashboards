@@ -151,7 +151,7 @@ const ExecutiveCollectionDashboard = () => {
       'MEDIUM': 'bg-yellow-500',
       'LOW': 'bg-green-500'
     };
-    return <Badge className={`${colors[priority]} text-white`}>{priority}</Badge>;
+    return <Badge className={`${colors[priority]} text-white`}>{t(`executiveCollection.priority.${priority.toLowerCase()}`)}</Badge>;
   };
 
   const getStatusIcon = (status) => {
@@ -196,61 +196,61 @@ const ExecutiveCollectionDashboard = () => {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Executive Collection Dashboard</h1>
-          <p className="text-gray-600 mt-1">High-level overview for C-suite executives</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('executiveCollection.title')}</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">{t('executiveCollection.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select Branch" />
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder={t('executiveCollection.selectBranch')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Branches</SelectItem>
-              <SelectItem value="riyadh">Riyadh Main</SelectItem>
-              <SelectItem value="jeddah">Jeddah Central</SelectItem>
-              <SelectItem value="dammam">Dammam</SelectItem>
-              <SelectItem value="khobar">Khobar</SelectItem>
+              <SelectItem value="all">{t('executiveCollection.allBranches')}</SelectItem>
+              <SelectItem value="riyadh">{t('executiveCollection.branches.riyadhMain')}</SelectItem>
+              <SelectItem value="jeddah">{t('executiveCollection.branches.jeddahCentral')}</SelectItem>
+              <SelectItem value="dammam">{t('executiveCollection.branches.dammam')}</SelectItem>
+              <SelectItem value="khobar">{t('executiveCollection.branches.khobar')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-full sm:w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
+              <SelectItem value="daily">{t('executiveCollection.periods.daily')}</SelectItem>
+              <SelectItem value="weekly">{t('executiveCollection.periods.weekly')}</SelectItem>
+              <SelectItem value="monthly">{t('executiveCollection.periods.monthly')}</SelectItem>
+              <SelectItem value="quarterly">{t('executiveCollection.periods.quarterly')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing} className="w-full sm:w-auto">
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('common.refresh')}
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t('common.export')}
           </Button>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card className="border-l-4 border-l-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.totalOutstanding')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(kpiData.totalOutstanding)}</div>
+            <div className="text-xl sm:text-2xl font-bold">{formatCurrency(kpiData.totalOutstanding)}</div>
             <div className="flex items-center text-xs text-muted-foreground mt-1">
               {getChangeIcon(kpiData.totalOutstandingChange)}
               <span className={kpiData.totalOutstandingChange > 0 ? 'text-red-500' : 'text-green-500'}>
-                {Math.abs(kpiData.totalOutstandingChange)}% from last period
+                {Math.abs(kpiData.totalOutstandingChange)}% {t('executiveCollection.fromLastPeriod')}
               </span>
             </div>
           </CardContent>
@@ -258,11 +258,11 @@ const ExecutiveCollectionDashboard = () => {
 
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Collection Achievement</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.collectionAchievement')}</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpiData.achievementRate}%</div>
+            <div className="text-xl sm:text-2xl font-bold">{kpiData.achievementRate}%</div>
             <Progress value={kpiData.achievementRate} className="mt-2" />
             <p className="text-xs text-muted-foreground mt-1">
               {formatCurrency(kpiData.collectionAchievement)} / {formatCurrency(kpiData.collectionTarget)}
@@ -272,15 +272,15 @@ const ExecutiveCollectionDashboard = () => {
 
         <Card className="border-l-4 border-l-yellow-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">NPF Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.npfRate')}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpiData.npfRate}%</div>
+            <div className="text-xl sm:text-2xl font-bold">{kpiData.npfRate}%</div>
             <div className="flex items-center text-xs text-muted-foreground mt-1">
               {getChangeIcon(kpiData.npfRateChange)}
               <span className={kpiData.npfRateChange < 0 ? 'text-green-500' : 'text-red-500'}>
-                {Math.abs(kpiData.npfRateChange)}% from last period
+                {Math.abs(kpiData.npfRateChange)}% {t('executiveCollection.fromLastPeriod')}
               </span>
             </div>
           </CardContent>
@@ -288,15 +288,15 @@ const ExecutiveCollectionDashboard = () => {
 
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recovery Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.recoveryRate')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpiData.recoveryRate}%</div>
+            <div className="text-xl sm:text-2xl font-bold">{kpiData.recoveryRate}%</div>
             <div className="flex items-center text-xs text-muted-foreground mt-1">
               {getChangeIcon(kpiData.recoveryRateChange)}
               <span className={kpiData.recoveryRateChange > 0 ? 'text-green-500' : 'text-red-500'}>
-                {Math.abs(kpiData.recoveryRateChange)}% from last period
+                {Math.abs(kpiData.recoveryRateChange)}% {t('executiveCollection.fromLastPeriod')}
               </span>
             </div>
           </CardContent>
@@ -305,61 +305,63 @@ const ExecutiveCollectionDashboard = () => {
 
       {/* Main Dashboard Content */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="risk">Risk Analysis</TabsTrigger>
-          <TabsTrigger value="strategic">Strategic</TabsTrigger>
-          <TabsTrigger value="compliance">Compliance</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <TabsTrigger value="overview">{t('executiveCollection.tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="performance">{t('executiveCollection.tabs.performance')}</TabsTrigger>
+          <TabsTrigger value="risk">{t('executiveCollection.tabs.risk')}</TabsTrigger>
+          <TabsTrigger value="strategic" className="hidden sm:block">{t('executiveCollection.tabs.strategic')}</TabsTrigger>
+          <TabsTrigger value="compliance" className="hidden lg:block">{t('executiveCollection.tabs.compliance')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* NPF Trend */}
             <Card>
               <CardHeader>
-                <CardTitle>NPF Rate Trend</CardTitle>
-                <CardDescription>Non-performing finance rate over time</CardDescription>
+                <CardTitle>{t('executiveCollection.charts.npfTrend.title')}</CardTitle>
+                <CardDescription>{t('executiveCollection.charts.npfTrend.description')}</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={npfTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Bar yAxisId="right" dataKey="amount" fill="#E6B800" name="NPF Amount" />
-                    <Line 
-                      yAxisId="left" 
-                      type="monotone" 
-                      dataKey="rate" 
-                      stroke="#8884d8" 
-                      strokeWidth={3}
-                      name="NPF Rate (%)"
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
+                <div className="h-[250px] sm:h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={npfTrend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis yAxisId="left" />
+                      <YAxis yAxisId="right" orientation="right" />
+                      <Tooltip />
+                      <Legend />
+                      <Bar yAxisId="right" dataKey="amount" fill="#E6B800" name={t('executiveCollection.charts.npfAmount')} />
+                      <Line 
+                        yAxisId="left" 
+                        type="monotone" 
+                        dataKey="rate" 
+                        stroke="#8884d8" 
+                        strokeWidth={3}
+                        name={t('executiveCollection.charts.npfRatePercent')}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
             {/* Portfolio Health Score */}
             <Card>
               <CardHeader>
-                <CardTitle>Portfolio Health Score</CardTitle>
-                <CardDescription>Overall collection portfolio health assessment</CardDescription>
+                <CardTitle>{t('executiveCollection.portfolioHealth.title')}</CardTitle>
+                <CardDescription>{t('executiveCollection.portfolioHealth.description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center mb-4">
-                  <div className="text-5xl font-bold">{portfolioHealthScore.overall}</div>
-                  <p className="text-sm text-gray-600">Overall Score</p>
+                  <div className="text-4xl sm:text-5xl font-bold">{portfolioHealthScore.overall}</div>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.portfolioHealth.overallScore')}</p>
                 </div>
                 <div className="space-y-3">
                   {portfolioHealthScore.components.map((component) => (
                     <div key={component.name}>
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">{component.name}</span>
+                        <span className="text-sm font-medium">{t(`executiveCollection.portfolioHealth.components.${component.name.replace(/\s+/g, '')}`)}</span>
                         <span className="text-sm">{component.score}%</span>
                       </div>
                       <Progress value={component.score} className="h-2" />
@@ -373,27 +375,27 @@ const ExecutiveCollectionDashboard = () => {
           {/* Top 10 Defaulters */}
           <Card>
             <CardHeader>
-              <CardTitle>Top 10 Defaulters</CardTitle>
-              <CardDescription>Largest outstanding amounts requiring immediate attention</CardDescription>
+              <CardTitle>{t('executiveCollection.topDefaulters.title')}</CardTitle>
+              <CardDescription>{t('executiveCollection.topDefaulters.description')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2">Customer</th>
-                      <th className="text-right py-2">Outstanding</th>
-                      <th className="text-center py-2">DPD</th>
-                      <th className="text-center py-2">Priority</th>
-                      <th className="text-center py-2">Action</th>
+                      <th className="text-left py-2 px-4 sm:px-0">{t('executiveCollection.topDefaulters.customer')}</th>
+                      <th className="text-right py-2">{t('executiveCollection.topDefaulters.outstanding')}</th>
+                      <th className="text-center py-2">{t('executiveCollection.topDefaulters.dpd')}</th>
+                      <th className="text-center py-2">{t('executiveCollection.topDefaulters.priority')}</th>
+                      <th className="text-center py-2">{t('executiveCollection.topDefaulters.action')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {top10Defaulters.map((defaulter, index) => (
                       <tr key={index} className="border-b">
-                        <td className="py-3">{defaulter.name}</td>
+                        <td className="py-3 px-4 sm:px-0">{defaulter.name}</td>
                         <td className="text-right font-bold text-red-600">{formatCurrency(defaulter.amount)}</td>
-                        <td className="text-center">{defaulter.dpd} days</td>
+                        <td className="text-center">{defaulter.dpd} {t('common.days')}</td>
                         <td className="text-center">{getPriorityBadge(defaulter.priority)}</td>
                         <td className="text-center">
                           <Button size="sm" variant="outline">
@@ -409,39 +411,41 @@ const ExecutiveCollectionDashboard = () => {
           </Card>
 
           {/* Bucket Distribution */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Portfolio Distribution by Bucket</CardTitle>
-                <CardDescription>Outstanding amounts by delinquency buckets</CardDescription>
+                <CardTitle>{t('executiveCollection.bucketDistribution.title')}</CardTitle>
+                <CardDescription>{t('executiveCollection.bucketDistribution.description')}</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={bucketDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: ${value}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {bucketDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="h-[250px] sm:h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={bucketDistribution}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${name}: ${value}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {bucketDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Branch-wise Collection Performance</CardTitle>
-                <CardDescription>Collection achievement by branch</CardDescription>
+                <CardTitle>{t('executiveCollection.branchPerformance.title')}</CardTitle>
+                <CardDescription>{t('executiveCollection.branchPerformance.description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -465,30 +469,30 @@ const ExecutiveCollectionDashboard = () => {
 
         <TabsContent value="performance" className="space-y-4">
           {/* Performance metrics content */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Phone className="h-5 w-5" />
-                  Contact Center
+                  {t('executiveCollection.performance.contactCenter.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm">Calls Made</span>
+                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.callsMade')}</span>
                     <span className="font-bold">45,892</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Contact Rate</span>
+                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.contactRate')}</span>
                     <span className="font-bold">68.5%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Promise Rate</span>
+                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.promiseRate')}</span>
                     <span className="font-bold">42.3%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Avg. Call Time</span>
+                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.avgCallTime')}</span>
                     <span className="font-bold">3:45</span>
                   </div>
                 </div>
@@ -499,25 +503,25 @@ const ExecutiveCollectionDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Field Collection
+                  {t('executiveCollection.performance.fieldCollection.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm">Visits Completed</span>
+                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.visitsCompleted')}</span>
                     <span className="font-bold">1,234</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Success Rate</span>
+                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.successRate')}</span>
                     <span className="font-bold">72.8%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Amount Collected</span>
+                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.amountCollected')}</span>
                     <span className="font-bold">{formatCurrency(8500000)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Cost per Visit</span>
+                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.costPerVisit')}</span>
                     <span className="font-bold">SAR 125</span>
                   </div>
                 </div>
@@ -528,25 +532,25 @@ const ExecutiveCollectionDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="h-5 w-5" />
-                  Digital Collection
+                  {t('executiveCollection.performance.digitalCollection.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm">SMS Sent</span>
+                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.smsSent')}</span>
                     <span className="font-bold">125,450</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Email Campaigns</span>
+                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.emailCampaigns')}</span>
                     <span className="font-bold">45</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Digital Payments</span>
+                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.digitalPayments')}</span>
                     <span className="font-bold">{formatCurrency(12500000)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Self-Service Rate</span>
+                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.selfServiceRate')}</span>
                     <span className="font-bold">28.5%</span>
                   </div>
                 </div>
@@ -559,18 +563,18 @@ const ExecutiveCollectionDashboard = () => {
           {/* Risk Indicators */}
           <Card>
             <CardHeader>
-              <CardTitle>Key Risk Indicators</CardTitle>
-              <CardDescription>Critical metrics requiring management attention</CardDescription>
+              <CardTitle>{t('executiveCollection.riskIndicators.title')}</CardTitle>
+              <CardDescription>{t('executiveCollection.riskIndicators.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {riskIndicators.map((indicator) => (
-                  <div key={indicator.indicator} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div key={indicator.indicator} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-50 rounded-lg gap-4">
                     <div className="flex items-center gap-3">
                       {getStatusIcon(indicator.status)}
                       <div>
-                        <p className="font-medium">{indicator.indicator}</p>
-                        <p className="text-sm text-gray-600">Threshold: {indicator.threshold}%</p>
+                        <p className="font-medium">{t(`executiveCollection.riskIndicators.indicators.${indicator.indicator.replace(/\s+/g, '')}`)}</p>
+                        <p className="text-sm text-gray-600">{t('executiveCollection.riskIndicators.threshold')}: {indicator.threshold}%</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -593,30 +597,30 @@ const ExecutiveCollectionDashboard = () => {
           {/* Strategic Initiatives */}
           <Card>
             <CardHeader>
-              <CardTitle>Strategic Initiatives Progress</CardTitle>
-              <CardDescription>Key collection improvement programs</CardDescription>
+              <CardTitle>{t('executiveCollection.strategicInitiatives.title')}</CardTitle>
+              <CardDescription>{t('executiveCollection.strategicInitiatives.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {strategicInitiatives.map((initiative) => (
                   <div key={initiative.name} className="p-4 border rounded-lg">
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
                       <div>
-                        <h4 className="font-semibold">{initiative.name}</h4>
-                        <p className="text-sm text-gray-600">{initiative.target}</p>
+                        <h4 className="font-semibold">{t(`executiveCollection.strategicInitiatives.initiatives.${initiative.name.replace(/\s+/g, '')}`)}</h4>
+                        <p className="text-sm text-gray-600">{t(`executiveCollection.strategicInitiatives.targets.${initiative.name.replace(/\s+/g, '')}`)}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={initiative.status === 'ON_TRACK' ? 'default' : 
                                        initiative.status === 'AT_RISK' ? 'destructive' : 'secondary'}>
-                          {initiative.status.replace('_', ' ')}
+                          {t(`executiveCollection.strategicInitiatives.status.${initiative.status.toLowerCase()}`)}
                         </Badge>
                         <Badge variant="outline">
-                          Impact: {initiative.impact}
+                          {t('executiveCollection.strategicInitiatives.impact')}: {t(`executiveCollection.strategicInitiatives.impactLevel.${initiative.impact.toLowerCase()}`)}
                         </Badge>
                       </div>
                     </div>
                     <Progress value={initiative.progress} className="h-2" />
-                    <p className="text-sm text-gray-600 mt-1">{initiative.progress}% Complete</p>
+                    <p className="text-sm text-gray-600 mt-1">{initiative.progress}% {t('executiveCollection.strategicInitiatives.complete')}</p>
                   </div>
                 ))}
               </div>
@@ -626,31 +630,31 @@ const ExecutiveCollectionDashboard = () => {
 
         <TabsContent value="compliance" className="space-y-4">
           {/* Compliance metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5" />
-                  SAMA Compliance
+                  {t('executiveCollection.compliance.sama.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm">NPF Reporting</span>
-                    <Badge className="bg-green-500 text-white">Compliant</Badge>
+                    <span className="text-sm">{t('executiveCollection.compliance.sama.npfReporting')}</span>
+                    <Badge className="bg-green-500 text-white">{t('executiveCollection.compliance.sama.compliant')}</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Provision Coverage</span>
+                    <span className="text-sm">{t('executiveCollection.compliance.sama.provisionCoverage')}</span>
                     <Badge className="bg-green-500 text-white">125%</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Collection Practices</span>
-                    <Badge className="bg-green-500 text-white">Compliant</Badge>
+                    <span className="text-sm">{t('executiveCollection.compliance.sama.collectionPractices')}</span>
+                    <Badge className="bg-green-500 text-white">{t('executiveCollection.compliance.sama.compliant')}</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Customer Protection</span>
-                    <Badge className="bg-yellow-500 text-white">1 Violation</Badge>
+                    <span className="text-sm">{t('executiveCollection.compliance.sama.customerProtection')}</span>
+                    <Badge className="bg-yellow-500 text-white">1 {t('executiveCollection.compliance.sama.violation')}</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -658,20 +662,20 @@ const ExecutiveCollectionDashboard = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Sharia Compliance</CardTitle>
+                <CardTitle>{t('executiveCollection.compliance.sharia.title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm">Late Payment Charges</span>
+                    <span className="text-sm">{t('executiveCollection.compliance.sharia.latePaymentCharges')}</span>
                     <span className="font-bold">{formatCurrency(450000)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Charity Distribution</span>
-                    <Badge className="bg-green-500 text-white">Completed</Badge>
+                    <span className="text-sm">{t('executiveCollection.compliance.sharia.charityDistribution')}</span>
+                    <Badge className="bg-green-500 text-white">{t('executiveCollection.compliance.sharia.completed')}</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm">Compliance Rate</span>
+                    <span className="text-sm">{t('executiveCollection.compliance.sharia.complianceRate')}</span>
                     <span className="font-bold">98.5%</span>
                   </div>
                   <div className="flex justify-between">

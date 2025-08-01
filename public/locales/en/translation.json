@@ -1512,5 +1512,163 @@
   },
   "currency": {
     "sar": "Saudi Riyal (SAR)"
+  },
+  "executiveCollection": {
+    "title": "Executive Collection Dashboard",
+    "subtitle": "High-level overview for C-suite executives",
+    "selectBranch": "Select Branch",
+    "allBranches": "All Branches",
+    "fromLastPeriod": "from last period",
+    "branches": {
+      "riyadhMain": "Riyadh Main",
+      "jeddahCentral": "Jeddah Central",
+      "dammam": "Dammam",
+      "khobar": "Khobar",
+      "makkah": "Makkah",
+      "madinah": "Madinah"
+    },
+    "periods": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly"
+    },
+    "metrics": {
+      "totalOutstanding": "Total Outstanding",
+      "collectionAchievement": "Collection Achievement",
+      "npfRate": "NPF Rate",
+      "recoveryRate": "Recovery Rate"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "performance": "Performance",
+      "risk": "Risk Analysis",
+      "strategic": "Strategic",
+      "compliance": "Compliance"
+    },
+    "priority": {
+      "critical": "CRITICAL",
+      "high": "HIGH",
+      "medium": "MEDIUM",
+      "low": "LOW"
+    },
+    "charts": {
+      "npfTrend": {
+        "title": "NPF Rate Trend",
+        "description": "Non-performing finance rate over time"
+      },
+      "npfAmount": "NPF Amount",
+      "npfRatePercent": "NPF Rate (%)"
+    },
+    "portfolioHealth": {
+      "title": "Portfolio Health Score",
+      "description": "Overall collection portfolio health assessment",
+      "overallScore": "Overall Score",
+      "components": {
+        "CollectionEfficiency": "Collection Efficiency",
+        "RiskManagement": "Risk Management",
+        "CustomerContact": "Customer Contact",
+        "DigitalAdoption": "Digital Adoption",
+        "Compliance": "Compliance"
+      }
+    },
+    "topDefaulters": {
+      "title": "Top 10 Defaulters",
+      "description": "Largest outstanding amounts requiring immediate attention",
+      "customer": "Customer",
+      "outstanding": "Outstanding",
+      "dpd": "DPD",
+      "priority": "Priority",
+      "action": "Action"
+    },
+    "bucketDistribution": {
+      "title": "Portfolio Distribution by Bucket",
+      "description": "Outstanding amounts by delinquency buckets"
+    },
+    "branchPerformance": {
+      "title": "Branch-wise Collection Performance",
+      "description": "Collection achievement by branch"
+    },
+    "performance": {
+      "contactCenter": {
+        "title": "Contact Center",
+        "callsMade": "Calls Made",
+        "contactRate": "Contact Rate",
+        "promiseRate": "Promise Rate",
+        "avgCallTime": "Avg. Call Time"
+      },
+      "fieldCollection": {
+        "title": "Field Collection",
+        "visitsCompleted": "Visits Completed",
+        "successRate": "Success Rate",
+        "amountCollected": "Amount Collected",
+        "costPerVisit": "Cost per Visit"
+      },
+      "digitalCollection": {
+        "title": "Digital Collection",
+        "smsSent": "SMS Sent",
+        "emailCampaigns": "Email Campaigns",
+        "digitalPayments": "Digital Payments",
+        "selfServiceRate": "Self-Service Rate"
+      }
+    },
+    "riskIndicators": {
+      "title": "Key Risk Indicators",
+      "description": "Critical metrics requiring management attention",
+      "threshold": "Threshold",
+      "indicators": {
+        "FirstPaymentDefaultRate": "First Payment Default Rate",
+        "RollRate(30-60)": "Roll Rate (30-60)",
+        "CustomerContactRate": "Customer Contact Rate",
+        "PTPKeepRate": "PTP Keep Rate",
+        "LegalSuccessRate": "Legal Success Rate"
+      }
+    },
+    "strategicInitiatives": {
+      "title": "Strategic Initiatives Progress",
+      "description": "Key collection improvement programs",
+      "impact": "Impact",
+      "complete": "Complete",
+      "status": {
+        "on_track": "ON TRACK",
+        "at_risk": "AT RISK",
+        "completed": "COMPLETED"
+      },
+      "impactLevel": {
+        "high": "HIGH",
+        "medium": "MEDIUM",
+        "low": "LOW"
+      },
+      "initiatives": {
+        "DigitalCollectionEnhancement": "Digital Collection Enhancement",
+        "AI-PoweredRiskScoring": "AI-Powered Risk Scoring",
+        "FieldForceOptimization": "Field Force Optimization",
+        "CustomerSegmentation": "Customer Segmentation"
+      },
+      "targets": {
+        "DigitalCollectionEnhancement": "Increase digital collections by 40%",
+        "AI-PoweredRiskScoring": "Reduce default rate by 15%",
+        "FieldForceOptimization": "Improve field collection efficiency by 30%",
+        "CustomerSegmentation": "Personalized collection strategies"
+      }
+    },
+    "compliance": {
+      "sama": {
+        "title": "SAMA Compliance",
+        "npfReporting": "NPF Reporting",
+        "provisionCoverage": "Provision Coverage",
+        "collectionPractices": "Collection Practices",
+        "customerProtection": "Customer Protection",
+        "compliant": "Compliant",
+        "violation": "Violation"
+      },
+      "sharia": {
+        "title": "Sharia Compliance",
+        "latePaymentCharges": "Late Payment Charges",
+        "charityDistribution": "Charity Distribution",
+        "complianceRate": "Compliance Rate",
+        "completed": "Completed"
+      }
+    }
   }
 }
