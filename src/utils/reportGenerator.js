@@ -136,6 +136,40 @@ class ReportGenerator {
     this.currentY = 45;
   }
 
+  // Helper to add footer
+  addFooter(doc = null, pageNumber = null) {
+    const pdfDoc = doc || this.doc;
+    if (!pdfDoc) return;
+
+    const pageHeight = pdfDoc.internal.pageSize.height;
+    const pageWidth = pdfDoc.internal.pageSize.width;
+    
+    // Add footer background
+    pdfDoc.setFillColor(...OSOL_BRAND.lightGray);
+    pdfDoc.rect(0, pageHeight - 20, pageWidth, 20, 'F');
+    
+    // Add footer text
+    pdfDoc.setTextColor(...OSOL_BRAND.textMuted);
+    pdfDoc.setFontSize(9);
+    pdfDoc.setFont('helvetica', 'normal');
+    
+    // Add generation date
+    const currentDate = format(new Date(), 'dd/MM/yyyy HH:mm');
+    pdfDoc.text(`Generated on: ${currentDate}`, 15, pageHeight - 10);
+    
+    // Add page number if provided
+    if (pageNumber) {
+      pdfDoc.text(`Page ${pageNumber}`, pageWidth - 30, pageHeight - 10);
+    }
+    
+    // Add copyright or company info
+    pdfDoc.setFontSize(8);
+    pdfDoc.text('© OSOL Financial Services - Confidential', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    
+    // Reset text color
+    pdfDoc.setTextColor(...OSOL_BRAND.text);
+  }
+
   // Helper to format filters for display
   async formatFilters(filters) {
     if (!filters || Object.keys(filters).length === 0) return null;
