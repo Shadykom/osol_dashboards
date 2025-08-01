@@ -18,6 +18,7 @@ import { Reports } from './pages/Reports';
 import { Analytics } from './pages/Analytics';
 import { Compliance } from './pages/Compliance';
 import CollectionOverview from './pages/CollectionOverview';
+import CollectionDetailView from './pages/CollectionDetailView';
 import CollectionCases from './pages/CollectionCases';
 import CollectionReports from './pages/CollectionReports';
 import DailyCollectionDashboard from './pages/DailyCollectionDashboard';
@@ -275,6 +276,7 @@ function AppContent() {
           {/* Collection Routes */}
           <Route path="/collection" element={<Navigate to="/collection/overview" replace />} />
           <Route path="/collection/overview" element={<CollectionOverview />} />
+          <Route path="/collection/detail/:cardType" element={<CollectionDetailView />} />
           <Route path="/collection/cases" element={<CollectionCases />} />
           <Route path="/collection/reports" element={<CollectionReports />} />
           <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
