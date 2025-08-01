@@ -274,25 +274,29 @@ export function ReportsResponsive() {
         case 'financial':
           data = await comprehensiveReportService.getFinancialReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         case 'regulatory':
           data = await comprehensiveReportService.getFinancialReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         case 'customer':
           data = await comprehensiveReportService.getCustomerReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         case 'risk':
           data = await comprehensiveReportService.getRiskReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         default:
@@ -303,12 +307,22 @@ export function ReportsResponsive() {
 
       // Generate PDF and Excel with enhanced branding for Income Statement
       let pdf, excel;
+      // Prepare report metadata with filters
+      const reportMetadata = {
+        dateRange: {
+          from: dateRange.from.toISOString(),
+          to: dateRange.to.toISOString()
+        },
+        filters: filters,
+        generatedAt: new Date().toISOString()
+      };
+
       if (selectedReport === 'income_statement') {
-        pdf = reportGenerator.generateIncomeStatementPDF(data, t(reportInfo.name));
-        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
+        pdf = reportGenerator.generateIncomeStatementPDF(data, t(reportInfo.name), reportMetadata);
+        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name), reportMetadata);
       } else {
-        pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name));
-        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
+        pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name), reportMetadata);
+        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name), reportMetadata);
       }
 
       setGeneratedReport({
