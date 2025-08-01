@@ -37,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { toast } from 'sonner';
+import PDFViewer from '@/components/PDFViewer';
 import {
   Table,
   TableBody,
@@ -66,55 +67,55 @@ import VisualReportView from '@/components/reports/VisualReportView';
 
 const REPORT_CATEGORIES = {
   financial: {
-    title: 'Financial Reports',
+    title: 'reports.financialReports',
     icon: DollarSign,
     color: 'text-green-500',
     bgColor: 'bg-green-50',
     reports: [
-      { id: 'income_statement', name: 'Income Statement', frequency: 'Monthly', description: 'Revenue, expenses, and profitability analysis' },
-      { id: 'balance_sheet', name: 'Balance Sheet', frequency: 'Quarterly', description: 'Assets, liabilities, and equity position' },
-      { id: 'cash_flow', name: 'Cash Flow Statement', frequency: 'Monthly', description: 'Cash inflows and outflows analysis' },
-      { id: 'profit_loss', name: 'Profit & Loss', frequency: 'Monthly', description: 'Detailed profit and loss breakdown' },
-      { id: 'budget_variance', name: 'Budget Variance Analysis', frequency: 'Monthly', description: 'Actual vs budget comparison' }
+      { id: 'income_statement', name: 'reports.incomeStatement', frequency: 'reports.monthly', description: 'reports.incomeStatementDesc' },
+      { id: 'balance_sheet', name: 'reports.balanceSheet', frequency: 'reports.quarterlyReport', description: 'reports.balanceSheetDesc' },
+      { id: 'cash_flow', name: 'reports.cashFlowStatement', frequency: 'reports.monthly', description: 'reports.cashFlowDesc' },
+      { id: 'profit_loss', name: 'reports.profitLoss', frequency: 'reports.monthly', description: 'reports.profitLossDesc' },
+      { id: 'budget_variance', name: 'reports.budgetVarianceAnalysis', frequency: 'reports.monthly', description: 'reports.budgetVarianceDesc' }
     ]
   },
   regulatory: {
-    title: 'Regulatory Reports',
+    title: 'reports.regulatoryReports',
     icon: Building2,
-            color: 'text-[#E6B800]',
-        bgColor: 'bg-yellow-50',
+    color: 'text-[#E6B800]',
+    bgColor: 'bg-yellow-50',
     reports: [
-      { id: 'sama_monthly', name: 'SAMA Monthly Report', frequency: 'Monthly', description: 'Saudi Central Bank compliance report' },
-      { id: 'basel_iii', name: 'Basel III Compliance', frequency: 'Quarterly', description: 'Capital adequacy and risk metrics' },
-      { id: 'aml_report', name: 'AML/CFT Report', frequency: 'Monthly', description: 'Anti-money laundering compliance' },
-      { id: 'liquidity_coverage', name: 'Liquidity Coverage Ratio', frequency: 'Daily', description: 'LCR compliance monitoring' },
-      { id: 'capital_adequacy', name: 'Capital Adequacy Report', frequency: 'Quarterly', description: 'CAR calculation and analysis' }
+      { id: 'sama_monthly', name: 'reports.samaMonthlyReport', frequency: 'reports.monthly', description: 'reports.samaMonthlyDesc' },
+      { id: 'basel_iii', name: 'reports.baselIIICompliance', frequency: 'reports.quarterlyReport', description: 'reports.baselIIIDesc' },
+      { id: 'aml_report', name: 'reports.amlCftReport', frequency: 'reports.monthly', description: 'reports.amlCftDesc' },
+      { id: 'liquidity_coverage', name: 'reports.liquidityCoverageRatio', frequency: 'reports.daily', description: 'reports.liquidityCoverageDesc' },
+      { id: 'capital_adequacy', name: 'reports.capitalAdequacyReport', frequency: 'reports.quarterlyReport', description: 'reports.capitalAdequacyDesc' }
     ]
   },
   customer: {
-    title: 'Customer Reports',
+    title: 'reports.customerReports',
     icon: Users,
     color: 'text-purple-500',
     bgColor: 'bg-purple-50',
     reports: [
-      { id: 'customer_acquisition', name: 'Customer Acquisition', frequency: 'Weekly', description: 'New customer trends and analysis' },
-      { id: 'customer_segmentation', name: 'Customer Segmentation', frequency: 'Monthly', description: 'Customer base breakdown by segments' },
-      { id: 'customer_satisfaction', name: 'Customer Satisfaction', frequency: 'Quarterly', description: 'NPS and satisfaction metrics' },
-      { id: 'dormant_accounts', name: 'Dormant Accounts', frequency: 'Monthly', description: 'Inactive account identification' },
-      { id: 'kyc_compliance', name: 'KYC Compliance Status', frequency: 'Weekly', description: 'Know Your Customer compliance tracking' }
+      { id: 'customer_acquisition', name: 'reports.customerAcquisition', frequency: 'reports.weekly', description: 'reports.customerAcquisitionDesc' },
+      { id: 'customer_segmentation', name: 'reports.customerSegmentation', frequency: 'reports.monthly', description: 'reports.customerSegmentationDesc' },
+      { id: 'customer_satisfaction', name: 'reports.customerSatisfaction', frequency: 'reports.quarterlyReport', description: 'reports.customerSatisfactionDesc' },
+      { id: 'dormant_accounts', name: 'reports.dormantAccounts', frequency: 'reports.monthly', description: 'reports.dormantAccountsDesc' },
+      { id: 'kyc_compliance', name: 'reports.kycComplianceStatus', frequency: 'reports.weekly', description: 'reports.kycComplianceDesc' }
     ]
   },
   risk: {
-    title: 'Risk Reports',
+    title: 'reports.riskReports',
     icon: AlertCircle,
     color: 'text-red-500',
     bgColor: 'bg-red-50',
     reports: [
-      { id: 'credit_risk', name: 'Credit Risk Assessment', frequency: 'Daily', description: 'Loan portfolio risk analysis' },
-      { id: 'operational_risk', name: 'Operational Risk', frequency: 'Monthly', description: 'Operational incidents and controls' },
-      { id: 'market_risk', name: 'Market Risk Analysis', frequency: 'Daily', description: 'Market exposure and VaR calculations' },
-      { id: 'liquidity_risk', name: 'Liquidity Risk Report', frequency: 'Weekly', description: 'Liquidity position and stress testing' },
-      { id: 'npl_analysis', name: 'NPL Analysis', frequency: 'Weekly', description: 'Non-performing loans detailed analysis' }
+      { id: 'credit_risk', name: 'reports.creditRiskAssessment', frequency: 'reports.daily', description: 'reports.creditRiskDesc' },
+      { id: 'operational_risk', name: 'reports.operationalRisk', frequency: 'reports.monthly', description: 'reports.operationalRiskDesc' },
+      { id: 'market_risk', name: 'reports.marketRiskAnalysis', frequency: 'reports.daily', description: 'reports.marketRiskDesc' },
+      { id: 'liquidity_risk', name: 'reports.liquidityRiskReport', frequency: 'reports.weekly', description: 'reports.liquidityRiskDesc' },
+      { id: 'npl_analysis', name: 'reports.nplAnalysis', frequency: 'reports.weekly', description: 'reports.nplAnalysisDesc' }
     ]
   }
 };
@@ -184,8 +185,8 @@ const MOCK_REPORT_HISTORY = [
   }
 ];
 
-export function Reports() {
-  const { t } = useTranslation();
+export function ReportsResponsive() {
+  const { t, i18n } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState('financial');
   const [selectedReport, setSelectedReport] = useState(null);
   const [dateRange, setDateRange] = useState({
@@ -230,6 +231,9 @@ export function Reports() {
   const [reportHistory, setReportHistory] = useState(MOCK_REPORT_HISTORY);
   const [activeTab, setActiveTab] = useState('generate');
 
+  // Check if RTL
+  const isRTL = i18n.language === 'ar';
+
   // Load scheduled reports
   useEffect(() => {
     loadScheduledReports();
@@ -245,7 +249,7 @@ export function Reports() {
   // Generate report
   const handleGenerateReport = async () => {
     if (!selectedReport) {
-      toast.error('Please select a report to generate');
+      toast.error(t('reports.pleaseSelectReport'));
       return;
     }
 
@@ -262,9 +266,6 @@ export function Reports() {
       );
 
       if (!category) {
-        console.error('No category found for report:', selectedReport);
-        console.error('Available categories:', Object.keys(REPORT_CATEGORIES));
-        console.error('All reports:', Object.values(REPORT_CATEGORIES).flatMap(cat => cat.reports.map(r => r.id)));
         throw new Error(`Unknown report category for report: ${selectedReport}`);
       }
 
@@ -276,7 +277,6 @@ export function Reports() {
           );
           break;
         case 'regulatory':
-          // For now, use financial data as placeholder for regulatory reports
           data = await comprehensiveReportService.getFinancialReportData(
             selectedReport,
             { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
@@ -301,8 +301,8 @@ export function Reports() {
       setReportData(data);
 
       // Generate PDF and Excel
-      const pdf = await reportGenerator.generatePDF(data, selectedReport, reportInfo.name);
-      const excel = await reportGenerator.generateExcel(data, selectedReport, reportInfo.name);
+      const pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name));
+      const excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
 
       setGeneratedReport({
         pdf,
@@ -314,7 +314,7 @@ export function Reports() {
       // Add to history
       const newHistoryItem = {
         id: reportHistory.length + 1,
-        reportName: `${reportInfo.name} - ${format(new Date(), 'MMMM yyyy')}`,
+        reportName: `${t(reportInfo.name)} - ${format(new Date(), 'MMMM yyyy')}`,
         reportType: selectedReport,
         generatedAt: format(new Date(), 'yyyy-MM-dd HH:mm'),
         generatedBy: 'Current User',
@@ -323,11 +323,44 @@ export function Reports() {
       };
       setReportHistory([newHistoryItem, ...reportHistory]);
 
-      toast.success('Report generated successfully!');
-      setPreviewDialogOpen(true);
+      // Show success toast with action buttons
+      toast.success(
+        <div className="flex items-center justify-between w-full">
+          <span>{t('reports.reportGeneratedSuccessfully')}</span>
+          <div className="flex gap-2 ml-4">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                setPreviewDialogOpen(true);
+                toast.dismiss();
+              }}
+            >
+              <Eye className="mr-1 h-3 w-3" />
+              {t('reports.preview')}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                handlePrint();
+                toast.dismiss();
+              }}
+            >
+              <Printer className="mr-1 h-3 w-3" />
+              {t('reports.print')}
+            </Button>
+          </div>
+        </div>,
+        {
+          duration: 10000,
+        }
+      );
     } catch (error) {
       console.error('Error generating report:', error);
-      toast.error('Failed to generate report: ' + error.message);
+      toast.error(t('reports.failedToGenerateReport') + ': ' + error.message);
     } finally {
       setIsGenerating(false);
     }
@@ -338,34 +371,39 @@ export function Reports() {
     if (!generatedReport) return;
 
     if (format === 'pdf') {
-      reportGenerator.savePDF(generatedReport.pdf, generatedReport.reportInfo.name);
+      reportGenerator.savePDF(generatedReport.pdf, t(generatedReport.reportInfo.name));
     } else if (format === 'excel') {
-      reportGenerator.saveExcel(generatedReport.excel, generatedReport.reportInfo.name);
+      reportGenerator.saveExcel(generatedReport.excel, t(generatedReport.reportInfo.name));
     }
     
-    toast.success(`${format.toUpperCase()} downloaded successfully!`);
+    toast.success(`${format.toUpperCase()} ${t('reports.downloadedSuccessfully')}`);
   };
 
   // Print report
   const handlePrint = () => {
-    if (!generatedReport) return;
+    if (!generatedReport || !generatedReport.pdf) {
+      toast.error(t('reports.pleaseGenerateReportFirst'));
+      return;
+    }
     
-    // Add a small delay to ensure dialog is ready
-    setTimeout(() => {
-      window.print();
-      toast.success('Print dialog opened');
-    }, 100);
+    try {
+      reportGenerator.printReport(generatedReport.pdf);
+      toast.success(t('reports.printDialogOpened'));
+    } catch (error) {
+      console.error('Error printing report:', error);
+      toast.error(t('reports.failedToPrintReport'));
+    }
   };
 
   // Send email
   const handleSendEmail = async () => {
     if (!generatedReport) {
-      toast.error('Please generate a report first');
+      toast.error(t('reports.pleaseGenerateReportFirst'));
       return;
     }
 
     if (!emailForm.recipients) {
-      toast.error('Please enter recipient email addresses');
+      toast.error(t('reports.pleaseEnterRecipients'));
       return;
     }
 
@@ -376,7 +414,7 @@ export function Reports() {
       if (emailForm.includePDF) {
         const pdfBlob = reportGenerator.getPDFBlob(generatedReport.pdf);
         attachments.push({
-          filename: `${generatedReport.reportInfo.name}_${format(new Date(), 'yyyyMMdd')}.pdf`,
+          filename: `${t(generatedReport.reportInfo.name)}_${format(new Date(), 'yyyyMMdd')}.pdf`,
           content: pdfBlob,
           type: 'application/pdf'
         });
@@ -385,7 +423,7 @@ export function Reports() {
       if (emailForm.includeExcel) {
         const excelBlob = reportGenerator.getExcelBlob(generatedReport.excel);
         attachments.push({
-          filename: `${generatedReport.reportInfo.name}_${format(new Date(), 'yyyyMMdd')}.xlsx`,
+          filename: `${t(generatedReport.reportInfo.name)}_${format(new Date(), 'yyyyMMdd')}.xlsx`,
           content: excelBlob,
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
@@ -399,7 +437,7 @@ export function Reports() {
         const result = await emailService.sendReport({
           recipientEmail: recipient,
           recipientName: recipient.split('@')[0],
-          reportTitle: generatedReport.reportInfo.name,
+          reportTitle: t(generatedReport.reportInfo.name),
           reportType: selectedReport,
           attachments,
           ccEmails,
@@ -411,12 +449,12 @@ export function Reports() {
         }
       }
 
-      toast.success('Report sent successfully to all recipients!');
+      toast.success(t('reports.reportSentSuccessfully'));
       
       // Check if mock service is being used
-      const emailService = import.meta.env.VITE_EMAIL_SERVICE || 'mock';
-      if (emailService === 'mock') {
-        toast.warning('Note: Using MOCK email service - emails were not actually delivered. Check EMAIL_CONFIGURATION_GUIDE.md to set up real email delivery.', {
+      const emailServiceType = import.meta.env.VITE_EMAIL_SERVICE || 'mock';
+      if (emailServiceType === 'mock') {
+        toast.warning(t('reports.mockEmailServiceNote'), {
           duration: 8000
         });
       }
@@ -433,13 +471,12 @@ export function Reports() {
     } catch (error) {
       console.error('Error sending email:', error);
       
-      // Provide helpful error messages
       if (error.message.includes('API key not configured')) {
-        toast.error('Email service not configured. Please check your environment variables.');
+        toast.error(t('reports.emailServiceNotConfigured'));
       } else if (error.message.includes('MOCK')) {
-        toast.info('Email logged but not sent (using mock service)');
-            } else {
-        toast.error(`Failed to send email: ${error.message}`);
+        toast.info(t('reports.emailLoggedButNotSent'));
+      } else {
+        toast.error(`${t('reports.failedToSendEmail')}: ${error.message}`);
       }
     } finally {
       setIsGenerating(false);
@@ -449,12 +486,12 @@ export function Reports() {
   // Schedule report
   const handleScheduleReport = async () => {
     if (!selectedReport) {
-      toast.error('Please select a report to schedule');
+      toast.error(t('reports.pleaseSelectReport'));
       return;
     }
 
     if (!scheduleForm.recipients) {
-      toast.error('Please enter recipient email addresses');
+      toast.error(t('reports.pleaseEnterRecipients'));
       return;
     }
 
@@ -465,7 +502,7 @@ export function Reports() {
 
       const result = await emailService.scheduleReportEmail({
         reportType: selectedReport,
-        reportTitle: reportInfo.name,
+        reportTitle: t(reportInfo.name),
         recipients: scheduleForm.recipients.split(',').map(email => email.trim()),
         frequency: scheduleForm.frequency,
         scheduleTime: scheduleForm.time,
@@ -475,7 +512,7 @@ export function Reports() {
       });
 
       if (result.success) {
-        toast.success('Report scheduled successfully!');
+        toast.success(t('reports.reportScheduledSuccessfully'));
         setScheduleDialogOpen(false);
         loadScheduledReports();
       } else {
@@ -483,7 +520,7 @@ export function Reports() {
       }
     } catch (error) {
       console.error('Error scheduling report:', error);
-      toast.error('Failed to schedule report: ' + error.message);
+      toast.error(t('reports.failedToScheduleReport') + ': ' + error.message);
     }
   };
 
@@ -492,33 +529,33 @@ export function Reports() {
     try {
       const result = await emailService.cancelScheduledReport(scheduleId);
       if (result.success) {
-        toast.success('Schedule cancelled successfully');
+        toast.success(t('reports.scheduleCancelledSuccessfully'));
         loadScheduledReports();
       } else {
         throw new Error(result.error || 'Failed to cancel schedule');
       }
     } catch (error) {
       console.error('Error cancelling schedule:', error);
-      toast.error('Failed to cancel schedule: ' + error.message);
+      toast.error(t('reports.failedToCancelSchedule') + ': ' + error.message);
     }
   };
 
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Reports Center</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">Generate, schedule, and manage all banking reports</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">{t('reports.reportsCenter')}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">{t('reports.reportsCenterDescription')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setActiveTab('history')}>
             <Clock className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">History</span>
+            <span className="hidden sm:inline">{t('reports.history')}</span>
           </Button>
           <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setActiveTab('scheduled')}>
             <Calendar className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Scheduled</span>
+            <span className="hidden sm:inline">{t('reports.scheduled')}</span>
           </Button>
         </div>
       </div>
@@ -527,42 +564,42 @@ export function Reports() {
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Reports</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('reports.totalReports')}</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">156</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <p className="text-xs text-muted-foreground">{t('reports.thisMonth')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('reports.pending')}</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">In queue</p>
+            <p className="text-xs text-muted-foreground">{t('reports.inQueue')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Scheduled</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('reports.scheduled')}</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">Active</p>
+            <p className="text-xs text-muted-foreground">{t('reports.active')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Failed</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('reports.failed')}</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">Attention</p>
+            <p className="text-xs text-muted-foreground">{t('reports.attention')}</p>
           </CardContent>
         </Card>
       </div>
@@ -570,9 +607,9 @@ export function Reports() {
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="generate" className="text-xs sm:text-sm">Generate</TabsTrigger>
-          <TabsTrigger value="scheduled" className="text-xs sm:text-sm">Scheduled</TabsTrigger>
-          <TabsTrigger value="history" className="text-xs sm:text-sm">History</TabsTrigger>
+          <TabsTrigger value="generate" className="text-xs sm:text-sm">{t('reports.generate')}</TabsTrigger>
+          <TabsTrigger value="scheduled" className="text-xs sm:text-sm">{t('reports.scheduled')}</TabsTrigger>
+          <TabsTrigger value="history" className="text-xs sm:text-sm">{t('reports.history')}</TabsTrigger>
         </TabsList>
 
         {/* Generate Report Tab */}
@@ -592,12 +629,12 @@ export function Reports() {
                           <category.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${category.color}`} />
                         </div>
                         <div>
-                          <CardTitle className="text-base sm:text-lg">{category.title}</CardTitle>
-                          <CardDescription className="text-xs sm:text-sm">{category.reports.length} reports available</CardDescription>
+                          <CardTitle className="text-base sm:text-lg">{t(category.title)}</CardTitle>
+                          <CardDescription className="text-xs sm:text-sm">{category.reports.length} {t('reports.reportsAvailable')}</CardDescription>
                         </div>
                       </div>
                       <Badge variant={selectedCategory === key ? 'default' : 'outline'} className="text-xs">
-                        {selectedCategory === key ? 'Selected' : 'Select'}
+                        {selectedCategory === key ? t('reports.selected') : t('reports.select')}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -616,11 +653,11 @@ export function Reports() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
-                                <h4 className="font-medium text-sm sm:text-base">{report.name}</h4>
-                                <p className="text-xs sm:text-sm text-muted-foreground">{report.description}</p>
+                                <h4 className="font-medium text-sm sm:text-base">{t(report.name)}</h4>
+                                <p className="text-xs sm:text-sm text-muted-foreground">{t(report.description)}</p>
                               </div>
                               <div className="ml-2">
-                                <Badge variant="secondary" className="text-xs">{report.frequency}</Badge>
+                                <Badge variant="secondary" className="text-xs">{t(report.frequency)}</Badge>
                               </div>
                             </div>
                           </div>
@@ -636,13 +673,13 @@ export function Reports() {
             <div className="space-y-4">
               <Card>
                 <CardHeader className="p-3 sm:p-6">
-                  <CardTitle className="text-base sm:text-xl">Report Configuration</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Configure report parameters</CardDescription>
+                  <CardTitle className="text-base sm:text-xl">{t('reports.reportConfiguration')}</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">{t('reports.configureParameters')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 p-3 sm:p-6">
                   {/* Date Range */}
                   <div className="space-y-2">
-                    <Label className="text-sm">Date Range</Label>
+                    <Label className="text-sm">{t('reports.dateRange')}</Label>
                     <DatePickerWithRange
                       date={dateRange}
                       setDate={setDateRange}
@@ -651,48 +688,48 @@ export function Reports() {
 
                   {/* Filters */}
                   <div className="space-y-2">
-                    <Label className="text-sm">Branch</Label>
+                    <Label className="text-sm">{t('reports.branch')}</Label>
                     <Select value={filters.branch} onValueChange={(value) => setFilters({...filters, branch: value})}>
                       <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Select branch" />
+                        <SelectValue placeholder={t('reports.branch')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Branches</SelectItem>
-                        <SelectItem value="main">Main Branch</SelectItem>
-                        <SelectItem value="north">North Branch</SelectItem>
-                        <SelectItem value="south">South Branch</SelectItem>
+                        <SelectItem value="all">{t('reports.allBranches')}</SelectItem>
+                        <SelectItem value="main">{t('reports.mainBranch')}</SelectItem>
+                        <SelectItem value="north">{t('reports.northBranch')}</SelectItem>
+                        <SelectItem value="south">{t('reports.southBranch')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm">Product</Label>
+                    <Label className="text-sm">{t('reports.product')}</Label>
                     <Select value={filters.product} onValueChange={(value) => setFilters({...filters, product: value})}>
                       <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Select product" />
+                        <SelectValue placeholder={t('reports.product')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Products</SelectItem>
-                        <SelectItem value="savings">Savings Account</SelectItem>
-                        <SelectItem value="current">Current Account</SelectItem>
-                        <SelectItem value="loan">Loans</SelectItem>
-                        <SelectItem value="credit">Credit Cards</SelectItem>
+                        <SelectItem value="all">{t('reports.allProducts')}</SelectItem>
+                        <SelectItem value="savings">{t('reports.savingsAccount')}</SelectItem>
+                        <SelectItem value="current">{t('reports.currentAccount')}</SelectItem>
+                        <SelectItem value="loan">{t('reports.loans')}</SelectItem>
+                        <SelectItem value="credit">{t('reports.creditCards')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm">Customer Segment</Label>
+                    <Label className="text-sm">{t('reports.customerSegment')}</Label>
                     <Select value={filters.segment} onValueChange={(value) => setFilters({...filters, segment: value})}>
                       <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Select segment" />
+                        <SelectValue placeholder={t('reports.customerSegment')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Segments</SelectItem>
-                        <SelectItem value="retail">Retail</SelectItem>
-                        <SelectItem value="corporate">Corporate</SelectItem>
-                        <SelectItem value="sme">SME</SelectItem>
-                        <SelectItem value="private">Private Banking</SelectItem>
+                        <SelectItem value="all">{t('reports.allSegments')}</SelectItem>
+                        <SelectItem value="retail">{t('reports.retail')}</SelectItem>
+                        <SelectItem value="corporate">{t('reports.corporate')}</SelectItem>
+                        <SelectItem value="sme">{t('reports.sme')}</SelectItem>
+                        <SelectItem value="private">{t('reports.privateBanking')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -707,15 +744,35 @@ export function Reports() {
                       {isGenerating ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
+                          {t('reports.generating')}
                         </>
                       ) : (
                         <>
                           <FileText className="mr-2 h-4 w-4" />
-                          Generate Report
+                          {t('reports.generateReport')}
                         </>
                       )}
                     </Button>
+                    
+                    {/* Show additional actions when report is generated */}
+                    {generatedReport && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button 
+                          variant="outline"
+                          onClick={() => setPreviewDialogOpen(true)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          {t('reports.preview')}
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={handlePrint}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          {t('reports.print')}
+                        </Button>
+                      </div>
+                    )}
                     
                     <div className="grid grid-cols-2 gap-2">
                       <Button 
@@ -724,7 +781,7 @@ export function Reports() {
                         disabled={!selectedReport}
                       >
                         <Calendar className="mr-2 h-4 w-4" />
-                        Schedule
+                        {t('reports.schedule')}
                       </Button>
                       <Button 
                         variant="outline"
@@ -732,7 +789,7 @@ export function Reports() {
                         disabled={!generatedReport}
                       >
                         <Mail className="mr-2 h-4 w-4" />
-                        Email
+                        {t('reports.email')}
                       </Button>
                     </div>
                   </div>
@@ -742,21 +799,55 @@ export function Reports() {
               {/* Quick Actions */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Quick Actions</CardTitle>
+                  <CardTitle className="text-base">{t('reports.quickActions')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start" size="sm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Last Report
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" size="sm">
-                    <Eye className="mr-2 h-4 w-4" />
-                    Preview Templates
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" size="sm">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Report Settings
-                  </Button>
+                  {generatedReport ? (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        size="sm"
+                        onClick={() => handleDownload('pdf')}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {t('reports.downloadPDF')}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        size="sm"
+                        onClick={() => handleDownload('excel')}
+                      >
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        {t('reports.downloadExcel')}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        size="sm"
+                        onClick={handlePrint}
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        {t('reports.printReport')}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="outline" className="w-full justify-start" size="sm" disabled>
+                        <Download className="mr-2 h-4 w-4" />
+                        {t('reports.downloadLastReport')}
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" size="sm">
+                        <Eye className="mr-2 h-4 w-4" />
+                        {t('reports.previewTemplates')}
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" size="sm">
+                        <Settings className="mr-2 h-4 w-4" />
+                        {t('reports.reportSettings')}
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -768,64 +859,66 @@ export function Reports() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Scheduled Reports</CardTitle>
+                <CardTitle>{t('reports.scheduledReports')}</CardTitle>
                 <Button size="sm">
                   <Calendar className="mr-2 h-4 w-4" />
-                  Add Schedule
+                  {t('reports.addSchedule')}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Report Name</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Recipients</TableHead>
-                    <TableHead>Last Run</TableHead>
-                    <TableHead>Next Run</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {scheduledReports.map((schedule) => (
-                    <TableRow key={schedule.id}>
-                      <TableCell className="font-medium">{schedule.reportName}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{schedule.frequency}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {schedule.recipients.slice(0, 2).join(', ')}
-                          {schedule.recipients.length > 2 && ` +${schedule.recipients.length - 2} more`}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{schedule.lastRun}</TableCell>
-                      <TableCell className="text-sm">{schedule.nextRun}</TableCell>
-                      <TableCell>
-                        <Badge variant={schedule.status === 'active' ? 'success' : 'secondary'}>
-                          {schedule.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="ghost">
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => handleCancelSchedule(schedule.id)}
-                          >
-                            <AlertCircle className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">{t('reports.reportName')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.frequency')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.recipients')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.lastRun')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.nextRun')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.status')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.actions')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {scheduledReports.map((schedule) => (
+                      <TableRow key={schedule.id}>
+                        <TableCell className="font-medium">{schedule.reportName}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{schedule.frequency}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {schedule.recipients.slice(0, 2).join(', ')}
+                            {schedule.recipients.length > 2 && ` +${schedule.recipients.length - 2} ${t('reports.more')}`}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{schedule.lastRun}</TableCell>
+                        <TableCell className="text-sm">{schedule.nextRun}</TableCell>
+                        <TableCell>
+                          <Badge variant={schedule.status === 'active' ? 'success' : 'secondary'}>
+                            {schedule.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="ghost">
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => handleCancelSchedule(schedule.id)}
+                            >
+                              <AlertCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -835,55 +928,57 @@ export function Reports() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Report History</CardTitle>
+                <CardTitle>{t('reports.reportHistory')}</CardTitle>
                 <Button size="sm" variant="outline">
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh
+                  {t('reports.refresh')}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Report Name</TableHead>
-                    <TableHead>Generated At</TableHead>
-                    <TableHead>Generated By</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reportHistory.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell className="font-medium">{report.reportName}</TableCell>
-                      <TableCell className="text-sm">{report.generatedAt}</TableCell>
-                      <TableCell>{report.generatedBy}</TableCell>
-                      <TableCell className="text-sm">{report.size}</TableCell>
-                      <TableCell>
-                        <Badge variant="success">
-                          <CheckCircle className="mr-1 h-3 w-3" />
-                          {report.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="ghost">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost">
-                            <Mail className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">{t('reports.reportName')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.generatedAt')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.generatedBy')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.size')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.status')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('reports.actions')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {reportHistory.map((report) => (
+                      <TableRow key={report.id}>
+                        <TableCell className="font-medium">{report.reportName}</TableCell>
+                        <TableCell className="text-sm">{report.generatedAt}</TableCell>
+                        <TableCell>{report.generatedBy}</TableCell>
+                        <TableCell className="text-sm">{report.size}</TableCell>
+                        <TableCell>
+                          <Badge variant="success">
+                            <CheckCircle className="mr-1 h-3 w-3" />
+                            {t('reports.completed')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="ghost">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost">
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -893,23 +988,23 @@ export function Reports() {
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
-            <DialogTitle>Send Report via Email</DialogTitle>
+            <DialogTitle>{t('reports.sendReportViaEmail')}</DialogTitle>
             <DialogDescription>
-              Send the generated report to specified recipients
+              {t('reports.sendReportDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="recipients">Recipients (comma-separated)</Label>
+              <Label htmlFor="recipients">{t('reports.recipientsCommaSeparated')}</Label>
               <Input
                 id="recipients"
-                placeholder="email1@example.com, email2@example.com"
+                placeholder={t('reports.recipientsPlaceholder')}
                 value={emailForm.recipients}
                 onChange={(e) => setEmailForm({...emailForm, recipients: e.target.value})}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="cc">CC (optional)</Label>
+              <Label htmlFor="cc">{t('reports.ccOptional')}</Label>
               <Input
                 id="cc"
                 placeholder="cc@example.com"
@@ -918,7 +1013,7 @@ export function Reports() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="bcc">BCC (optional)</Label>
+              <Label htmlFor="bcc">{t('reports.bccOptional')}</Label>
               <Input
                 id="bcc"
                 placeholder="bcc@example.com"
@@ -927,16 +1022,16 @@ export function Reports() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="message">Additional Message (optional)</Label>
+              <Label htmlFor="message">{t('reports.additionalMessage')}</Label>
               <Textarea
                 id="message"
-                placeholder="Add a custom message..."
+                placeholder={t('reports.addCustomMessage')}
                 value={emailForm.message}
                 onChange={(e) => setEmailForm({...emailForm, message: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <Label>Attachments</Label>
+              <Label>{t('reports.attachments')}</Label>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -944,7 +1039,7 @@ export function Reports() {
                     checked={emailForm.includePDF}
                     onCheckedChange={(checked) => setEmailForm({...emailForm, includePDF: checked})}
                   />
-                  <label htmlFor="includePDF" className="text-sm">Include PDF version</label>
+                  <label htmlFor="includePDF" className="text-sm">{t('reports.includePDFVersion')}</label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -952,25 +1047,25 @@ export function Reports() {
                     checked={emailForm.includeExcel}
                     onCheckedChange={(checked) => setEmailForm({...emailForm, includeExcel: checked})}
                   />
-                  <label htmlFor="includeExcel" className="text-sm">Include Excel version</label>
+                  <label htmlFor="includeExcel" className="text-sm">{t('reports.includeExcelVersion')}</label>
                 </div>
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>
-              Cancel
+              {t('reports.cancel')}
             </Button>
             <Button onClick={handleSendEmail} disabled={isGenerating}>
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
+                  {t('reports.sending')}
                 </>
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  Send Email
+                  {t('reports.sendEmail')}
                 </>
               )}
             </Button>
@@ -982,41 +1077,41 @@ export function Reports() {
       <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
-            <DialogTitle>Schedule Report</DialogTitle>
+            <DialogTitle>{t('reports.scheduleReport')}</DialogTitle>
             <DialogDescription>
-              Set up automatic report generation and delivery
+              {t('reports.scheduleReportDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="frequency">Frequency</Label>
+              <Label htmlFor="frequency">{t('reports.frequency')}</Label>
               <Select value={scheduleForm.frequency} onValueChange={(value) => setScheduleForm({...scheduleForm, frequency: value})}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="daily">{t('reports.daily')}</SelectItem>
+                  <SelectItem value="weekly">{t('reports.weekly')}</SelectItem>
+                  <SelectItem value="monthly">{t('reports.monthly')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             {scheduleForm.frequency === 'weekly' && (
               <div className="grid gap-2">
-                <Label htmlFor="dayOfWeek">Day of Week</Label>
+                <Label htmlFor="dayOfWeek">{t('reports.dayOfWeek')}</Label>
                 <Select value={scheduleForm.dayOfWeek} onValueChange={(value) => setScheduleForm({...scheduleForm, dayOfWeek: value})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Monday</SelectItem>
-                    <SelectItem value="2">Tuesday</SelectItem>
-                    <SelectItem value="3">Wednesday</SelectItem>
-                    <SelectItem value="4">Thursday</SelectItem>
-                    <SelectItem value="5">Friday</SelectItem>
-                    <SelectItem value="6">Saturday</SelectItem>
-                    <SelectItem value="0">Sunday</SelectItem>
+                    <SelectItem value="1">{t('reports.monday')}</SelectItem>
+                    <SelectItem value="2">{t('reports.tuesday')}</SelectItem>
+                    <SelectItem value="3">{t('reports.wednesday')}</SelectItem>
+                    <SelectItem value="4">{t('reports.thursday')}</SelectItem>
+                    <SelectItem value="5">{t('reports.friday')}</SelectItem>
+                    <SelectItem value="6">{t('reports.saturday')}</SelectItem>
+                    <SelectItem value="0">{t('reports.sunday')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1024,7 +1119,7 @@ export function Reports() {
             
             {scheduleForm.frequency === 'monthly' && (
               <div className="grid gap-2">
-                <Label htmlFor="dayOfMonth">Day of Month</Label>
+                <Label htmlFor="dayOfMonth">{t('reports.dayOfMonth')}</Label>
                 <Select value={scheduleForm.dayOfMonth} onValueChange={(value) => setScheduleForm({...scheduleForm, dayOfMonth: value})}>
                   <SelectTrigger>
                     <SelectValue />
@@ -1039,7 +1134,7 @@ export function Reports() {
             )}
             
             <div className="grid gap-2">
-              <Label htmlFor="time">Time</Label>
+              <Label htmlFor="time">{t('reports.time')}</Label>
               <Input
                 id="time"
                 type="time"
@@ -1049,10 +1144,10 @@ export function Reports() {
             </div>
             
             <div className="grid gap-2">
-              <Label htmlFor="scheduleRecipients">Recipients (comma-separated)</Label>
+              <Label htmlFor="scheduleRecipients">{t('reports.recipientsCommaSeparated')}</Label>
               <Input
                 id="scheduleRecipients"
-                placeholder="email1@example.com, email2@example.com"
+                placeholder={t('reports.recipientsPlaceholder')}
                 value={scheduleForm.recipients}
                 onChange={(e) => setScheduleForm({...scheduleForm, recipients: e.target.value})}
               />
@@ -1064,246 +1159,34 @@ export function Reports() {
                 checked={scheduleForm.enabled}
                 onCheckedChange={(checked) => setScheduleForm({...scheduleForm, enabled: checked})}
               />
-              <Label htmlFor="enabled">Enable schedule immediately</Label>
+              <Label htmlFor="enabled">{t('reports.enableScheduleImmediately')}</Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
-              Cancel
+              {t('reports.cancel')}
             </Button>
             <Button onClick={handleScheduleReport}>
               <Calendar className="mr-2 h-4 w-4" />
-              Create Schedule
+              {t('reports.createSchedule')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Preview Dialog */}
-      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-6xl h-[90vh] max-h-[900px] p-0 overflow-hidden">
-          <DialogHeader className="p-4 sm:p-6 pb-0 no-print">
-            <DialogTitle className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg">
-              <img src="/osol-logo.png" alt="OSOL Logo" className="h-6 sm:h-8 w-auto" />
-              <span>Report Preview</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              {generatedReport?.reportInfo.name} - Generated successfully
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="h-[calc(100%-120px)] w-full">
-            <div className="p-4 sm:p-6">
-              {reportData && (
-                <div className="space-y-4">
-                  {/* OSOL Branded Header */}
-                  <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white p-3 sm:p-4 rounded-lg avoid-break">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <img src="/osol-logo.png" alt="OSOL" className="h-8 sm:h-10 w-auto filter brightness-0 invert" />
-                        <div>
-                          <h2 className="text-base sm:text-xl font-bold">OSOL Financial Report</h2>
-                          <p className="text-xs sm:text-sm opacity-90">{generatedReport?.reportInfo.name}</p>
-                        </div>
-                      </div>
-                      <div className="text-left sm:text-right">
-                        <p className="text-xs sm:text-sm">Generated on</p>
-                        <p className="font-semibold text-sm sm:text-base">{format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 avoid-break">
-                      <div>
-                        <h3 className="font-semibold mb-2 text-[#4A5568] text-sm sm:text-base">Report Summary</h3>
-                        <div className="space-y-1 text-xs sm:text-sm bg-gray-50 p-2 sm:p-3 rounded-lg">
-                        <p><span className="font-medium">Type:</span> {generatedReport?.reportInfo.name}</p>
-                        <p><span className="font-medium">Period:</span> {format(dateRange.from, 'MMM dd, yyyy')} - {format(dateRange.to, 'MMM dd, yyyy')}</p>
-                        <p><span className="font-medium">Generated:</span> {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-2 text-[#4A5568] text-sm sm:text-base">Key Metrics</h3>
-                      <div className="space-y-2 text-xs sm:text-sm bg-gray-50 p-2 sm:p-3 rounded-lg max-h-[300px] overflow-y-auto">
-                        {generatedReport?.data && (
-                          <>
-                            {/* Period Information */}
-                            {generatedReport.data.period && (
-                              <div className="border-b pb-2">
-                                <span className="font-medium text-[#4A5568]">Period:</span>
-                                <span className="ml-2">
-                                  {format(new Date(generatedReport.data.period.startDate), 'MMM dd, yyyy')} - 
-                                  {format(new Date(generatedReport.data.period.endDate), 'MMM dd, yyyy')}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* Revenue */}
-                            {generatedReport.data.revenue && (
-                              <div className="border-b pb-2">
-                                <span className="font-medium text-[#4A5568]">Revenue:</span>
-                                <div className="ml-4 mt-1 space-y-1">
-                                  {generatedReport.data.revenue.transactionFees !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Transaction Fees:</span>
-                                      <span>SAR {generatedReport.data.revenue.transactionFees?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                  {generatedReport.data.revenue.interestIncome !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Interest Income:</span>
-                                      <span>SAR {generatedReport.data.revenue.interestIncome?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                  {generatedReport.data.revenue.totalRevenue !== undefined && (
-                                    <div className="flex justify-between font-medium">
-                                      <span>Total Revenue:</span>
-                                      <span>SAR {generatedReport.data.revenue.totalRevenue?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Expenses */}
-                            {generatedReport.data.expenses && (
-                              <div className="border-b pb-2">
-                                <span className="font-medium text-[#4A5568]">Expenses:</span>
-                                <div className="ml-4 mt-1 space-y-1">
-                                  {generatedReport.data.expenses.operatingExpenses !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Operating Expenses:</span>
-                                      <span>SAR {generatedReport.data.expenses.operatingExpenses?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                  {generatedReport.data.expenses.personnelCosts !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Personnel Costs:</span>
-                                      <span>SAR {generatedReport.data.expenses.personnelCosts?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                  {generatedReport.data.expenses.provisions !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Provisions:</span>
-                                      <span>SAR {generatedReport.data.expenses.provisions?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                  {generatedReport.data.expenses.totalExpenses !== undefined && (
-                                    <div className="flex justify-between font-medium">
-                                      <span>Total Expenses:</span>
-                                      <span>SAR {generatedReport.data.expenses.totalExpenses?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Net Income */}
-                            {generatedReport.data.netIncome !== undefined && (
-                              <div className="border-b pb-2">
-                                <div className="flex justify-between">
-                                  <span className="font-medium text-[#4A5568]">Net Income:</span>
-                                  <span className={`font-medium ${generatedReport.data.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    SAR {generatedReport.data.netIncome?.toLocaleString() || '0'}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Additional Metrics */}
-                            {generatedReport.data.metrics && (
-                              <div>
-                                <span className="font-medium text-[#4A5568]">Metrics:</span>
-                                <div className="ml-4 mt-1 space-y-1">
-                                  {generatedReport.data.metrics.totalTransactions !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Total Transactions:</span>
-                                      <span>{generatedReport.data.metrics.totalTransactions?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                  {generatedReport.data.metrics.activeLoans !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Active Loans:</span>
-                                      <span>{generatedReport.data.metrics.activeLoans?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                  {generatedReport.data.metrics.activeAccounts !== undefined && (
-                                    <div className="flex justify-between">
-                                      <span>Active Accounts:</span>
-                                      <span>{generatedReport.data.metrics.activeAccounts?.toLocaleString() || '0'}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold mb-2 text-[#4A5568]">Report Preview</h3>
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      {/* Visual Report View */}
-                      {generatedReport?.data && (
-                        <VisualReportView 
-                          reportData={generatedReport.data} 
-                          reportType={selectedReport}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-          <DialogFooter className="border-t p-4 sm:p-6 no-print">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
-              <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-                <img src="/osol-logo.png" alt="OSOL" className="h-4 w-auto opacity-50" />
-                <span>© 2025 OSOL Financial Services</span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleDownload('excel')}
-                  className="w-full sm:w-auto text-sm"
-                >
-                  <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  <span className="sm:hidden">Excel</span>
-                  <span className="hidden sm:inline">Download Excel</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleDownload('pdf')}
-                  className="w-full sm:w-auto text-sm"
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  <span className="sm:hidden">PDF</span>
-                  <span className="hidden sm:inline">Download PDF</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handlePrint}
-                  className="w-full sm:w-auto text-sm"
-                >
-                  <Printer className="mr-2 h-4 w-4" />
-                  <span className="sm:hidden">Print</span>
-                  <span className="hidden sm:inline">Print Report</span>
-                </Button>
-                <Button 
-                  onClick={() => setEmailDialogOpen(true)} 
-                  className="bg-[#E6B800] hover:bg-[#CC9900] w-full sm:w-auto text-sm"
-                >
-                  <Mail className="mr-2 h-4 w-4" />
-                  <span className="sm:hidden">Email</span>
-                  <span className="hidden sm:inline">Send Email</span>
-                </Button>
-              </div>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Preview Dialog - Using new PDFViewer component */}
+      <PDFViewer
+        isOpen={previewDialogOpen}
+        onClose={() => setPreviewDialogOpen(false)}
+        pdfDoc={generatedReport?.pdf}
+        reportName={generatedReport?.reportInfo?.name ? t(generatedReport.reportInfo.name) : ''}
+        onDownload={() => handleDownload('pdf')}
+        onPrint={handlePrint}
+      />
     </div>
   );
 }
+
+// Export as Reports for backward compatibility
+export const Reports = ReportsResponsive;
+export default ReportsResponsive;

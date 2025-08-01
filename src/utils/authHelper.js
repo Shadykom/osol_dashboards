@@ -40,10 +40,10 @@ export const handle401Error = async (error) => {
 export const createAuthenticatedClient = async () => {
   try {
     // Just return the existing supabase client
-    return supabase;
+    return supabaseBanking;
   } catch (error) {
     console.error('Error creating client:', error);
-    return supabase;
+    return supabaseBanking;
   }
 };
 

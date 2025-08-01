@@ -1,5 +1,9 @@
 import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import financialReportService from './reports/financialReportService';
+import regulatoryReportService from './reports/regulatoryReportService';
+import customerReportService from './reports/customerReportService';
+import riskReportService from './reports/riskReportService';
 
 class ComprehensiveReportService {
   /**
@@ -11,15 +15,15 @@ class ComprehensiveReportService {
       
       switch (reportType) {
         case 'income_statement':
-          return await this.getIncomeStatement(startDate, endDate);
+          return await financialReportService.getIncomeStatement(startDate, endDate);
         case 'balance_sheet':
-          return await this.getBalanceSheet(endDate);
+          return await financialReportService.getBalanceSheet(endDate);
         case 'cash_flow':
-          return await this.getCashFlowStatement(startDate, endDate);
+          return await financialReportService.getCashFlowStatement(startDate, endDate);
         case 'profit_loss':
-          return await this.getProfitLossStatement(startDate, endDate);
+          return await financialReportService.getProfitLossStatement(startDate, endDate);
         case 'budget_variance':
-          return await this.getBudgetVarianceAnalysis(startDate, endDate);
+          return await financialReportService.getBudgetVarianceAnalysis(startDate, endDate);
         default:
           throw new Error(`Unknown financial report type: ${reportType}`);
       }
@@ -1105,6 +1109,88 @@ class ComprehensiveReportService {
       };
     } catch (error) {
       console.error('Error generating NPL analysis report:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Regulatory Report Data
+   */
+  async getRegulatoryReportData(reportType, dateRange) {
+    try {
+      const { startDate, endDate } = dateRange;
+      
+      switch (reportType) {
+        case 'sama_monthly':
+          return await regulatoryReportService.getSAMAMonthlyReport(startDate, endDate);
+        case 'basel_iii':
+          return await regulatoryReportService.getBaselIIICompliance(endDate);
+        case 'aml_report':
+          return await regulatoryReportService.getAMLReport(startDate, endDate);
+        case 'liquidity_coverage':
+          return await regulatoryReportService.getLiquidityCoverageRatio(endDate);
+        case 'capital_adequacy':
+          return await regulatoryReportService.getCapitalAdequacyReport(endDate);
+        default:
+          // Fallback to financial report for now
+          return await this.getFinancialReportData('income_statement', dateRange);
+      }
+    } catch (error) {
+      console.error('Error fetching regulatory report:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Customer Report Data
+   */
+  async getCustomerReportData(reportType, dateRange) {
+    try {
+      const { startDate, endDate } = dateRange;
+      
+      switch (reportType) {
+        case 'customer_acquisition':
+          return await customerReportService.getCustomerAcquisition(startDate, endDate);
+        case 'customer_retention':
+          return await customerReportService.getCustomerRetention(startDate, endDate);
+        case 'customer_satisfaction':
+          return await customerReportService.getCustomerSatisfaction(startDate, endDate);
+        case 'customer_demographics':
+          return await customerReportService.getCustomerDemographics(endDate);
+        case 'customer_behavior':
+          return await customerReportService.getCustomerBehavior(startDate, endDate);
+        default:
+          throw new Error(`Unknown customer report type: ${reportType}`);
+      }
+    } catch (error) {
+      console.error('Error fetching customer report:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Risk Report Data
+   */
+  async getRiskReportData(reportType, dateRange) {
+    try {
+      const { startDate, endDate } = dateRange;
+      
+      switch (reportType) {
+        case 'credit_risk':
+          return await riskReportService.getCreditRiskReport(startDate, endDate);
+        case 'market_risk':
+          return await riskReportService.getMarketRiskReport(endDate);
+        case 'operational_risk':
+          return await riskReportService.getOperationalRiskReport(startDate, endDate);
+        case 'npl_analysis':
+          return await riskReportService.getNPLAnalysis(startDate, endDate);
+        case 'liquidity_risk':
+          return await riskReportService.getLiquidityRiskReport(endDate);
+        default:
+          throw new Error(`Unknown risk report type: ${reportType}`);
+      }
+    } catch (error) {
+      console.error('Error fetching risk report:', error);
       throw error;
     }
   }

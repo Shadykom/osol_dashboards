@@ -42,8 +42,11 @@ import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
 import DashboardDetail from './pages/DashboardDetail';
 import DashboardDetailNew from './pages/DashboardDetailNew';
+import ModernDashboardDetail from './pages/ModernDashboardDetail';
+import DashboardCardsDemo from './pages/DashboardCardsDemo';
 import DashboardReports from './pages/DashboardReports';
 import ReportsHealthCheck from './pages/ReportsHealthCheck';
+import TestDashboardRouting from './pages/TestDashboardRouting';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import { Toaster } from './components/ui/sonner';
@@ -52,7 +55,7 @@ import { useTranslation } from 'react-i18next';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './App.css';
-import { testDatabaseSchema } from '@/utils/testFixes';
+import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { testDashboardConsistency } from '@/utils/testDashboardConsistency';
 
 // Route Redirect Component
@@ -200,7 +203,10 @@ function AppContent() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
           <Route path="/dashboard/detail-new/:section/:widgetId" element={<DashboardDetailNew />} />
+          <Route path="/dashboard/modern-detail/:cardType" element={<ModernDashboardDetail />} />
+          <Route path="/dashboard/cards-demo" element={<DashboardCardsDemo />} />
           <Route path="/dashboard/reports" element={<DashboardReports />} />
+          <Route path="/test-dashboard" element={<TestDashboardRouting />} />
           
           {/* Dashboard Routes */}
           <Route path="/dashboards/custom" element={

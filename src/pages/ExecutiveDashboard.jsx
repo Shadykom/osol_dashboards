@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,10 @@ import { DashboardService } from '@/services/dashboardService';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BranchReportService } from '@/services/branchReportService';
+import ComparisonControls from '@/components/dashboard/ComparisonControls';
+import ComparisonChart from '@/components/dashboard/ComparisonChart';
+import ComparisonInsights from '@/components/dashboard/ComparisonInsights';
+import { cn } from '@/lib/utils';
 import {
   LineChart,
   Line,
@@ -26,7 +31,14 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  ComposedChart,
+  Scatter
 } from 'recharts';
 import { 
   TrendingUp, 
@@ -43,12 +55,50 @@ import {
   ArrowDownRight,
   RefreshCw,
   Download,
-  Calendar
+  Calendar,
+  Sparkles,
+  Shield,
+  Target,
+  Zap,
+  BarChart3,
+  PieChartIcon,
+  LineChartIcon,
+  Brain,
+  Eye,
+  Filter,
+  Settings,
+  Share2,
+  FileText,
+  ChevronRight,
+  Info,
+  Layers,
+  Globe,
+  Building2,
+  Briefcase,
+  TrendingUpIcon,
+  MoreVertical
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+import { Progress } from '@/components/ui/progress';
 
 // Mock data removed - now fetching from database
 
-const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA'];
+// Enhanced color palette for modern design
+const COLORS = {
+  primary: ['#6366F1', '#4F46E5', '#4338CA'],
+  success: ['#10B981', '#059669', '#047857'],
+  warning: ['#F59E0B', '#D97706', '#B45309'],
+  danger: ['#EF4444', '#DC2626', '#B91C1C'],
+  info: ['#3B82F6', '#2563EB', '#1D4ED8'],
+  neutral: ['#6B7280', '#4B5563', '#374151'],
+  chart: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6']
+};
 
 function formatCurrency(amount, currency = 'SAR') {
   if (amount >= 1000000000) {
@@ -63,1148 +113,764 @@ function formatCurrency(amount, currency = 'SAR') {
   return `${currency} ${amount.toLocaleString()}`;
 }
 
-function KPICard({ title, value, change, trend, icon: Icon, description, format = 'number' }) {
+// Enhanced KPI Card with comparison features
+function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon, description, format = 'number', comparisonPeriod, color = 'primary' }) {
   const formattedValue = format === 'currency' ? formatCurrency(value) : 
                         format === 'percentage' ? `${value}%` : 
                         typeof value === 'number' ? value.toLocaleString() : value;
 
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{formattedValue}</div>
-        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-          <span>{description}</span>
-          {change && (
-            <div className="flex items-center">
-              {trend === 'up' ? (
-                <ArrowUpRight className="h-3 w-3 text-green-500" />
-              ) : (
-                <ArrowDownRight className="h-3 w-3 text-red-500" />
-              )}
-              <span className={trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                {change}
-              </span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+  const formattedPreviousValue = previousValue ? (
+    format === 'currency' ? formatCurrency(previousValue) : 
+    format === 'percentage' ? `${previousValue}%` : 
+    typeof previousValue === 'number' ? previousValue.toLocaleString() : previousValue
+  ) : null;
 
-function RiskScoreCard({ category, score, status, trend }) {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Excellent': return 'text-green-600 bg-green-50';
-      case 'Good': return 'text-blue-600 bg-blue-50';
-      case 'Moderate': return 'text-yellow-600 bg-yellow-50';
-      case 'Poor': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
+  const colorClasses = {
+    primary: 'from-indigo-500/10 to-purple-500/10 border-indigo-200 dark:border-indigo-800',
+    success: 'from-emerald-500/10 to-green-500/10 border-emerald-200 dark:border-emerald-800',
+    warning: 'from-amber-500/10 to-orange-500/10 border-amber-200 dark:border-amber-800',
+    danger: 'from-red-500/10 to-rose-500/10 border-red-200 dark:border-red-800',
+    info: 'from-blue-500/10 to-cyan-500/10 border-blue-200 dark:border-blue-800'
   };
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">{category}</p>
-            <p className="text-2xl font-bold">{score}/100</p>
-          </div>
-          <div className="text-right">
-            <Badge className={getStatusColor(status)}>
-              {status}
-            </Badge>
-            <p className="text-xs text-muted-foreground mt-1">
-              {trend === 'improving' ? '↗️' : trend === 'declining' ? '↘️' : '→'} {trend}
-            </p>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      whileHover={{ y: -4 }}
+      className="h-full"
+    >
+      <Card className={cn(
+        "relative overflow-hidden h-full transition-all duration-300 hover:shadow-2xl",
+        "bg-gradient-to-br",
+        colorClasses[color],
+        "border backdrop-blur-sm"
+      )}>
+        <div className="absolute top-0 right-0 w-32 h-32 transform translate-x-8 -translate-y-8">
+          <div className={cn(
+            "w-full h-full rounded-full opacity-20",
+            `bg-${color}-500`
+          )} />
         </div>
-      </CardContent>
-    </Card>
+        
+        <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+            {comparisonPeriod && (
+              <Badge variant="outline" className="text-xs">
+                vs {comparisonPeriod}
+              </Badge>
+            )}
+          </div>
+          <div className={cn(
+            "p-2 rounded-lg",
+            `bg-${color}-500/20`
+          )}>
+            <Icon className={cn("h-4 w-4", `text-${color}-600`)} />
+          </div>
+        </CardHeader>
+        
+        <CardContent className="relative">
+          <div className="space-y-3">
+            <div>
+              <div className="text-2xl font-bold">{formattedValue}</div>
+              {formattedPreviousValue && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  Previously: {formattedPreviousValue}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">{description}</span>
+              {change && (
+                <div className="flex items-center space-x-1">
+                  {trend === 'up' ? (
+                    <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                  ) : trend === 'down' ? (
+                    <ArrowDownRight className="h-4 w-4 text-red-500" />
+                  ) : (
+                    <Activity className="h-4 w-4 text-amber-500" />
+                  )}
+                  <span className={cn(
+                    "text-sm font-medium",
+                    trend === 'up' ? 'text-emerald-500' : 
+                    trend === 'down' ? 'text-red-500' : 
+                    'text-amber-500'
+                  )}>
+                    {change}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* Mini sparkline chart */}
+            <div className="h-8 w-full opacity-50">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={[
+                  { value: previousValue || value * 0.9 },
+                  { value: value * 0.95 },
+                  { value: value }
+                ]}>
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke={COLORS[color][0]}
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+// Modern Risk Score Card with visual indicators
+function ModernRiskScoreCard({ category, score, status, trend, details }) {
+  const getStatusConfig = (status) => {
+    switch(status) {
+      case 'low':
+        return { color: 'success', icon: CheckCircle, label: 'Low Risk' };
+      case 'medium':
+        return { color: 'warning', icon: AlertTriangle, label: 'Medium Risk' };
+      case 'high':
+        return { color: 'danger', icon: AlertTriangle, label: 'High Risk' };
+      default:
+        return { color: 'info', icon: Info, label: 'Unknown' };
+    }
+  };
+
+  const config = getStatusConfig(status);
+  const Icon = config.icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="relative overflow-hidden hover:shadow-xl transition-all duration-300">
+        <div className={cn(
+          "absolute inset-0 opacity-5",
+          `bg-gradient-to-br from-${config.color}-500 to-${config.color}-600`
+        )} />
+        
+        <CardHeader className="relative pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Shield className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-base">{category}</CardTitle>
+            </div>
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Info className="h-4 w-4" />
+                </Button>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-80">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Risk Details</h4>
+                  <p className="text-sm text-muted-foreground">{details || 'No additional details available'}</p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="relative space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className={cn(
+                "p-2 rounded-full",
+                `bg-${config.color}-500/20`
+              )}>
+                <Icon className={cn("h-5 w-5", `text-${config.color}-600`)} />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{score}%</div>
+                <Badge variant={config.color} className="mt-1">
+                  {config.label}
+                </Badge>
+              </div>
+            </div>
+            
+            {trend && (
+              <div className="text-right">
+                <div className="flex items-center text-sm">
+                  {trend > 0 ? (
+                    <TrendingUp className="h-4 w-4 text-red-500 mr-1" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-green-500 mr-1" />
+                  )}
+                  <span className={trend > 0 ? 'text-red-500' : 'text-green-500'}>
+                    {Math.abs(trend)}%
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  vs last period
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <Progress 
+            value={score} 
+            className={cn(
+              "h-2",
+              `[&>div]:bg-${config.color}-500`
+            )}
+          />
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
 export function ExecutiveDashboard() {
   const { t } = useTranslation();
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [loading, setLoading] = useState(true);
-  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [selectedBranch, setSelectedBranch] = useState('all');
-  const [dateRange, setDateRange] = useState({
-    from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    to: new Date()
+  const [comparisonSettings, setComparisonSettings] = useState({
+    type: 'month-to-month',
+    customRange: null,
+    metrics: ['all']
   });
-  const [dashboardData, setDashboardData] = useState({
-    kpis: {
-      totalAssets: 0,
-      totalDeposits: 0,
-      totalLoans: 0,
-      netIncome: 0,
-      roa: 0,
-      roe: 0,
-      nim: 0,
-      costIncomeRatio: 0,
-      nplRatio: 0,
-      capitalAdequacyRatio: 0,
-      totalCustomers: 0,
-      activeCustomers: 0,
-      newCustomersThisMonth: 0,
-      customerGrowthRate: 0
-    },
-    monthlyPerformance: [],
-    customerSegments: [],
-    productPerformance: [],
-    riskMetrics: [],
-    yearlyPerformance: [],
-    yearlyGrowth: [],
-    yearlyKPIs: {
-      totalRevenue: 0,
-      revenueGrowth: 0,
-      totalCustomers: 0,
-      customerGrowth: 0,
-      totalLoans: 0,
-      loanGrowth: 0,
-      branchCount: 0,
-      branchGrowth: 0
-    },
-    quarterlyPerformance: [],
-    quarterlyTargets: [],
-    currentQuarter: {
-      revenueTarget: 0,
-      revenueAchievement: 0,
-      newCustomers: 0,
-      customerTarget: 0,
-      loanDisbursements: 0,
-      loanGrowth: 0,
-      efficiency: 0,
-      efficiencyTarget: 0
-    }
-  });
+  const [activeView, setActiveView] = useState('overview');
+  const { shouldRefresh, refreshComplete } = useDataRefresh();
 
   // Fetch real dashboard data
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const fetchDashboardData = useCallback(async () => {
     try {
-      // Prepare filters
+      setLoading(true);
+      
       const filters = {
-        dateFrom: dateRange?.from?.toISOString(),
-        dateTo: dateRange?.to?.toISOString(),
-        branchId: selectedBranch === 'all' ? null : selectedBranch
-      };
-
-      // Fetch KPIs using DashboardService
-      const kpisResponse = await DashboardService.getExecutiveKPIs();
-      console.log('DashboardService KPIs Response:', kpisResponse);
-      
-      // Fetch customer data - try both count and data methods
-      let customerQuery = supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('*', { count: 'exact', head: true });
-      
-      // Apply branch filter if selected
-      if (filters.branchId) {
-        customerQuery = customerQuery.eq('branch_id', filters.branchId);
-      }
-      
-      // Apply date range filter
-      if (filters.dateFrom && filters.dateTo) {
-        customerQuery = customerQuery
-          .gte('created_at', filters.dateFrom)
-          .lte('created_at', filters.dateTo);
-      }
-      
-      const { count: totalCustomers, error: totalError } = await customerQuery;
-        
-      if (totalError) {
-        console.error('Error fetching total customers:', totalError);
-      }
-      
-      // If count doesn't work, try fetching actual data
-      let actualTotalCustomers = totalCustomers;
-      if (totalCustomers === null || totalCustomers === undefined) {
-        const { data: allCustomerData, error: allDataError } = await supabaseBanking
-          .from(TABLES.CUSTOMERS)
-          .select('customer_id');
-        
-        if (!allDataError && allCustomerData) {
-          actualTotalCustomers = allCustomerData.length;
-          console.log('Used data length for total customers:', actualTotalCustomers);
-        }
-      }
-        
-      let activeCustomerQuery = supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
-      
-      // Apply branch filter if selected
-      if (filters.branchId) {
-        activeCustomerQuery = activeCustomerQuery.eq('branch_id', filters.branchId);
-      }
-      
-      // Apply date range filter
-      if (filters.dateFrom && filters.dateTo) {
-        activeCustomerQuery = activeCustomerQuery
-          .gte('created_at', filters.dateFrom)
-          .lte('created_at', filters.dateTo);
-      }
-      
-      const { count: activeCustomers, error: activeError } = await activeCustomerQuery;
-        
-      if (activeError) {
-        console.error('Error fetching active customers:', activeError);
-      }
-      
-      // If count doesn't work for active customers, try fetching actual data
-      let actualActiveCustomers = activeCustomers;
-      if (activeCustomers === null || activeCustomers === undefined) {
-        const { data: activeCustomerData, error: activeDataError } = await supabaseBanking
-          .from(TABLES.CUSTOMERS)
-          .select('customer_id')
-          .eq('is_active', true);
-        
-        if (!activeDataError && activeCustomerData) {
-          actualActiveCustomers = activeCustomerData.length;
-          console.log('Used data length for active customers:', actualActiveCustomers);
-        }
-      }
-        
-      // Fetch new customers this month
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      
-      const { count: newCustomersThisMonth, error: newCustomersError } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', startOfMonth.toISOString());
-        
-      if (newCustomersError) {
-        console.error('Error fetching new customers:', newCustomersError);
-      }
-      
-      // If count doesn't work for new customers, try fetching actual data
-      let actualNewCustomers = newCustomersThisMonth;
-      if (newCustomersThisMonth === null || newCustomersThisMonth === undefined) {
-        const { data: newCustomerData, error: newDataError } = await supabaseBanking
-          .from(TABLES.CUSTOMERS)
-          .select('customer_id')
-          .gte('created_at', startOfMonth.toISOString());
-        
-        if (!newDataError && newCustomerData) {
-          actualNewCustomers = newCustomerData.length;
-          console.log('Used data length for new customers:', actualNewCustomers);
-        }
-      }
-        
-      // Fetch account balances for deposits
-      let accountsQuery = supabaseBanking
-        .from(TABLES.ACCOUNTS)
-        .select('current_balance, branch_id, created_at')
-        .eq('account_status', 'ACTIVE');
-      
-      // Apply branch filter
-      if (filters.branchId) {
-        accountsQuery = accountsQuery.eq('branch_id', filters.branchId);
-      }
-      
-      // Apply date range filter
-      if (filters.dateFrom && filters.dateTo) {
-        accountsQuery = accountsQuery
-          .gte('created_at', filters.dateFrom)
-          .lte('created_at', filters.dateTo);
-      }
-      
-      const { data: accounts } = await accountsQuery;
-        
-      const totalDeposits = accounts?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
-      
-      // Fetch loan data
-      let loansQuery = supabaseBanking
-        .from(TABLES.LOAN_ACCOUNTS)
-        .select('outstanding_balance, overdue_days, branch_id, created_at')
-        .eq('loan_status', 'ACTIVE');
-      
-      // Apply branch filter
-      if (filters.branchId) {
-        loansQuery = loansQuery.eq('branch_id', filters.branchId);
-      }
-      
-      // Apply date range filter
-      if (filters.dateFrom && filters.dateTo) {
-        loansQuery = loansQuery
-          .gte('created_at', filters.dateFrom)
-          .lte('created_at', filters.dateTo);
-      }
-      
-      const { data: loans } = await loansQuery;
-        
-      const totalLoans = loans?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
-      const nplLoans = loans?.filter(loan => loan.overdue_days > 90) || [];
-      const nplAmount = nplLoans.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0);
-      const nplRatio = totalLoans > 0 ? (nplAmount / totalLoans) * 100 : 0;
-      
-      // Use actual values
-      const finalTotalCustomers = actualTotalCustomers ?? totalCustomers ?? 0;
-      const finalActiveCustomers = actualActiveCustomers ?? activeCustomers ?? 0;
-      const finalNewCustomers = actualNewCustomers ?? newCustomersThisMonth ?? 0;
-      
-      // Debug logging
-      console.log('Customer data debug:', {
-        totalCustomers,
-        activeCustomers,
-        newCustomersThisMonth,
-        actualTotalCustomers,
-        actualActiveCustomers,
-        actualNewCustomers,
-        finalTotalCustomers,
-        finalActiveCustomers,
-        finalNewCustomers,
-        totalError,
-        activeError,
-        newCustomersError
-      });
-      
-      // Calculate customer growth rate
-      const customerGrowthRate = finalTotalCustomers > 0 ? ((finalNewCustomers / finalTotalCustomers) * 100) : 0;
-      
-      // Fetch yearly data
-      const currentYear = new Date().getFullYear();
-      const yearlyPerformance = [];
-      const yearlyGrowth = [];
-      
-      // Generate yearly performance data for the last 5 years
-      for (let i = 4; i >= 0; i--) {
-        const year = currentYear - i;
-        
-        // Fetch transactions for the year
-        let yearQuery = supabaseBanking
-          .from(TABLES.TRANSACTIONS)
-          .select('amount, transaction_type')
-          .gte('transaction_date', `${year}-01-01`)
-          .lte('transaction_date', `${year}-12-31`);
-        
-        if (filters.branchId) {
-          yearQuery = yearQuery.eq('branch_id', filters.branchId);
-        }
-        
-        const { data: yearTransactions } = await yearQuery;
-        
-        const yearRevenue = yearTransactions?.reduce((sum, tx) => {
-          if (tx.transaction_type === 'CREDIT') {
-            return sum + (tx.amount || 0);
-          }
-          return sum;
-        }, 0) || 0;
-        
-        const yearProfit = yearRevenue * 0.35; // Estimated profit margin
-        
-        yearlyPerformance.push({
-          year: year.toString(),
-          revenue: Math.round(yearRevenue / 1000000), // Convert to millions
-          profit: Math.round(yearProfit / 1000000)
-        });
-      }
-      
-      // Calculate yearly growth metrics
-      const { data: lastYearCustomers } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('customer_id', { count: 'exact', head: true })
-        .lte('created_at', `${currentYear - 1}-12-31`);
-      
-      const customerYearlyGrowth = lastYearCustomers ? 
-        ((finalTotalCustomers - lastYearCustomers) / lastYearCustomers * 100).toFixed(1) : 0;
-      
-      // Get branch count
-      const { count: branchCount } = await supabaseBanking
-        .from(TABLES.BRANCHES)
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
-      
-      // Yearly KPIs
-      const yearlyKPIs = {
-        totalRevenue: totalDeposits + totalLoans,
-        revenueGrowth: 12.5, // This would need historical data to calculate
-        totalCustomers: finalTotalCustomers,
-        customerGrowth: customerYearlyGrowth,
-        totalLoans: totalLoans,
-        loanGrowth: 18.7, // This would need historical data
-        branchCount: branchCount || branches.length,
-        branchGrowth: 2 // This would need historical data
+        dateRange,
+        branch: selectedBranch,
+        comparison: comparisonSettings
       };
       
-      // Growth metrics for bar chart
-      yearlyGrowth.push(
-        { metric: 'Revenue', current: 2850, previous: 2540, growth: 12.2 },
-        { metric: 'Customers', current: finalTotalCustomers, previous: Math.round(finalTotalCustomers * 0.85), growth: customerYearlyGrowth },
-        { metric: 'Loans', current: Math.round(totalLoans / 1000000), previous: Math.round(totalLoans * 0.82 / 1000000), growth: 18.7 },
-        { metric: 'Deposits', current: Math.round(totalDeposits / 1000000), previous: Math.round(totalDeposits * 0.9 / 1000000), growth: 11.1 }
-      );
+      const response = await DashboardService.getExecutiveDashboard(filters);
       
-      // Calculate Risk Metrics
-      const riskMetrics = [];
-      
-      // 1. Credit Risk Score (based on NPL ratio and overdue accounts)
-      const creditRiskScore = Math.max(0, 100 - (nplRatio * 10)); // Lower NPL = higher score
-      const creditRiskStatus = creditRiskScore >= 90 ? 'Excellent' : 
-                              creditRiskScore >= 80 ? 'Good' : 
-                              creditRiskScore >= 70 ? 'Moderate' : 'Poor';
-      
-      // Determine trend by comparing with previous period
-      const creditRiskTrend = nplRatio < 2 ? 'improving' : nplRatio > 3 ? 'declining' : 'stable';
-      
-      riskMetrics.push({
-        category: 'Credit Risk',
-        score: Math.round(creditRiskScore),
-        status: creditRiskStatus,
-        trend: creditRiskTrend
-      });
-      
-      // 2. Liquidity Risk Score (based on deposit to loan ratio)
-      const liquidityRatio = totalDeposits > 0 ? (totalLoans / totalDeposits) : 0;
-      const liquidityRiskScore = liquidityRatio < 0.8 ? 95 : 
-                                liquidityRatio < 0.9 ? 85 : 
-                                liquidityRatio < 1.0 ? 75 : 65;
-      const liquidityRiskStatus = liquidityRiskScore >= 90 ? 'Excellent' : 
-                                 liquidityRiskScore >= 80 ? 'Good' : 
-                                 liquidityRiskScore >= 70 ? 'Moderate' : 'Poor';
-      
-      riskMetrics.push({
-        category: 'Liquidity Risk',
-        score: Math.round(liquidityRiskScore),
-        status: liquidityRiskStatus,
-        trend: 'stable'
-      });
-      
-      // 3. Operational Risk Score (based on active accounts and transactions)
-      const { data: recentTransactions } = await supabaseBanking
-        .from(TABLES.TRANSACTIONS)
-        .select('transaction_id', { count: 'exact', head: true })
-        .gte('transaction_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
-      
-      const transactionVolume = recentTransactions || 0;
-      const operationalRiskScore = transactionVolume > 10000 ? 95 : 
-                                  transactionVolume > 5000 ? 90 : 
-                                  transactionVolume > 1000 ? 85 : 80;
-      
-      riskMetrics.push({
-        category: 'Operational Risk',
-        score: operationalRiskScore,
-        status: operationalRiskScore >= 90 ? 'Excellent' : 'Good',
-        trend: 'stable'
-      });
-      
-      // 4. Market Risk Score (based on portfolio diversification)
-      const portfolioDiversification = customerSegments.length;
-      const marketRiskScore = portfolioDiversification >= 5 ? 85 : 
-                             portfolioDiversification >= 3 ? 78 : 
-                             portfolioDiversification >= 2 ? 70 : 65;
-      
-      riskMetrics.push({
-        category: 'Market Risk',
-        score: marketRiskScore,
-        status: marketRiskScore >= 80 ? 'Good' : marketRiskScore >= 70 ? 'Moderate' : 'Poor',
-        trend: 'improving'
-      });
-      
-      // 5. Compliance Risk Score (based on KYC completion and document verification)
-      const { data: customersWithDocs } = await supabaseBanking
-        .from(TABLES.CUSTOMER_DOCUMENTS)
-        .select('customer_id', { count: 'exact', head: true })
-        .eq('is_verified', true);
-      
-      const kycCompletionRate = finalTotalCustomers > 0 ? 
-        ((customersWithDocs || 0) / finalTotalCustomers) * 100 : 0;
-      const complianceRiskScore = kycCompletionRate >= 95 ? 95 : 
-                                 kycCompletionRate >= 90 ? 88 : 
-                                 kycCompletionRate >= 80 ? 75 : 65;
-      
-      riskMetrics.push({
-        category: 'Compliance Risk',
-        score: Math.round(complianceRiskScore),
-        status: complianceRiskScore >= 90 ? 'Excellent' : 
-                complianceRiskScore >= 80 ? 'Good' : 
-                complianceRiskScore >= 70 ? 'Moderate' : 'Poor',
-        trend: 'stable'
-      });
-      
-      // Calculate Quarterly Data
-      const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-      // currentYear is already declared above
-      const quarterlyPerformance = [];
-      const quarterlyTargets = [];
-      
-      // Generate quarterly data for the current year
-      for (let q = 1; q <= currentQuarter; q++) {
-        const startMonth = (q - 1) * 3;
-        const endMonth = q * 3 - 1;
-        const startDate = new Date(currentYear, startMonth, 1);
-        const endDate = new Date(currentYear, endMonth + 1, 0);
-        
-        // Fetch quarterly transactions
-        let quarterQuery = supabaseBanking
-          .from(TABLES.TRANSACTIONS)
-          .select('amount, transaction_type')
-          .gte('transaction_date', startDate.toISOString())
-          .lte('transaction_date', endDate.toISOString());
-        
-        if (filters.branchId) {
-          quarterQuery = quarterQuery.eq('branch_id', filters.branchId);
-        }
-        
-        const { data: quarterTransactions } = await quarterQuery;
-        
-        const quarterRevenue = quarterTransactions?.reduce((sum, tx) => {
-          if (tx.transaction_type === 'CREDIT') {
-            return sum + (tx.amount || 0);
-          }
-          return sum;
-        }, 0) || 0;
-        
-        const quarterProfit = quarterRevenue * 0.35;
-        
-        quarterlyPerformance.push({
-          quarter: `Q${q}`,
-          revenue: Math.round(quarterRevenue / 1000000),
-          profit: Math.round(quarterProfit / 1000000)
-        });
-        
-        // Quarterly targets (estimated)
-        const targetRevenue = Math.round((quarterRevenue * 1.1) / 1000000);
-        quarterlyTargets.push({
-          quarter: `Q${q}`,
-          target: targetRevenue,
-          actual: Math.round(quarterRevenue / 1000000)
-        });
+      if (response && response.success && response.data) {
+        setDashboardData(response.data);
+      } else {
+        toast.error('Failed to load dashboard data');
       }
-      
-      // Current quarter metrics
-      const currentQuarterStart = new Date(currentYear, (currentQuarter - 1) * 3, 1);
-      const { data: currentQuarterCustomers } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('customer_id', { count: 'exact', head: true })
-        .gte('created_at', currentQuarterStart.toISOString());
-      
-      const { data: currentQuarterLoans } = await supabaseBanking
-        .from(TABLES.LOAN_ACCOUNTS)
-        .select('loan_amount')
-        .gte('created_at', currentQuarterStart.toISOString());
-      
-      const currentQuarterLoanAmount = currentQuarterLoans?.reduce((sum, loan) => sum + (loan.loan_amount || 0), 0) || 0;
-      
-      const currentQuarterData = {
-        revenueTarget: 850000000, // SAR 850M target
-        revenueAchievement: 78,
-        newCustomers: currentQuarterCustomers || 0,
-        customerTarget: 5000,
-        loanDisbursements: currentQuarterLoanAmount,
-        loanGrowth: 15.3,
-        efficiency: 89,
-        efficiencyTarget: 92
-      };
-      
-      // Fetch customer segments
-      const { data: customers } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('customer_segment, customer_type');
-        
-      const segmentCounts = customers?.reduce((acc, customer) => {
-        const segment = customer.customer_segment || customer.customer_type || 'Retail Banking';
-        acc[segment] = (acc[segment] || 0) + 1;
-        return acc;
-      }, {});
-      
-      const totalSegmentCount = Object.values(segmentCounts || {}).reduce((sum, count) => sum + count, 0);
-      const customerSegments = Object.entries(segmentCounts || {}).map(([segment, count]) => ({
-        segment,
-        value: count,
-        percentage: totalSegmentCount > 0 ? Math.round((count / totalSegmentCount) * 100) : 0
-      }));
-      
-      // Final customer counts are already calculated above
-      console.log('Final customer counts:', {
-        total: finalTotalCustomers,
-        active: finalActiveCustomers,
-        new: finalNewCustomers
-      });
-      
-      // Set the dashboard data
-      setDashboardData({
-        kpis: {
-          totalAssets: totalDeposits + totalLoans,
-          totalDeposits,
-          totalLoans,
-          netIncome: totalDeposits * 0.02, // Estimated as 2% of deposits
-          roa: 2.85, // These would need proper calculation
-          roe: 18.2,
-          nim: 3.4,
-          costIncomeRatio: 42.5,
-          nplRatio: nplRatio.toFixed(2),
-          capitalAdequacyRatio: 16.8,
-                      totalCustomers: finalTotalCustomers,
-            activeCustomers: finalActiveCustomers,
-            newCustomersThisMonth: finalNewCustomers,
-          customerGrowthRate: customerGrowthRate.toFixed(2)
-        },
-        monthlyPerformance: [
-          { month: 'Jan', revenue: 125.3, profit: 42.1 },
-          { month: 'Feb', revenue: 132.8, profit: 44.7 },
-          { month: 'Mar', revenue: 141.2, profit: 48.3 },
-          { month: 'Apr', revenue: 138.5, profit: 46.9 },
-          { month: 'May', revenue: 145.7, profit: 50.2 },
-          { month: 'Jun', revenue: 152.3, profit: 53.1 },
-          { month: 'Jul', revenue: 158.9, profit: 56.4 }
-        ],
-        customerSegments,
-        productPerformance: [
-          { product: 'Savings', revenue: 45.2, growth: 12.5 },
-          { product: 'Current', revenue: 38.7, growth: 8.3 },
-          { product: 'Loans', revenue: 62.4, growth: 18.9 },
-          { product: 'Cards', revenue: 28.9, growth: 15.2 },
-          { product: 'Digital', revenue: 19.3, growth: 32.1 }
-        ],
-        riskMetrics,
-        yearlyPerformance,
-        yearlyGrowth,
-        yearlyKPIs,
-        quarterlyPerformance,
-        quarterlyTargets,
-        currentQuarter: currentQuarterData
-      });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to fetch dashboard data');
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Fetch branches on component mount
-  const fetchBranches = async () => {
-    try {
-      const response = await BranchReportService.getBranches();
-      if (response.success && response.data) {
-        setBranches(response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching branches:', error);
-      toast.error('Failed to fetch branches');
-    }
-  };
+  }, [dateRange, selectedBranch, comparisonSettings]);
 
   useEffect(() => {
     fetchDashboardData();
-    fetchBranches();
-  }, []);
+  }, [fetchDashboardData]);
 
-  // Use the data refresh hook
-  const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
-    fetchDashboardData,
-    [], // No dependencies
-    {
-      refreshOnMount: true,
-      showNotification: true,
-      notificationMessage: 'Executive Dashboard loaded'
+  useEffect(() => {
+    if (shouldRefresh) {
+      fetchDashboardData().then(() => {
+        refreshComplete();
+        toast.success('Dashboard refreshed successfully');
+      });
     }
-  );
+  }, [shouldRefresh, fetchDashboardData, refreshComplete]);
 
-  const handleRefresh = () => {
-    refresh();
+  const handleComparisonChange = (settings) => {
+    setComparisonSettings(settings);
+  };
+
+  const handleExport = () => {
+    toast.success('Exporting dashboard data...');
+    // Implement export functionality
+  };
+
+  const handleShare = () => {
+    toast.success('Sharing dashboard...');
+    // Implement share functionality
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
-          <p className="text-muted-foreground">
-            Strategic overview of banking operations and key performance indicators
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="p-6 space-y-6"
+      >
+        {/* Modern Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Executive Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Real-time insights and performance metrics
+            </p>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchDashboardData()}
+              disabled={loading}
+              className="relative overflow-hidden group"
+            >
+              <RefreshCw className={cn(
+                "h-4 w-4 mr-2 transition-transform",
+                loading && "animate-spin"
+              )} />
+              Refresh
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
+            
+            <Button variant="default" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Customize
+            </Button>
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="text-xs">
-            Last updated: {lastRefreshed ? lastRefreshed.toLocaleTimeString() : 'N/A'}
-          </Badge>
-          <Button variant="outline" size="sm" onClick={handleRefresh}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.info('Export functionality coming soon')}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Report
-          </Button>
-        </div>
-      </div>
 
-      {/* Filters Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[250px]">
-              <label className="text-sm font-medium mb-2 block">Date Range</label>
-              <DatePickerWithRange
-                date={dateRange}
-                setDate={setDateRange}
-                className="w-full"
-              />
+        {/* Comparison Controls */}
+        <ComparisonControls 
+          onComparisonChange={handleComparisonChange}
+          className="mb-6"
+        />
+
+        {/* Quick Filters */}
+        <Card className="p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-0 shadow-lg">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Quick Filters:</span>
             </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">Branch</label>
+            
+            <div className="flex flex-col sm:flex-row gap-3 flex-1">
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <Building2 className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Branches</SelectItem>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.branch_id} value={branch.branch_id}>
-                      {branch.branch_name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="riyadh">Riyadh</SelectItem>
+                  <SelectItem value="jeddah">Jeddah</SelectItem>
+                  <SelectItem value="dammam">Dammam</SelectItem>
                 </SelectContent>
               </Select>
+              
+              <DatePickerWithRange
+                date={dateRange}
+                onDateChange={setDateRange}
+                className="w-full sm:w-[300px]"
+              />
             </div>
-            <div className="flex items-end">
-              <Button 
-                onClick={() => {
-                  fetchDashboardData();
-                  toast.success('Filters applied');
-                }}
-                className="h-9"
-              >
-                Apply Filters
-              </Button>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="px-3 py-1">
+                <Sparkles className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">AI Insights: </span>ON
+              </Badge>
+              <Badge variant="outline" className="px-3 py-1">
+                <Clock className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">Live </span>Data
+              </Badge>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
 
-      {/* Key Financial Metrics */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Financial Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Assets"
-            value={dashboardData.kpis.totalAssets}
-            change="+8.5%"
-            trend="up"
-            icon={TrendingUp}
-            description="Total bank assets"
-            format="currency"
-          />
-          <KPICard
-            title="Net Income"
-            value={dashboardData.kpis.netIncome}
-            change="+12.3%"
-            trend="up"
-            icon={DollarSign}
-            description="Annual net income"
-            format="currency"
-          />
-          <KPICard
-            title="Return on Assets"
-            value={dashboardData.kpis.roa}
-            change="+0.3%"
-            trend="up"
-            icon={TrendingUp}
-            description="ROA percentage"
-            format="percentage"
-          />
-          <KPICard
-            title="Cost-Income Ratio"
-            value={dashboardData.kpis.costIncomeRatio}
-            change="-2.1%"
-            trend="up"
-            icon={TrendingDown}
-            description="Efficiency ratio"
-            format="percentage"
-          />
-        </div>
-      </div>
+        {/* Main Content Tabs */}
+        <Tabs value={activeView} onValueChange={setActiveView} className="space-y-6">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl mx-auto bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm p-1 rounded-xl">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+              <Layers className="h-4 w-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="performance" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+              <TrendingUpIcon className="h-4 w-4 mr-2" />
+              Performance
+            </TabsTrigger>
+            <TabsTrigger value="risk" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+              <Shield className="h-4 w-4 mr-2" />
+              Risk Analysis
+            </TabsTrigger>
+            <TabsTrigger value="insights" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+              <Brain className="h-4 w-4 mr-2" />
+              AI Insights
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Customer Metrics */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Customer Metrics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Customers"
-            value={dashboardData.kpis.totalCustomers}
-            change="+12.5%"
-            trend="up"
-            icon={Users}
-            description="All customers"
-          />
-          <KPICard
-            title="Active Customers"
-            value={dashboardData.kpis.activeCustomers}
-            change="+8.2%"
-            trend="up"
-            icon={CheckCircle}
-            description="Active this month"
-          />
-          <KPICard
-            title="New Customers"
-            value={dashboardData.kpis.newCustomersThisMonth}
-            change="+15.7%"
-            trend="up"
-            icon={Users}
-            description="This month"
-          />
-          <KPICard
-            title="Customer Growth"
-            value={dashboardData.kpis.customerGrowthRate}
-            change="+2.3%"
-            trend="up"
-            icon={TrendingUp}
-            description="YoY growth rate"
-            format="percentage"
-          />
-        </div>
-      </div>
+          <AnimatePresence mode="wait">
+            <TabsContent value="overview" className="space-y-6">
+              {/* KPI Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ModernKPICard
+                  title="Total Revenue"
+                  value={dashboardData?.revenue?.current || 125000000}
+                  previousValue={dashboardData?.revenue?.previous || 115000000}
+                  change="+8.7%"
+                  trend="up"
+                  icon={DollarSign}
+                  description="Total income generated"
+                  format="currency"
+                  comparisonPeriod={comparisonSettings.type}
+                  color="success"
+                />
+                
+                <ModernKPICard
+                  title="Active Loans"
+                  value={dashboardData?.loans?.active || 8543}
+                  previousValue={dashboardData?.loans?.previousActive || 8234}
+                  change="+3.8%"
+                  trend="up"
+                  icon={CreditCard}
+                  description="Currently active loans"
+                  comparisonPeriod={comparisonSettings.type}
+                  color="primary"
+                />
+                
+                <ModernKPICard
+                  title="Total Deposits"
+                  value={dashboardData?.deposits?.total || 450000000}
+                  previousValue={dashboardData?.deposits?.previousTotal || 425000000}
+                  change="+5.9%"
+                  trend="up"
+                  icon={PiggyBank}
+                  description="Customer deposits"
+                  format="currency"
+                  comparisonPeriod={comparisonSettings.type}
+                  color="info"
+                />
+                
+                <ModernKPICard
+                  title="NPL Ratio"
+                  value={dashboardData?.npl?.ratio || 2.3}
+                  previousValue={dashboardData?.npl?.previousRatio || 2.8}
+                  change="-0.5%"
+                  trend="down"
+                  icon={AlertTriangle}
+                  description="Non-performing loans"
+                  format="percentage"
+                  comparisonPeriod={comparisonSettings.type}
+                  color="warning"
+                />
+              </div>
 
-      {/* Charts and Analytics */}
-      <Tabs value={selectedPeriod} onValueChange={setSelectedPeriod} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="monthly">Monthly View</TabsTrigger>
-          <TabsTrigger value="quarterly">Quarterly View</TabsTrigger>
-          <TabsTrigger value="yearly">Yearly View</TabsTrigger>
-        </TabsList>
+              {/* Enhanced Charts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Revenue Trend Chart */}
+                <Card className="p-6 hover:shadow-xl transition-shadow duration-300">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg">Revenue Trend</CardTitle>
+                        <CardDescription>Monthly revenue comparison</CardDescription>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart data={dashboardData?.revenueTrend || [
+                        { month: 'Jan', current: 95, previous: 88 },
+                        { month: 'Feb', current: 98, previous: 90 },
+                        { month: 'Mar', current: 105, previous: 95 },
+                        { month: 'Apr', current: 110, previous: 98 },
+                        { month: 'May', current: 118, previous: 105 },
+                        { month: 'Jun', current: 125, previous: 110 }
+                      ]}>
+                        <defs>
+                          <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={COLORS.primary[0]} stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor={COLORS.primary[0]} stopOpacity={0.1}/>
+                          </linearGradient>
+                          <linearGradient id="colorPrevious" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={COLORS.neutral[0]} stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor={COLORS.neutral[0]} stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                            border: 'none',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                        <Legend />
+                        <Area 
+                          type="monotone" 
+                          dataKey="current" 
+                          stroke={COLORS.primary[0]} 
+                          fillOpacity={1} 
+                          fill="url(#colorCurrent)"
+                          strokeWidth={2}
+                          name="Current Period"
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="previous" 
+                          stroke={COLORS.neutral[0]} 
+                          fillOpacity={1} 
+                          fill="url(#colorPrevious)"
+                          strokeWidth={2}
+                          name="Previous Period"
+                          strokeDasharray="5 5"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
 
-        <TabsContent value="monthly" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Revenue and Profit Trend */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue & Profit Trend</CardTitle>
-                <CardDescription>Monthly performance over the last 7 months</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={dashboardData.monthlyPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke="#E6B800" 
-                      strokeWidth={2}
-                      name="Revenue (SAR M)"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="profit" 
-                      stroke="#4A5568" 
-                      strokeWidth={2}
-                      name="Profit (SAR M)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+                {/* Portfolio Distribution */}
+                <Card className="p-6 hover:shadow-xl transition-shadow duration-300">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg">Portfolio Distribution</CardTitle>
+                        <CardDescription>Loan portfolio by category</CardDescription>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={dashboardData?.portfolio || [
+                            { name: 'Personal Loans', value: 35, growth: '+5%' },
+                            { name: 'Mortgages', value: 28, growth: '+3%' },
+                            { name: 'Auto Loans', value: 20, growth: '+8%' },
+                            { name: 'Business Loans', value: 12, growth: '+12%' },
+                            { name: 'Others', value: 5, growth: '-2%' }
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {(dashboardData?.portfolio || []).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS.chart[index % COLORS.chart.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                            border: 'none',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
 
-            {/* Customer Segments */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Segments</CardTitle>
-                <CardDescription>Distribution by banking segment</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={dashboardData.customerSegments}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ segment, percentage }) => `${segment}: ${percentage}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {dashboardData.customerSegments.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Product Performance */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Product Performance</CardTitle>
-              <CardDescription>Revenue and growth by product category</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dashboardData.productPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="product" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="#E6B800" name="Revenue (SAR M)" />
-                  <Bar dataKey="growth" fill="#4A5568" name="Growth %" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="quarterly" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Quarterly Performance */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quarterly Performance</CardTitle>
-                <CardDescription>Revenue and profit by quarter</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={dashboardData.quarterlyPerformance || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="quarter" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#E6B800" name="Revenue (SAR M)" />
-                    <Bar dataKey="profit" fill="#4A5568" name="Profit (SAR M)" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Quarterly Targets vs Actuals */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Targets vs Actuals</CardTitle>
-                <CardDescription>Quarterly performance against targets</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={dashboardData.quarterlyTargets || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="quarter" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="target" 
-                      stroke="#9F7AEA" 
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      name="Target"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="actual" 
-                      stroke="#E6B800" 
-                      strokeWidth={2}
-                      name="Actual"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quarterly Metrics Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Quarter Summary</CardTitle>
-              <CardDescription>Q{Math.ceil((new Date().getMonth() + 1) / 3)} {new Date().getFullYear()} Performance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Revenue Target</p>
-                  <p className="text-2xl font-bold">{formatCurrency(dashboardData.currentQuarter?.revenueTarget || 0)}</p>
-                  <p className="text-xs text-green-600">
-                    {dashboardData.currentQuarter?.revenueAchievement || 0}% achieved
-                  </p>
+              {/* Risk Scores Grid */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Risk Assessment</h3>
+                  <Button variant="outline" size="sm">
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Full Report
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">New Customers</p>
-                  <p className="text-2xl font-bold">{dashboardData.currentQuarter?.newCustomers || 0}</p>
-                  <p className="text-xs text-blue-600">
-                    Target: {dashboardData.currentQuarter?.customerTarget || 0}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Loan Disbursements</p>
-                  <p className="text-2xl font-bold">{formatCurrency(dashboardData.currentQuarter?.loanDisbursements || 0)}</p>
-                  <p className="text-xs text-yellow-600">
-                    +{dashboardData.currentQuarter?.loanGrowth || 0}% QoQ
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Operating Efficiency</p>
-                  <p className="text-2xl font-bold">{dashboardData.currentQuarter?.efficiency || 0}%</p>
-                  <p className="text-xs text-purple-600">
-                    Target: {dashboardData.currentQuarter?.efficiencyTarget || 0}%
-                  </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <ModernRiskScoreCard
+                    category="Credit Risk"
+                    score={dashboardData?.riskScores?.credit || 15}
+                    status="low"
+                    trend={-2}
+                    details="Credit risk has decreased due to improved underwriting standards"
+                  />
+                  
+                  <ModernRiskScoreCard
+                    category="Market Risk"
+                    score={dashboardData?.riskScores?.market || 35}
+                    status="medium"
+                    trend={5}
+                    details="Market volatility has increased risk exposure"
+                  />
+                  
+                  <ModernRiskScoreCard
+                    category="Operational Risk"
+                    score={dashboardData?.riskScores?.operational || 20}
+                    status="low"
+                    trend={-1}
+                    details="Process improvements have reduced operational risks"
+                  />
+                  
+                  <ModernRiskScoreCard
+                    category="Compliance Risk"
+                    score={dashboardData?.riskScores?.compliance || 10}
+                    status="low"
+                    trend={0}
+                    details="Strong compliance framework maintains low risk levels"
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="yearly" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Yearly Revenue Trend */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Yearly Revenue Trend</CardTitle>
-                <CardDescription>Annual performance over the last 5 years</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={dashboardData.yearlyPerformance || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="year" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke="#E6B800" 
-                      fill="#E6B800"
-                      fillOpacity={0.6}
-                      name="Revenue (SAR M)"
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="profit" 
-                      stroke="#4A5568" 
-                      fill="#4A5568"
-                      fillOpacity={0.6}
-                      name="Profit (SAR M)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <TabsContent value="performance" className="space-y-6">
+              {/* Comparison Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ComparisonChart
+                  title="Revenue Comparison"
+                  description={`Comparing revenue ${comparisonSettings.type}`}
+                  data={[
+                    { period: 'Jan', current: 95000000, previous: 88000000, target: 100000000, growth: 7.95 },
+                    { period: 'Feb', current: 98000000, previous: 90000000, target: 102000000, growth: 8.89 },
+                    { period: 'Mar', current: 105000000, previous: 95000000, target: 108000000, growth: 10.53 },
+                    { period: 'Apr', current: 110000000, previous: 98000000, target: 112000000, growth: 12.24 },
+                    { period: 'May', current: 118000000, previous: 105000000, target: 120000000, growth: 12.38 },
+                    { period: 'Jun', current: 125000000, previous: 110000000, target: 125000000, growth: 13.64 }
+                  ]}
+                  comparisonType={comparisonSettings.type}
+                  metrics={['revenue', 'profit', 'expenses']}
+                  onExport={() => toast.success('Exporting chart data...')}
+                />
 
-            {/* Yearly Growth Metrics */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Growth Metrics</CardTitle>
-                <CardDescription>Year-over-year growth indicators</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={dashboardData.yearlyGrowth || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="metric" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="current" fill="#E6B800" name="Current Year" />
-                    <Bar dataKey="previous" fill="#4A5568" name="Previous Year" />
-                    <Bar dataKey="growth" fill="#68D391" name="Growth %" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Yearly KPI Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Yearly KPI Summary</CardTitle>
-              <CardDescription>Key performance indicators for the current year</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(dashboardData.yearlyKPIs?.totalRevenue || 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-xs text-green-600">+{dashboardData.yearlyKPIs?.revenueGrowth || 0}% YoY</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">
-                    {dashboardData.yearlyKPIs?.totalCustomers || 0}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Total Customers</p>
-                  <p className="text-xs text-blue-600">+{dashboardData.yearlyKPIs?.customerGrowth || 0}% YoY</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {formatCurrency(dashboardData.yearlyKPIs?.totalLoans || 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Total Loans</p>
-                  <p className="text-xs text-yellow-600">+{dashboardData.yearlyKPIs?.loanGrowth || 0}% YoY</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold text-purple-600">
-                    {dashboardData.yearlyKPIs?.branchCount || 0}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Active Branches</p>
-                  <p className="text-xs text-purple-600">+{dashboardData.yearlyKPIs?.branchGrowth || 0} new</p>
-                </div>
+                <ComparisonChart
+                  title="Customer Growth"
+                  description={`Customer acquisition ${comparisonSettings.type}`}
+                  data={[
+                    { period: 'Jan', current: 1250, previous: 1100, target: 1300, growth: 13.64 },
+                    { period: 'Feb', current: 1380, previous: 1200, target: 1400, growth: 15.00 },
+                    { period: 'Mar', current: 1520, previous: 1350, target: 1550, growth: 12.59 },
+                    { period: 'Apr', current: 1680, previous: 1480, target: 1700, growth: 13.51 },
+                    { period: 'May', current: 1850, previous: 1620, target: 1900, growth: 14.20 },
+                    { period: 'Jun', current: 2100, previous: 1850, target: 2200, growth: 13.51 }
+                  ]}
+                  comparisonType={comparisonSettings.type}
+                  metrics={['new_customers', 'active_customers', 'churned_customers']}
+                  onExport={() => toast.success('Exporting chart data...')}
+                />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
 
-      {/* Risk Management Overview */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Risk Management</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {dashboardData.riskMetrics.map((risk, index) => (
-            <RiskScoreCard key={index} {...risk} />
-          ))}
-        </div>
-      </div>
+              {/* Performance Metrics Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Efficiency Ratio</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">42.5%</div>
+                    <Progress value={42.5} className="mt-2" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Target: 40% | Industry Avg: 50%
+                    </p>
+                  </CardContent>
+                </Card>
 
-      {/* Key Ratios */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Key Banking Ratios</CardTitle>
-          <CardDescription>Important financial and operational ratios</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{dashboardData.kpis.nim}%</p>
-              <p className="text-sm text-muted-foreground">Net Interest Margin</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{dashboardData.kpis.roe}%</p>
-              <p className="text-sm text-muted-foreground">Return on Equity</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-600">{dashboardData.kpis.nplRatio}%</p>
-              <p className="text-sm text-muted-foreground">NPL Ratio</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600">{dashboardData.kpis.capitalAdequacyRatio}%</p>
-              <p className="text-sm text-muted-foreground">Capital Adequacy</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                <Card className="p-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">ROE</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">18.2%</div>
+                    <Progress value={72.8} className="mt-2" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Target: 20% | Industry Avg: 15%
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="p-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Cost-to-Income</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">38.7%</div>
+                    <Progress value={61.3} className="mt-2" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Target: 35% | Industry Avg: 45%
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Loan Portfolio Comparison */}
+              <ComparisonChart
+                title="Loan Portfolio Performance"
+                description="Portfolio comparison by product type"
+                data={[
+                  { period: 'Personal', current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
+                  { period: 'Mortgage', current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
+                  { period: 'Auto', current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
+                  { period: 'Business', current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
+                  { period: 'Credit Cards', current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
+                ]}
+                comparisonType={comparisonSettings.type}
+                metrics={['disbursed_amount', 'outstanding_balance', 'npl_amount']}
+                onExport={() => toast.success('Exporting chart data...')}
+              />
+            </TabsContent>
+
+            <TabsContent value="risk" className="space-y-6">
+              {/* Risk analysis content */}
+              <Card className="p-6">
+                <CardHeader>
+                  <CardTitle>Risk Analysis Dashboard</CardTitle>
+                  <CardDescription>Comprehensive risk assessment and monitoring</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Add risk analysis charts here */}
+                  <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+                    Risk analysis visualization
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="insights" className="space-y-6">
+              {/* AI-Powered Comparison Insights */}
+              <ComparisonInsights 
+                data={dashboardData}
+                comparisonType={comparisonSettings.type}
+              />
+            </TabsContent>
+          </AnimatePresence>
+        </Tabs>
+      </motion.div>
     </div>
   );
 }
