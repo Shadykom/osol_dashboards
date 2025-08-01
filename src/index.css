@@ -3,6 +3,7 @@
 @import './styles/mobile-sidebar.css';
 @import './styles/sidebar.css';
 @import './styles/print.css';
+@import './styles/mobile-reports.css';
 
 @tailwind base;
 @tailwind components;
