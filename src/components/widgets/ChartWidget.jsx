@@ -45,9 +45,14 @@ export function ChartWidget({
   showLegend = false,
   clickable = true,
   multiLine = null,
+  colors = null,
   ...props
 }) {
   const navigate = useNavigate();
+  
+  // Use custom colors if provided, otherwise use default colors
+  const chartColors = colors || CHART_COLORS;
+  
   const renderChart = () => {
     const commonProps = {
       data,
@@ -66,8 +71,8 @@ export function ChartWidget({
             <Area
               type="monotone"
               dataKey={yAxisKey}
-              stroke={CHART_COLORS[0]}
-              fill={CHART_COLORS[0]}
+              stroke={chartColors[0]}
+              fill={chartColors[0]}
               fillOpacity={0.3}
             />
           </AreaChart>
@@ -81,7 +86,7 @@ export function ChartWidget({
             <YAxis />
             {showTooltip && <Tooltip />}
             {showLegend && <Legend />}
-            <Bar dataKey={yAxisKey} fill={CHART_COLORS[0]} />
+            <Bar dataKey={yAxisKey} fill={chartColors[0]} />
           </BarChart>
         );
 
@@ -100,7 +105,7 @@ export function ChartWidget({
               dataKey={yAxisKey}
             >
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
               ))}
             </Pie>
           </PieChart>
@@ -121,18 +126,18 @@ export function ChartWidget({
                   key={lineKey}
                   type="monotone"
                   dataKey={lineKey}
-                  stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                  stroke={chartColors[index % chartColors.length]}
                   strokeWidth={2}
-                  dot={{ fill: CHART_COLORS[index % CHART_COLORS.length] }}
+                  dot={{ fill: chartColors[index % chartColors.length] }}
                 />
               ))
             ) : (
               <Line
                 type="monotone"
                 dataKey={yAxisKey}
-                stroke={CHART_COLORS[0]}
+                stroke={chartColors[0]}
                 strokeWidth={2}
-                dot={{ fill: CHART_COLORS[0] }}
+                dot={{ fill: chartColors[0] }}
               />
             )}
           </LineChart>

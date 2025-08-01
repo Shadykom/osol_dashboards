@@ -146,8 +146,8 @@ export const enhancedDashboardDetailsService = {
     try {
       const dateFilter = getDateFilter(filters.dateRange);
       
-      // Fetch accounts and loans data
-      const [accountsResult, loansResult, branchesResult] = await Promise.all([
+      // Fetch accounts and loans data with better error handling
+      const [accountsResult, loansResult, branchesResult] = await Promise.allSettled([
         supabaseBanking.from(TABLES.ACCOUNTS)
           .select('account_type, current_balance, status, branch_id, currency')
           .gte('created_at', dateFilter.start)
@@ -160,9 +160,20 @@ export const enhancedDashboardDetailsService = {
           .select('branch_id, branch_name')
       ]);
 
-      const accounts = accountsResult.data || [];
-      const loans = loansResult.data || [];
-      const branches = branchesResult.data || [];
+      const accounts = accountsResult.status === 'fulfilled' ? (accountsResult.value.data || []) : [];
+      const loans = loansResult.status === 'fulfilled' ? (loansResult.value.data || []) : [];
+      const branches = branchesResult.status === 'fulfilled' ? (branchesResult.value.data || []) : [];
+      
+      // Log any failures for debugging
+      if (accountsResult.status === 'rejected') {
+        console.error('Failed to fetch accounts:', accountsResult.reason);
+      }
+      if (loansResult.status === 'rejected') {
+        console.error('Failed to fetch loans:', loansResult.reason);
+      }
+      if (branchesResult.status === 'rejected') {
+        console.error('Failed to fetch branches:', branchesResult.reason);
+      }
       
       // Create branch lookup
       const branchLookup = {};
@@ -171,41 +182,44 @@ export const enhancedDashboardDetailsService = {
       });
 
       // Breakdown by Category (Deposits vs Loans)
+      const depositsTotal = accounts.reduce((sum, acc) => sum + (parseFloat(acc.current_balance) || 0), 0);
+      const loansTotal = loans.reduce((sum, loan) => sum + (parseFloat(loan.outstanding_balance) || 0), 0);
+      
       const byCategory = {
-        'Deposits': accounts.reduce((sum, acc) => sum + (acc.current_balance || 0), 0),
-        'Loans': loans.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0)
+        'Deposits': depositsTotal,
+        'Loans': loansTotal
       };
 
       // Breakdown by Account Type
       const byAccountType = {};
       accounts.forEach(acc => {
         const type = acc.account_type || 'Other';
-        byAccountType[type] = (byAccountType[type] || 0) + (acc.current_balance || 0);
+        byAccountType[type] = (byAccountType[type] || 0) + (parseFloat(acc.current_balance) || 0);
       });
 
       // Breakdown by Product Type (Loan Types)
       const byProductType = {};
       loans.forEach(loan => {
         const type = loan.loan_type || 'Other';
-        byProductType[type] = (byProductType[type] || 0) + (loan.outstanding_balance || 0);
+        byProductType[type] = (byProductType[type] || 0) + (parseFloat(loan.outstanding_balance) || 0);
       });
 
       // Breakdown by Branch
       const byBranch = {};
       accounts.forEach(acc => {
         const branchName = branchLookup[acc.branch_id] || 'Unknown Branch';
-        byBranch[branchName] = (byBranch[branchName] || 0) + (acc.current_balance || 0);
+        byBranch[branchName] = (byBranch[branchName] || 0) + (parseFloat(acc.current_balance) || 0);
       });
       loans.forEach(loan => {
         const branchName = branchLookup[loan.branch_id] || 'Unknown Branch';
-        byBranch[branchName] = (byBranch[branchName] || 0) + (loan.outstanding_balance || 0);
+        byBranch[branchName] = (byBranch[branchName] || 0) + (parseFloat(loan.outstanding_balance) || 0);
       });
 
       // Breakdown by Currency
       const byCurrency = {};
       accounts.forEach(acc => {
         const currency = acc.currency || 'SAR';
-        byCurrency[currency] = (byCurrency[currency] || 0) + (acc.current_balance || 0);
+        byCurrency[currency] = (byCurrency[currency] || 0) + (parseFloat(acc.current_balance) || 0);
       });
 
       // Breakdown by Status
@@ -216,35 +230,55 @@ export const enhancedDashboardDetailsService = {
         'Closed Loans': 0
       };
       accounts.forEach(acc => {
+        const balance = parseFloat(acc.current_balance) || 0;
         if (acc.status === 'active') {
-          byStatus['Active Accounts'] += acc.current_balance || 0;
+          byStatus['Active Accounts'] += balance;
         } else {
-          byStatus['Inactive Accounts'] += acc.current_balance || 0;
+          byStatus['Inactive Accounts'] += balance;
         }
       });
       loans.forEach(loan => {
+        const balance = parseFloat(loan.outstanding_balance) || 0;
         if (loan.status === 'active') {
-          byStatus['Active Loans'] += loan.outstanding_balance || 0;
+          byStatus['Active Loans'] += balance;
         } else {
-          byStatus['Closed Loans'] += loan.outstanding_balance || 0;
+          byStatus['Closed Loans'] += balance;
         }
       });
 
-      return {
-        byCategory,
-        byAccountType,
-        byProductType,
-        byBranch: Object.fromEntries(
-          Object.entries(byBranch)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 10) // Top 10 branches
-        ),
-        byCurrency,
-        byStatus
+      // Ensure we always return data, even if it's empty
+      const result = {
+        byCategory: Object.keys(byCategory).length > 0 ? byCategory : { 'No Data': 0 },
+        byAccountType: Object.keys(byAccountType).length > 0 ? byAccountType : { 'No Data': 0 },
+        byProductType: Object.keys(byProductType).length > 0 ? byProductType : { 'No Data': 0 },
+        byBranch: Object.keys(byBranch).length > 0 ? 
+          Object.fromEntries(
+            Object.entries(byBranch)
+              .sort(([,a], [,b]) => b - a)
+              .slice(0, 10) // Top 10 branches
+          ) : { 'No Data': 0 },
+        byCurrency: Object.keys(byCurrency).length > 0 ? byCurrency : { 'SAR': 0 },
+        byStatus: byStatus
       };
+
+      console.log('Breakdown data generated:', result);
+      return result;
     } catch (error) {
       console.error('Error fetching breakdown data:', error);
-      return {};
+      // Return fallback data structure
+      return {
+        byCategory: { 'No Data': 0 },
+        byAccountType: { 'No Data': 0 },
+        byProductType: { 'No Data': 0 },
+        byBranch: { 'No Data': 0 },
+        byCurrency: { 'SAR': 0 },
+        byStatus: {
+          'Active Accounts': 0,
+          'Inactive Accounts': 0,
+          'Active Loans': 0,
+          'Closed Loans': 0
+        }
+      };
     }
   },
 
