@@ -686,7 +686,7 @@ class ComprehensiveReportService {
     try {
       const { data: loans, error } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
-        .select('outstanding_balance, overdue_days, loan_status, risk_category');
+        .select('outstanding_balance, overdue_days, loan_status');
 
       if (error) throw error;
 
