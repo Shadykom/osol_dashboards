@@ -181,6 +181,7 @@
     "helpSupport": "المساعدة والدعم"
   },
   "dashboard": {
+    "title": "لوحة التحكم الشاملة",
     "welcomeBack": "مرحباً بعودتك",
     "totalCustomers": "إجمالي العملاء",
     "activeAccounts": "الحسابات النشطة",
@@ -285,6 +286,47 @@
     "addWidgetDialog": {
       "title": "إضافة أداة",
       "description": "اختر أداة لإضافتها إلى قسم {{section}}"
+    },
+    "details": {
+      "subtitle": "تحليلات ورؤى تفصيلية",
+      "tabs": {
+        "overview": "نظرة عامة",
+        "breakdown": "تفصيل",
+        "trends": "الاتجاهات"
+      },
+      "customers": {
+        "title": "تحليلات العملاء"
+      },
+      "accounts": {
+        "title": "تحليلات الحسابات"
+      },
+      "revenue": {
+        "title": "تحليلات الإيرادات"
+      },
+      "transactions": {
+        "title": "تحليلات المعاملات"
+      },
+      "loans": {
+        "title": "تحليلات محفظة القروض"
+      },
+      "loan": {
+        "title": "تحليلات محفظة القروض"
+      },
+      "branches": {
+        "title": "تحليلات أداء الفروع"
+      },
+      "branch": {
+        "title": "تحليلات أداء الفروع"
+      },
+      "collections": {
+        "title": "تحليلات التحصيل"
+      },
+      "products": {
+        "title": "تحليلات المنتجات"
+      },
+      "charts": {
+        "title": "تحليلات الرسوم البيانية"
+      }
     }
   },
   "customers": {
