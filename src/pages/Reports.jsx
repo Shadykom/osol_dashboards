@@ -38,6 +38,9 @@ import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { ComparisonWidget } from '@/components/widgets/ComparisonWidget';
 import { toast } from 'sonner';
 import PDFViewer from '@/components/PDFViewer';
+import { useIsMobile, responsiveClasses } from '@/utils/responsive';
+import { useRTLClasses } from '@/components/ui/rtl-wrapper';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -188,6 +191,8 @@ const MOCK_REPORT_HISTORY = [
 
 export function ReportsResponsive() {
   const { t, i18n } = useTranslation();
+  const isMobile = useIsMobile();
+  const rtl = useRTLClasses();
   const [selectedCategory, setSelectedCategory] = useState('financial');
   const [selectedReport, setSelectedReport] = useState(null);
   const [dateRange, setDateRange] = useState({
@@ -565,12 +570,25 @@ export function ReportsResponsive() {
   };
 
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={cn(
+      "space-y-4 sm:space-y-6",
+      isMobile ? "p-3" : "p-4 sm:p-6"
+    )} dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div className={cn(
+        "flex justify-between gap-4",
+        isMobile ? "flex-col" : "flex-col sm:flex-row sm:items-center"
+      )}>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">{t('reports.reportsCenter')}</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">{t('reports.reportsCenterDescription')}</p>
+          <h1 className={cn(
+            "font-bold",
+            isMobile ? "text-xl" : "text-2xl sm:text-3xl"
+          )}>{t('reports.reportsCenter')}</h1>
+          {!isMobile && (
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
+              {t('reports.reportsCenterDescription')}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setActiveTab('history')}>
@@ -585,14 +603,32 @@ export function ReportsResponsive() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className={cn(
+        "grid gap-3 sm:gap-4",
+        isMobile ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4"
+      )}>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">{t('reports.totalReports')}</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className={cn(
+            "flex flex-row items-center justify-between space-y-0 pb-2",
+            isMobile ? "p-3" : "p-3 sm:p-6"
+          )}>
+            <CardTitle className={cn(
+              "font-medium",
+              isMobile ? "text-xs" : "text-xs sm:text-sm"
+            )}>{t('reports.totalReports')}</CardTitle>
+            <FileText className={cn(
+              "text-muted-foreground",
+              isMobile ? "h-3 w-3" : "h-4 w-4"
+            )} />
           </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">156</div>
+          <CardContent className={cn(
+            "pt-0",
+            isMobile ? "p-3" : "p-3 sm:p-6"
+          )}>
+            <div className={cn(
+              "font-bold",
+              isMobile ? "text-lg" : "text-xl sm:text-2xl"
+            )}>156</div>
             <p className="text-xs text-muted-foreground">{t('reports.thisMonth')}</p>
           </CardContent>
         </Card>
