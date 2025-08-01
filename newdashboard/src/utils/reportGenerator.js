@@ -6,8 +6,8 @@
 // documentation.  Note that these functions depend on browser APIs for
 // creating download links and are meant to run in a client‑side context.
 
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { formatTitle, formatValue } from './dataFormatters.js';
 
@@ -66,7 +66,7 @@ export const exportToPDF = async (data) => {
           formatValue(value.balance || value.count || value)
         ]
       );
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPosition,
         head: [['Item', 'Value']],
         body: tableData,
