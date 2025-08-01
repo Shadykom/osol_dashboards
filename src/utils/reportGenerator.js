@@ -6,8 +6,8 @@
 // documentation.  Note that these functions depend on browser APIs for
 // creating download links and are meant to run in a client‑side context.
 
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 
@@ -183,7 +183,7 @@ class ReportGenerator {
       ['Profit Margin', this.formatPercentage(profitMargin), 'Efficiency Ratio']
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [summaryData[0]],
       body: summaryData.slice(1),
@@ -226,7 +226,7 @@ class ReportGenerator {
       ['Other Income', this.formatCurrency(revenue?.otherIncome || 0), '0.0%']
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [revenueBreakdown[0]],
       body: revenueBreakdown.slice(1),
@@ -274,7 +274,7 @@ class ReportGenerator {
       ['Other Expenses', this.formatCurrency(expenses?.otherExpenses || 1200), '10.6%']
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [expenseBreakdown[0]],
       body: expenseBreakdown.slice(1),
@@ -374,7 +374,7 @@ class ReportGenerator {
       ['Total Assets', this.formatCurrency(data.assets?.totalAssets)]
     ];
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [['Description', 'Amount (SAR)']],
       body: assetItems,
@@ -399,7 +399,7 @@ class ReportGenerator {
       ['Total Liabilities', this.formatCurrency(data.liabilities?.totalLiabilities)]
     ];
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [['Description', 'Amount (SAR)']],
       body: liabilityItems,
@@ -424,7 +424,7 @@ class ReportGenerator {
       ['Total Equity', this.formatCurrency(data.equity?.totalEquity)]
     ];
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [['Description', 'Amount (SAR)']],
       body: equityItems,
@@ -462,7 +462,7 @@ class ReportGenerator {
         return [formattedKey, formattedValue];
       });
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: currentY,
         body: overviewItems,
         theme: 'plain',
@@ -486,7 +486,7 @@ class ReportGenerator {
         this.formatPercentage(segment.percentage)
       ]);
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: currentY,
         head: [['Segment', 'Count', 'Percentage']],
         body: segmentData,
@@ -512,7 +512,7 @@ class ReportGenerator {
         format(new Date(customer.createdAt), 'dd/MM/yyyy')
       ]);
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: currentY,
         head: [['Name', 'Email', 'Phone', 'Join Date']],
         body: customerData,
@@ -551,7 +551,7 @@ class ReportGenerator {
         ['Risk Weighted Assets', this.formatCurrency(data.overview.riskWeightedAssets)]
       ];
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: currentY,
         body: overviewItems,
         theme: 'plain',
@@ -576,7 +576,7 @@ class ReportGenerator {
         cat.rating
       ]);
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: currentY,
         head: [['Category', 'Exposure', 'Percentage', 'Rating']],
         body: categoryData,
@@ -611,7 +611,7 @@ class ReportGenerator {
       return String(value || '');
     }));
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: currentY,
       head: [headers.map(h => h.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()))],
       body: rows,
