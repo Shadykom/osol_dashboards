@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 const COLORS = {
   primary: '#E6B800',    // OSOL Golden
   secondary: '#CC9900',  // Darker Golden
-  success: '#48BB78',    // Green
+  success: '#E6B800',    // OSOL Golden (replaced green)
   danger: '#F56565',     // Red
   info: '#F6AD55',       // Light Orange (replaced blue)
   warning: '#ED8936',    // Orange
@@ -70,9 +70,9 @@ const VisualReportView = ({ reportData, reportType }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-lg sm:text-2xl font-bold text-[#48BB78]">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-[#E6B800]">{formatCurrency(totalRevenue)}</p>
                 </div>
-                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
+                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-[#E6B800]" />
               </div>
             </CardContent>
           </Card>
@@ -94,12 +94,12 @@ const VisualReportView = ({ reportData, reportType }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm text-muted-foreground">Net Income</p>
-                  <p className={`text-lg sm:text-2xl font-bold ${calculatedNetIncome >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <p className={`text-lg sm:text-2xl font-bold ${calculatedNetIncome >= 0 ? 'text-[#E6B800]' : 'text-red-500'}`}>
                     {formatCurrency(calculatedNetIncome)}
                   </p>
                 </div>
                 {calculatedNetIncome >= 0 ? 
-                  <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" /> : 
+                  <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-[#E6B800]" /> : 
                   <TrendingDown className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
                 }
               </div>
@@ -111,7 +111,7 @@ const VisualReportView = ({ reportData, reportType }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm text-muted-foreground">Profit Margin</p>
-                  <p className={`text-lg sm:text-2xl font-bold ${profitMargin >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <p className={`text-lg sm:text-2xl font-bold ${profitMargin >= 0 ? 'text-[#E6B800]' : 'text-red-500'}`}>
                     {formatPercentage(profitMargin)}
                   </p>
                 </div>

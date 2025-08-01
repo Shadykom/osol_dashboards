@@ -17,7 +17,7 @@ const OSOL_BRAND = {
   primaryDark: [204, 153, 0],  // #CC9900
   secondary: [74, 85, 104],    // #4A5568
   accent: [45, 55, 72],        // #2D3748
-  success: [72, 187, 120],     // #48BB78
+  success: [230, 184, 0],      // #E6B800 (OSOL Gold - replaced green)
   warning: [237, 137, 54],     // #ED8936
   error: [245, 101, 101],      // #F56565
   text: [45, 55, 72],          // #2D3748

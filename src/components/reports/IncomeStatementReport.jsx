@@ -11,19 +11,19 @@ import {
 import { format } from 'date-fns';
 import osoulLogo from '@/assets/osol-logo.png';
 
-// OSOL Brand Colors
-const OSOL_COLORS = {
-  primary: '#E6B800',    // OSOL Golden
-  primaryDark: '#CC9900', // Darker Golden
-  secondary: '#4A5568',   // Dark Gray
-  accent: '#2D3748',      // Darker Gray
-  light: '#F7FAFC',       // Light Background
-  success: '#48BB78',     // Green
-  warning: '#ED8936',     // Orange
-  error: '#F56565',       // Red
-  text: '#2D3748',
-  textMuted: '#718096'
-};
+  // OSOL Brand Colors
+  const OSOL_COLORS = {
+    primary: '#E6B800',    // OSOL Golden
+    primaryDark: '#CC9900', // Darker Golden
+    secondary: '#4A5568',   // Dark Gray
+    accent: '#2D3748',      // Darker Gray
+    light: '#F7FAFC',       // Light Background
+    success: '#E6B800',     // OSOL Golden (replaced green)
+    warning: '#ED8936',     // Orange
+    error: '#F56565',       // Red
+    text: '#2D3748',
+    textMuted: '#718096'
+  };
 
 const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
   if (!reportData) return null;
@@ -133,16 +133,16 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Executive Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-l-4 border-l-[#48BB78] shadow-sm hover:shadow-md transition-shadow">
+          <Card className="border-l-4 border-l-[#E6B800] shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#718096] mb-1">Total Revenue</p>
-                  <p className="text-2xl font-bold text-[#48BB78]">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-2xl font-bold text-[#E6B800]">{formatCurrency(totalRevenue)}</p>
                   <p className="text-xs text-[#718096] mt-1">Period Performance</p>
                 </div>
-                <div className="p-3 bg-green-50 rounded-full">
-                  <TrendingUp className="h-6 w-6 text-[#48BB78]" />
+                <div className="p-3 bg-[#FEF3C7] rounded-full">
+                  <TrendingUp className="h-6 w-6 text-[#E6B800]" />
                 </div>
               </div>
             </CardContent>
