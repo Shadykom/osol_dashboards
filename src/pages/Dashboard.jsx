@@ -95,31 +95,9 @@ import { fixDashboardData, checkDatabaseStatus } from '@/utils/fixDashboardData'
 
 // Removed mock Supabase clients - using real database connections only
 
-// Import with fallback
-let formatCurrency, formatNumber;
-let DragDropContext, Droppable, Draggable;
-
-try {
-  const formattersModule = await import('@/utils/formatters');
-  formatCurrency = formattersModule.formatCurrency;
-  formatNumber = formattersModule.formatNumber;
-} catch (error) {
-  console.warn('Formatters not found, using fallback');
-  // Fallback formatters will be defined later
-}
-
-try {
-  const dndModule = await import('@hello-pangea/dnd');
-  DragDropContext = dndModule.DragDropContext;
-  Droppable = dndModule.Droppable;
-  Draggable = dndModule.Draggable;
-} catch (error) {
-  console.warn('Drag and drop library not loaded');
-  // Mock implementations
-  DragDropContext = ({ children }) => children;
-  Droppable = ({ children }) => children({ droppableProps: {}, innerRef: () => {} });
-  Draggable = ({ children }) => children({ draggableProps: {}, dragHandleProps: {}, innerRef: () => {} });
-}
+// Import with fallback - using regular imports
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { formatCurrency, formatNumber } from '@/utils/formatters';
 
 const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181', '#F6AD55'];
 
@@ -1806,23 +1784,7 @@ const DASHBOARD_TEMPLATES = {
   }
 };
 
-// Utility functions - Define fallback if not imported
-if (!formatCurrency) {
-  formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'SAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-  };
-}
-
-if (!formatNumber) {
-  formatNumber = (value) => {
-    return new Intl.NumberFormat('en-US').format(value);
-  };
-}
+// Utility functions are now imported directly from @/utils/formatters
 
 // Main Dashboard Component
 export default function EnhancedDashboard() {
