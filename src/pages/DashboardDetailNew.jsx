@@ -32,7 +32,10 @@ import {
   MoreHorizontal,
   Eye,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  User,
+  UserCheck,
+  UserPlus
 } from 'lucide-react';
 import { enhancedDashboardDetailsService } from '../services/enhancedDashboardDetailsService';
 import { useFilters } from '../contexts/FilterContext';
@@ -261,7 +264,7 @@ const DashboardDetailNew = () => {
     breakdown: null,
     trends: null,
     raw: null,
-    metadata: { title: 'Total Assets' }
+    metadata: { title: 'Loading...' }
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -418,36 +421,73 @@ const DashboardDetailNew = () => {
       {/* Quick Stats Bar */}
       {detailData.overview && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Assets"
-            value={formatCurrency(detailData.overview.totalAssets || 0)}
-            change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
-            trend={detailData.overview.trend}
-            description="Combined deposits and loans"
-            icon={DollarSign}
-            size="small"
-          />
-          <StatCard
-            title="Active Accounts"
-            value={(detailData.overview.accountCount || 0).toLocaleString()}
-            description="Total account count"
-            icon={Users}
-            size="small"
-          />
-          <StatCard
-            title="Loan Portfolio"
-            value={formatCurrency(detailData.overview.totalLoans || 0)}
-            description={`${detailData.overview.loanRatio || 0}% of assets`}
-            icon={TrendingUp}
-            size="small"
-          />
-          <StatCard
-            title="Deposit Base"
-            value={formatCurrency(detailData.overview.totalDeposits || 0)}
-            description={`${detailData.overview.depositRatio || 0}% of assets`}
-            icon={CreditCard}
-            size="small"
-          />
+          {section === 'customers' && widgetId === 'total_customers' ? (
+            <>
+              <StatCard
+                title="Total Customers"
+                value={(detailData.overview.totalCustomers || 0).toLocaleString()}
+                change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                trend={detailData.overview.trend}
+                description="All registered customers"
+                icon={Users}
+                size="small"
+              />
+              <StatCard
+                title="Active Customers"
+                value={(detailData.overview.activeCustomers || 0).toLocaleString()}
+                description={`${detailData.overview.activeRatio || 0}% of total`}
+                icon={UserCheck}
+                size="small"
+              />
+              <StatCard
+                title="New Customers"
+                value={(detailData.overview.newCustomers || 0).toLocaleString()}
+                description="Last 30 days"
+                icon={UserPlus}
+                size="small"
+              />
+              <StatCard
+                title="Individual Customers"
+                value={(detailData.overview.individualCustomers || 0).toLocaleString()}
+                description="Personal accounts"
+                icon={User}
+                size="small"
+              />
+            </>
+          ) : (
+            <>
+              <StatCard
+                title="Total Assets"
+                value={formatCurrency(detailData.overview.totalAssets || 0)}
+                change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                trend={detailData.overview.trend}
+                description="Combined deposits and loans"
+                icon={DollarSign}
+                size="small"
+              />
+              <StatCard
+                title="Active Accounts"
+                value={(detailData.overview.accountCount || 0).toLocaleString()}
+                description="Total account count"
+                icon={Users}
+                size="small"
+              />
+              <StatCard
+                title="Loan Portfolio"
+                value={formatCurrency(detailData.overview.totalLoans || 0)}
+                description={`${detailData.overview.loanRatio || 0}% of assets`}
+                icon={TrendingUp}
+                size="small"
+              />
+              <StatCard
+                title="Deposit Base"
+                value={formatCurrency(detailData.overview.totalDeposits || 0)}
+                description={`${detailData.overview.depositRatio || 0}% of assets`}
+                icon={CreditCard}
+                size="small"
+              />
+            </>
+          )}
         </div>
       )}
 
@@ -481,118 +521,237 @@ const DashboardDetailNew = () => {
             </div>
           ) : detailData.overview ? (
             <>
-              {/* Main KPI Grid */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <StatCard
-                  title="Total Assets"
-                  value={formatCurrency(detailData.overview.totalAssets || 0)}
-                  change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
-                  trend={detailData.overview.trend}
-                  description="Combined deposits and loans"
-                  icon={DollarSign}
-                  className="md:col-span-2 lg:col-span-1"
-                />
-                <StatCard
-                  title="Total Deposits"
-                  value={formatCurrency(detailData.overview.totalDeposits || 0)}
-                  description={`${detailData.overview.depositRatio || 0}% of total assets`}
-                  icon={CreditCard}
-                />
-                <StatCard
-                  title="Total Loans"
-                  value={formatCurrency(detailData.overview.totalLoans || 0)}
-                  description={`${detailData.overview.loanRatio || 0}% of total assets`}
-                  icon={TrendingUp}
-                />
-              </div>
-
-              {/* Secondary Metrics */}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard
-                  title="Account Count"
-                  value={(detailData.overview.accountCount || 0).toLocaleString()}
-                  description="Total number of accounts"
-                  icon={Users}
-                />
-                <StatCard
-                  title="Loan Count"
-                  value={(detailData.overview.loanCount || 0).toLocaleString()}
-                  description="Total number of loans"
-                  icon={Activity}
-                />
-                <StatCard
-                  title="Avg Account Balance"
-                  value={formatCurrency(detailData.overview.avgAccountBalance || 0)}
-                  description="Per account average"
-                  icon={BarChart3}
-                />
-                <StatCard
-                  title="Avg Loan Balance"
-                  value={formatCurrency(detailData.overview.avgLoanBalance || 0)}
-                  description="Per loan average"
-                  icon={Building2}
-                />
-              </div>
-
-              {/* Asset Composition Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <PieChart className="h-5 w-5" />
-                    Asset Composition
-                  </CardTitle>
-                  <CardDescription>
-                    Visual breakdown of your total asset portfolio
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <ChartWidget
-                      data={[
-                        { name: 'Deposits', value: detailData.overview.totalDeposits || 0 },
-                        { name: 'Loans', value: detailData.overview.totalLoans || 0 }
-                      ]}
-                      chartType="pie"
-                      dataKey="value"
-                      height={300}
-                      showLegend={true}
+              {section === 'customers' && widgetId === 'total_customers' ? (
+                <>
+                  {/* Main Customer KPI Grid */}
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                      title="Total Customers"
+                      value={(detailData.overview.totalCustomers || 0).toLocaleString()}
+                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                      trend={detailData.overview.trend}
+                      description="All registered customers in the system"
+                      icon={Users}
+                      className="md:col-span-2 lg:col-span-1"
                     />
-                    <div className="space-y-4">
-                      <div className="p-4 bg-muted/30 rounded-lg">
-                        <h4 className="font-semibold mb-2">Composition Summary</h4>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Deposits Ratio:</span>
-                            <span className="font-medium">{detailData.overview.depositRatio || 0}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Loans Ratio:</span>
-                            <span className="font-medium">{detailData.overview.loanRatio || 0}%</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4 bg-primary/5 rounded-lg">
-                        <h4 className="font-semibold mb-2 flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          Performance Indicators
-                        </h4>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Growth Trend:</span>
-                            <Badge variant={detailData.overview.trend === 'up' ? 'default' : 'secondary'}>
-                              {detailData.overview.trend === 'up' ? 'Positive' : detailData.overview.trend === 'down' ? 'Negative' : 'Stable'}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Asset Quality:</span>
-                            <Badge variant="default">Healthy</Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <StatCard
+                      title="Active Customers"
+                      value={(detailData.overview.activeCustomers || 0).toLocaleString()}
+                      description={`${detailData.overview.activeRatio || 0}% of total customers`}
+                      icon={UserCheck}
+                    />
+                    <StatCard
+                      title="Inactive Customers"
+                      value={(detailData.overview.inactiveCustomers || 0).toLocaleString()}
+                      description="Customers without active accounts"
+                      icon={Users}
+                    />
                   </div>
-                </CardContent>
-              </Card>
+
+                  {/* Customer Type Breakdown */}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                      title="Individual Customers"
+                      value={(detailData.overview.individualCustomers || 0).toLocaleString()}
+                      description="Personal banking customers"
+                      icon={User}
+                    />
+                    <StatCard
+                      title="Corporate Customers"
+                      value={(detailData.overview.corporateCustomers || 0).toLocaleString()}
+                      description="Business accounts"
+                      icon={Building2}
+                    />
+                    <StatCard
+                      title="VIP Customers"
+                      value={(detailData.overview.vipCustomers || 0).toLocaleString()}
+                      description="Premium banking clients"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="New Customers"
+                      value={(detailData.overview.newCustomers || 0).toLocaleString()}
+                      description="Joined in last 30 days"
+                      icon={UserPlus}
+                    />
+                  </div>
+
+                  {/* Customer Composition Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <PieChart className="h-5 w-5" />
+                        Customer Segmentation
+                      </CardTitle>
+                      <CardDescription>
+                        Distribution of customers by type
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <ChartWidget
+                          data={Object.entries(detailData.overview.customerTypes || {}).map(([type, count]) => ({
+                            name: type.charAt(0).toUpperCase() + type.slice(1),
+                            value: count
+                          }))}
+                          chartType="pie"
+                          dataKey="value"
+                          height={300}
+                          showLegend={true}
+                        />
+                        <div className="space-y-4">
+                          <div className="p-4 bg-muted/30 rounded-lg">
+                            <h4 className="font-semibold mb-2">Customer Summary</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Active Ratio:</span>
+                                <span className="font-medium">{detailData.overview.activeRatio || 0}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Growth Rate:</span>
+                                <span className="font-medium">{detailData.overview.change ? `${detailData.overview.change.toFixed(1)}%` : '0%'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-4 bg-primary/5 rounded-lg">
+                            <h4 className="font-semibold mb-2 flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Customer Insights
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Growth Trend:</span>
+                                <Badge variant={detailData.overview.trend === 'up' ? 'default' : 'secondary'}>
+                                  {detailData.overview.trend === 'up' ? 'Growing' : detailData.overview.trend === 'down' ? 'Declining' : 'Stable'}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Customer Health:</span>
+                                <Badge variant="default">Good</Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  {/* Main KPI Grid */}
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                      title="Total Assets"
+                      value={formatCurrency(detailData.overview.totalAssets || 0)}
+                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                      trend={detailData.overview.trend}
+                      description="Combined deposits and loans"
+                      icon={DollarSign}
+                      className="md:col-span-2 lg:col-span-1"
+                    />
+                    <StatCard
+                      title="Total Deposits"
+                      value={formatCurrency(detailData.overview.totalDeposits || 0)}
+                      description={`${detailData.overview.depositRatio || 0}% of total assets`}
+                      icon={CreditCard}
+                    />
+                    <StatCard
+                      title="Total Loans"
+                      value={formatCurrency(detailData.overview.totalLoans || 0)}
+                      description={`${detailData.overview.loanRatio || 0}% of total assets`}
+                      icon={TrendingUp}
+                    />
+                  </div>
+
+                  {/* Secondary Metrics */}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                      title="Account Count"
+                      value={(detailData.overview.accountCount || 0).toLocaleString()}
+                      description="Total number of accounts"
+                      icon={Users}
+                    />
+                    <StatCard
+                      title="Loan Count"
+                      value={(detailData.overview.loanCount || 0).toLocaleString()}
+                      description="Total number of loans"
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="Avg Account Balance"
+                      value={formatCurrency(detailData.overview.avgAccountBalance || 0)}
+                      description="Per account average"
+                      icon={BarChart3}
+                    />
+                    <StatCard
+                      title="Avg Loan Balance"
+                      value={formatCurrency(detailData.overview.avgLoanBalance || 0)}
+                      description="Per loan average"
+                      icon={Building2}
+                    />
+                  </div>
+
+                  {/* Asset Composition Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <PieChart className="h-5 w-5" />
+                        Asset Composition
+                      </CardTitle>
+                      <CardDescription>
+                        Visual breakdown of your total asset portfolio
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <ChartWidget
+                          data={[
+                            { name: 'Deposits', value: detailData.overview.totalDeposits || 0 },
+                            { name: 'Loans', value: detailData.overview.totalLoans || 0 }
+                          ]}
+                          chartType="pie"
+                          dataKey="value"
+                          height={300}
+                          showLegend={true}
+                        />
+                        <div className="space-y-4">
+                          <div className="p-4 bg-muted/30 rounded-lg">
+                            <h4 className="font-semibold mb-2">Composition Summary</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Deposits Ratio:</span>
+                                <span className="font-medium">{detailData.overview.depositRatio || 0}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Loans Ratio:</span>
+                                <span className="font-medium">{detailData.overview.loanRatio || 0}%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-4 bg-primary/5 rounded-lg">
+                            <h4 className="font-semibold mb-2 flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Performance Indicators
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Growth Trend:</span>
+                                <Badge variant={detailData.overview.trend === 'up' ? 'default' : 'secondary'}>
+                                  {detailData.overview.trend === 'up' ? 'Positive' : detailData.overview.trend === 'down' ? 'Negative' : 'Stable'}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Asset Quality:</span>
+                                <Badge variant="default">Healthy</Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </>
           ) : (
             <Card>
@@ -696,7 +855,9 @@ const DashboardDetailNew = () => {
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Historical Trends</h2>
                   <p className="text-muted-foreground">
-                    Asset growth and performance over time
+                    {section === 'customers' && widgetId === 'total_customers' 
+                      ? 'Customer growth and activity over time'
+                      : 'Asset growth and performance over time'}
                   </p>
                 </div>
               </div>
@@ -705,31 +866,61 @@ const DashboardDetailNew = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    Asset Growth Trend
+                    {section === 'customers' && widgetId === 'total_customers' 
+                      ? 'Customer Growth Trend'
+                      : 'Asset Growth Trend'}
                   </CardTitle>
-                  <CardDescription>30-day historical asset performance</CardDescription>
+                  <CardDescription>
+                    {section === 'customers' && widgetId === 'total_customers'
+                      ? '30-day historical customer performance'
+                      : '30-day historical asset performance'}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {detailData.trends.dates && detailData.trends.totalAssets ? (
-                    <ChartWidget
-                      data={detailData.trends.dates.map((date, index) => ({
-                        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                        'Total Assets': detailData.trends.totalAssets[index] || 0,
-                        'Deposits': detailData.trends.deposits[index] || 0,
-                        'Loans': detailData.trends.loans[index] || 0
-                      }))}
-                      chartType="line"
-                      xAxisKey="date"
-                      yAxisKey="Total Assets"
-                      height={400}
-                      showLegend={true}
-                      multiLine={['Total Assets', 'Deposits', 'Loans']}
-                    />
+                  {section === 'customers' && widgetId === 'total_customers' ? (
+                    detailData.trends.dates && detailData.trends.totalCustomers ? (
+                      <ChartWidget
+                        data={detailData.trends.dates.map((date, index) => ({
+                          date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                          'Total Customers': detailData.trends.totalCustomers[index] || 0,
+                          'Active Customers': detailData.trends.activeCustomers[index] || 0,
+                          'New Customers': detailData.trends.newCustomers[index] || 0
+                        }))}
+                        chartType="line"
+                        xAxisKey="date"
+                        yAxisKey="Total Customers"
+                        height={400}
+                        showLegend={true}
+                        multiLine={['Total Customers', 'Active Customers']}
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <BarChart3 className="h-8 w-8 mx-auto mb-2" />
+                        <p>No trend data available</p>
+                      </div>
+                    )
                   ) : (
-                    <div className="text-center text-muted-foreground py-8">
-                      <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-                      <p>No trend data available</p>
-                    </div>
+                    detailData.trends.dates && detailData.trends.totalAssets ? (
+                      <ChartWidget
+                        data={detailData.trends.dates.map((date, index) => ({
+                          date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                          'Total Assets': detailData.trends.totalAssets[index] || 0,
+                          'Deposits': detailData.trends.deposits[index] || 0,
+                          'Loans': detailData.trends.loans[index] || 0
+                        }))}
+                        chartType="line"
+                        xAxisKey="date"
+                        yAxisKey="Total Assets"
+                        height={400}
+                        showLegend={true}
+                        multiLine={['Total Assets', 'Deposits', 'Loans']}
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <BarChart3 className="h-8 w-8 mx-auto mb-2" />
+                        <p>No trend data available</p>
+                      </div>
+                    )
                   )}
                 </CardContent>
               </Card>
@@ -783,66 +974,124 @@ const DashboardDetailNew = () => {
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Raw Data</h2>
                   <p className="text-muted-foreground">
-                    Detailed transactional data and records
+                    {section === 'customers' && widgetId === 'total_customers'
+                      ? 'Detailed customer records and information'
+                      : 'Detailed transactional data and records'}
                   </p>
                 </div>
               </div>
 
-              {detailData.raw.accounts && detailData.raw.accounts.length > 0 && (
-                <DataTable
-                  title="Top Accounts"
-                  data={detailData.raw.accounts.slice(0, 10)}
-                  columns={[
-                    { header: 'Account Number', accessor: (row) => row.account_number },
-                    { header: 'Type', accessor: (row) => <Badge variant="outline">{row.account_type}</Badge> },
-                    { header: 'Balance', accessor: (row) => formatCurrency(row.current_balance || 0) },
-                    { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
-                    { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
-                  ]}
-                />
-              )}
+              {section === 'customers' && widgetId === 'total_customers' ? (
+                <>
+                  {detailData.raw.customers && detailData.raw.customers.length > 0 && (
+                    <DataTable
+                      title="Customer Records"
+                      data={detailData.raw.customers.slice(0, 20)}
+                      columns={[
+                        { header: 'Customer ID', accessor: (row) => row.customer_id },
+                        { header: 'Name', accessor: (row) => row.full_name || 'N/A' },
+                        { header: 'Type', accessor: (row) => <Badge variant="outline">{row.customer_type || 'Unknown'}</Badge> },
+                        { header: 'Accounts', accessor: (row) => row.account_count || 0 },
+                        { header: 'Total Balance', accessor: (row) => formatCurrency(row.total_balance || 0) },
+                        { header: 'Status', accessor: (row) => (
+                          <Badge variant={row.active_accounts > 0 ? 'default' : 'secondary'}>
+                            {row.active_accounts > 0 ? 'Active' : 'Inactive'}
+                          </Badge>
+                        )},
+                        { header: 'Joined', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
+                      ]}
+                    />
+                  )}
 
-              {detailData.raw.loans && detailData.raw.loans.length > 0 && (
-                <DataTable
-                  title="Top Loans"
-                  data={detailData.raw.loans.slice(0, 10)}
-                  columns={[
-                    { header: 'Loan ID', accessor: (row) => row.loan_id },
-                    { header: 'Type', accessor: (row) => <Badge variant="outline">{row.loan_type}</Badge> },
-                    { header: 'Outstanding', accessor: (row) => formatCurrency(row.outstanding_balance || 0) },
-                    { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
-                    { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
-                  ]}
-                />
-              )}
-
-              {/* Summary Statistics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Data Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-muted/30 rounded-lg">
-                      <div className="text-2xl font-bold">{detailData.raw.totalAccounts || 0}</div>
-                      <div className="text-sm text-muted-foreground">Total Accounts</div>
-                    </div>
-                    <div className="p-4 bg-muted/30 rounded-lg">
-                      <div className="text-2xl font-bold">{detailData.raw.totalLoans || 0}</div>
-                      <div className="text-sm text-muted-foreground">Total Loans</div>
-                    </div>
-                    <div className="p-4 bg-muted/30 rounded-lg">
-                      <div className="text-sm font-medium">Last Updated</div>
-                      <div className="text-sm text-muted-foreground">
-                        {detailData.raw.lastUpdated ? new Date(detailData.raw.lastUpdated).toLocaleString() : 'N/A'}
+                  {/* Customer Summary Statistics */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        Customer Data Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">{detailData.raw.customers?.length || 0}</div>
+                          <div className="text-sm text-muted-foreground">Total Customers Shown</div>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">
+                            {detailData.raw.customers?.filter(c => c.active_accounts > 0).length || 0}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Active Customers</div>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">
+                            {new Date().toLocaleDateString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Last Updated</div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  {detailData.raw.accounts && detailData.raw.accounts.length > 0 && (
+                    <DataTable
+                      title="Top Accounts"
+                      data={detailData.raw.accounts.slice(0, 10)}
+                      columns={[
+                        { header: 'Account Number', accessor: (row) => row.account_number },
+                        { header: 'Type', accessor: (row) => <Badge variant="outline">{row.account_type}</Badge> },
+                        { header: 'Balance', accessor: (row) => formatCurrency(row.current_balance || 0) },
+                        { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
+                        { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
+                      ]}
+                    />
+                  )}
+
+                  {detailData.raw.loans && detailData.raw.loans.length > 0 && (
+                    <DataTable
+                      title="Top Loans"
+                      data={detailData.raw.loans.slice(0, 10)}
+                      columns={[
+                        { header: 'Loan ID', accessor: (row) => row.loan_id },
+                        { header: 'Type', accessor: (row) => <Badge variant="outline">{row.loan_type}</Badge> },
+                        { header: 'Outstanding', accessor: (row) => formatCurrency(row.outstanding_balance || 0) },
+                        { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
+                        { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
+                      ]}
+                    />
+                  )}
+
+                  {/* Summary Statistics */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        Data Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">{detailData.raw.totalAccounts || 0}</div>
+                          <div className="text-sm text-muted-foreground">Total Accounts</div>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">{detailData.raw.totalLoans || 0}</div>
+                          <div className="text-sm text-muted-foreground">Total Loans</div>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-sm font-medium">Last Updated</div>
+                          <div className="text-sm text-muted-foreground">
+                            {detailData.raw.lastUpdated ? new Date(detailData.raw.lastUpdated).toLocaleString() : 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
           ) : (
             <Card>
