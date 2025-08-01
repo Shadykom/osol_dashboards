@@ -1186,3 +1186,7 @@ export function ReportsResponsive() {
     </div>
   );
 }
+
+// Export as Reports for backward compatibility
+export const Reports = ReportsResponsive;
+export default ReportsResponsive;

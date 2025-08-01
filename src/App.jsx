@@ -55,7 +55,7 @@ import { useTranslation } from 'react-i18next';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './App.css';
-import { testDatabaseSchema } from '@/utils/testFixes';
+import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { testDashboardConsistency } from '@/utils/testDashboardConsistency';
 
 // Route Redirect Component
