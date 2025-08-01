@@ -276,10 +276,17 @@ const DashboardDetailNew = () => {
       setError(null);
       try {
         console.log('Fetching data for:', { section, widgetId });
+        
+        // For total_customers widget, disable date filtering by default to match main dashboard
+        const modifiedFilters = { ...filters };
+        if (section === 'customers' && widgetId === 'total_customers') {
+          modifiedFilters.applyDateFilter = false;
+        }
+        
         const result = await enhancedDashboardDetailsService.getWidgetDetails(
           section,
           widgetId,
-          filters
+          modifiedFilters
         );
         console.log('Service returned:', result);
         if (result.success) {
@@ -289,15 +296,17 @@ const DashboardDetailNew = () => {
           console.error('Service returned error:', result.error);
           setError(result.error);
         }
-      } catch (error) {
-        console.error('Error fetching widget details:', error);
-        setError(error.message);
+      } catch (err) {
+        console.error('Error fetching widget details:', err);
+        setError(err.message || 'Failed to fetch data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    if (section && widgetId) {
+      fetchData();
+    }
   }, [section, widgetId, filters]);
 
   const handlePrint = () => {

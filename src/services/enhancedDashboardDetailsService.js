@@ -155,14 +155,24 @@ export const enhancedDashboardDetailsService = {
 
   async getCustomersOverview(filters) {
     try {
-      const dateFilter = getDateFilter(filters.dateRange);
+      // For total customers overview, we should not apply date filters to match main dashboard
+      // Only apply date filters for specific time-based analysis
+      const shouldApplyDateFilter = filters?.applyDateFilter !== false;
+      
+      let customersQuery = supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('*');
+      
+      // Apply date filter only if explicitly requested
+      if (shouldApplyDateFilter && filters?.dateRange && filters.dateRange !== 'all_time') {
+        const dateFilter = getDateFilter(filters.dateRange);
+        customersQuery = customersQuery
+          .gte('created_at', dateFilter.start)
+          .lte('created_at', dateFilter.end);
+      }
       
       // Fetch customers data
-      const { data: customers, error } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('*')
-        .gte('created_at', dateFilter.start)
-        .lte('created_at', dateFilter.end);
+      const { data: customers, error } = await customersQuery;
       
       if (error) {
         console.error('Error fetching customers:', error);
@@ -174,11 +184,11 @@ export const enhancedDashboardDetailsService = {
       // Get customer type breakdown
       const customerTypes = {};
       customers?.forEach(customer => {
-        const type = customer.customer_type || 'Unknown';
+        const type = customer.customer_type || customer.customer_segment || 'Standard';
         customerTypes[type] = (customerTypes[type] || 0) + 1;
       });
 
-      // Get new customers (last 30 days)
+      // Get new customers (last 30 days) - this should always use date filter
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const newCustomers = customers?.filter(c => 
@@ -203,9 +213,9 @@ export const enhancedDashboardDetailsService = {
         inactiveCustomers: totalCustomers - activeCount,
         newCustomers,
         customerTypes,
-        individualCustomers: customerTypes['individual'] || 0,
-        corporateCustomers: customerTypes['corporate'] || 0,
-        vipCustomers: customerTypes['vip'] || 0,
+        individualCustomers: customerTypes['individual'] || customerTypes['Individual'] || 0,
+        corporateCustomers: customerTypes['corporate'] || customerTypes['Corporate'] || 0,
+        vipCustomers: customerTypes['vip'] || customerTypes['VIP'] || customerTypes['Premium'] || 0,
         activeRatio: totalCustomers > 0 ? ((activeCount / totalCustomers) * 100).toFixed(2) : '0',
         change: growthRate,
         trend: growthRate > 0 ? 'up' : growthRate < 0 ? 'down' : 'stable'
@@ -416,10 +426,13 @@ export const enhancedDashboardDetailsService = {
 
   async getCustomersTrendsData(filters) {
     try {
-      // Generate date range for last 30 days
+      // For customer trends, we should match the main dashboard behavior
+      const shouldApplyDateFilter = filters?.applyDateFilter !== false;
+      
+      // Generate weekly data for last 12 weeks instead of daily (more efficient)
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      startDate.setDate(startDate.getDate() - 84); // 12 weeks
 
       const dates = [];
       const totalCustomers = [];
@@ -427,44 +440,66 @@ export const enhancedDashboardDetailsService = {
       const activeCustomers = [];
       const growthRates = [];
 
-      // Fetch daily customer data
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const currentDate = d.toISOString().split('T')[0];
-        dates.push(currentDate);
+      // Get all customers first to avoid repeated queries
+      let allCustomersQuery = supabaseBanking
+        .from(TABLES.CUSTOMERS)
+        .select('customer_id, created_at');
+      
+      // Apply date filter if requested
+      if (shouldApplyDateFilter && filters?.dateRange && filters.dateRange !== 'all_time') {
+        const dateFilter = getDateFilter(filters.dateRange);
+        allCustomersQuery = allCustomersQuery
+          .gte('created_at', dateFilter.start)
+          .lte('created_at', dateFilter.end);
+      }
+      
+      const { data: allCustomers } = await allCustomersQuery;
+      
+      // Get all accounts for active customer calculation
+      const { data: allAccounts } = await supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('customer_id, created_at');
 
-        // Get customers up to this date
-        const { data: customersUpToDate } = await supabaseBanking
-          .from(TABLES.CUSTOMERS)
-          .select('customer_id, created_at')
-          .lte('created_at', currentDate);
-
-        const totalCount = customersUpToDate?.length || 0;
-        totalCustomers.push(totalCount);
-
-        // Count new customers for this day
-        const dayCustomers = customersUpToDate?.filter(c => 
-          c.created_at.startsWith(currentDate)
-        ).length || 0;
-        newCustomers.push(dayCustomers);
-
-        // Get active customers (those with accounts)
-        const { data: activeAccounts } = await supabaseBanking
-          .from(TABLES.ACCOUNTS)
-          .select('customer_id')
-          .in('customer_id', customersUpToDate?.map(c => c.customer_id) || [])
-          .lte('created_at', currentDate);
+      // Generate weekly data points
+      for (let week = 0; week < 12; week++) {
+        const weekEndDate = new Date(endDate);
+        weekEndDate.setDate(weekEndDate.getDate() - (week * 7));
+        const weekStartDate = new Date(weekEndDate);
+        weekStartDate.setDate(weekStartDate.getDate() - 6);
         
-        const activeCount = new Set(activeAccounts?.map(a => a.customer_id) || []).size;
-        activeCustomers.push(activeCount);
+        const weekLabel = weekEndDate.toISOString().split('T')[0];
+        dates.unshift(weekLabel);
 
-        // Calculate daily growth rate
-        if (totalCustomers.length > 1) {
-          const previousTotal = totalCustomers[totalCustomers.length - 2];
+        // Count customers up to this week
+        const customersUpToWeek = allCustomers?.filter(c => 
+          new Date(c.created_at) <= weekEndDate
+        ) || [];
+        const totalCount = customersUpToWeek.length;
+        totalCustomers.unshift(totalCount);
+
+        // Count new customers this week
+        const weekNewCustomers = allCustomers?.filter(c => {
+          const createdDate = new Date(c.created_at);
+          return createdDate >= weekStartDate && createdDate <= weekEndDate;
+        }).length || 0;
+        newCustomers.unshift(weekNewCustomers);
+
+        // Count active customers (those with accounts)
+        const customerIds = customersUpToWeek.map(c => c.customer_id);
+        const activeCount = new Set(
+          allAccounts?.filter(a => customerIds.includes(a.customer_id))
+            .map(a => a.customer_id) || []
+        ).size;
+        activeCustomers.unshift(activeCount);
+
+        // Calculate weekly growth rate
+        if (week > 0) {
+          const previousTotal = totalCustomers[0];
           const growthRate = previousTotal > 0 ? 
             ((totalCount - previousTotal) / previousTotal * 100) : 0;
-          growthRates.push(growthRate);
+          growthRates.unshift(growthRate);
         } else {
-          growthRates.push(0);
+          growthRates.unshift(0);
         }
       }
 
@@ -476,34 +511,13 @@ export const enhancedDashboardDetailsService = {
         growthRates
       };
     } catch (error) {
-      console.error('Error fetching customers trends data:', error);
-      // Return mock data as fallback
-      const dates = [];
-      const totalCustomers = [];
-      const newCustomers = [];
-      const activeCustomers = [];
-      const growthRates = [];
-
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
-
-      let baseCustomers = 1000;
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        dates.push(d.toISOString().split('T')[0]);
-        baseCustomers += Math.floor(Math.random() * 20);
-        totalCustomers.push(baseCustomers);
-        newCustomers.push(Math.floor(Math.random() * 10));
-        activeCustomers.push(Math.floor(baseCustomers * 0.8));
-        growthRates.push(Math.random() * 2);
-      }
-
+      console.error('Error in getCustomersTrendsData:', error);
       return {
-        dates,
-        totalCustomers,
-        newCustomers,
-        activeCustomers,
-        growthRates
+        dates: [],
+        totalCustomers: [],
+        newCustomers: [],
+        activeCustomers: [],
+        growthRates: []
       };
     }
   },
@@ -547,10 +561,10 @@ export const enhancedDashboardDetailsService = {
 
   async getCustomersRawData(filters) {
     try {
-      const dateFilter = getDateFilter(filters.dateRange);
+      // For customer raw data, we should match the main dashboard behavior
+      const shouldApplyDateFilter = filters?.applyDateFilter !== false;
       
-      // Fetch customers with their account information
-      const { data: customers, error } = await supabaseBanking
+      let customersQuery = supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select(`
           *,
@@ -561,9 +575,18 @@ export const enhancedDashboardDetailsService = {
             current_balance,
             status
           )
-        `)
-        .gte('created_at', dateFilter.start)
-        .lte('created_at', dateFilter.end)
+        `);
+      
+      // Apply date filter only if explicitly requested
+      if (shouldApplyDateFilter && filters?.dateRange && filters.dateRange !== 'all_time') {
+        const dateFilter = getDateFilter(filters.dateRange);
+        customersQuery = customersQuery
+          .gte('created_at', dateFilter.start)
+          .lte('created_at', dateFilter.end);
+      }
+      
+      // Fetch customers with their account information
+      const { data: customers, error } = await customersQuery
         .limit(100)
         .order('created_at', { ascending: false });
 
@@ -788,22 +811,56 @@ export const enhancedDashboardDetailsService = {
 
   async getCustomersBreakdown(widgetId, filters) {
     try {
-      const dateFilter = getDateFilter(filters.dateRange);
+      // For customer breakdown, we should match the main dashboard behavior
+      const shouldApplyDateFilter = filters?.applyDateFilter !== false;
       
       switch (widgetId) {
         case 'total_customers':
-          const customers = await supabaseBanking
+          let customersQuery = supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('customer_type')
-            .gte('created_at', dateFilter.start)
-            .lte('created_at', dateFilter.end);
+            .select('customer_type, customer_segment, customer_type_id, kyc_status, risk_category');
           
-          const customerBreakdown = {};
-          customers.data?.forEach(cust => {
-            customerBreakdown[cust.customer_type] = (customerBreakdown[cust.customer_type] || 0) + 1;
+          // Apply date filter only if explicitly requested
+          if (shouldApplyDateFilter && filters?.dateRange && filters.dateRange !== 'all_time') {
+            const dateFilter = getDateFilter(filters.dateRange);
+            customersQuery = customersQuery
+              .gte('created_at', dateFilter.start)
+              .lte('created_at', dateFilter.end);
+          }
+          
+          const { data: customers, error } = await customersQuery;
+          
+          if (error) {
+            console.error('Error fetching customers for breakdown:', error);
+            return {};
+          }
+          
+          const breakdowns = {
+            byType: {},
+            bySegment: {},
+            byKYC: {},
+            byRisk: {}
+          };
+          
+          customers?.forEach(cust => {
+            // Customer Type breakdown
+            const type = cust.customer_type || cust.customer_segment || 'Standard';
+            breakdowns.byType[type] = (breakdowns.byType[type] || 0) + 1;
+            
+            // Customer Segment breakdown
+            const segment = cust.customer_segment || cust.customer_type || 'Standard';
+            breakdowns.bySegment[segment] = (breakdowns.bySegment[segment] || 0) + 1;
+            
+            // KYC Status breakdown
+            const kycStatus = cust.kyc_status || 'Pending';
+            breakdowns.byKYC[kycStatus] = (breakdowns.byKYC[kycStatus] || 0) + 1;
+            
+            // Risk Category breakdown
+            const riskCategory = cust.risk_category || 'Medium';
+            breakdowns.byRisk[riskCategory] = (breakdowns.byRisk[riskCategory] || 0) + 1;
           });
           
-          return { byType: customerBreakdown };
+          return breakdowns;
           
         default:
           return {};
