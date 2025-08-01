@@ -55,21 +55,21 @@ export class CollectionService {
         .from('collection_cases')
         .select(`
           *,
-          kastle_banking.loan_accounts!loan_account_number (
+          loan_accounts:kastel_banking.loan_accounts!loan_account_number (
             loan_amount,
             outstanding_balance,
             overdue_amount,
             overdue_days,
             product_id,
-            kastle_banking.products!product_id (
+            products:kastel_banking.products!product_id (
               product_name,
               product_type
             )
           ),
-          kastle_banking.customers!customer_id (
+          customers:kastel_banking.customers!customer_id (
             full_name,
             customer_type,
-            kastle_banking.customer_contacts!customer_id (
+            customer_contacts:kastel_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
@@ -89,7 +89,7 @@ export class CollectionService {
 
       // Apply filters
       if (search) {
-        query = query.or(`case_number.ilike.%${search}%,kastle_banking.customers.full_name.ilike.%${search}%,loan_account_number.ilike.%${search}%`);
+        query = query.or(`case_number.ilike.%${search}%,customers.full_name.ilike.%${search}%,loan_account_number.ilike.%${search}%`);
       }
 
       if (status && status !== 'all') {
@@ -164,8 +164,8 @@ export class CollectionService {
         return {
           caseId: caseItem.case_id,
           caseNumber: caseItem.case_number,
-          customerName: caseItem.kastle_banking?.customers?.full_name || 'Unknown',
-          customerPhone: caseItem.kastle_banking?.customers?.customer_contacts?.find(c => c.contact_type === 'MOBILE')?.contact_value || 'N/A',
+          customerName: caseItem.customers?.full_name || 'Unknown',
+          customerPhone: caseItem.customers?.customer_contacts?.find(c => c.contact_type === 'MOBILE')?.contact_value || 'N/A',
           customerId: caseItem.customer_id,
           accountNumber: caseItem.account_number,
           loanAccountNumber: caseItem.loan_account_number,
@@ -173,15 +173,15 @@ export class CollectionService {
           daysPastDue: caseItem.days_past_due || 0,
           priority: caseItem.priority,
           status: caseItem.case_status,
-          assignedTo: caseItem.kastle_collection?.collection_officers?.officer_name || 'Unassigned',
+          assignedTo: caseItem.collection_officers?.officer_name || 'Unassigned',
           assignedOfficerId: caseItem.assigned_to,
-          delinquencyBucket: caseItem.kastle_collection?.collection_buckets?.bucket_name || 'Unknown',
+          delinquencyBucket: caseItem.collection_buckets?.bucket_name || 'Unknown',
           lastContactDate: caseItem.last_contact_date,
           nextActionDate: caseItem.next_action_date,
           hasPromiseToPay: !!activePTP,
           ptpDetails: activePTP,
           totalInteractions: interactionCount || 0,
-          productType: caseItem.kastle_banking?.loan_accounts?.kastle_banking?.products?.product_type || 'Unknown',
+          productType: caseItem.loan_accounts?.products?.product_type || 'Unknown',
           createdAt: caseItem.created_at,
           updatedAt: caseItem.updated_at
         };
@@ -211,14 +211,14 @@ export class CollectionService {
         .from('collection_cases')
         .select(`
           *,
-          kastle_banking.loan_accounts!loan_account_number (
+          loan_accounts:kastel_banking.loan_accounts!loan_account_number (
             *,
-            kastle_banking.products!product_id (*)
+            products:kastel_banking.products!product_id (*)
           ),
-          kastle_banking.customers!customer_id (
+          customers:kastel_banking.customers!customer_id (
             *,
-            kastle_banking.customer_contacts!customer_id (*),
-            kastle_banking.customer_addresses!customer_id (*)
+            customer_contacts:kastel_banking.customer_contacts!customer_id (*),
+            customer_addresses:kastel_banking.customer_addresses!customer_id (*)
           ),
           collection_officers!assigned_to (*),
           collection_strategies!strategy_id (*),
@@ -275,7 +275,7 @@ export class CollectionService {
 
       // Get payment history
       const { data: payments, error: paymentsError } = await supabaseBanking
-        .from('kastle_banking.transactions')
+        .from('transactions')
         .select('*')
         .eq('account_number', caseData?.account_number)
         .eq('transaction_type_id', 'LOAN_REPAYMENT')
@@ -435,7 +435,7 @@ export class CollectionService {
         `);
 
       const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-        const teamOfficerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
+        const teamOfficerIds = team.collection_officers?.map(o => o.officer_id) || [];
         const teamCases = filteredCases.filter(c => teamOfficerIds.includes(c.assigned_to));
         
         // Get team recovery
@@ -460,13 +460,22 @@ export class CollectionService {
       }));
 
       return formatApiResponse({
+        totalCases,
+        activeCases,
+        totalOutstanding,
+        monthlyRecovery: totalMonthlyRecovery,
+        collectionRate: parseFloat(collectionRate.toFixed(2)),
+        statusDistribution,
+        bucketDistribution,
+        priorityDistribution,
+        teamPerformance,
         summary: {
           totalCases,
           activeCases,
           closedCases: totalCases - activeCases,
           totalOutstanding,
           monthlyRecovery: totalMonthlyRecovery,
-          collectionRate,
+          collectionRate: parseFloat(collectionRate.toFixed(2)),
           avgDPD: filteredCases.length > 0 ? 
             filteredCases.reduce((sum, c) => sum + (c.days_past_due || 0), 0) / filteredCases.length : 0
         },
@@ -475,7 +484,6 @@ export class CollectionService {
           byStatus: statusDistribution,
           byPriority: priorityDistribution
         },
-        teamPerformance,
         trends: {
           newCasesThisMonth: filteredCases.filter(c => 
             new Date(c.created_at) >= startOfMonth
@@ -799,7 +807,7 @@ export class CollectionService {
 
       // Bucket analysis
       const bucketAnalysis = bucketMovements?.reduce((acc, movement) => {
-        const fromBucket = movement.kastle_collection?.collection_buckets?.bucket_name || 'Unknown';
+        const fromBucket = movement.collection_buckets?.bucket_name || 'Unknown';
         const key = `${fromBucket}_to_${movement.to_bucket_id}`;
         
         if (!acc[key]) {
@@ -915,21 +923,21 @@ export class CollectionService {
             `)
             .eq('case_status', 'ACTIVE');
 
-          const bucketSummary = bucketData?.reduce((acc, caseItem) => {
-            const bucketName = caseItem.kastle_collection?.collection_buckets?.bucket_name || 'Unknown';
-            if (!acc[bucketName]) {
-              acc[bucketName] = {
-                bucketName,
-                count: 0,
-                totalOutstanding: 0,
-                avgDPD: 0
-              };
-            }
-            acc[bucketName].count++;
-            acc[bucketName].totalOutstanding += caseItem.total_outstanding || 0;
-            acc[bucketName].avgDPD += caseItem.days_past_due || 0;
-            return acc;
-          }, {}) || {};
+                  const bucketSummary = bucketData?.reduce((acc, caseItem) => {
+          const bucketName = caseItem.collection_buckets?.bucket_name || 'Unknown';
+          if (!acc[bucketName]) {
+            acc[bucketName] = {
+              bucketName,
+              count: 0,
+              totalOutstanding: 0,
+              avgDPD: 0
+            };
+          }
+          acc[bucketName].count++;
+          acc[bucketName].totalOutstanding += caseItem.total_outstanding || 0;
+          acc[bucketName].avgDPD += caseItem.days_past_due || 0;
+          return acc;
+        }, {}) || {};
 
           // Calculate averages
           Object.values(bucketSummary).forEach(bucket => {
@@ -957,31 +965,31 @@ export class CollectionService {
               )
             `);
 
-          const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-            const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
-            
-            const { data: teamData } = await supabaseCollection
-              .from('officer_performance_summary')
-              .select('total_collected, total_cases, contact_rate')
-              .in('officer_id', officerIds)
-              .gte('summary_date', startDate.toISOString().split('T')[0])
-              .lte('summary_date', endDate.toISOString().split('T')[0]);
+                const teamPerformance = await Promise.all((teams || []).map(async (team) => {
+        const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
+        
+        const { data: teamData } = await supabaseCollection
+          .from('officer_performance_summary')
+          .select('total_collected, total_cases, contact_rate')
+          .in('officer_id', officerIds)
+          .gte('summary_date', startDate.toISOString().split('T')[0])
+          .lte('summary_date', endDate.toISOString().split('T')[0]);
 
-            const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
-            const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
-            const avgContactRate = teamData?.length > 0 ?
-              teamData.reduce((sum, d) => sum + (d.contact_rate || 0), 0) / teamData.length : 0;
+        const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
+        const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
+        const avgContactRate = teamData?.length > 0 ?
+          teamData.reduce((sum, d) => sum + (d.contact_rate || 0), 0) / teamData.length : 0;
 
-            return {
-              teamId: team.team_id,
-              teamName: team.team_name,
-              teamType: team.team_type,
-              officerCount: officerIds.length,
-              totalCollected,
-              totalCases,
-              avgContactRate
-            };
-          }));
+        return {
+          teamId: team.team_id,
+          teamName: team.team_name,
+          teamType: team.team_type,
+          officerCount: officerIds.length,
+          totalCollected,
+          totalCases,
+          avgContactRate
+        };
+      }));
 
           reportData = {
             reportType: 'team',
@@ -1089,7 +1097,7 @@ export class CollectionService {
       if (teamsError) throw teamsError;
 
       const teamPerformance = await Promise.all((teams || []).map(async (team) => {
-        const officerIds = team.kastle_collection?.collection_officers?.map(o => o.officer_id) || [];
+        const officerIds = team.collection_officers?.map(o => o.officer_id) || [];
         
         const { data: teamData } = await supabaseCollection
           .from('officer_performance_summary')
@@ -1300,9 +1308,9 @@ export class CollectionService {
 
       // Process and enrich loan data
       const enrichedLoans = cases?.map(caseItem => {
-        const loan = caseItem.kastle_banking?.loan_accounts;
-        const customer = caseItem.kastle_banking?.customers;
-        const schedules = loan?.kastle_banking?.loan_schedules || [];
+        const loan = caseItem.loan_accounts;
+        const customer = caseItem.customers;
+        const schedules = loan?.loan_schedules || [];
         
         // Calculate payment details
         const totalLoanAmount = loan?.loan_amount || 0;
@@ -1317,7 +1325,7 @@ export class CollectionService {
         
         // Get communication stats for this loan
         const loanCommunications = communicationLogs?.filter(
-          log => log.kastle_collection?.collection_cases?.loan_account_number === loan?.loan_account_number
+          log => log.collection_cases?.loan_account_number === loan?.loan_account_number
         ) || [];
         
         const callsThisMonth = loanCommunications.filter(c => c.interaction_type === 'CALL').length;
@@ -1331,7 +1339,7 @@ export class CollectionService {
         
         // Get PTP for this loan
         const activePTP = promisesToPay?.find(
-          ptp => ptp.kastle_collection?.collection_cases?.loan_account_number === loan?.loan_account_number &&
+          ptp => ptp.collection_cases?.loan_account_number === loan?.loan_account_number &&
                  ptp.status === 'ACTIVE'
         );
         
@@ -1354,7 +1362,7 @@ export class CollectionService {
           customerId: customer?.national_id || caseItem.customer_id,
           customerName: customer?.full_name || 'Unknown',
           customerType: customer?.customer_type || 'INDIVIDUAL',
-          customerPhone: customer?.kastle_banking?.customer_contacts
+          customerPhone: customer?.customer_contacts
             ?.find(c => c.contact_type === 'MOBILE')?.contact_value || 'N/A',
           
           // Loan identification
@@ -1378,7 +1386,7 @@ export class CollectionService {
           installmentDetails,
           
           // Product and status
-          productType: loan?.kastle_banking?.products?.product_type || 'Unknown',
+          productType: loan?.products?.product_type || 'Unknown',
           loanStatus: loan?.loan_status || 'ACTIVE',
           
           // Communication data
