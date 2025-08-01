@@ -54,6 +54,88 @@ class ReportGenerator {
     return new Intl.NumberFormat('en-SA').format(value || 0);
   }
 
+  // Helper to add table using autoTable
+  addTable(data, headers, startY = null, doc = null) {
+    // Use provided doc or instance doc
+    const pdfDoc = doc || this.doc;
+    if (!pdfDoc) return;
+    
+    // Convert data to the format expected by autoTable
+    const tableData = data.map(row => {
+      if (Array.isArray(row)) {
+        return row;
+      } else if (typeof row === 'object') {
+        return headers.map(header => row[header] || '');
+      }
+      return [row];
+    });
+
+    autoTable(pdfDoc, {
+      head: [headers],
+      body: tableData,
+      startY: startY || this.currentY,
+      theme: 'grid',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        overflow: 'linebreak',
+        cellWidth: 'wrap',
+      },
+      headStyles: {
+        fillColor: OSOL_BRAND.primary,
+        textColor: OSOL_BRAND.white,
+        fontSize: 10,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245],
+      },
+      margin: { left: 15, right: 15 },
+      tableWidth: 'auto',
+      pageBreak: 'auto',
+    });
+
+    // Update current Y position
+    this.currentY = pdfDoc.lastAutoTable.finalY + 10;
+  }
+
+  // Helper to add section titles
+  addSectionTitle(title, doc = null) {
+    const pdfDoc = doc || this.doc;
+    if (!pdfDoc) return;
+
+    this.currentY += 10;
+    pdfDoc.setFontSize(12);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(...OSOL_BRAND.text);
+    pdfDoc.text(title, 20, this.currentY);
+    this.currentY += 10;
+  }
+
+  // Helper to add header with logo
+  addHeaderWithLogo(reportName, doc = null) {
+    const pdfDoc = doc || this.doc;
+    if (!pdfDoc) return;
+
+    // Add OSOL header (simplified version since addOSOLHeader might not be available in this context)
+    pdfDoc.setFillColor(...OSOL_BRAND.primary);
+    pdfDoc.rect(0, 0, 210, 40, 'F');
+    
+    pdfDoc.setTextColor(...OSOL_BRAND.white);
+    pdfDoc.setFontSize(18);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.text('OSOL Financial Services', 20, 20);
+    
+    pdfDoc.setFontSize(14);
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.text(reportName, 20, 30);
+    
+    // Reset colors
+    pdfDoc.setTextColor(...OSOL_BRAND.text);
+    
+    this.currentY = 45;
+  }
+
   // Helper to format filters for display
   async formatFilters(filters) {
     if (!filters || Object.keys(filters).length === 0) return null;
@@ -314,13 +396,17 @@ class ReportGenerator {
         fillColor: OSOL_BRAND.lightGray
       },
       columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 60, halign: 'right' },
-        2: { cellWidth: 50 }
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 'auto', halign: 'right' },
+        2: { cellWidth: 'auto' }
       },
       margin: { left: leftMargin, right: rightMargin },
-      tableWidth: contentWidth,
-      pageBreak: 'avoid'
+      tableWidth: 'auto',
+      pageBreak: 'avoid',
+      styles: {
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
+      }
     });
 
     currentY = doc.lastAutoTable.finalY + 20;
@@ -363,13 +449,17 @@ class ReportGenerator {
         fontSize: 9
       },
       columnStyles: {
-        0: { cellWidth: 80 },
-        1: { cellWidth: 60, halign: 'right' },
-        2: { cellWidth: 40, halign: 'center' }
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 'auto', halign: 'right' },
+        2: { cellWidth: 'auto', halign: 'center' }
       },
       margin: { left: leftMargin, right: rightMargin },
-      tableWidth: contentWidth,
-      pageBreak: 'avoid'
+      tableWidth: 'auto',
+      pageBreak: 'avoid',
+      styles: {
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
+      }
     });
 
     currentY = doc.lastAutoTable.finalY + 20;
@@ -413,13 +503,17 @@ class ReportGenerator {
         fontSize: 9
       },
       columnStyles: {
-        0: { cellWidth: 80 },
-        1: { cellWidth: 60, halign: 'right' },
-        2: { cellWidth: 40, halign: 'center' }
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 'auto', halign: 'right' },
+        2: { cellWidth: 'auto', halign: 'center' }
       },
       margin: { left: leftMargin, right: rightMargin },
-      tableWidth: contentWidth,
-      pageBreak: 'avoid'
+      tableWidth: 'auto',
+      pageBreak: 'avoid',
+      styles: {
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
+      }
     });
 
     currentY = doc.lastAutoTable.finalY + 20;
@@ -1320,30 +1414,30 @@ class ReportGenerator {
 // Create singleton instance
 const reportGenerator = new ReportGenerator();
 
-// Export methods
+// Export methods with proper context preservation
 export default {
-  generatePDF: reportGenerator.generatePDF.bind(reportGenerator),
-  generateIncomeStatementPDF: reportGenerator.generateIncomeStatementPDF.bind(reportGenerator),
-  generateBalanceSheetPDF: reportGenerator.generateBalanceSheetPDF.bind(reportGenerator),
-  generateCustomerReportPDF: reportGenerator.generateCustomerReportPDF.bind(reportGenerator),
-  generateRiskReportPDF: reportGenerator.generateRiskReportPDF.bind(reportGenerator),
-  generateRegulatoryReportPDF: reportGenerator.generateRegulatoryReportPDF.bind(reportGenerator),
-  generateGenericPDF: reportGenerator.generateGenericPDF.bind(reportGenerator),
-  generateExcel: reportGenerator.generateExcel.bind(reportGenerator),
-  convertObjectToArray: reportGenerator.convertObjectToArray.bind(reportGenerator),
-  formatCurrency: reportGenerator.formatCurrency.bind(reportGenerator),
-  formatPercentage: reportGenerator.formatPercentage.bind(reportGenerator),
-  formatNumber: reportGenerator.formatNumber.bind(reportGenerator),
-  savePDF: reportGenerator.savePDF.bind(reportGenerator),
-  saveExcel: reportGenerator.saveExcel.bind(reportGenerator),
-  getPDFBlob: reportGenerator.getPDFBlob.bind(reportGenerator),
-  getExcelBlob: reportGenerator.getExcelBlob.bind(reportGenerator),
-  printReport: reportGenerator.printReport.bind(reportGenerator)
+  generatePDF: (...args) => reportGenerator.generatePDF(...args),
+  generateIncomeStatementPDF: (...args) => reportGenerator.generateIncomeStatementPDF(...args),
+  generateBalanceSheetPDF: (...args) => reportGenerator.generateBalanceSheetPDF(...args),
+  generateCustomerReportPDF: (...args) => reportGenerator.generateCustomerReportPDF(...args),
+  generateRiskReportPDF: (...args) => reportGenerator.generateRiskReportPDF(...args),
+  generateRegulatoryReportPDF: (...args) => reportGenerator.generateRegulatoryReportPDF(...args),
+  generateGenericPDF: (...args) => reportGenerator.generateGenericPDF(...args),
+  generateExcel: (...args) => reportGenerator.generateExcel(...args),
+  convertObjectToArray: (...args) => reportGenerator.convertObjectToArray(...args),
+  formatCurrency: (...args) => reportGenerator.formatCurrency(...args),
+  formatPercentage: (...args) => reportGenerator.formatPercentage(...args),
+  formatNumber: (...args) => reportGenerator.formatNumber(...args),
+  savePDF: (...args) => reportGenerator.savePDF(...args),
+  saveExcel: (...args) => reportGenerator.saveExcel(...args),
+  getPDFBlob: (...args) => reportGenerator.getPDFBlob(...args),
+  getExcelBlob: (...args) => reportGenerator.getExcelBlob(...args),
+  printReport: (...args) => reportGenerator.printReport(...args)
 };
 
 // Also export individual functions for backward compatibility
-export const exportToPDF = reportGenerator.generatePDF.bind(reportGenerator);
-export const exportToExcel = reportGenerator.generateExcel.bind(reportGenerator);
+export const exportToPDF = (...args) => reportGenerator.generatePDF(...args);
+export const exportToExcel = (...args) => reportGenerator.generateExcel(...args);
 export const exportToCSV = (data) => {
   if (!data || !Array.isArray(data) || data.length === 0) return;
   

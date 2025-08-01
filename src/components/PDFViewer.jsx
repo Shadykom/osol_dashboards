@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Printer, X, Maximize2, Minimize2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
@@ -186,9 +186,14 @@ const PDFViewer = ({
       >
         <DialogHeader className="px-4 py-3 border-b flex-shrink-0">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold">
-              {reportName || 'Report Preview'}
-            </DialogTitle>
+            <div>
+              <DialogTitle className="text-lg font-semibold">
+                {reportName || 'Report Preview'}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Preview and interact with the generated report
+              </DialogDescription>
+            </div>
             <div className="flex items-center gap-2">
               {/* Zoom Controls with Slider */}
               <div className="flex items-center gap-2 border rounded-lg p-2">
