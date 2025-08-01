@@ -827,7 +827,16 @@ const reportGenerator = new ReportGenerator();
 // Export methods
 export default {
   generatePDF: reportGenerator.generatePDF.bind(reportGenerator),
+  generateIncomeStatementPDF: reportGenerator.generateIncomeStatementPDF.bind(reportGenerator),
+  generateBalanceSheetPDF: reportGenerator.generateBalanceSheetPDF.bind(reportGenerator),
+  generateCustomerReportPDF: reportGenerator.generateCustomerReportPDF.bind(reportGenerator),
+  generateRiskReportPDF: reportGenerator.generateRiskReportPDF.bind(reportGenerator),
+  generateGenericPDF: reportGenerator.generateGenericPDF.bind(reportGenerator),
   generateExcel: reportGenerator.generateExcel.bind(reportGenerator),
+  convertObjectToArray: reportGenerator.convertObjectToArray.bind(reportGenerator),
+  formatCurrency: reportGenerator.formatCurrency.bind(reportGenerator),
+  formatPercentage: reportGenerator.formatPercentage.bind(reportGenerator),
+  formatNumber: reportGenerator.formatNumber.bind(reportGenerator),
   savePDF: reportGenerator.savePDF.bind(reportGenerator),
   saveExcel: reportGenerator.saveExcel.bind(reportGenerator),
   getPDFBlob: reportGenerator.getPDFBlob.bind(reportGenerator),
