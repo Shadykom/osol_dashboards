@@ -3,7 +3,7 @@
   /* Page setup for A4 */
   @page {
     size: A4 portrait;
-    margin: 15mm 10mm 20mm 10mm;
+    margin: 15mm 15mm 20mm 15mm; /* Consistent margins with PDF */
     
     @bottom-center {
       content: counter(page) " of " counter(pages);
@@ -195,10 +195,22 @@
 
   /* Ensure content width */
   .max-w-7xl {
-    max-width: 100% !important;
+    max-width: 180mm !important; /* A4 width minus margins */
     width: 100% !important;
-    margin: 0 !important;
-    padding: 0 8px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+  }
+  
+  /* Ensure all content respects page width */
+  * {
+    max-width: 100% !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  
+  /* Prevent horizontal overflow */
+  body {
+    overflow-x: hidden !important;
   }
 
   /* Fix for long content */
