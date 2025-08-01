@@ -71,23 +71,23 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
   return (
     <div className="min-h-screen bg-gray-50 print:bg-white">
       {/* Professional Header */}
-      <div className="bg-white border-b-4 border-[#E6B800] print:border-b-2 print:border-black">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="bg-white border-b-4 border-[#E6B800] print:border-b-2 print:border-black avoid-break">
+        <div className="max-w-7xl mx-auto px-6 py-6 print:py-4">
           <div className="flex items-center justify-between">
             {/* Left: Logo and Company Info */}
             <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-br from-[#E6B800] to-[#CC9900] p-3 rounded-lg shadow-lg">
+              <div className="bg-gradient-to-br from-[#E6B800] to-[#CC9900] p-3 rounded-lg shadow-lg print:shadow-none print:p-2">
                 <img 
                   src={osoulLogo} 
                   alt="OSOL Logo" 
-                  className="h-12 w-12 object-contain filter brightness-0 invert"
+                  className="h-12 w-12 object-contain print:h-10 print:w-10"
                 />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-[#2D3748] tracking-tight">
+                <h1 className="text-2xl font-bold text-[#2D3748] tracking-tight print:text-xl">
                   OSOL Financial Services
                 </h1>
-                <p className="text-[#718096] text-sm font-medium">
+                <p className="text-[#718096] text-sm font-medium print:text-xs">
                   Financial Solutions & Banking Services
                 </p>
               </div>
@@ -95,9 +95,9 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
 
             {/* Right: Report Info */}
             <div className="text-right">
-              <div className="bg-[#E6B800] text-white px-4 py-2 rounded-lg shadow-sm">
-                <h2 className="text-lg font-bold">Income Statement</h2>
-                <p className="text-sm opacity-90">Financial Report</p>
+              <div className="bg-[#E6B800] text-white px-4 py-2 rounded-lg shadow-sm print:shadow-none print:px-3 print:py-1">
+                <h2 className="text-lg font-bold print:text-base">Income Statement</h2>
+                <p className="text-sm opacity-90 print:text-xs">Financial Report</p>
               </div>
             </div>
           </div>
@@ -105,9 +105,9 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
       </div>
 
       {/* Report Metadata */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      <div className="bg-white border-b avoid-break">
+        <div className="max-w-7xl mx-auto px-6 py-4 print:py-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm print:text-xs print:gap-2">
             <div className="flex items-center space-x-2">
               <Calendar className="h-4 w-4 text-[#E6B800]" />
               <span className="text-[#718096]">Report Period:</span>
@@ -130,9 +130,9 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8 print:px-4 print:py-4">
         {/* Executive Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 print:gap-3 print:mb-4 avoid-break">
           <Card className="border-l-4 border-l-[#E6B800] shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -202,9 +202,9 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
         </div>
 
         {/* Financial Breakdown Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 print:gap-4 print:mb-4">
           {/* Revenue Breakdown */}
-          <Card className="shadow-sm">
+          <Card className="shadow-sm avoid-break">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold text-[#2D3748] flex items-center">
                 <DollarSign className="h-5 w-5 text-[#E6B800] mr-2" />
@@ -213,7 +213,7 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
               <p className="text-sm text-[#718096]">Distribution of income sources</p>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={300} className="print:h-48">
                 <PieChart>
                   <Pie
                     data={revenueData}
@@ -237,7 +237,7 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
           </Card>
 
           {/* Expense Breakdown */}
-          <Card className="shadow-sm">
+          <Card className="shadow-sm avoid-break">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold text-[#2D3748] flex items-center">
                 <CreditCard className="h-5 w-5 text-[#E6B800] mr-2" />
@@ -246,7 +246,7 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
               <p className="text-sm text-[#718096]">Operating cost distribution</p>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={300} className="print:h-48">
                 <BarChart data={expenseData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                   <XAxis 
@@ -277,7 +277,7 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
         </div>
 
         {/* Performance Comparison */}
-        <Card className="shadow-sm mb-8">
+        <Card className="shadow-sm mb-8 print:mb-4 avoid-break">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold text-[#2D3748] flex items-center">
               <TrendingUp className="h-5 w-5 text-[#E6B800] mr-2" />
@@ -286,7 +286,7 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
             <p className="text-sm text-[#718096]">Revenue vs Expenses comparison</p>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
+            <ResponsiveContainer width="100%" height={350} className="print:h-52">
               <BarChart
                 data={[
                   { name: 'Total Revenue', value: totalRevenue, fill: OSOL_COLORS.success },
@@ -321,28 +321,28 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
       </div>
 
       {/* Professional Footer */}
-      <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white mt-12 print:mt-8">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="bg-gradient-to-r from-[#E6B800] to-[#CC9900] text-white mt-12 print:mt-8 avoid-break">
+        <div className="max-w-7xl mx-auto px-6 py-8 print:px-4 print:py-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 print:gap-4">
             {/* Company Info */}
             <div>
-              <div className="flex items-center space-x-3 mb-4">
+              <div className="flex items-center space-x-3 mb-4 print:mb-2">
                 <img 
                   src={osoulLogo} 
                   alt="OSOL Logo" 
-                  className="h-8 w-8 object-contain filter brightness-0 invert"
+                  className="h-8 w-8 object-contain filter brightness-0 invert print:h-6 print:w-6"
                 />
-                <h3 className="text-lg font-bold">OSOL Financial</h3>
+                <h3 className="text-lg font-bold print:text-base">OSOL Financial</h3>
               </div>
-              <p className="text-sm opacity-90 leading-relaxed">
+              <p className="text-sm opacity-90 leading-relaxed print:text-xs">
                 Leading provider of Sharia-compliant financial solutions and banking services in the Kingdom of Saudi Arabia.
               </p>
             </div>
 
             {/* Contact Information */}
             <div>
-              <h4 className="font-semibold mb-3">Contact Information</h4>
-              <div className="space-y-2 text-sm opacity-90">
+              <h4 className="font-semibold mb-3 print:mb-2 print:text-sm">Contact Information</h4>
+              <div className="space-y-2 text-sm opacity-90 print:text-xs print:space-y-1">
                 <p>📧 reports@osol.sa</p>
                 <p>📞 +966 11 123 4567</p>
                 <p>🌐 www.osol.sa</p>
@@ -352,8 +352,8 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
 
             {/* Report Information */}
             <div>
-              <h4 className="font-semibold mb-3">Report Information</h4>
-              <div className="space-y-2 text-sm opacity-90">
+              <h4 className="font-semibold mb-3 print:mb-2 print:text-sm">Report Information</h4>
+              <div className="space-y-2 text-sm opacity-90 print:text-xs print:space-y-1">
                 <p>Report Type: Income Statement</p>
                 <p>Generated: {generatedOn}</p>
                 <p>Version: 2.0</p>
@@ -362,8 +362,8 @@ const IncomeStatementReport = ({ reportData, reportType, dateRange }) => {
             </div>
           </div>
 
-          <div className="border-t border-white/20 mt-6 pt-6 text-center">
-            <p className="text-sm opacity-75">
+          <div className="border-t border-white/20 mt-6 pt-6 text-center print:mt-3 print:pt-3">
+            <p className="text-sm opacity-75 print:text-xs">
               © {new Date().getFullYear()} OSOL Financial Services. All rights reserved. | This report is confidential and proprietary.
             </p>
           </div>

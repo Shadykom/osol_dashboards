@@ -2,6 +2,7 @@
 @import './styles/new-sidebar.css';
 @import './styles/mobile-sidebar.css';
 @import './styles/sidebar.css';
+@import './styles/print.css';
 
 @tailwind base;
 @tailwind components;
@@ -621,5 +622,226 @@ html, body, #root {
       transform: translateX(-100%);
       opacity: 0.8;
     }
+  }
+}
+
+/* Print Styles for Reports */
+@media print {
+  /* General print reset */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 10mm 10mm 15mm 10mm;
+  }
+
+  /* Hide non-printable elements */
+  .no-print,
+  nav,
+  aside,
+  button,
+  .sidebar,
+  .navigation,
+  .header-navigation,
+  .footer-navigation {
+    display: none !important;
+  }
+
+  /* Body and container adjustments */
+  body {
+    margin: 0;
+    padding: 0;
+    font-size: 10pt;
+    line-height: 1.4;
+    background: white !important;
+  }
+
+  /* Report specific styles */
+  .min-h-screen {
+    min-height: auto !important;
+  }
+
+  /* Ensure proper page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+
+  /* Card and container styles */
+  .card,
+  .shadow-sm,
+  .shadow-md {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  /* Header adjustments */
+  .bg-white.border-b-4 {
+    border-bottom-width: 2px !important;
+    margin-bottom: 10px;
+  }
+
+  /* Logo and branding */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .h-12.w-12 {
+    height: 40px !important;
+    width: 40px !important;
+  }
+
+  .h-8.w-8 {
+    height: 24px !important;
+    width: 24px !important;
+  }
+
+  /* Text sizing for print */
+  .text-2xl {
+    font-size: 18pt !important;
+  }
+
+  .text-xl {
+    font-size: 16pt !important;
+  }
+
+  .text-lg {
+    font-size: 14pt !important;
+  }
+
+  .text-base {
+    font-size: 11pt !important;
+  }
+
+  .text-sm {
+    font-size: 9pt !important;
+  }
+
+  .text-xs {
+    font-size: 8pt !important;
+  }
+
+  /* Grid adjustments for print */
+  .grid {
+    display: grid !important;
+  }
+
+  .grid-cols-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  @media (min-width: 768px) {
+    .md\\:grid-cols-2 {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .md\\:grid-cols-3 {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+  }
+
+  .lg\\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important; /* Reduce to 2 columns for print */
+  }
+
+  /* Chart container adjustments */
+  .recharts-wrapper {
+    max-height: 200px !important;
+  }
+
+  /* Responsive container for charts */
+  .recharts-responsive-container {
+    max-height: 200px !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Table styles */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: avoid !important;
+  }
+
+  th, td {
+    padding: 4px 8px !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  /* Footer adjustments */
+  .bg-gradient-to-r {
+    background: #E6B800 !important;
+    margin-top: 20px !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Padding and margin adjustments */
+  .px-6 {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .py-8 {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .py-6 {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .mb-8 {
+    margin-bottom: 10px !important;
+  }
+
+  .mt-12 {
+    margin-top: 15px !important;
+  }
+
+  /* Card content spacing */
+  .p-6 {
+    padding: 8px !important;
+  }
+
+  /* Ensure content fits on page */
+  .max-w-7xl {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Hide decorative elements */
+  .rounded-full,
+  .rounded-lg {
+    border-radius: 0 !important;
+  }
+
+  /* Color adjustments for print */
+  .bg-\\[\\#E6B800\\],
+  .bg-yellow-50,
+  .bg-red-50,
+  .bg-orange-50 {
+    background-color: transparent !important;
+  }
+
+  .text-\\[\\#E6B800\\] {
+    color: #CC9900 !important; /* Darker for better print contrast */
+  }
+
+  /* Ensure footer stays at bottom */
+  .print\\:mt-8 {
+    margin-top: auto !important;
   }
 }

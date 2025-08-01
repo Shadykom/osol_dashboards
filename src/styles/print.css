@@ -1,0 +1,219 @@
+/* Print Styles for OSOL Reports */
+@media print {
+  /* Page setup for A4 */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 10mm 20mm 10mm;
+    
+    @bottom-center {
+      content: counter(page) " of " counter(pages);
+    }
+  }
+
+  /* Force color printing */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Reset body and html */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    font-size: 10pt !important;
+    line-height: 1.5 !important;
+    background: white !important;
+  }
+
+  /* Hide non-printable elements */
+  .no-print,
+  nav,
+  aside,
+  button,
+  .sidebar,
+  .navigation,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Page container */
+  .min-h-screen {
+    min-height: auto !important;
+    page-break-after: auto !important;
+  }
+
+  /* Header section */
+  .bg-white.border-b-4 {
+    border-bottom: 2px solid #E6B800 !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Logo adjustments */
+  img.h-12.w-12 {
+    width: 35px !important;
+    height: 35px !important;
+  }
+
+  img.h-8.w-8 {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  /* Text size hierarchy for print */
+  h1.text-2xl { font-size: 16pt !important; }
+  h2.text-lg { font-size: 14pt !important; }
+  h3.text-lg { font-size: 13pt !important; }
+  h4 { font-size: 12pt !important; }
+  
+  .text-base { font-size: 10pt !important; }
+  .text-sm { font-size: 9pt !important; }
+  .text-xs { font-size: 8pt !important; }
+
+  /* Card and grid layout */
+  .grid {
+    display: grid !important;
+    gap: 8px !important;
+  }
+
+  .lg\\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .lg\\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Cards */
+  .card,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Card content */
+  .p-6 {
+    padding: 6px !important;
+  }
+
+  .px-6 {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .py-6,
+  .py-8 {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+
+  /* Charts */
+  .recharts-responsive-container {
+    height: 150px !important;
+    max-height: 150px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .recharts-wrapper {
+    font-size: 8pt !important;
+  }
+
+  /* Hide chart animations */
+  .recharts-layer {
+    animation: none !important;
+  }
+
+  /* Footer section */
+  .bg-gradient-to-r {
+    background: #E6B800 !important;
+    color: white !important;
+    page-break-inside: avoid !important;
+    margin-top: auto !important;
+  }
+
+  /* Ensure footer text is visible */
+  .text-white {
+    color: white !important;
+  }
+
+  /* Page breaks */
+  .page-break-before { page-break-before: always !important; }
+  .page-break-after { page-break-after: always !important; }
+  .avoid-break { page-break-inside: avoid !important; }
+
+  /* Margins and spacing */
+  .mb-8 { margin-bottom: 6px !important; }
+  .mt-12 { margin-top: 10px !important; }
+  .gap-6 { gap: 6px !important; }
+  .gap-8 { gap: 8px !important; }
+  .space-y-2 > * + * { margin-top: 4px !important; }
+
+  /* Remove decorative elements */
+  .rounded-lg,
+  .rounded-full {
+    border-radius: 2px !important;
+  }
+
+  /* Background colors for print */
+  .bg-\\[\\#FEF3C7\\],
+  .bg-yellow-50,
+  .bg-red-50,
+  .bg-orange-50 {
+    background-color: #f9f9f9 !important;
+  }
+
+  /* Ensure proper contrast */
+  .text-\\[\\#E6B800\\] {
+    color: #B8860B !important;
+  }
+
+  .text-\\[\\#2D3748\\] {
+    color: #000 !important;
+  }
+
+  .text-\\[\\#718096\\] {
+    color: #444 !important;
+  }
+
+  /* Table adjustments */
+  table {
+    font-size: 8pt !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    padding: 2px 4px !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Ensure content width */
+  .max-w-7xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+  }
+
+  /* Fix for long content */
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Ensure proper line heights */
+  p, div {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Headers should not be alone at bottom of page */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid !important;
+  }
+}
