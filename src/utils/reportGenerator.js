@@ -405,7 +405,7 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, 'Balance Sheet');
+    let currentY = this.addOSOLHeader(doc, reportName, 'Balance Sheet');
     
     if (!data || typeof data !== 'object') {
       doc.setFontSize(12);
@@ -509,7 +509,7 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, 'Customer Analysis Report');
+    let currentY = this.addOSOLHeader(doc, reportName, 'Customer Analysis Report');
     
     if (!data || typeof data !== 'object') {
       doc.setFontSize(12);
@@ -611,7 +611,7 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, 'Risk Analysis Report');
+    let currentY = this.addOSOLHeader(doc, reportName, 'Risk Analysis Report');
     
     if (!data || typeof data !== 'object') {
       doc.setFontSize(12);
@@ -689,7 +689,7 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, reportType);
+    let currentY = this.addOSOLHeader(doc, reportName, reportType);
     
     if (!data || !Array.isArray(data) || data.length === 0) {
       doc.setFontSize(12);

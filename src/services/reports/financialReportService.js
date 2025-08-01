@@ -259,7 +259,7 @@ class FinancialReportService {
           transaction_amount,
           transaction_type_id,
           transaction_date,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category)
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
@@ -268,28 +268,31 @@ class FinancialReportService {
 
       // Categorize cash flows
       const operatingInflows = transactions?.filter(t => 
-        ['DEPOSIT', 'FEE', 'INTEREST'].includes(t.transaction_types?.category)
+        ['CREDIT', 'CHARGE', 'INTEREST'].includes(t.transaction_types?.transaction_category)
       ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
 
       const operatingOutflows = transactions?.filter(t => 
-        ['WITHDRAWAL', 'EXPENSE', 'SALARY'].includes(t.transaction_types?.category)
-      ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
+        ['DEBIT', 'TRANSFER'].includes(t.transaction_types?.transaction_category) && t.transaction_amount < 0
+      ).reduce((sum, t) => sum + Math.abs(t.transaction_amount || 0), 0) || 0;
 
       const investingInflows = transactions?.filter(t => 
-        ['INVESTMENT_SALE', 'ASSET_SALE'].includes(t.transaction_types?.category)
+        t.transaction_types?.type_name?.includes('Investment Sale') || 
+        t.transaction_types?.type_name?.includes('Asset Sale')
       ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
 
       const investingOutflows = transactions?.filter(t => 
-        ['INVESTMENT_PURCHASE', 'ASSET_PURCHASE'].includes(t.transaction_types?.category)
-      ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
+        t.transaction_types?.type_name?.includes('Investment Purchase') || 
+        t.transaction_types?.type_name?.includes('Asset Purchase')
+      ).reduce((sum, t) => sum + Math.abs(t.transaction_amount || 0), 0) || 0;
 
       const financingInflows = transactions?.filter(t => 
-        ['LOAN_RECEIVED', 'CAPITAL_INJECTION'].includes(t.transaction_types?.category)
+        t.transaction_types?.type_name?.includes('Loan') && t.transaction_amount > 0
       ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
 
       const financingOutflows = transactions?.filter(t => 
-        ['LOAN_PAYMENT', 'DIVIDEND'].includes(t.transaction_types?.category)
-      ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
+        (t.transaction_types?.type_name?.includes('Loan') || 
+         t.transaction_types?.type_name?.includes('Dividend')) && t.transaction_amount < 0
+      ).reduce((sum, t) => sum + Math.abs(t.transaction_amount || 0), 0) || 0;
 
       // Calculate net cash flows
       const netOperatingCashFlow = operatingInflows - operatingOutflows;
@@ -367,7 +370,7 @@ class FinancialReportService {
         .select(`
           transaction_amount,
           transaction_type_id,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category)
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);

@@ -428,7 +428,7 @@ class CustomerReportService {
           transaction_amount,
           transaction_date,
           transaction_type_id,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category)
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
@@ -448,7 +448,7 @@ class CustomerReportService {
         acc[t.customer_id].count++;
         acc[t.customer_id].totalAmount += t.transaction_amount || 0;
         acc[t.customer_id].types.add(t.transaction_types?.type_name);
-        acc[t.customer_id].categories.add(t.transaction_types?.category);
+                  acc[t.customer_id].categories.add(t.transaction_types?.transaction_category);
         return acc;
       }, {}) || {};
 
