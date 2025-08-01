@@ -64,6 +64,7 @@ import reportGenerator from '@/utils/reportGenerator';
 import emailService from '@/services/emailService';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import VisualReportView from '@/components/reports/VisualReportView';
+import IncomeStatementReport from '@/components/reports/IncomeStatementReport';
 
 const REPORT_CATEGORIES = {
   financial: {
@@ -273,25 +274,29 @@ export function ReportsResponsive() {
         case 'financial':
           data = await comprehensiveReportService.getFinancialReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         case 'regulatory':
           data = await comprehensiveReportService.getFinancialReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         case 'customer':
           data = await comprehensiveReportService.getCustomerReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         case 'risk':
           data = await comprehensiveReportService.getRiskReportData(
             selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() }
+            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
+            filters
           );
           break;
         default:
@@ -300,9 +305,25 @@ export function ReportsResponsive() {
 
       setReportData(data);
 
-      // Generate PDF and Excel
-      const pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name));
-      const excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name));
+      // Generate PDF and Excel with enhanced branding for Income Statement
+      let pdf, excel;
+      // Prepare report metadata with filters
+      const reportMetadata = {
+        dateRange: {
+          from: dateRange.from.toISOString(),
+          to: dateRange.to.toISOString()
+        },
+        filters: filters,
+        generatedAt: new Date().toISOString()
+      };
+
+      if (selectedReport === 'income_statement') {
+        pdf = reportGenerator.generateIncomeStatementPDF(data, t(reportInfo.name), reportMetadata);
+        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name), reportMetadata);
+      } else {
+        pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name), reportMetadata);
+        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name), reportMetadata);
+      }
 
       setGeneratedReport({
         pdf,
@@ -310,6 +331,9 @@ export function ReportsResponsive() {
         reportInfo,
         data
       });
+
+      // Automatically switch to preview tab
+      setActiveTab('preview');
 
       // Add to history
       const newHistoryItem = {
@@ -606,8 +630,11 @@ export function ReportsResponsive() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="generate" className="text-xs sm:text-sm">{t('reports.generate')}</TabsTrigger>
+          <TabsTrigger value="preview" className="text-xs sm:text-sm" disabled={!generatedReport}>
+            {t('reports.preview')}
+          </TabsTrigger>
           <TabsTrigger value="scheduled" className="text-xs sm:text-sm">{t('reports.scheduled')}</TabsTrigger>
           <TabsTrigger value="history" className="text-xs sm:text-sm">{t('reports.history')}</TabsTrigger>
         </TabsList>
@@ -852,6 +879,81 @@ export function ReportsResponsive() {
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        {/* Report Preview Tab */}
+        <TabsContent value="preview" className="space-y-4">
+          {generatedReport && reportData ? (
+            <div className="space-y-4">
+              {/* Enhanced Income Statement Report */}
+              {selectedReport === 'income_statement' ? (
+                <IncomeStatementReport 
+                  reportData={reportData}
+                  reportType={selectedReport}
+                  dateRange={dateRange}
+                />
+              ) : (
+                /* Fallback to original VisualReportView for other reports */
+                <div className="bg-white rounded-lg border p-6">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-[#2D3748] mb-2">
+                      {t(generatedReport.reportInfo.name)}
+                    </h2>
+                    <p className="text-[#718096]">
+                      Generated on {format(new Date(), 'dd MMMM yyyy HH:mm')}
+                    </p>
+                  </div>
+                  <VisualReportView 
+                    reportData={reportData}
+                    reportType={selectedReport}
+                  />
+                </div>
+              )}
+              
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 justify-center p-4 bg-gray-50 rounded-lg">
+                <Button 
+                  onClick={() => handleDownload('pdf')}
+                  className="bg-[#E6B800] hover:bg-[#CC9900] text-white"
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Download PDF
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => handleDownload('excel')}
+                >
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Download Excel
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={handlePrint}
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Report
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setEmailDialogOpen(true)}
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email Report
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12">
+                <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Report Generated</h3>
+                <p className="text-gray-500 mb-4">Generate a report first to see the preview here.</p>
+                <Button onClick={() => setActiveTab('generate')}>
+                  Go to Generate Report
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Scheduled Reports Tab */}

@@ -5,19 +5,40 @@ class FinancialReportService {
   /**
    * Get Income Statement Report
    */
-  async getIncomeStatement(startDate, endDate) {
+  async getIncomeStatement(startDate, endDate, filters = {}) {
     try {
-      // Get transaction data for revenue
-      const { data: transactionData, error: transactionError } = await supabaseBanking
+      // Build transaction query with filters
+      let transactionQuery = supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select(`
           transaction_amount,
           transaction_type_id,
           transaction_date,
-          transaction_types!inner(type_name)
+          transaction_types!inner(type_name),
+          accounts!inner(
+            branch_id,
+            product_id,
+            customer_id,
+            branches!inner(branch_name),
+            products!inner(product_name),
+            customers!inner(segment)
+          )
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
+
+      // Apply filters
+      if (filters.branch && filters.branch !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.branch_id', filters.branch);
+      }
+      if (filters.product && filters.product !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.product_id', filters.product);
+      }
+      if (filters.segment && filters.segment !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.customers.segment', filters.segment);
+      }
+
+      const { data: transactionData, error: transactionError } = await transactionQuery;
 
       if (transactionError) throw transactionError;
 
@@ -26,18 +47,35 @@ class FinancialReportService {
         sum + (t.transaction_amount || 0), 0) || 0;
       const transactionFees = totalTransactionVolume * 0.015;
 
-      // Get loan interest income
-      const { data: loanData, error: loanError } = await supabaseBanking
+      // Get loan interest income with filters
+      let loanQuery = supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           interest_rate, 
           outstanding_balance, 
           loan_status,
           loan_amount,
-          disbursement_date
+          disbursement_date,
+          branch_id,
+          product_id,
+          customer_id,
+          customers!inner(segment)
         `)
         .eq('loan_status', 'ACTIVE')
         .lte('disbursement_date', endDate);
+
+      // Apply filters
+      if (filters.branch && filters.branch !== 'all') {
+        loanQuery = loanQuery.eq('branch_id', filters.branch);
+      }
+      if (filters.product && filters.product !== 'all') {
+        loanQuery = loanQuery.eq('product_id', filters.product);
+      }
+      if (filters.segment && filters.segment !== 'all') {
+        loanQuery = loanQuery.eq('customers.segment', filters.segment);
+      }
+
+      const { data: loanData, error: loanError } = await loanQuery;
 
       if (loanError) throw loanError;
 
@@ -129,40 +167,76 @@ class FinancialReportService {
   /**
    * Get Balance Sheet Report
    */
-  async getBalanceSheet(asOfDate) {
+  async getBalanceSheet(asOfDate, filters = {}) {
     try {
-      // Get account balances
-      const { data: accountData, error: accountError } = await supabaseBanking
+      // Get account balances with filters
+      let accountQuery = supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select(`
           account_id,
           current_balance,
           account_status,
           account_type_id,
+          branch_id,
+          product_id,
+          customer_id,
           account_types!inner(
             type_name,
             account_category
-          )
+          ),
+          branches!inner(branch_name),
+          products!inner(product_name),
+          customers!inner(segment)
         `)
         .eq('account_status', 'ACTIVE');
 
+      // Apply filters
+      if (filters.branch && filters.branch !== 'all') {
+        accountQuery = accountQuery.eq('branch_id', filters.branch);
+      }
+      if (filters.product && filters.product !== 'all') {
+        accountQuery = accountQuery.eq('product_id', filters.product);
+      }
+      if (filters.segment && filters.segment !== 'all') {
+        accountQuery = accountQuery.eq('customers.segment', filters.segment);
+      }
+
+      const { data: accountData, error: accountError } = await accountQuery;
+
       if (accountError) throw accountError;
 
-      // Get loan balances
-      const { data: loanData, error: loanError } = await supabaseBanking
+      // Get loan balances with filters
+      let loanQuery = supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           outstanding_balance, 
           loan_status,
           loan_amount,
           disbursement_date,
+          branch_id,
+          product_id,
+          customer_id,
           loan_types!inner(
             type_name,
             max_amount
-          )
+          ),
+          customers!inner(segment)
         `)
         .in('loan_status', ['ACTIVE', 'DISBURSED'])
         .lte('disbursement_date', asOfDate);
+
+      // Apply filters
+      if (filters.branch && filters.branch !== 'all') {
+        loanQuery = loanQuery.eq('branch_id', filters.branch);
+      }
+      if (filters.product && filters.product !== 'all') {
+        loanQuery = loanQuery.eq('product_id', filters.product);
+      }
+      if (filters.segment && filters.segment !== 'all') {
+        loanQuery = loanQuery.eq('customers.segment', filters.segment);
+      }
+
+      const { data: loanData, error: loanError } = await loanQuery;
 
       if (loanError) throw loanError;
 
@@ -250,46 +324,70 @@ class FinancialReportService {
   /**
    * Get Cash Flow Statement
    */
-  async getCashFlowStatement(startDate, endDate) {
+  async getCashFlowStatement(startDate, endDate, filters = {}) {
     try {
-      // Get transaction data
-      const { data: transactions, error: transactionError } = await supabaseBanking
+      // Get transaction data with filters
+      let transactionQuery = supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select(`
           transaction_amount,
           transaction_type_id,
           transaction_date,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category),
+          accounts!inner(
+            branch_id,
+            product_id,
+            customer_id,
+            branches!inner(branch_name),
+            products!inner(product_name),
+            customers!inner(segment)
+          )
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
+
+      // Apply filters
+      if (filters.branch && filters.branch !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.branch_id', filters.branch);
+      }
+      if (filters.product && filters.product !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.product_id', filters.product);
+      }
+      if (filters.segment && filters.segment !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.customers.segment', filters.segment);
+      }
+
+      const { data: transactions, error: transactionError } = await transactionQuery;
 
       if (transactionError) throw transactionError;
 
       // Categorize cash flows
       const operatingInflows = transactions?.filter(t => 
-        ['DEPOSIT', 'FEE', 'INTEREST'].includes(t.transaction_types?.category)
+        ['CREDIT', 'CHARGE', 'INTEREST'].includes(t.transaction_types?.transaction_category)
       ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
 
       const operatingOutflows = transactions?.filter(t => 
-        ['WITHDRAWAL', 'EXPENSE', 'SALARY'].includes(t.transaction_types?.category)
-      ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
+        ['DEBIT', 'TRANSFER'].includes(t.transaction_types?.transaction_category) && t.transaction_amount < 0
+      ).reduce((sum, t) => sum + Math.abs(t.transaction_amount || 0), 0) || 0;
 
       const investingInflows = transactions?.filter(t => 
-        ['INVESTMENT_SALE', 'ASSET_SALE'].includes(t.transaction_types?.category)
+        t.transaction_types?.type_name?.includes('Investment Sale') || 
+        t.transaction_types?.type_name?.includes('Asset Sale')
       ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
 
       const investingOutflows = transactions?.filter(t => 
-        ['INVESTMENT_PURCHASE', 'ASSET_PURCHASE'].includes(t.transaction_types?.category)
-      ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
+        t.transaction_types?.type_name?.includes('Investment Purchase') || 
+        t.transaction_types?.type_name?.includes('Asset Purchase')
+      ).reduce((sum, t) => sum + Math.abs(t.transaction_amount || 0), 0) || 0;
 
       const financingInflows = transactions?.filter(t => 
-        ['LOAN_RECEIVED', 'CAPITAL_INJECTION'].includes(t.transaction_types?.category)
+        t.transaction_types?.type_name?.includes('Loan') && t.transaction_amount > 0
       ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
 
       const financingOutflows = transactions?.filter(t => 
-        ['LOAN_PAYMENT', 'DIVIDEND'].includes(t.transaction_types?.category)
-      ).reduce((sum, t) => sum + (t.transaction_amount || 0), 0) || 0;
+        (t.transaction_types?.type_name?.includes('Loan') || 
+         t.transaction_types?.type_name?.includes('Dividend')) && t.transaction_amount < 0
+      ).reduce((sum, t) => sum + Math.abs(t.transaction_amount || 0), 0) || 0;
 
       // Calculate net cash flows
       const netOperatingCashFlow = operatingInflows - operatingOutflows;
@@ -356,21 +454,42 @@ class FinancialReportService {
   /**
    * Get Profit & Loss Statement (similar to Income Statement with more detail)
    */
-  async getProfitLossStatement(startDate, endDate) {
+  async getProfitLossStatement(startDate, endDate, filters = {}) {
     try {
-      // Get the income statement data first
-      const incomeData = await this.getIncomeStatement(startDate, endDate);
+      // Get the income statement data first with filters
+      const incomeData = await this.getIncomeStatement(startDate, endDate, filters);
 
-      // Add more detailed breakdown
-      const { data: transactionData, error: transactionError } = await supabaseBanking
+      // Add more detailed breakdown with filters
+      let transactionQuery = supabaseBanking
         .from(TABLES.TRANSACTIONS)
         .select(`
           transaction_amount,
           transaction_type_id,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category),
+          accounts!inner(
+            branch_id,
+            product_id,
+            customer_id,
+            branches!inner(branch_name),
+            products!inner(product_name),
+            customers!inner(segment)
+          )
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
+
+      // Apply filters
+      if (filters.branch && filters.branch !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.branch_id', filters.branch);
+      }
+      if (filters.product && filters.product !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.product_id', filters.product);
+      }
+      if (filters.segment && filters.segment !== 'all') {
+        transactionQuery = transactionQuery.eq('accounts.customers.segment', filters.segment);
+      }
+
+      const { data: transactionData, error: transactionError } = await transactionQuery;
 
       if (transactionError) throw transactionError;
 
@@ -407,10 +526,10 @@ class FinancialReportService {
   /**
    * Get Budget Variance Analysis
    */
-  async getBudgetVarianceAnalysis(startDate, endDate) {
+  async getBudgetVarianceAnalysis(startDate, endDate, filters = {}) {
     try {
-      // Get actual data
-      const actualData = await this.getIncomeStatement(startDate, endDate);
+      // Get actual data with filters
+      const actualData = await this.getIncomeStatement(startDate, endDate, filters);
 
       // Generate budget data (simulated - in real app, this would come from budget tables)
       const budgetData = {

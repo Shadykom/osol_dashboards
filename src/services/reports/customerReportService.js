@@ -7,20 +7,23 @@ class CustomerReportService {
    */
   async getCustomerAcquisition(startDate, endDate) {
     try {
-      // Get new customers
+      // Get new customers with contact information
       const { data: newCustomers, error: customerError } = await supabaseBanking
         .from(TABLES.CUSTOMERS)
         .select(`
           customer_id,
           first_name,
           last_name,
-          email,
-          phone,
           created_at,
           customer_type_id,
           customer_types!inner(type_name),
           kyc_status,
-          risk_rating
+          risk_rating,
+          customer_contacts!left(
+            contact_type,
+            contact_value,
+            is_primary
+          )
         `)
         .gte('created_at', startDate)
         .lte('created_at', endDate)
@@ -100,15 +103,28 @@ class CustomerReportService {
           mobile: Math.round(totalNewCustomers * 0.2),
           referral: Math.round(totalNewCustomers * 0.05)
         },
-        recentCustomers: newCustomers?.slice(0, 10).map(c => ({
-          id: c.customer_id,
-          name: `${c.first_name} ${c.last_name}`,
-          email: c.email,
-          phone: c.phone,
-          type: c.customer_types?.type_name,
-          createdAt: c.created_at,
-          kycStatus: c.kyc_status
-        })) || []
+        recentCustomers: newCustomers?.slice(0, 10).map(c => {
+          // Extract email and phone from customer_contacts
+          const emailContact = c.customer_contacts?.find(contact => 
+            contact.contact_type === 'EMAIL' && contact.is_primary
+          ) || c.customer_contacts?.find(contact => contact.contact_type === 'EMAIL');
+          
+          const phoneContact = c.customer_contacts?.find(contact => 
+            (contact.contact_type === 'MOBILE' || contact.contact_type === 'WORK' || contact.contact_type === 'HOME') && contact.is_primary
+          ) || c.customer_contacts?.find(contact => 
+            contact.contact_type === 'MOBILE' || contact.contact_type === 'WORK' || contact.contact_type === 'HOME'
+          );
+          
+          return {
+            id: c.customer_id,
+            name: `${c.first_name} ${c.last_name}`,
+            email: emailContact?.contact_value || 'N/A',
+            phone: phoneContact?.contact_value || 'N/A',
+            type: c.customer_types?.type_name,
+            createdAt: c.created_at,
+            kycStatus: c.kyc_status
+          };
+        }) || []
       };
     } catch (error) {
       console.error('Error generating customer acquisition report:', error);
@@ -412,7 +428,7 @@ class CustomerReportService {
           transaction_amount,
           transaction_date,
           transaction_type_id,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category)
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
@@ -432,7 +448,7 @@ class CustomerReportService {
         acc[t.customer_id].count++;
         acc[t.customer_id].totalAmount += t.transaction_amount || 0;
         acc[t.customer_id].types.add(t.transaction_types?.type_name);
-        acc[t.customer_id].categories.add(t.transaction_types?.category);
+                  acc[t.customer_id].categories.add(t.transaction_types?.transaction_category);
         return acc;
       }, {}) || {};
 

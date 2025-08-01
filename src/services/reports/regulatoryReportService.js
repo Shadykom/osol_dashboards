@@ -50,7 +50,7 @@ class RegulatoryReportService {
           transaction_amount,
           transaction_type_id,
           transaction_date,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category)
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
@@ -263,7 +263,7 @@ class RegulatoryReportService {
           transaction_id,
           transaction_amount,
           transaction_date,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category)
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);
@@ -273,7 +273,7 @@ class RegulatoryReportService {
       // Analyze transactions for suspicious patterns
       const largeTransactions = transactions?.filter(t => t.transaction_amount > 50000) || [];
       const cashTransactions = transactions?.filter(t => 
-        t.transaction_types?.category === 'CASH'
+        t.transaction_types?.transaction_category === 'CASH'
       ) || [];
 
       // Risk categorization

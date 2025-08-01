@@ -55,21 +55,21 @@ export class CollectionService {
         .from('collection_cases')
         .select(`
           *,
-          loan_accounts:kastel_banking.loan_accounts!loan_account_number (
+          loan_accounts:kastle_banking.loan_accounts!loan_account_number (
             loan_amount,
             outstanding_balance,
             overdue_amount,
             overdue_days,
             product_id,
-            products:kastel_banking.products!product_id (
+            products:kastle_banking.products!product_id (
               product_name,
               product_type
             )
           ),
-          customers:kastel_banking.customers!customer_id (
+          customers:kastle_banking.customers!customer_id (
             full_name,
             customer_type,
-            customer_contacts:kastel_banking.customer_contacts!customer_id (
+            customer_contacts:kastle_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
@@ -211,14 +211,14 @@ export class CollectionService {
         .from('collection_cases')
         .select(`
           *,
-          loan_accounts:kastel_banking.loan_accounts!loan_account_number (
+          loan_accounts:kastle_banking.loan_accounts!loan_account_number (
             *,
-            products:kastel_banking.products!product_id (*)
+            products:kastle_banking.products!product_id (*)
           ),
-          customers:kastel_banking.customers!customer_id (
+          customers:kastle_banking.customers!customer_id (
             *,
-            customer_contacts:kastel_banking.customer_contacts!customer_id (*),
-            customer_addresses:kastel_banking.customer_addresses!customer_id (*)
+            customer_contacts:kastle_banking.customer_contacts!customer_id (*),
+            customer_addresses:kastle_banking.customer_addresses!customer_id (*)
           ),
           collection_officers!assigned_to (*),
           collection_strategies!strategy_id (*),
@@ -234,7 +234,7 @@ export class CollectionService {
         .from('collection_interactions')
         .select(`
           *,
-          collection_officers!officer_id (
+          collection_officers (
             officer_name,
             officer_type
           )
@@ -247,7 +247,7 @@ export class CollectionService {
         .from('promise_to_pay')
         .select(`
           *,
-          collection_officers!officer_id (
+          collection_officers (
             officer_name
           )
         `)
@@ -259,7 +259,7 @@ export class CollectionService {
         .from('field_visits')
         .select(`
           *,
-          collection_officers!officer_id (
+          collection_officers (
             officer_name
           )
         `)
@@ -542,25 +542,74 @@ export class CollectionService {
       
       console.log('Querying officer performance for date:', queryDate); // Debug log
       
-      const { data: officerPerformance, error: officersError } = await supabaseCollection
-        .from('officer_performance_summary')
-        .select(`
-          *,
-          collection_officers!officer_id (
-            officer_name,
-            officer_type,
-            team_id,
-            collection_teams (
-              team_name
-            )
-          )
-        `)
-        .lte('summary_date', queryDate)
-        .order('summary_date', { ascending: false })
-        .order('total_collected', { ascending: false })
-        .limit(10);
+      let officerPerformance = null;
+      let officersError = null;
 
-      if (officersError) {
+      // Try the main query first
+      try {
+        const result = await supabaseCollection
+          .from('officer_performance_summary')
+          .select(`
+            *,
+            collection_officers (
+              officer_name,
+              officer_type,
+              team_id,
+              collection_teams (
+                team_name
+              )
+            )
+          `)
+          .lte('summary_date', queryDate)
+          .order('summary_date', { ascending: false })
+          .order('total_collected', { ascending: false })
+          .limit(10);
+        
+        officerPerformance = result.data;
+        officersError = result.error;
+      } catch (error) {
+        console.error('Error with officer performance query:', error);
+        officersError = error;
+      }
+
+      // If the main query fails, try without the nested collection_officers relationship
+      if (officersError || !officerPerformance) {
+        console.log('Falling back to simple officer performance query...');
+        try {
+          const result = await supabaseCollection
+            .from('officer_performance_summary')
+            .select('*')
+            .lte('summary_date', queryDate)
+            .order('summary_date', { ascending: false })
+            .order('total_collected', { ascending: false })
+            .limit(10);
+          
+          if (!result.error) {
+            officerPerformance = result.data;
+            officersError = null;
+            
+            // Get officer names separately
+            if (officerPerformance && officerPerformance.length > 0) {
+              const officerIds = officerPerformance.map(op => op.officer_id);
+              const { data: officers } = await supabaseCollection
+                .from('collection_officers')
+                .select('officer_id, officer_name, officer_type, team_id')
+                .in('officer_id', officerIds);
+              
+              // Merge officer data
+              officerPerformance = officerPerformance.map(op => ({
+                ...op,
+                collection_officers: officers?.find(o => o.officer_id === op.officer_id) || {}
+              }));
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Fallback officer performance query also failed:', fallbackError);
+          officersError = fallbackError;
+        }
+      }
+
+      if (officersError && !officerPerformance) {
         console.error('Error fetching officer performance:', officersError);
         // Return empty array instead of throwing to avoid breaking the UI
         return {
