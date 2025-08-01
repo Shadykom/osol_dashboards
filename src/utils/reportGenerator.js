@@ -57,7 +57,7 @@ class ReportGenerator {
   addOSOLHeader(doc, title, subtitle) {
     // OSOL Brand Header Background
     doc.setFillColor(...OSOL_BRAND.primary);
-    doc.rect(0, 0, doc.internal.pageSize.width, 45, 'F');
+    doc.rect(0, 0, 210, 45, 'F'); // A4 width = 210mm
     
     // Add actual logo image
     try {
@@ -113,8 +113,8 @@ class ReportGenerator {
 
   // Add OSOL branded footer to PDF
   addOSOLFooter(doc, pageNumber) {
-    const pageHeight = doc.internal.pageSize.height;
-    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = 297; // A4 height = 297mm
+    const pageWidth = 210; // A4 width = 210mm
     
     // Footer background
     doc.setFillColor(...OSOL_BRAND.primary);
@@ -141,12 +141,23 @@ class ReportGenerator {
 
   // Generate Enhanced Income Statement PDF with OSOL Branding
   generateIncomeStatementPDF(data, reportName) {
-    // Create PDF with A4 dimensions
+    // Create PDF with A4 dimensions and proper margins
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
+      compress: true
     });
+    
+    // A4 dimensions: 210mm x 297mm
+    // Set up margins: left=15mm, right=15mm, top=20mm, bottom=20mm
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const leftMargin = 15;
+    const rightMargin = 15;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const contentWidth = pageWidth - leftMargin - rightMargin; // 180mm
     
     let currentY = this.addOSOLHeader(doc, 'Income Statement', 'Financial Report');
     
@@ -161,16 +172,16 @@ class ReportGenerator {
     // Report metadata section
     currentY += 10;
     doc.setFillColor(...OSOL_BRAND.lightGray);
-    doc.rect(20, currentY, doc.internal.pageSize.width - 40, 25, 'F');
+    doc.rect(leftMargin, currentY, contentWidth, 25, 'F');
     
     doc.setTextColor(...OSOL_BRAND.text);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     
     currentY += 8;
-    doc.text('Report Period: Current Period', 25, currentY);
-    doc.text('Currency: Saudi Riyal (SAR)', 25, currentY + 6);
-    doc.text('Report Type: Income Statement', 25, currentY + 12);
+    doc.text('Report Period: Current Period', leftMargin + 5, currentY);
+    doc.text('Currency: Saudi Riyal (SAR)', leftMargin + 5, currentY + 6);
+    doc.text('Report Type: Income Statement', leftMargin + 5, currentY + 12);
     
     currentY += 25;
 
@@ -186,7 +197,7 @@ class ReportGenerator {
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...OSOL_BRAND.primary);
-    doc.text('Executive Summary', 20, currentY);
+    doc.text('Executive Summary', leftMargin, currentY);
     currentY += 10;
 
     // Summary cards in a table format
@@ -217,11 +228,12 @@ class ReportGenerator {
         fillColor: OSOL_BRAND.lightGray
       },
       columnStyles: {
-        0: { cellWidth: 50 },
+        0: { cellWidth: 60 },
         1: { cellWidth: 60, halign: 'right' },
-        2: { cellWidth: 40 }
+        2: { cellWidth: 50 }
       },
-      margin: { left: 20, right: 20 },
+      margin: { left: leftMargin, right: rightMargin },
+      tableWidth: contentWidth,
       pageBreak: 'avoid'
     });
 
@@ -238,7 +250,7 @@ class ReportGenerator {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...OSOL_BRAND.primary);
-    doc.text('Revenue Breakdown', 20, currentY);
+    doc.text('Revenue Breakdown', leftMargin, currentY);
     currentY += 10;
 
     const revenueBreakdown = [
@@ -265,11 +277,12 @@ class ReportGenerator {
         fontSize: 9
       },
       columnStyles: {
-        0: { cellWidth: 70 },
-        1: { cellWidth: 50, halign: 'right' },
-        2: { cellWidth: 30, halign: 'center' }
+        0: { cellWidth: 80 },
+        1: { cellWidth: 60, halign: 'right' },
+        2: { cellWidth: 40, halign: 'center' }
       },
-      margin: { left: 20, right: 20 },
+      margin: { left: leftMargin, right: rightMargin },
+      tableWidth: contentWidth,
       pageBreak: 'avoid'
     });
 
@@ -287,7 +300,7 @@ class ReportGenerator {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...OSOL_BRAND.primary);
-    doc.text('Operating Expenses', 20, currentY);
+    doc.text('Operating Expenses', leftMargin, currentY);
     currentY += 10;
 
     const expenseBreakdown = [
@@ -314,11 +327,12 @@ class ReportGenerator {
         fontSize: 9
       },
       columnStyles: {
-        0: { cellWidth: 70 },
-        1: { cellWidth: 50, halign: 'right' },
-        2: { cellWidth: 30, halign: 'center' }
+        0: { cellWidth: 80 },
+        1: { cellWidth: 60, halign: 'right' },
+        2: { cellWidth: 40, halign: 'center' }
       },
-      margin: { left: 20, right: 20 },
+      margin: { left: leftMargin, right: rightMargin },
+      tableWidth: contentWidth,
       pageBreak: 'avoid'
     });
 
@@ -376,7 +390,21 @@ class ReportGenerator {
 
   // Generate Balance Sheet PDF
   generateBalanceSheetPDF(data, reportName) {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+    
+    // A4 dimensions and margins
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const leftMargin = 15;
+    const rightMargin = 15;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const contentWidth = pageWidth - leftMargin - rightMargin;
     let currentY = this.addHeader(doc, reportName, 'Balance Sheet');
     
     if (!data || typeof data !== 'object') {
@@ -466,7 +494,21 @@ class ReportGenerator {
 
   // Generate Customer Report PDF
   generateCustomerReportPDF(data, reportName) {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+    
+    // A4 dimensions and margins
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const leftMargin = 15;
+    const rightMargin = 15;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const contentWidth = pageWidth - leftMargin - rightMargin;
     let currentY = this.addHeader(doc, reportName, 'Customer Analysis Report');
     
     if (!data || typeof data !== 'object') {
@@ -554,7 +596,21 @@ class ReportGenerator {
 
   // Generate Risk Report PDF
   generateRiskReportPDF(data, reportName) {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+    
+    // A4 dimensions and margins
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const leftMargin = 15;
+    const rightMargin = 15;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const contentWidth = pageWidth - leftMargin - rightMargin;
     let currentY = this.addHeader(doc, reportName, 'Risk Analysis Report');
     
     if (!data || typeof data !== 'object') {
@@ -618,7 +674,21 @@ class ReportGenerator {
 
   // Generic PDF generator for array data
   generateGenericPDF(data, reportType, reportName) {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+    
+    // A4 dimensions and margins
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const leftMargin = 15;
+    const rightMargin = 15;
+    const topMargin = 20;
+    const bottomMargin = 20;
+    const contentWidth = pageWidth - leftMargin - rightMargin;
     let currentY = this.addHeader(doc, reportName, reportType);
     
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -685,7 +755,12 @@ class ReportGenerator {
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      const doc = new jsPDF();
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
       doc.text('Error generating report: ' + error.message, 20, 20);
       return doc;
     }
