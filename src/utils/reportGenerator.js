@@ -845,6 +845,13 @@ class ReportGenerator {
         case 'npl_analysis':
           return this.generateRiskReportPDF(data, reportName, metadata);
         
+        case 'sama_monthly':
+        case 'basel_iii':
+        case 'aml_report':
+        case 'liquidity_coverage':
+        case 'capital_adequacy':
+          return this.generateRegulatoryReportPDF(data, reportType, reportName, metadata);
+        
         default:
           // For other reports, check if data is an array or object
           if (Array.isArray(data)) {
@@ -1011,6 +1018,269 @@ class ReportGenerator {
     return null;
   }
 
+  // Generate Regulatory Report PDF
+  generateRegulatoryReportPDF(data, reportType, reportName, metadata = {}) {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    });
+
+    this.doc = doc;
+    this.currentY = 20;
+
+    // Add header with OSOL branding
+    this.addHeaderWithLogo(reportName);
+    this.currentY = 50;
+
+    // Add metadata section
+    if (metadata.dateRange) {
+      doc.setFontSize(10);
+      doc.setTextColor(...OSOL_BRAND.textMuted);
+      const dateText = `Report Period: ${format(new Date(metadata.dateRange.from), 'dd MMM yyyy')} - ${format(new Date(metadata.dateRange.to), 'dd MMM yyyy')}`;
+      doc.text(dateText, 20, this.currentY);
+      this.currentY += 10;
+    }
+
+    // Handle different regulatory report types
+    switch (reportType) {
+      case 'sama_monthly':
+        this.addSAMAMonthlyReportContent(data);
+        break;
+      case 'basel_iii':
+        this.addBaselIIIReportContent(data);
+        break;
+      case 'aml_report':
+        this.addAMLReportContent(data);
+        break;
+      case 'liquidity_coverage':
+        this.addLiquidityCoverageReportContent(data);
+        break;
+      case 'capital_adequacy':
+        this.addCapitalAdequacyReportContent(data);
+        break;
+    }
+
+    // Add footer
+    this.addFooter();
+
+    return doc;
+  }
+
+  // Add SAMA Monthly Report Content
+  addSAMAMonthlyReportContent(data) {
+    const { summary, liquidityMetrics, creditMetrics, capitalMetrics, compliance } = data;
+
+    // Summary Section
+    this.addSectionTitle('Executive Summary');
+    const summaryData = [
+      ['Total Deposits', this.formatCurrency(summary?.totalDeposits || 0)],
+      ['Total Loans', this.formatCurrency(summary?.totalLoans || 0)],
+      ['Total Assets', this.formatCurrency(summary?.totalAssets || 0)],
+      ['New Accounts', this.formatNumber(summary?.newAccounts || 0)],
+      ['New Loans', this.formatNumber(summary?.newLoans || 0)]
+    ];
+    this.addTable(summaryData, ['Metric', 'Value']);
+
+    // Liquidity Metrics
+    this.addSectionTitle('Liquidity Metrics');
+    const liquidityData = [
+      ['Liquidity Ratio', this.formatPercentage(liquidityMetrics?.liquidityRatio || 0)],
+      ['Quick Ratio', this.formatPercentage(liquidityMetrics?.quickRatio || 0)],
+      ['Liquid Assets', this.formatCurrency(liquidityMetrics?.liquidAssets || 0)]
+    ];
+    this.addTable(liquidityData, ['Metric', 'Value']);
+
+    // Credit Metrics
+    this.addSectionTitle('Credit Metrics');
+    const creditData = [
+      ['NPL Ratio', this.formatPercentage(creditMetrics?.nplRatio || 0)],
+      ['Provision Coverage', this.formatPercentage(creditMetrics?.provisionCoverage || 0)],
+      ['Loan to Deposit Ratio', this.formatPercentage(creditMetrics?.loanToDepositRatio || 0)]
+    ];
+    this.addTable(creditData, ['Metric', 'Value']);
+
+    // Capital Metrics
+    this.addSectionTitle('Capital Metrics');
+    const capitalData = [
+      ['Tier 1 Capital', this.formatCurrency(capitalMetrics?.tier1Capital || 0)],
+      ['Tier 2 Capital', this.formatCurrency(capitalMetrics?.tier2Capital || 0)],
+      ['Total Capital', this.formatCurrency(capitalMetrics?.totalCapital || 0)],
+      ['Capital Adequacy Ratio', this.formatPercentage(capitalMetrics?.capitalAdequacyRatio || 0)]
+    ];
+    this.addTable(capitalData, ['Metric', 'Value']);
+
+    // Compliance Status
+    this.addSectionTitle('Compliance Activities');
+    const complianceData = [
+      ['AML Screenings', this.formatNumber(compliance?.amlScreenings || 0)],
+      ['CTRs Filed', this.formatNumber(compliance?.ctrsFiledDelta || 0)],
+      ['SARs Filed', this.formatNumber(compliance?.sarsFiledDelta || 0)]
+    ];
+    this.addTable(complianceData, ['Activity', 'Count']);
+  }
+
+  // Add Basel III Report Content
+  addBaselIIIReportContent(data) {
+    const { capitalAdequacy, leverageRatio, liquidityMetrics, riskExposures } = data;
+
+    // Capital Adequacy
+    this.addSectionTitle('Capital Adequacy Ratios');
+    const capitalData = [
+      ['CET1 Ratio', this.formatPercentage(capitalAdequacy?.cet1Ratio || 0), '≥ 4.5%'],
+      ['Tier 1 Ratio', this.formatPercentage(capitalAdequacy?.tier1Ratio || 0), '≥ 6.0%'],
+      ['Total Capital Ratio', this.formatPercentage(capitalAdequacy?.totalCapitalRatio || 0), '≥ 8.0%']
+    ];
+    this.addTable(capitalData, ['Ratio', 'Actual', 'Minimum']);
+
+    // Leverage Ratio
+    this.addSectionTitle('Leverage Ratio');
+    const leverageData = [
+      ['Tier 1 Capital', this.formatCurrency(leverageRatio?.tier1Capital || 0)],
+      ['Total Exposure', this.formatCurrency(leverageRatio?.totalExposure || 0)],
+      ['Leverage Ratio', this.formatPercentage(leverageRatio?.ratio || 0)]
+    ];
+    this.addTable(leverageData, ['Metric', 'Value']);
+
+    // Liquidity Metrics
+    this.addSectionTitle('Liquidity Metrics');
+    const liquidityData = [
+      ['LCR', this.formatPercentage(liquidityMetrics?.lcr?.ratio || 0), '≥ 100%'],
+      ['NSFR', this.formatPercentage(liquidityMetrics?.nsfr?.ratio || 0), '≥ 100%']
+    ];
+    this.addTable(liquidityData, ['Metric', 'Actual', 'Minimum']);
+
+    // Risk-Weighted Assets
+    this.addSectionTitle('Risk-Weighted Assets');
+    const rwaData = [
+      ['Credit Risk', this.formatCurrency(riskExposures?.creditRisk || 0)],
+      ['Market Risk', this.formatCurrency(riskExposures?.marketRisk || 0)],
+      ['Operational Risk', this.formatCurrency(riskExposures?.operationalRisk || 0)],
+      ['Total RWA', this.formatCurrency(riskExposures?.totalRWA || 0)]
+    ];
+    this.addTable(rwaData, ['Risk Type', 'Amount']);
+  }
+
+  // Add AML Report Content
+  addAMLReportContent(data) {
+    const { customerDueDiligence, riskAssessment, transactionMonitoring, reporting } = data;
+
+    // Customer Due Diligence
+    this.addSectionTitle('Customer Due Diligence');
+    const cddData = [
+      ['New Customers', this.formatNumber(customerDueDiligence?.newCustomers || 0)],
+      ['KYC Completed', this.formatNumber(customerDueDiligence?.kycCompleted || 0)],
+      ['KYC Pending', this.formatNumber(customerDueDiligence?.kycPending || 0)],
+      ['Enhanced Due Diligence', this.formatNumber(customerDueDiligence?.enhancedDueDiligence || 0)]
+    ];
+    this.addTable(cddData, ['Metric', 'Count']);
+
+    // Risk Assessment
+    this.addSectionTitle('Risk Assessment');
+    const riskData = [
+      ['High Risk', this.formatNumber(riskAssessment?.highRisk || 0)],
+      ['Medium Risk', this.formatNumber(riskAssessment?.mediumRisk || 0)],
+      ['Low Risk', this.formatNumber(riskAssessment?.lowRisk || 0)],
+      ['Total Customers', this.formatNumber(riskAssessment?.totalCustomers || 0)]
+    ];
+    this.addTable(riskData, ['Risk Level', 'Count']);
+
+    // Transaction Monitoring
+    this.addSectionTitle('Transaction Monitoring');
+    const transactionData = [
+      ['Total Transactions', this.formatNumber(transactionMonitoring?.totalTransactions || 0)],
+      ['Large Transactions', this.formatNumber(transactionMonitoring?.largeTransactions || 0)],
+      ['Cash Transactions', this.formatNumber(transactionMonitoring?.cashTransactions || 0)],
+      ['Alerts Generated', this.formatNumber(transactionMonitoring?.alertsGenerated || 0)],
+      ['Alerts Cleared', this.formatNumber(transactionMonitoring?.alertsCleared || 0)]
+    ];
+    this.addTable(transactionData, ['Metric', 'Count']);
+
+    // Regulatory Reporting
+    this.addSectionTitle('Regulatory Reporting');
+    const reportingData = [
+      ['CTRs Filed', this.formatNumber(reporting?.ctrsFiledDelta || 0)],
+      ['SARs Filed', this.formatNumber(reporting?.sarsFiledDelta || 0)],
+      ['STRs Filed', this.formatNumber(reporting?.str || 0)]
+    ];
+    this.addTable(reportingData, ['Report Type', 'Count']);
+  }
+
+  // Add Liquidity Coverage Report Content
+  addLiquidityCoverageReportContent(data) {
+    const { hqla, cashFlows, ratio, breakdown } = data;
+
+    // LCR Summary
+    this.addSectionTitle('Liquidity Coverage Ratio Summary');
+    const summaryData = [
+      ['Current LCR', this.formatPercentage(ratio?.lcr || 0)],
+      ['Minimum Requirement', ratio?.minimumRequirement || '100%'],
+      ['Buffer', this.formatPercentage(ratio?.buffer || 0)]
+    ];
+    this.addTable(summaryData, ['Metric', 'Value']);
+
+    // HQLA Breakdown
+    this.addSectionTitle('High Quality Liquid Assets (HQLA)');
+    const hqlaData = [
+      ['Level 1 Assets', this.formatCurrency(hqla?.level1 || 0)],
+      ['Level 2A Assets', this.formatCurrency(hqla?.level2A || 0)],
+      ['Level 2B Assets', this.formatCurrency(hqla?.level2B || 0)],
+      ['Total HQLA', this.formatCurrency(hqla?.totalHQLA || 0)]
+    ];
+    this.addTable(hqlaData, ['Asset Type', 'Amount']);
+
+    // Cash Flows
+    this.addSectionTitle('Cash Flows (30-day stressed period)');
+    const cashFlowData = [
+      ['Total Outflows', this.formatCurrency(cashFlows?.totalOutflows || 0)],
+      ['Total Inflows', this.formatCurrency(cashFlows?.totalInflows || 0)],
+      ['Net Cash Outflows', this.formatCurrency(cashFlows?.netCashOutflows || 0)]
+    ];
+    this.addTable(cashFlowData, ['Flow Type', 'Amount']);
+
+    // Deposit Breakdown
+    this.addSectionTitle('Deposit Outflow Analysis');
+    const depositData = [
+      ['Retail Deposits', this.formatCurrency(breakdown?.retailDeposits?.amount || 0), breakdown?.retailDeposits?.outflowRate || '5%'],
+      ['Corporate Deposits', this.formatCurrency(breakdown?.corporateDeposits?.amount || 0), breakdown?.corporateDeposits?.outflowRate || '25%']
+    ];
+    this.addTable(depositData, ['Deposit Type', 'Amount', 'Outflow Rate']);
+  }
+
+  // Add Capital Adequacy Report Content
+  addCapitalAdequacyReportContent(data) {
+    const { cet1Ratio, tier1Ratio, totalCapitalRatio, capitalComponents, riskWeightedAssetsByType, complianceStatus } = data;
+
+    // Capital Ratios
+    this.addSectionTitle('Capital Adequacy Ratios');
+    const ratiosData = [
+      ['CET1 Ratio', this.formatPercentage(cet1Ratio || 0), '≥ 7.0%', complianceStatus?.cet1 || 'Unknown'],
+      ['Tier 1 Ratio', this.formatPercentage(tier1Ratio || 0), '≥ 8.5%', complianceStatus?.tier1 || 'Unknown'],
+      ['Total Capital Ratio', this.formatPercentage(totalCapitalRatio || 0), '≥ 10.5%', complianceStatus?.total || 'Unknown']
+    ];
+    this.addTable(ratiosData, ['Ratio', 'Actual', 'Requirement', 'Status']);
+
+    // Capital Components
+    this.addSectionTitle('Capital Components');
+    const componentsData = [
+      ['Common Equity', this.formatCurrency(capitalComponents?.commonEquity || 0)],
+      ['Additional Tier 1', this.formatCurrency(capitalComponents?.additionalTier1 || 0)],
+      ['Tier 2 Instruments', this.formatCurrency(capitalComponents?.tier2Instruments || 0)]
+    ];
+    this.addTable(componentsData, ['Component', 'Amount']);
+
+    // Risk-Weighted Assets
+    this.addSectionTitle('Risk-Weighted Assets by Type');
+    const rwaData = [
+      ['Credit Risk', this.formatCurrency(riskWeightedAssetsByType?.creditRisk || 0)],
+      ['Market Risk', this.formatCurrency(riskWeightedAssetsByType?.marketRisk || 0)],
+      ['Operational Risk', this.formatCurrency(riskWeightedAssetsByType?.operationalRisk || 0)],
+      ['Total RWA', this.formatCurrency(riskWeightedAssetsByType?.total || 0)]
+    ];
+    this.addTable(rwaData, ['Risk Type', 'Amount']);
+  }
+
   // Print report
   printReport(doc) {
     if (!doc) return;
@@ -1057,6 +1327,7 @@ export default {
   generateBalanceSheetPDF: reportGenerator.generateBalanceSheetPDF.bind(reportGenerator),
   generateCustomerReportPDF: reportGenerator.generateCustomerReportPDF.bind(reportGenerator),
   generateRiskReportPDF: reportGenerator.generateRiskReportPDF.bind(reportGenerator),
+  generateRegulatoryReportPDF: reportGenerator.generateRegulatoryReportPDF.bind(reportGenerator),
   generateGenericPDF: reportGenerator.generateGenericPDF.bind(reportGenerator),
   generateExcel: reportGenerator.generateExcel.bind(reportGenerator),
   convertObjectToArray: reportGenerator.convertObjectToArray.bind(reportGenerator),

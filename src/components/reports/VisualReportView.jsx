@@ -9,6 +9,11 @@ import {
   CreditCard, AlertCircle, CheckCircle, Activity 
 } from 'lucide-react';
 import { format } from 'date-fns';
+import SAMAMonthlyReport from './SAMAMonthlyReport';
+import BaselIIIComplianceReport from './BaselIIIComplianceReport';
+import AMLCFTReport from './AMLCFTReport';
+import LiquidityCoverageRatioReport from './LiquidityCoverageRatioReport';
+import CapitalAdequacyReport from './CapitalAdequacyReport';
 
 const COLORS = {
   primary: '#E6B800',    // OSOL Golden
@@ -844,6 +849,16 @@ const VisualReportView = ({ reportData, reportType }) => {
       case 'customer_retention':
       case 'customer_demographics':
         return renderCustomerReport();
+      case 'sama_monthly':
+        return <SAMAMonthlyReport data={reportData} />;
+      case 'basel_iii':
+        return <BaselIIIComplianceReport data={reportData} />;
+      case 'aml_report':
+        return <AMLCFTReport data={reportData} />;
+      case 'liquidity_coverage':
+        return <LiquidityCoverageRatioReport data={reportData} />;
+      case 'capital_adequacy':
+        return <CapitalAdequacyReport data={reportData} />;
       default:
         return (
           <Card>
