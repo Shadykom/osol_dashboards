@@ -21,7 +21,7 @@ class FinancialReportService {
             customer_id,
             branches!inner(branch_name),
             products!inner(product_name),
-            customers!inner(segment_id)
+            customers!inner(segment)
           )
         `)
         .gte('transaction_date', startDate)
@@ -35,7 +35,7 @@ class FinancialReportService {
         transactionQuery = transactionQuery.eq('accounts.product_id', filters.product);
       }
       if (filters.segment && filters.segment !== 'all') {
-        transactionQuery = transactionQuery.eq('accounts.customers.segment_id', filters.segment);
+        transactionQuery = transactionQuery.eq('accounts.customers.segment', filters.segment);
       }
 
       const { data: transactionData, error: transactionError } = await transactionQuery;
@@ -59,7 +59,7 @@ class FinancialReportService {
           branch_id,
           product_id,
           customer_id,
-          customers!inner(segment_id)
+          customers!inner(segment)
         `)
         .eq('loan_status', 'ACTIVE')
         .lte('disbursement_date', endDate);
@@ -72,7 +72,7 @@ class FinancialReportService {
         loanQuery = loanQuery.eq('product_id', filters.product);
       }
       if (filters.segment && filters.segment !== 'all') {
-        loanQuery = loanQuery.eq('customers.segment_id', filters.segment);
+        loanQuery = loanQuery.eq('customers.segment', filters.segment);
       }
 
       const { data: loanData, error: loanError } = await loanQuery;
@@ -186,7 +186,7 @@ class FinancialReportService {
           ),
           branches!inner(branch_name),
           products!inner(product_name),
-          customers!inner(segment_id)
+          customers!inner(segment)
         `)
         .eq('account_status', 'ACTIVE');
 
@@ -198,7 +198,7 @@ class FinancialReportService {
         accountQuery = accountQuery.eq('product_id', filters.product);
       }
       if (filters.segment && filters.segment !== 'all') {
-        accountQuery = accountQuery.eq('customers.segment_id', filters.segment);
+        accountQuery = accountQuery.eq('customers.segment', filters.segment);
       }
 
       const { data: accountData, error: accountError } = await accountQuery;
@@ -220,7 +220,7 @@ class FinancialReportService {
             type_name,
             max_amount
           ),
-          customers!inner(segment_id)
+          customers!inner(segment)
         `)
         .in('loan_status', ['ACTIVE', 'DISBURSED'])
         .lte('disbursement_date', asOfDate);
@@ -233,7 +233,7 @@ class FinancialReportService {
         loanQuery = loanQuery.eq('product_id', filters.product);
       }
       if (filters.segment && filters.segment !== 'all') {
-        loanQuery = loanQuery.eq('customers.segment_id', filters.segment);
+        loanQuery = loanQuery.eq('customers.segment', filters.segment);
       }
 
       const { data: loanData, error: loanError } = await loanQuery;
@@ -340,7 +340,7 @@ class FinancialReportService {
             customer_id,
             branches!inner(branch_name),
             products!inner(product_name),
-            customers!inner(segment_id)
+            customers!inner(segment)
           )
         `)
         .gte('transaction_date', startDate)
@@ -354,7 +354,7 @@ class FinancialReportService {
         transactionQuery = transactionQuery.eq('accounts.product_id', filters.product);
       }
       if (filters.segment && filters.segment !== 'all') {
-        transactionQuery = transactionQuery.eq('accounts.customers.segment_id', filters.segment);
+        transactionQuery = transactionQuery.eq('accounts.customers.segment', filters.segment);
       }
 
       const { data: transactions, error: transactionError } = await transactionQuery;
@@ -472,7 +472,7 @@ class FinancialReportService {
             customer_id,
             branches!inner(branch_name),
             products!inner(product_name),
-            customers!inner(segment_id)
+            customers!inner(segment)
           )
         `)
         .gte('transaction_date', startDate)
@@ -486,7 +486,7 @@ class FinancialReportService {
         transactionQuery = transactionQuery.eq('accounts.product_id', filters.product);
       }
       if (filters.segment && filters.segment !== 'all') {
-        transactionQuery = transactionQuery.eq('accounts.customers.segment_id', filters.segment);
+        transactionQuery = transactionQuery.eq('accounts.customers.segment', filters.segment);
       }
 
       const { data: transactionData, error: transactionError } = await transactionQuery;

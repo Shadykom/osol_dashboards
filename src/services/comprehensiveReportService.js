@@ -13,17 +13,25 @@ class ComprehensiveReportService {
     try {
       const { startDate, endDate } = dateRange;
       
+      // Transform filters to match expected format
+      const transformedFilters = {
+        ...filters,
+        segment: filters.customerSegment || filters.segment || 'all'
+      };
+      // Remove customerSegment to avoid confusion
+      delete transformedFilters.customerSegment;
+      
       switch (reportType) {
         case 'income_statement':
-          return await financialReportService.getIncomeStatement(startDate, endDate, filters);
+          return await financialReportService.getIncomeStatement(startDate, endDate, transformedFilters);
         case 'balance_sheet':
-          return await financialReportService.getBalanceSheet(endDate, filters);
+          return await financialReportService.getBalanceSheet(endDate, transformedFilters);
         case 'cash_flow':
-          return await financialReportService.getCashFlowStatement(startDate, endDate, filters);
+          return await financialReportService.getCashFlowStatement(startDate, endDate, transformedFilters);
         case 'profit_loss':
-          return await financialReportService.getProfitLossStatement(startDate, endDate, filters);
+          return await financialReportService.getProfitLossStatement(startDate, endDate, transformedFilters);
         case 'budget_variance':
-          return await financialReportService.getBudgetVarianceAnalysis(startDate, endDate, filters);
+          return await financialReportService.getBudgetVarianceAnalysis(startDate, endDate, transformedFilters);
         default:
           throw new Error(`Unknown financial report type: ${reportType}`);
       }

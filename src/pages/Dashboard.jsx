@@ -393,15 +393,7 @@ export const WIDGET_CATALOG = {
           
           // Apply customer segment filter
           if (filters?.customerSegment && filters.customerSegment !== 'all') {
-            const segmentMap = {
-              'vip': 'VIP',
-              'premium': 'Premium',
-              'standard': 'Standard'
-            };
-            const segment = segmentMap[filters.customerSegment];
-            if (segment) {
-              query = query.eq('segment', segment);
-            }
+            query = query.eq('segment', filters.customerSegment);
           }
           
           const { count, error } = await query;
@@ -2709,11 +2701,11 @@ export default function EnhancedDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Segments</SelectItem>
-                      {filterOptions.customerSegments.map((segment) => (
-                        <SelectItem key={segment.segment_id} value={segment.segment_id}>
-                          {segment.segment_name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="RETAIL">Retail</SelectItem>
+                      <SelectItem value="PREMIUM">Premium</SelectItem>
+                      <SelectItem value="HNI">HNI</SelectItem>
+                      <SelectItem value="CORPORATE">Corporate</SelectItem>
+                      <SelectItem value="SME">SME</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
