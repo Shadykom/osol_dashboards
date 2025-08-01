@@ -435,7 +435,7 @@ const DashboardDetailNew = () => {
               <StatCard
                 title="Total Customers"
                 value={(detailData.overview.totalCustomers || 0).toLocaleString()}
-                change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                 trend={detailData.overview.trend}
                 description="All registered customers"
                 icon={Users}
@@ -468,7 +468,7 @@ const DashboardDetailNew = () => {
               <StatCard
                 title="Total Assets"
                 value={formatCurrency(detailData.overview.totalAssets || 0)}
-                change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                 trend={detailData.overview.trend}
                 description="Combined deposits and loans"
                 icon={DollarSign}
@@ -537,7 +537,7 @@ const DashboardDetailNew = () => {
                     <StatCard
                       title="Total Customers"
                       value={(detailData.overview.totalCustomers || 0).toLocaleString()}
-                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                       trend={detailData.overview.trend}
                       description="All registered customers in the system"
                       icon={Users}
@@ -618,7 +618,7 @@ const DashboardDetailNew = () => {
                               </div>
                               <div className="flex justify-between">
                                 <span>Growth Rate:</span>
-                                <span className="font-medium">{detailData.overview.change ? `${detailData.overview.change.toFixed(1)}%` : '0%'}</span>
+                                <span className="font-medium">{detailData.overview.change ? `${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : '0%'}</span>
                               </div>
                             </div>
                           </div>
@@ -652,7 +652,7 @@ const DashboardDetailNew = () => {
                     <StatCard
                       title="Total Assets"
                       value={formatCurrency(detailData.overview.totalAssets || 0)}
-                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                       trend={detailData.overview.trend}
                       description="Combined deposits and loans"
                       icon={DollarSign}
