@@ -203,17 +203,17 @@ class ComprehensiveReportService {
       if (accountError) throw accountError;
 
       // Get loan balances with details
+      // Using loan_accounts_with_types view to get loan type information
       const { data: loanData, error: loanError } = await supabaseBanking
-        .from(TABLES.LOAN_ACCOUNTS)
+        .from('loan_accounts_with_types')
         .select(`
           outstanding_balance, 
           loan_status,
           loan_amount,
           disbursement_date,
-          loan_types!inner(
-            type_name,
-            max_amount
-          )
+          loan_type_id,
+          type_name,
+          loan_type_max_amount
         `)
         .in('loan_status', ['ACTIVE', 'DISBURSED'])
         .lte('disbursement_date', asOfDate);

@@ -156,15 +156,30 @@ class FinancialReportService {
           loan_status,
           loan_amount,
           disbursement_date,
-          loan_types!inner(
-            type_name,
-            max_amount
-          )
+          loan_type_id
         `)
         .in('loan_status', ['ACTIVE', 'DISBURSED'])
         .lte('disbursement_date', asOfDate);
 
       if (loanError) throw loanError;
+
+      // Fetch loan types
+      if (loanData && loanData.length > 0) {
+        const loanTypeIds = [...new Set(loanData.map(l => l.loan_type_id).filter(Boolean))];
+        if (loanTypeIds.length > 0) {
+          const { data: loanTypes, error: typeError } = await supabaseBanking
+            .from(TABLES.LOAN_TYPES)
+            .select('loan_type_id, type_name, max_amount')
+            .in('loan_type_id', loanTypeIds);
+          
+          if (!typeError && loanTypes) {
+            const typeMap = new Map(loanTypes.map(t => [t.loan_type_id, t]));
+            loanData.forEach(loan => {
+              loan.loan_types = typeMap.get(loan.loan_type_id) || null;
+            });
+          }
+        }
+      }
 
       // Calculate asset components
       const cashAndEquivalents = accountData?.reduce((sum, acc) => {
