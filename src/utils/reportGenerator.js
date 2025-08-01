@@ -121,7 +121,7 @@ class ReportGenerator {
       margin: { left: 20, right: 20 }
     });
     
-    currentY = doc.previousAutoTable.finalY + 10;
+    currentY = doc.lastAutoTable.finalY + 10;
     
     // Expenses Section
     doc.setFontSize(14);
@@ -151,7 +151,7 @@ class ReportGenerator {
       margin: { left: 20, right: 20 }
     });
     
-    currentY = doc.previousAutoTable.finalY + 10;
+    currentY = doc.lastAutoTable.finalY + 10;
     
     // Summary Section
     doc.setFontSize(14);
@@ -178,7 +178,7 @@ class ReportGenerator {
     
     // Add metrics if available
     if (data.metrics) {
-      currentY = doc.previousAutoTable.finalY + 15;
+      currentY = doc.lastAutoTable.finalY + 15;
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
       doc.text('Key Metrics', 20, currentY);
@@ -242,7 +242,7 @@ class ReportGenerator {
       margin: { left: 20, right: 20 }
     });
     
-    currentY = doc.previousAutoTable.finalY + 10;
+    currentY = doc.lastAutoTable.finalY + 10;
     
     // Liabilities Section
     doc.setFontSize(14);
@@ -267,7 +267,7 @@ class ReportGenerator {
       margin: { left: 20, right: 20 }
     });
     
-    currentY = doc.previousAutoTable.finalY + 10;
+    currentY = doc.lastAutoTable.finalY + 10;
     
     // Equity Section
     doc.setFontSize(14);
@@ -328,7 +328,7 @@ class ReportGenerator {
         margin: { left: 20, right: 20 }
       });
       
-      currentY = doc.previousAutoTable.finalY + 10;
+      currentY = doc.lastAutoTable.finalY + 10;
     }
 
     // Breakdown by Segment
@@ -353,7 +353,7 @@ class ReportGenerator {
         margin: { left: 20, right: 20 }
       });
       
-      currentY = doc.previousAutoTable.finalY + 10;
+      currentY = doc.lastAutoTable.finalY + 10;
     }
 
     // Recent Customers
@@ -417,7 +417,7 @@ class ReportGenerator {
         margin: { left: 20, right: 20 }
       });
       
-      currentY = doc.previousAutoTable.finalY + 10;
+      currentY = doc.lastAutoTable.finalY + 10;
     }
 
     // Risk by Category
