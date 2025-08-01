@@ -788,7 +788,7 @@ export const WIDGET_CATALOG = {
           // Get all accounts with their types
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_type_id, account_type, branch_id');
+            .select('account_type_id, branch_id');
           
           // Apply branch filter
           if (filters?.branch && filters.branch !== 'all') {
@@ -832,9 +832,9 @@ export const WIDGET_CATALOG = {
             // Try to get type name from map
             if (account.account_type_id && typeMap[account.account_type_id]) {
               typeName = typeMap[account.account_type_id].category || typeMap[account.account_type_id].name;
-            } else if (account.account_type) {
-              // Fallback to account_type field
-              typeName = account.account_type.replace(/_/g, ' ');
+            } else if (account.account_type_id) {
+              // Fallback to generic naming based on ID
+              typeName = `Account Type ${account.account_type_id}`;
             }
             
             acc[typeName] = (acc[typeName] || 0) + 1;
@@ -1163,10 +1163,11 @@ export const WIDGET_CATALOG = {
       query: async () => {
         try {
           // Get total count of all customers
-          const { count: totalCount, error: totalError } = await supabaseBanking
+          const { data: allCustomers, error: totalError } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true });
+            .select('customer_id');
           
+          const totalCount = allCustomers?.length || 0;
           console.log('Total customers query result:', { totalCount, totalError });
           
           if (totalError) {
@@ -1324,7 +1325,7 @@ export const WIDGET_CATALOG = {
           // Get account statistics
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_status, account_type, current_balance, branch_id');
+            .select('account_status, account_type_id, current_balance, branch_id');
           
           // Apply branch filter
           if (filters?.branch && filters.branch !== 'all') {
@@ -1378,7 +1379,7 @@ export const WIDGET_CATALOG = {
           
           const { data: transactions, error } = await supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_date, transaction_amount, transaction_type')
+            .select('transaction_date, transaction_amount, transaction_type_id')
             .gte('transaction_date', startDate.toISOString())
             .lte('transaction_date', endDate.toISOString())
             .order('transaction_date', { ascending: true });
@@ -1398,11 +1399,12 @@ export const WIDGET_CATALOG = {
             const date = tx.transaction_date.split('T')[0];
             if (volumeByDate[date]) {
               const amount = parseFloat(tx.transaction_amount) || 0;
-              if (tx.transaction_type === 'DEPOSIT') {
+              // Map transaction_type_id to transaction types (1=DEPOSIT, 2=WITHDRAWAL, 3=TRANSFER)
+              if (tx.transaction_type_id === 1) {
                 volumeByDate[date].deposits += amount;
-              } else if (tx.transaction_type === 'WITHDRAWAL') {
+              } else if (tx.transaction_type_id === 2) {
                 volumeByDate[date].withdrawals += amount;
-              } else if (tx.transaction_type === 'TRANSFER') {
+              } else if (tx.transaction_type_id === 3) {
                 volumeByDate[date].transfers += amount;
               }
             }
@@ -1427,7 +1429,7 @@ export const WIDGET_CATALOG = {
           // Get account balances grouped by type
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_type, current_balance, branch_id')
+            .select('account_type_id, current_balance, branch_id')
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter
@@ -1441,7 +1443,7 @@ export const WIDGET_CATALOG = {
           
           // Group by account type
           const balanceByType = accounts?.reduce((acc, account) => {
-            const type = account.account_type || 'OTHER';
+            const type = account.account_type_id ? `Type ${account.account_type_id}` : 'OTHER';
             if (!acc[type]) {
               acc[type] = { type, balance: 0, count: 0 };
             }
@@ -1526,7 +1528,7 @@ export const WIDGET_CATALOG = {
           
           const { data: accounts, error } = await supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('created_at, account_type')
+            .select('created_at, account_type_id')
             .gte('created_at', startDate.toISOString())
             .order('created_at', { ascending: true });
           
@@ -1585,14 +1587,16 @@ export const WIDGET_CATALOG = {
           
           const { data: transactions, error } = await supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_type, transaction_amount')
+            .select('transaction_type_id, transaction_amount')
             .gte('transaction_date', startDate.toISOString());
           
           if (error) throw error;
           
           // Group by transaction type
           const typeDistribution = transactions?.reduce((acc, tx) => {
-            const type = tx.transaction_type || 'OTHER';
+            // Map transaction_type_id to type names
+            const typeMap = { 1: 'DEPOSIT', 2: 'WITHDRAWAL', 3: 'TRANSFER', 4: 'PAYMENT' };
+            const type = typeMap[tx.transaction_type_id] || 'OTHER';
             if (!acc[type]) {
               acc[type] = { name: type, value: 0, count: 0 };
             }
@@ -1635,7 +1639,7 @@ export const WIDGET_CATALOG = {
           // Get average balance by account type
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('current_balance, account_type, branch_id')
+            .select('current_balance, account_type_id, branch_id')
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter
