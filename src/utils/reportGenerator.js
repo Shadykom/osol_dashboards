@@ -7,7 +7,7 @@
 // creating download links and are meant to run in a client‑side context.
 
 import jsPDF from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
+import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 
@@ -374,7 +374,7 @@ class ReportGenerator {
       ['Total Assets', this.formatCurrency(data.assets?.totalAssets)]
     ];
     
-    autoTable(doc, {
+    doc.autoTable({
       startY: currentY,
       head: [['Description', 'Amount (SAR)']],
       body: assetItems,
@@ -399,7 +399,7 @@ class ReportGenerator {
       ['Total Liabilities', this.formatCurrency(data.liabilities?.totalLiabilities)]
     ];
     
-    autoTable(doc, {
+    doc.autoTable({
       startY: currentY,
       head: [['Description', 'Amount (SAR)']],
       body: liabilityItems,
@@ -424,7 +424,7 @@ class ReportGenerator {
       ['Total Equity', this.formatCurrency(data.equity?.totalEquity)]
     ];
     
-    autoTable(doc, {
+    doc.autoTable({
       startY: currentY,
       head: [['Description', 'Amount (SAR)']],
       body: equityItems,
@@ -462,7 +462,7 @@ class ReportGenerator {
         return [formattedKey, formattedValue];
       });
       
-      autoTable(doc, {
+      doc.autoTable({
         startY: currentY,
         body: overviewItems,
         theme: 'plain',
@@ -486,7 +486,7 @@ class ReportGenerator {
         this.formatPercentage(segment.percentage)
       ]);
       
-      autoTable(doc, {
+      doc.autoTable({
         startY: currentY,
         head: [['Segment', 'Count', 'Percentage']],
         body: segmentData,
@@ -512,7 +512,7 @@ class ReportGenerator {
         format(new Date(customer.createdAt), 'dd/MM/yyyy')
       ]);
       
-      autoTable(doc, {
+      doc.autoTable({
         startY: currentY,
         head: [['Name', 'Email', 'Phone', 'Join Date']],
         body: customerData,
@@ -551,7 +551,7 @@ class ReportGenerator {
         ['Risk Weighted Assets', this.formatCurrency(data.overview.riskWeightedAssets)]
       ];
       
-      autoTable(doc, {
+      doc.autoTable({
         startY: currentY,
         body: overviewItems,
         theme: 'plain',
@@ -576,7 +576,7 @@ class ReportGenerator {
         cat.rating
       ]);
       
-      autoTable(doc, {
+      doc.autoTable({
         startY: currentY,
         head: [['Category', 'Exposure', 'Percentage', 'Rating']],
         body: categoryData,
@@ -611,7 +611,7 @@ class ReportGenerator {
       return String(value || '');
     }));
     
-    autoTable(doc, {
+    doc.autoTable({
       startY: currentY,
       head: [headers.map(h => h.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()))],
       body: rows,
