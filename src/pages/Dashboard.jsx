@@ -788,7 +788,7 @@ export const WIDGET_CATALOG = {
           // Get all accounts with their types
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_type_id, account_type, branch_id');
+            .select('account_type_id, branch_id');
           
           // Apply branch filter
           if (filters?.branch && filters.branch !== 'all') {
@@ -832,9 +832,9 @@ export const WIDGET_CATALOG = {
             // Try to get type name from map
             if (account.account_type_id && typeMap[account.account_type_id]) {
               typeName = typeMap[account.account_type_id].category || typeMap[account.account_type_id].name;
-            } else if (account.account_type) {
-              // Fallback to account_type field
-              typeName = account.account_type.replace(/_/g, ' ');
+            } else if (account.account_type_id) {
+              // Fallback to generic naming based on ID
+              typeName = `Account Type ${account.account_type_id}`;
             }
             
             acc[typeName] = (acc[typeName] || 0) + 1;
@@ -1163,10 +1163,11 @@ export const WIDGET_CATALOG = {
       query: async () => {
         try {
           // Get total count of all customers
-          const { count: totalCount, error: totalError } = await supabaseBanking
+          const { data: allCustomers, error: totalError } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true });
+            .select('customer_id');
           
+          const totalCount = allCustomers?.length || 0;
           console.log('Total customers query result:', { totalCount, totalError });
           
           if (totalError) {
@@ -1527,7 +1528,7 @@ export const WIDGET_CATALOG = {
           
           const { data: accounts, error } = await supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('created_at, account_type')
+            .select('created_at, account_type_id')
             .gte('created_at', startDate.toISOString())
             .order('created_at', { ascending: true });
           
@@ -1636,7 +1637,7 @@ export const WIDGET_CATALOG = {
           // Get average balance by account type
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('current_balance, account_type, branch_id')
+            .select('current_balance, account_type_id, branch_id')
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter

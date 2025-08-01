@@ -222,11 +222,12 @@ export function Transactions() {
       // Get type distribution
       const { data: typeData } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
-        .select('transaction_type')
+        .select('transaction_type_id, transaction_types!inner(type_name)')
         .eq('transaction_status', 'COMPLETED');
 
       const typeCounts = typeData?.reduce((acc, curr) => {
-        acc[curr.transaction_type] = (acc[curr.transaction_type] || 0) + 1;
+        const type = curr.transaction_types?.type_name || 'OTHER';
+        acc[type] = (acc[type] || 0) + 1;
         return acc;
       }, {});
 
