@@ -47,6 +47,7 @@ import DashboardCardsDemo from './pages/DashboardCardsDemo';
 import DashboardReports from './pages/DashboardReports';
 import ReportsHealthCheck from './pages/ReportsHealthCheck';
 import TestDashboardRouting from './pages/TestDashboardRouting';
+import TestDashboardDetailNew from './pages/TestDashboardDetailNew';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import { Toaster } from './components/ui/sonner';
@@ -207,6 +208,7 @@ function AppContent() {
           <Route path="/dashboard/cards-demo" element={<DashboardCardsDemo />} />
           <Route path="/dashboard/reports" element={<DashboardReports />} />
           <Route path="/test-dashboard" element={<TestDashboardRouting />} />
+          <Route path="/test-dashboard-detail-new" element={<TestDashboardDetailNew />} />
           
           {/* Dashboard Routes */}
           <Route path="/dashboards/custom" element={

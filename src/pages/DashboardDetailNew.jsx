@@ -7,49 +7,91 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { Button } from '../components/ui/button';
-import { ArrowLeft, Download, RefreshCw, Printer, DollarSign, CreditCard, TrendingUp, TrendingDown, Activity, Users, BarChart3, PieChart } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
+import { Separator } from '../components/ui/separator';
+import { 
+  ArrowLeft, 
+  Download, 
+  RefreshCw, 
+  Printer, 
+  DollarSign, 
+  CreditCard, 
+  TrendingUp, 
+  TrendingDown, 
+  Activity, 
+  Users, 
+  BarChart3, 
+  PieChart,
+  Building2,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  Calendar,
+  Filter,
+  Share2,
+  MoreHorizontal,
+  Eye,
+  AlertCircle,
+  CheckCircle2
+} from 'lucide-react';
 import { enhancedDashboardDetailsService } from '../services/enhancedDashboardDetailsService';
 import { useFilters } from '../contexts/FilterContext';
 import { ChartWidget } from '../components/widgets/ChartWidget';
 import { cn } from '../lib/utils';
 
-// Stat Card Component
-const StatCard = ({ title, value, change, trend, description, icon: Icon }) => {
+// Enhanced Stat Card Component with modern design
+const StatCard = ({ title, value, change, trend, description, icon: Icon, className, size = 'default' }) => {
+  const sizeClasses = {
+    small: 'p-4',
+    default: 'p-6',
+    large: 'p-8'
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className={cn("relative overflow-hidden transition-all duration-200 hover:shadow-lg", className)}>
+      <CardHeader className={cn("pb-2", sizeClasses[size])}>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+            <div className="text-2xl font-bold tracking-tight">{value}</div>
+          </div>
+          {Icon && (
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
+          )}
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
         {change && (
-          <div className="flex items-center space-x-1 mt-1">
-            {trend === 'up' ? (
-              <TrendingUp className="h-3 w-3 text-green-500" />
-            ) : trend === 'down' ? (
-              <TrendingDown className="h-3 w-3 text-red-500" />
-            ) : null}
-            <span className={cn(
-              "text-xs font-medium",
-              trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-500'
+          <div className="flex items-center space-x-2 mt-2">
+            <div className={cn(
+              "flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium",
+              trend === 'up' 
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' 
+                : trend === 'down' 
+                ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' 
+                : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400'
             )}>
-              {change}
-            </span>
+              {trend === 'up' ? (
+                <ArrowUpRight className="h-3 w-3" />
+              ) : trend === 'down' ? (
+                <ArrowDownRight className="h-3 w-3" />
+              ) : null}
+              <span>{change}</span>
+            </div>
           </div>
         )}
         {description && (
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         )}
-      </CardContent>
+      </CardHeader>
+      {/* Decorative gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
     </Card>
   );
 };
 
-// Breakdown Card Component
-const BreakdownCard = ({ title, data, type = 'pie' }) => {
+// Enhanced Breakdown Card Component
+const BreakdownCard = ({ title, data, type = 'pie', className }) => {
   const total = Object.values(data).reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
   
   // Transform data for charts
@@ -59,20 +101,71 @@ const BreakdownCard = ({ title, data, type = 'pie' }) => {
     percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0
   }));
 
+  const colors = [
+    'hsl(var(--primary))',
+    'hsl(var(--secondary))',
+    'hsl(var(--accent))',
+    '#8B5CF6',
+    '#06B6D4',
+    '#10B981',
+    '#F59E0B',
+    '#EF4444',
+    '#8B5A3C',
+    '#6B7280'
+  ];
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
+    <Card className={cn("relative overflow-hidden", className)}>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+          <Badge variant="secondary" className="text-xs">
+            {chartData.length} items
+          </Badge>
+        </div>
       </CardHeader>
       <CardContent>
-        {type === 'pie' ? (
-          <ChartWidget
-            data={chartData}
-            chartType="pie"
-            dataKey="value"
-            height={250}
-            showLegend={true}
-          />
+        {total === 0 || chartData.every(item => item.value === 0) ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">No data available</p>
+          </div>
+        ) : type === 'pie' ? (
+          <div className="space-y-4">
+            <ChartWidget
+              data={chartData}
+              chartType="pie"
+              dataKey="value"
+              height={200}
+              showLegend={false}
+              colors={colors}
+            />
+            <div className="space-y-2">
+              {chartData.slice(0, 5).map((item, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: colors[index % colors.length] }}
+                    />
+                    <span className="truncate max-w-24">{item.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-right">
+                    <span className="font-medium">
+                      {item.value >= 1000000 
+                        ? `${(item.value / 1000000).toFixed(1)}M` 
+                        : item.value >= 1000 
+                        ? `${(item.value / 1000).toFixed(0)}K` 
+                        : item.value.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({item.percentage}%)
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : type === 'bar' ? (
           <ChartWidget
             data={chartData}
@@ -81,19 +174,20 @@ const BreakdownCard = ({ title, data, type = 'pie' }) => {
             yAxisKey="value"
             height={250}
             showLegend={false}
+            colors={colors}
           />
         ) : (
-          <div className="space-y-2">
-            {chartData.map((item, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span className="text-sm">{item.name}</span>
+          <div className="space-y-3">
+            {chartData.slice(0, 8).map((item, index) => (
+              <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
+                <span className="text-sm font-medium">{item.name}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-semibold">
                     SAR {(item.value / 1000000).toFixed(1)}M
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    ({item.percentage}%)
-                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {item.percentage}%
+                  </Badge>
                 </div>
               </div>
             ))}
@@ -104,37 +198,56 @@ const BreakdownCard = ({ title, data, type = 'pie' }) => {
   );
 };
 
-// Data Table Component for Raw Data
-const DataTable = ({ data, columns }) => {
+// Enhanced Data Table Component for Raw Data
+const DataTable = ({ data, columns, title }) => {
   if (!data || data.length === 0) {
-    return <div className="text-center text-muted-foreground py-8">No data available</div>;
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-muted-foreground">No data available</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b">
-            {columns.map((col, index) => (
-              <th key={index} className="text-left p-2 font-medium text-sm">
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, rowIndex) => (
-            <tr key={rowIndex} className="border-b hover:bg-muted/50">
-              {columns.map((col, colIndex) => (
-                <td key={colIndex} className="p-2 text-sm">
-                  {col.accessor(row)}
-                </td>
+    <Card>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{title}</CardTitle>
+          <Badge variant="secondary">{data.length} records</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-muted/50">
+                {columns.map((col, index) => (
+                  <th key={index} className="text-left p-3 font-semibold text-sm border-b">
+                    {col.header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, rowIndex) => (
+                <tr key={rowIndex} className="border-b hover:bg-muted/30 transition-colors">
+                  {columns.map((col, colIndex) => (
+                    <td key={colIndex} className="p-3 text-sm">
+                      {col.accessor(row)}
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -148,14 +261,16 @@ const DashboardDetailNew = () => {
     breakdown: null,
     trends: null,
     raw: null,
-    metadata: { title: 'total_assets' }
+    metadata: { title: 'Total Assets' }
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch data on mount or when filters change
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
       try {
         console.log('Fetching data for:', { section, widgetId });
         const result = await enhancedDashboardDetailsService.getWidgetDetails(
@@ -169,9 +284,11 @@ const DashboardDetailNew = () => {
           setDetailData(result.data);
         } else {
           console.error('Service returned error:', result.error);
+          setError(result.error);
         }
       } catch (error) {
         console.error('Error fetching widget details:', error);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
@@ -198,6 +315,7 @@ const DashboardDetailNew = () => {
 
   const handleRefresh = async () => {
     setLoading(true);
+    setError(null);
     try {
       const result = await enhancedDashboardDetailsService.getWidgetDetails(
         section,
@@ -206,9 +324,12 @@ const DashboardDetailNew = () => {
       );
       if (result.success) {
         setDetailData(result.data);
+      } else {
+        setError(result.error);
       }
     } catch (error) {
       console.error('Error fetching widget details:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -226,275 +347,373 @@ const DashboardDetailNew = () => {
     return `SAR ${value.toLocaleString()}`;
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between gap-4">
+  if (error) {
+    return (
+      <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{detailData.metadata?.title || widgetId}</h1>
-            <p className="text-sm text-muted-foreground">
-              Detailed analytics and insights for {section} section
+            <h1 className="text-2xl font-bold text-red-600">Error Loading Data</h1>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Unable to load widget data</h3>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={handleRefresh}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight">
+                {detailData.metadata?.title || 'Total Assets'}
+              </h1>
+              <Badge variant="outline" className="text-xs">
+                {section}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground">
+              Comprehensive analytics and insights for {section} section
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleExport('csv')}>
-            <Download className="mr-2 h-4 w-4" /> Export
+          <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
           </Button>
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
+            <Download className="mr-2 h-4 w-4" /> Export PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" /> Print
           </Button>
-          <Button variant="outline" onClick={handleRefresh} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> 
             Refresh
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="data">Raw Data</TabsTrigger>
+      {/* Quick Stats Bar */}
+      {detailData.overview && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Assets"
+            value={formatCurrency(detailData.overview.totalAssets || 0)}
+            change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+            trend={detailData.overview.trend}
+            description="Combined deposits and loans"
+            icon={DollarSign}
+            size="small"
+          />
+          <StatCard
+            title="Active Accounts"
+            value={(detailData.overview.accountCount || 0).toLocaleString()}
+            description="Total account count"
+            icon={Users}
+            size="small"
+          />
+          <StatCard
+            title="Loan Portfolio"
+            value={formatCurrency(detailData.overview.totalLoans || 0)}
+            description={`${detailData.overview.loanRatio || 0}% of assets`}
+            icon={TrendingUp}
+            size="small"
+          />
+          <StatCard
+            title="Deposit Base"
+            value={formatCurrency(detailData.overview.totalDeposits || 0)}
+            description={`${detailData.overview.depositRatio || 0}% of assets`}
+            icon={CreditCard}
+            size="small"
+          />
+        </div>
+      )}
+
+      <Separator />
+
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="breakdown" className="flex items-center gap-2">
+            <PieChart className="h-4 w-4" />
+            Breakdown Analysis
+          </TabsTrigger>
+          <TabsTrigger value="trends" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Trends
+          </TabsTrigger>
+          <TabsTrigger value="data" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Raw Data
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="overview" className="space-y-6">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : detailData.overview ? (
             <>
-              {/* Dynamic Overview based on widget type */}
-              {detailData.overview.widgetType === 'kpi' ? (
-                // KPI Widget Overview
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <StatCard
-                    title={detailData.metadata?.title || widgetId}
-                    value={
-                      typeof detailData.overview.value === 'number' && detailData.overview.value >= 1000000
-                        ? formatCurrency(detailData.overview.value)
-                        : (detailData.overview.value || 0).toLocaleString() + (detailData.overview.suffix || '')
-                    }
-                    change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
-                    trend={detailData.overview.trend}
-                    description={`${section} metrics`}
-                    icon={DollarSign}
-                  />
-                  {/* Additional context cards if available */}
-                  {detailData.overview.totalAssets && (
-                    <>
-                      <StatCard
-                        title="Total Deposits"
-                        value={formatCurrency(detailData.overview.totalDeposits || 0)}
-                        description={`${detailData.overview.depositRatio || 0}% of total assets`}
-                        icon={CreditCard}
-                      />
-                      <StatCard
-                        title="Total Loans"
-                        value={formatCurrency(detailData.overview.totalLoans || 0)}
-                        description={`${detailData.overview.loanRatio || 0}% of total assets`}
-                        icon={TrendingUp}
-                      />
-                    </>
-                  )}
-                </div>
-              ) : detailData.overview.widgetType === 'chart' ? (
-                // Chart Widget Overview
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{detailData.metadata?.title || widgetId}</CardTitle>
-                    <CardDescription>Chart visualization and metrics</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {detailData.overview.data ? (
-                      <ChartWidget
-                        data={detailData.overview.data}
-                        chartType={detailData.overview.chartType || 'line'}
-                        height={300}
-                        showLegend={true}
-                      />
-                    ) : (
-                      <div className="text-center text-muted-foreground py-8">
-                        No chart data available
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                // Fallback for specific widgets (like total_assets)
-                <>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard
-                      title="Total Assets"
-                      value={formatCurrency(detailData.overview.totalAssets || 0)}
-                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
-                      trend={detailData.overview.trend}
-                      description="Combined deposits and loans"
-                      icon={DollarSign}
-                    />
-                    <StatCard
-                      title="Total Deposits"
-                      value={formatCurrency(detailData.overview.totalDeposits || 0)}
-                      description={`${detailData.overview.depositRatio || 0}% of total assets`}
-                      icon={CreditCard}
-                    />
-                    <StatCard
-                      title="Total Loans"
-                      value={formatCurrency(detailData.overview.totalLoans || 0)}
-                      description={`${detailData.overview.loanRatio || 0}% of total assets`}
-                      icon={TrendingUp}
-                    />
-                    <StatCard
-                      title="Account Count"
-                      value={(detailData.overview.accountCount || 0).toLocaleString()}
-                      description="Total number of accounts"
-                      icon={Users}
-                    />
-                  </div>
+              {/* Main KPI Grid */}
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <StatCard
+                  title="Total Assets"
+                  value={formatCurrency(detailData.overview.totalAssets || 0)}
+                  change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${detailData.overview.change.toFixed(1)}%` : null}
+                  trend={detailData.overview.trend}
+                  description="Combined deposits and loans"
+                  icon={DollarSign}
+                  className="md:col-span-2 lg:col-span-1"
+                />
+                <StatCard
+                  title="Total Deposits"
+                  value={formatCurrency(detailData.overview.totalDeposits || 0)}
+                  description={`${detailData.overview.depositRatio || 0}% of total assets`}
+                  icon={CreditCard}
+                />
+                <StatCard
+                  title="Total Loans"
+                  value={formatCurrency(detailData.overview.totalLoans || 0)}
+                  description={`${detailData.overview.loanRatio || 0}% of total assets`}
+                  icon={TrendingUp}
+                />
+              </div>
 
-                  {/* Additional Metrics */}
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <StatCard
-                      title="Loan Count"
-                      value={(detailData.overview.loanCount || 0).toLocaleString()}
-                      description="Total number of loans"
-                      icon={Activity}
-                    />
-                    <StatCard
-                      title="Average Account Balance"
-                      value={formatCurrency(detailData.overview.avgAccountBalance || 0)}
-                      description="Per account average"
-                      icon={BarChart3}
-                    />
-                    <StatCard
-                      title="Average Loan Balance"
-                      value={formatCurrency(detailData.overview.avgLoanBalance || 0)}
-                      description="Per loan average"
-                      icon={PieChart}
-                    />
-                  </div>
-                </>
-              )}
+              {/* Secondary Metrics */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                  title="Account Count"
+                  value={(detailData.overview.accountCount || 0).toLocaleString()}
+                  description="Total number of accounts"
+                  icon={Users}
+                />
+                <StatCard
+                  title="Loan Count"
+                  value={(detailData.overview.loanCount || 0).toLocaleString()}
+                  description="Total number of loans"
+                  icon={Activity}
+                />
+                <StatCard
+                  title="Avg Account Balance"
+                  value={formatCurrency(detailData.overview.avgAccountBalance || 0)}
+                  description="Per account average"
+                  icon={BarChart3}
+                />
+                <StatCard
+                  title="Avg Loan Balance"
+                  value={formatCurrency(detailData.overview.avgLoanBalance || 0)}
+                  description="Per loan average"
+                  icon={Building2}
+                />
+              </div>
 
               {/* Asset Composition Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Asset Composition</CardTitle>
-                  <CardDescription>Breakdown of total assets</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChart className="h-5 w-5" />
+                    Asset Composition
+                  </CardTitle>
+                  <CardDescription>
+                    Visual breakdown of your total asset portfolio
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ChartWidget
-                    data={[
-                      { name: 'Deposits', value: detailData.overview.totalDeposits || 0 },
-                      { name: 'Loans', value: detailData.overview.totalLoans || 0 }
-                    ]}
-                    chartType="pie"
-                    yAxisKey="value"
-                    height={300}
-                    showLegend={true}
-                  />
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <ChartWidget
+                      data={[
+                        { name: 'Deposits', value: detailData.overview.totalDeposits || 0 },
+                        { name: 'Loans', value: detailData.overview.totalLoans || 0 }
+                      ]}
+                      chartType="pie"
+                      dataKey="value"
+                      height={300}
+                      showLegend={true}
+                    />
+                    <div className="space-y-4">
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-semibold mb-2">Composition Summary</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Deposits Ratio:</span>
+                            <span className="font-medium">{detailData.overview.depositRatio || 0}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Loans Ratio:</span>
+                            <span className="font-medium">{detailData.overview.loanRatio || 0}%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4 bg-primary/5 rounded-lg">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          Performance Indicators
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Growth Trend:</span>
+                            <Badge variant={detailData.overview.trend === 'up' ? 'default' : 'secondary'}>
+                              {detailData.overview.trend === 'up' ? 'Positive' : detailData.overview.trend === 'down' ? 'Negative' : 'Stable'}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Asset Quality:</span>
+                            <Badge variant="default">Healthy</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </>
           ) : (
             <Card>
               <CardContent className="py-8">
-                <p className="text-center text-muted-foreground">No overview data available</p>
+                <div className="text-center">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No overview data available</p>
+                </div>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="breakdown" className="space-y-4">
+        <TabsContent value="breakdown" className="space-y-6">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : detailData.breakdown ? (
             <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Breakdown Analysis</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {detailData.breakdown.byCategory && (
-                      <BreakdownCard 
-                        title="By Category" 
-                        data={detailData.breakdown.byCategory} 
-                        type="pie"
-                      />
-                    )}
-                    {detailData.breakdown.byProductType && (
-                      <BreakdownCard 
-                        title="By Product Type" 
-                        data={detailData.breakdown.byProductType} 
-                        type="bar"
-                      />
-                    )}
-                    {detailData.breakdown.byBranch && (
-                      <BreakdownCard 
-                        title="By Branch" 
-                        data={detailData.breakdown.byBranch} 
-                        type="list"
-                      />
-                    )}
-                    {detailData.breakdown.byAccountType && (
-                      <BreakdownCard 
-                        title="By Account Type" 
-                        data={detailData.breakdown.byAccountType} 
-                        type="pie"
-                      />
-                    )}
-                    {detailData.breakdown.byCurrency && (
-                      <BreakdownCard 
-                        title="By Currency" 
-                        data={detailData.breakdown.byCurrency} 
-                        type="bar"
-                      />
-                    )}
-                    {detailData.breakdown.byStatus && (
-                      <BreakdownCard 
-                        title="By Status" 
-                        data={detailData.breakdown.byStatus} 
-                        type="pie"
-                      />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Breakdown Analysis</h2>
+                  <p className="text-muted-foreground">
+                    Detailed breakdown of assets across different dimensions
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-sm">
+                  <Calendar className="mr-1 h-3 w-3" />
+                  {new Date().toLocaleDateString()}
+                </Badge>
+              </div>
+              
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {detailData.breakdown.byCategory && (
+                  <BreakdownCard 
+                    title="Asset Categories" 
+                    data={detailData.breakdown.byCategory} 
+                    type="pie"
+                    className="lg:col-span-1"
+                  />
+                )}
+                {detailData.breakdown.byAccountType && (
+                  <BreakdownCard 
+                    title="Account Types" 
+                    data={detailData.breakdown.byAccountType} 
+                    type="bar"
+                  />
+                )}
+                {detailData.breakdown.byProductType && (
+                  <BreakdownCard 
+                    title="Product Types" 
+                    data={detailData.breakdown.byProductType} 
+                    type="pie"
+                  />
+                )}
+                {detailData.breakdown.byBranch && (
+                  <BreakdownCard 
+                    title="Top Branches" 
+                    data={detailData.breakdown.byBranch} 
+                    type="list"
+                    className="md:col-span-2 lg:col-span-1"
+                  />
+                )}
+                {detailData.breakdown.byCurrency && (
+                  <BreakdownCard 
+                    title="Currency Distribution" 
+                    data={detailData.breakdown.byCurrency} 
+                    type="pie"
+                  />
+                )}
+                {detailData.breakdown.byStatus && (
+                  <BreakdownCard 
+                    title="Status Breakdown" 
+                    data={detailData.breakdown.byStatus} 
+                    type="bar"
+                  />
+                )}
+              </div>
             </>
           ) : (
             <Card>
               <CardContent className="py-8">
-                <p className="text-center text-muted-foreground">No breakdown data available</p>
+                <div className="text-center">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No breakdown data available</p>
+                </div>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-4">
+        <TabsContent value="trends" className="space-y-6">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : detailData.trends ? (
             <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Historical Trends</h2>
+                  <p className="text-muted-foreground">
+                    Asset growth and performance over time
+                  </p>
+                </div>
+              </div>
+
               <Card>
                 <CardHeader>
-                  <CardTitle>Historical Trends</CardTitle>
-                  <CardDescription>Asset growth over time</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Asset Growth Trend
+                  </CardTitle>
+                  <CardDescription>30-day historical asset performance</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {detailData.trends.dates && detailData.trends.totalAssets ? (
                     <ChartWidget
                       data={detailData.trends.dates.map((date, index) => ({
-                        date: date,
+                        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                         'Total Assets': detailData.trends.totalAssets[index] || 0,
                         'Deposits': detailData.trends.deposits[index] || 0,
                         'Loans': detailData.trends.loans[index] || 0
@@ -507,7 +726,10 @@ const DashboardDetailNew = () => {
                       multiLine={['Total Assets', 'Deposits', 'Loans']}
                     />
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">No trend data available</p>
+                    <div className="text-center text-muted-foreground py-8">
+                      <BarChart3 className="h-8 w-8 mx-auto mb-2" />
+                      <p>No trend data available</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -516,13 +738,16 @@ const DashboardDetailNew = () => {
               {detailData.trends.growthRates && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Growth Rate Trends</CardTitle>
-                    <CardDescription>Month-over-month growth percentages</CardDescription>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Growth Rate Analysis
+                    </CardTitle>
+                    <CardDescription>Day-over-day growth percentages</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ChartWidget
                       data={detailData.trends.dates.map((date, index) => ({
-                        date: date,
+                        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                         'Growth Rate': detailData.trends.growthRates[index] || 0
                       }))}
                       chartType="bar"
@@ -538,73 +763,94 @@ const DashboardDetailNew = () => {
           ) : (
             <Card>
               <CardContent className="py-8">
-                <p className="text-center text-muted-foreground">No trends data available</p>
+                <div className="text-center">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No trends data available</p>
+                </div>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="data" className="space-y-4">
+        <TabsContent value="data" className="space-y-6">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : detailData.raw ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Raw Data</CardTitle>
-                <CardDescription>Detailed asset information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {detailData.raw.accounts && detailData.raw.accounts.length > 0 ? (
-                  <>
-                    <h3 className="font-medium mb-2">Top Accounts</h3>
-                    <DataTable
-                      data={detailData.raw.accounts.slice(0, 10)}
-                      columns={[
-                        { header: 'Account Number', accessor: (row) => row.account_number },
-                        { header: 'Type', accessor: (row) => row.account_type },
-                        { header: 'Balance', accessor: (row) => formatCurrency(row.current_balance || 0) },
-                        { header: 'Status', accessor: (row) => row.status },
-                        { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
-                      ]}
-                    />
-                  </>
-                ) : null}
-
-                {detailData.raw.loans && detailData.raw.loans.length > 0 ? (
-                  <>
-                    <h3 className="font-medium mb-2 mt-6">Top Loans</h3>
-                    <DataTable
-                      data={detailData.raw.loans.slice(0, 10)}
-                      columns={[
-                        { header: 'Loan ID', accessor: (row) => row.loan_id },
-                        { header: 'Type', accessor: (row) => row.loan_type },
-                        { header: 'Outstanding', accessor: (row) => formatCurrency(row.outstanding_balance || 0) },
-                        { header: 'Status', accessor: (row) => row.status },
-                        { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
-                      ]}
-                    />
-                  </>
-                ) : null}
-
-                {/* Summary Statistics */}
-                <div className="mt-6 p-4 bg-muted rounded-lg">
-                  <h3 className="font-medium mb-2">Summary</h3>
-                  <pre className="text-sm overflow-auto">
-                    {JSON.stringify({
-                      totalAccounts: detailData.raw.totalAccounts,
-                      totalLoans: detailData.raw.totalLoans,
-                      lastUpdated: detailData.raw.lastUpdated
-                    }, null, 2)}
-                  </pre>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Raw Data</h2>
+                  <p className="text-muted-foreground">
+                    Detailed transactional data and records
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              {detailData.raw.accounts && detailData.raw.accounts.length > 0 && (
+                <DataTable
+                  title="Top Accounts"
+                  data={detailData.raw.accounts.slice(0, 10)}
+                  columns={[
+                    { header: 'Account Number', accessor: (row) => row.account_number },
+                    { header: 'Type', accessor: (row) => <Badge variant="outline">{row.account_type}</Badge> },
+                    { header: 'Balance', accessor: (row) => formatCurrency(row.current_balance || 0) },
+                    { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
+                    { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
+                  ]}
+                />
+              )}
+
+              {detailData.raw.loans && detailData.raw.loans.length > 0 && (
+                <DataTable
+                  title="Top Loans"
+                  data={detailData.raw.loans.slice(0, 10)}
+                  columns={[
+                    { header: 'Loan ID', accessor: (row) => row.loan_id },
+                    { header: 'Type', accessor: (row) => <Badge variant="outline">{row.loan_type}</Badge> },
+                    { header: 'Outstanding', accessor: (row) => formatCurrency(row.outstanding_balance || 0) },
+                    { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
+                    { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
+                  ]}
+                />
+              )}
+
+              {/* Summary Statistics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Data Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold">{detailData.raw.totalAccounts || 0}</div>
+                      <div className="text-sm text-muted-foreground">Total Accounts</div>
+                    </div>
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold">{detailData.raw.totalLoans || 0}</div>
+                      <div className="text-sm text-muted-foreground">Total Loans</div>
+                    </div>
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                      <div className="text-sm font-medium">Last Updated</div>
+                      <div className="text-sm text-muted-foreground">
+                        {detailData.raw.lastUpdated ? new Date(detailData.raw.lastUpdated).toLocaleString() : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <Card>
               <CardContent className="py-8">
-                <p className="text-center text-muted-foreground">No raw data available</p>
+                <div className="text-center">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No raw data available</p>
+                </div>
               </CardContent>
             </Card>
           )}
