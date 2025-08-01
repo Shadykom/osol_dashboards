@@ -1379,7 +1379,7 @@ export const WIDGET_CATALOG = {
           
           const { data: transactions, error } = await supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_date, transaction_amount, transaction_type_id')
+            .select('transaction_date, transaction_amount, transaction_type_id, transaction_types!inner(type_code)')
             .gte('transaction_date', startDate.toISOString())
             .lte('transaction_date', endDate.toISOString())
             .order('transaction_date', { ascending: true });
@@ -1399,12 +1399,12 @@ export const WIDGET_CATALOG = {
             const date = tx.transaction_date.split('T')[0];
             if (volumeByDate[date]) {
               const amount = parseFloat(tx.transaction_amount) || 0;
-              // Map transaction_type_id to transaction types (1=DEPOSIT, 2=WITHDRAWAL, 3=TRANSFER)
-              if (tx.transaction_type_id === 1) {
+              const transactionType = tx.transaction_types?.type_code || 'OTHER';
+              if (transactionType === 'DEPOSIT' || transactionType === 'CREDIT') {
                 volumeByDate[date].deposits += amount;
-              } else if (tx.transaction_type_id === 2) {
+              } else if (transactionType === 'WITHDRAWAL' || transactionType === 'DEBIT') {
                 volumeByDate[date].withdrawals += amount;
-              } else if (tx.transaction_type_id === 3) {
+              } else if (transactionType === 'TRANSFER') {
                 volumeByDate[date].transfers += amount;
               }
             }
@@ -1429,7 +1429,7 @@ export const WIDGET_CATALOG = {
           // Get account balances grouped by type
           let query = supabaseBanking
             .from(TABLES.ACCOUNTS)
-            .select('account_type_id, current_balance, branch_id')
+            .select('account_type_id, current_balance, branch_id, account_types!inner(type_name)')
             .eq('account_status', 'ACTIVE');
           
           // Apply branch filter
@@ -1443,7 +1443,7 @@ export const WIDGET_CATALOG = {
           
           // Group by account type
           const balanceByType = accounts?.reduce((acc, account) => {
-            const type = account.account_type_id ? `Type ${account.account_type_id}` : 'OTHER';
+            const type = account.account_types?.type_name || 'OTHER';
             if (!acc[type]) {
               acc[type] = { type, balance: 0, count: 0 };
             }
@@ -1587,16 +1587,14 @@ export const WIDGET_CATALOG = {
           
           const { data: transactions, error } = await supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_type_id, transaction_amount')
+            .select('transaction_type_id, transaction_amount, transaction_types!inner(type_code, type_name)')
             .gte('transaction_date', startDate.toISOString());
           
           if (error) throw error;
           
           // Group by transaction type
           const typeDistribution = transactions?.reduce((acc, tx) => {
-            // Map transaction_type_id to type names
-            const typeMap = { 1: 'DEPOSIT', 2: 'WITHDRAWAL', 3: 'TRANSFER', 4: 'PAYMENT' };
-            const type = typeMap[tx.transaction_type_id] || 'OTHER';
+            const type = tx.transaction_types?.type_name || 'OTHER';
             if (!acc[type]) {
               acc[type] = { name: type, value: 0, count: 0 };
             }
