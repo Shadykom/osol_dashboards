@@ -240,8 +240,8 @@ class ReportGenerator {
     currentY = doc.lastAutoTable.finalY + 20;
 
     // Check if we need a new page
-    const pageHeight = doc.internal.pageSize.height;
-    if (currentY > pageHeight - 80) {
+    const actualPageHeight = doc.internal.pageSize.height;
+    if (currentY > actualPageHeight - 80) {
       doc.addPage();
       currentY = 20;
     }
