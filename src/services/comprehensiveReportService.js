@@ -9,21 +9,21 @@ class ComprehensiveReportService {
   /**
    * Get Financial Report Data
    */
-  async getFinancialReportData(reportType, dateRange) {
+  async getFinancialReportData(reportType, dateRange, filters = {}) {
     try {
       const { startDate, endDate } = dateRange;
       
       switch (reportType) {
         case 'income_statement':
-          return await financialReportService.getIncomeStatement(startDate, endDate);
+          return await financialReportService.getIncomeStatement(startDate, endDate, filters);
         case 'balance_sheet':
-          return await financialReportService.getBalanceSheet(endDate);
+          return await financialReportService.getBalanceSheet(endDate, filters);
         case 'cash_flow':
-          return await financialReportService.getCashFlowStatement(startDate, endDate);
+          return await financialReportService.getCashFlowStatement(startDate, endDate, filters);
         case 'profit_loss':
-          return await financialReportService.getProfitLossStatement(startDate, endDate);
+          return await financialReportService.getProfitLossStatement(startDate, endDate, filters);
         case 'budget_variance':
-          return await financialReportService.getBudgetVarianceAnalysis(startDate, endDate);
+          return await financialReportService.getBudgetVarianceAnalysis(startDate, endDate, filters);
         default:
           throw new Error(`Unknown financial report type: ${reportType}`);
       }

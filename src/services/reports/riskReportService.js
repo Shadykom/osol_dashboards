@@ -224,7 +224,7 @@ class RiskReportService {
           transaction_amount,
           transaction_status,
           transaction_date,
-          transaction_types!inner(type_name, category)
+          transaction_types!inner(type_name, transaction_category)
         `)
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate);

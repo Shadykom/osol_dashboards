@@ -11,6 +11,7 @@ import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import osolLogo from '@/assets/osol-logo.png';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 
 // OSOL Brand Colors for PDF
 const OSOL_BRAND = {
@@ -51,6 +52,87 @@ class ReportGenerator {
   // Helper to format number
   formatNumber(value) {
     return new Intl.NumberFormat('en-SA').format(value || 0);
+  }
+
+  // Helper to format filters for display
+  async formatFilters(filters) {
+    if (!filters || Object.keys(filters).length === 0) return null;
+    
+    const filterText = [];
+    
+    // Fetch branch name if branch filter is applied
+    if (filters.branch && filters.branch !== 'all') {
+      try {
+        const { data: branch } = await supabaseBanking
+          .from(TABLES.BRANCHES)
+          .select('branch_name')
+          .eq('branch_id', filters.branch)
+          .single();
+        
+        if (branch) {
+          filterText.push(`Branch: ${branch.branch_name}`);
+        } else {
+          filterText.push(`Branch: ${filters.branch}`);
+        }
+      } catch (error) {
+        filterText.push(`Branch: ${filters.branch}`);
+      }
+    }
+    
+    // Fetch product name if product filter is applied
+    if (filters.product && filters.product !== 'all') {
+      try {
+        const { data: product } = await supabaseBanking
+          .from(TABLES.PRODUCTS)
+          .select('product_name')
+          .eq('product_id', filters.product)
+          .single();
+        
+        if (product) {
+          filterText.push(`Product: ${product.product_name}`);
+        } else {
+          filterText.push(`Product: ${filters.product}`);
+        }
+      } catch (error) {
+        filterText.push(`Product: ${filters.product}`);
+      }
+    }
+    
+    // Fetch segment name if segment filter is applied
+    if (filters.segment && filters.segment !== 'all') {
+      try {
+        const { data: segment } = await supabaseBanking
+          .from(TABLES.CUSTOMER_SEGMENTS)
+          .select('segment_name')
+          .eq('segment_id', filters.segment)
+          .single();
+        
+        if (segment) {
+          filterText.push(`Segment: ${segment.segment_name}`);
+        } else {
+          filterText.push(`Segment: ${filters.segment}`);
+        }
+      } catch (error) {
+        filterText.push(`Segment: ${filters.segment}`);
+      }
+    }
+    
+    return filterText.length > 0 ? filterText.join(' | ') : null;
+  }
+
+  // Add filter information to report
+  async addFilterInfo(doc, currentY, metadata) {
+    if (!metadata || !metadata.filters) return currentY;
+    
+    const filterText = await this.formatFilters(metadata.filters);
+    if (!filterText) return currentY;
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...OSOL_BRAND.textMuted);
+    doc.text(`Applied Filters: ${filterText}`, 15, currentY);
+    
+    return currentY + 6;
   }
 
   // Add OSOL branded header to PDF
@@ -140,7 +222,7 @@ class ReportGenerator {
   }
 
   // Generate Enhanced Income Statement PDF with OSOL Branding
-  generateIncomeStatementPDF(data, reportName) {
+  async generateIncomeStatementPDF(data, reportName, metadata = {}) {
     // Create PDF with A4 dimensions and proper margins
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -183,7 +265,11 @@ class ReportGenerator {
     doc.text('Currency: Saudi Riyal (SAR)', leftMargin + 5, currentY + 6);
     doc.text('Report Type: Income Statement', leftMargin + 5, currentY + 12);
     
-    currentY += 25;
+    currentY += 20;
+    
+    // Add filter information
+    currentY = await this.addFilterInfo(doc, currentY, metadata);
+    currentY += 5;
 
     // Extract data with fallbacks matching the component
     const { revenue, expenses, netIncome } = data;
@@ -389,7 +475,7 @@ class ReportGenerator {
   }
 
   // Generate Balance Sheet PDF
-  generateBalanceSheetPDF(data, reportName) {
+  async generateBalanceSheetPDF(data, reportName, metadata = {}) {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -405,7 +491,11 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, 'Balance Sheet');
+    let currentY = this.addOSOLHeader(doc, reportName, 'Balance Sheet');
+    
+    // Add filter information
+    currentY = await this.addFilterInfo(doc, currentY + 10, metadata);
+    currentY += 5;
     
     if (!data || typeof data !== 'object') {
       doc.setFontSize(12);
@@ -493,7 +583,7 @@ class ReportGenerator {
   }
 
   // Generate Customer Report PDF
-  generateCustomerReportPDF(data, reportName) {
+  async generateCustomerReportPDF(data, reportName, metadata = {}) {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -509,7 +599,11 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, 'Customer Analysis Report');
+    let currentY = this.addOSOLHeader(doc, reportName, 'Customer Analysis Report');
+    
+    // Add filter information
+    currentY = await this.addFilterInfo(doc, currentY + 10, metadata);
+    currentY += 5;
     
     if (!data || typeof data !== 'object') {
       doc.setFontSize(12);
@@ -595,7 +689,7 @@ class ReportGenerator {
   }
 
   // Generate Risk Report PDF
-  generateRiskReportPDF(data, reportName) {
+  async generateRiskReportPDF(data, reportName, metadata = {}) {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -611,7 +705,11 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, 'Risk Analysis Report');
+    let currentY = this.addOSOLHeader(doc, reportName, 'Risk Analysis Report');
+    
+    // Add filter information
+    currentY = await this.addFilterInfo(doc, currentY + 10, metadata);
+    currentY += 5;
     
     if (!data || typeof data !== 'object') {
       doc.setFontSize(12);
@@ -673,7 +771,7 @@ class ReportGenerator {
   }
 
   // Generic PDF generator for array data
-  generateGenericPDF(data, reportType, reportName) {
+  async generateGenericPDF(data, reportType, reportName, metadata = {}) {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -689,7 +787,11 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addHeader(doc, reportName, reportType);
+    let currentY = this.addOSOLHeader(doc, reportName, reportType);
+    
+    // Add filter information
+    currentY = await this.addFilterInfo(doc, currentY + 10, metadata);
+    currentY += 5;
     
     if (!data || !Array.isArray(data) || data.length === 0) {
       doc.setFontSize(12);
@@ -721,36 +823,36 @@ class ReportGenerator {
   }
 
   // Main PDF generation method
-  async generatePDF(data, reportType, reportName) {
+  async generatePDF(data, reportType, reportName, metadata = {}) {
     try {
       // Handle different report types
       switch (reportType) {
         case 'income_statement':
         case 'profit_loss':
-          return this.generateIncomeStatementPDF(data, reportName);
+          return this.generateIncomeStatementPDF(data, reportName, metadata);
         
         case 'balance_sheet':
-          return this.generateBalanceSheetPDF(data, reportName);
+          return this.generateBalanceSheetPDF(data, reportName, metadata);
         
         case 'customer_acquisition':
         case 'customer_retention':
         case 'customer_satisfaction':
-          return this.generateCustomerReportPDF(data, reportName);
+          return this.generateCustomerReportPDF(data, reportName, metadata);
         
         case 'credit_risk':
         case 'market_risk':
         case 'operational_risk':
         case 'npl_analysis':
-          return this.generateRiskReportPDF(data, reportName);
+          return this.generateRiskReportPDF(data, reportName, metadata);
         
         default:
           // For other reports, check if data is an array or object
           if (Array.isArray(data)) {
-            return this.generateGenericPDF(data, reportType, reportName);
+            return this.generateGenericPDF(data, reportType, reportName, metadata);
           } else {
             // Convert object to array format for generic handling
             const dataArray = this.convertObjectToArray(data);
-            return this.generateGenericPDF(dataArray, reportType, reportName);
+            return this.generateGenericPDF(dataArray, reportType, reportName, metadata);
           }
       }
     } catch (error) {
@@ -806,9 +908,32 @@ class ReportGenerator {
   }
 
   // Generate Excel file
-  async generateExcel(data, reportType, reportName) {
+  async generateExcel(data, reportType, reportName, metadata = {}) {
     try {
       const wb = XLSX.utils.book_new();
+      
+      // Add metadata sheet with filters and report info
+      if (metadata && Object.keys(metadata).length > 0) {
+        const metadataSheet = [];
+        metadataSheet.push({ Field: 'Report Name', Value: reportName });
+        metadataSheet.push({ Field: 'Report Type', Value: reportType });
+        metadataSheet.push({ Field: 'Generated At', Value: format(new Date(metadata.generatedAt || new Date()), 'yyyy-MM-dd HH:mm:ss') });
+        
+        if (metadata.dateRange) {
+          metadataSheet.push({ Field: 'Date From', Value: format(new Date(metadata.dateRange.from), 'yyyy-MM-dd') });
+          metadataSheet.push({ Field: 'Date To', Value: format(new Date(metadata.dateRange.to), 'yyyy-MM-dd') });
+        }
+        
+        if (metadata.filters) {
+          const filterText = await this.formatFilters(metadata.filters);
+          if (filterText) {
+            metadataSheet.push({ Field: 'Applied Filters', Value: filterText });
+          }
+        }
+        
+        const metadataWs = XLSX.utils.json_to_sheet(metadataSheet);
+        XLSX.utils.book_append_sheet(wb, metadataWs, 'Report Info');
+      }
       
       // Add validation for data
       if (!data) {
