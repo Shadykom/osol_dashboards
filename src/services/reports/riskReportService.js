@@ -7,12 +7,16 @@ class RiskReportService {
    */
   async getCreditRiskReport(startDate, endDate) {
     try {
-      // Get loan portfolio data
-      const { data: loans, error: loanError } = await supabaseBanking
+      // Get loan portfolio data - first try with join, fallback to without
+      let loans;
+      let loanError;
+      
+      // Try with loan_types join
+      const result = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
-          loan_id,
-          loan_amount,
+          loan_account_id,
+          principal_amount,
           outstanding_balance,
           interest_rate,
           loan_status,
@@ -20,11 +24,37 @@ class RiskReportService {
           maturity_date,
           customer_id,
           loan_type_id,
-          loan_types!inner(type_name),
+          loan_types(type_name),
           customers!inner(risk_rating, customer_type_id)
         `)
         .gte('disbursement_date', startDate)
         .lte('disbursement_date', endDate);
+      
+      if (result.error && result.error.message.includes('loan_types')) {
+        // Fallback: query without loan_types join
+        console.log('Loan types table not available, querying without join...');
+        const fallbackResult = await supabaseBanking
+          .from(TABLES.LOAN_ACCOUNTS)
+          .select(`
+            loan_account_id,
+            principal_amount,
+            outstanding_balance,
+            interest_rate,
+            loan_status,
+            disbursement_date,
+            maturity_date,
+            customer_id,
+            customers!inner(risk_rating, customer_type_id)
+          `)
+          .gte('disbursement_date', startDate)
+          .lte('disbursement_date', endDate);
+        
+        loans = fallbackResult.data;
+        loanError = fallbackResult.error;
+      } else {
+        loans = result.data;
+        loanError = result.error;
+      }
 
       if (loanError) throw loanError;
 
@@ -34,7 +64,7 @@ class RiskReportService {
       
       // NPL Analysis
       const nplLoans = loans?.filter(loan => 
-        ['DEFAULT', 'DELINQUENT', 'WRITTEN_OFF'].includes(loan.loan_status)
+        ['NPA', 'WRITTEN_OFF', 'RESTRUCTURED'].includes(loan.loan_status)
       ) || [];
       const nplAmount = nplLoans.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0);
       const nplRatio = totalExposure > 0 ? (nplAmount / totalExposure * 100) : 0;
@@ -81,27 +111,28 @@ class RiskReportService {
           totalExposure: Math.round(totalExposure),
           nplAmount: Math.round(nplAmount),
           nplRatio: nplRatio.toFixed(2),
-          provisionCoverage: ((totalProvisions / nplAmount) * 100).toFixed(2),
+          provisionCoverage: nplAmount > 0 ? ((totalProvisions / nplAmount) * 100).toFixed(2) : '0',
           totalProvisions: Math.round(totalProvisions)
         },
         portfolioQuality: {
           performing: loans?.filter(l => l.loan_status === 'ACTIVE')?.length || 0,
-          watchlist: loans?.filter(l => l.loan_status === 'WATCHLIST')?.length || 0,
-          substandard: loans?.filter(l => l.loan_status === 'SUBSTANDARD')?.length || 0,
-          doubtful: loans?.filter(l => l.loan_status === 'DOUBTFUL')?.length || 0,
-          loss: loans?.filter(l => l.loan_status === 'WRITTEN_OFF')?.length || 0
+          closed: loans?.filter(l => l.loan_status === 'CLOSED')?.length || 0,
+          npa: loans?.filter(l => l.loan_status === 'NPA')?.length || 0,
+          restructured: loans?.filter(l => l.loan_status === 'RESTRUCTURED')?.length || 0,
+          writtenOff: loans?.filter(l => l.loan_status === 'WRITTEN_OFF')?.length || 0,
+          foreclosed: loans?.filter(l => l.loan_status === 'FORECLOSED')?.length || 0
         },
         riskDistribution: Object.entries(riskDistribution).map(([rating, data]) => ({
           rating,
           count: data.count,
           exposure: Math.round(data.exposure),
-          percentage: ((data.exposure / totalExposure) * 100).toFixed(2)
+          percentage: totalExposure > 0 ? ((data.exposure / totalExposure) * 100).toFixed(2) : '0'
         })),
         byLoanType: Object.entries(loanTypeDistribution).map(([type, data]) => ({
           type,
           count: data.count,
           exposure: Math.round(data.exposure),
-          percentage: ((data.exposure / totalExposure) * 100).toFixed(2)
+          percentage: totalExposure > 0 ? ((data.exposure / totalExposure) * 100).toFixed(2) : '0'
         })),
         concentrationRisk: {
           top10Borrowers: Math.round(totalExposure * 0.25), // Simulated
@@ -346,20 +377,23 @@ class RiskReportService {
    */
   async getNPLAnalysis(startDate, endDate) {
     try {
-      // Get non-performing loans
-      const { data: nplLoans, error: nplError } = await supabaseBanking
+      // Get non-performing loans - try with join first, fallback if needed
+      let nplLoans;
+      let nplError;
+      
+      const result = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
-          loan_id,
-          loan_amount,
+          loan_account_id,
+          principal_amount,
           outstanding_balance,
           interest_rate,
           loan_status,
           disbursement_date,
-          days_past_due,
+          overdue_days,
           customer_id,
           loan_type_id,
-          loan_types!inner(type_name),
+          loan_types(type_name),
           customers!inner(
             first_name,
             last_name,
@@ -367,9 +401,41 @@ class RiskReportService {
             customer_type_id
           )
         `)
-        .in('loan_status', ['DELINQUENT', 'DEFAULT', 'WRITTEN_OFF'])
+        .in('loan_status', ['NPA', 'WRITTEN_OFF', 'RESTRUCTURED'])
         .gte('updated_at', startDate)
         .lte('updated_at', endDate);
+      
+      if (result.error && result.error.message.includes('loan_types')) {
+        // Fallback: query without loan_types join
+        console.log('Loan types table not available, querying without join...');
+        const fallbackResult = await supabaseBanking
+          .from(TABLES.LOAN_ACCOUNTS)
+          .select(`
+            loan_account_id,
+            principal_amount,
+            outstanding_balance,
+            interest_rate,
+            loan_status,
+            disbursement_date,
+            overdue_days,
+            customer_id,
+            customers!inner(
+              first_name,
+              last_name,
+              risk_rating,
+              customer_type_id
+            )
+          `)
+          .in('loan_status', ['NPA', 'WRITTEN_OFF', 'RESTRUCTURED'])
+          .gte('updated_at', startDate)
+          .lte('updated_at', endDate);
+        
+        nplLoans = fallbackResult.data;
+        nplError = fallbackResult.error;
+      } else {
+        nplLoans = result.data;
+        nplError = result.error;
+      }
 
       if (nplError) throw nplError;
 
@@ -377,7 +443,7 @@ class RiskReportService {
       const { data: allLoans, error: allLoansError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('outstanding_balance')
-        .in('loan_status', ['ACTIVE', 'DELINQUENT', 'DEFAULT']);
+        .in('loan_status', ['ACTIVE', 'NPA', 'RESTRUCTURED']);
 
       if (allLoansError) throw allLoansError;
 
@@ -387,7 +453,7 @@ class RiskReportService {
 
       // Aging analysis
       const agingBuckets = nplLoans?.reduce((acc, loan) => {
-        const dpd = loan.days_past_due || 0;
+        const dpd = loan.overdue_days || 0;
         if (dpd <= 30) acc['0-30']++;
         else if (dpd <= 60) acc['31-60']++;
         else if (dpd <= 90) acc['61-90']++;
@@ -440,7 +506,7 @@ class RiskReportService {
           type,
           count: data.count,
           amount: Math.round(data.amount),
-          percentage: ((data.amount / totalNPL) * 100).toFixed(2)
+          percentage: totalNPL > 0 ? ((data.amount / totalNPL) * 100).toFixed(2) : '0'
         })),
         movementAnalysis: {
           newNPL: Math.round(totalNPL * 0.2),
@@ -454,15 +520,15 @@ class RiskReportService {
           byMethod: Object.entries(recoveryData.recoveryByMethod).map(([method, amount]) => ({
             method: method.replace(/([A-Z])/g, ' $1').trim(),
             amount: Math.round(amount),
-            percentage: ((amount / recoveryData.totalRecovered) * 100).toFixed(2)
+            percentage: recoveryData.totalRecovered > 0 ? ((amount / recoveryData.totalRecovered) * 100).toFixed(2) : '0'
           }))
         },
         topNPLAccounts: nplLoans?.slice(0, 5).map(loan => ({
           customerId: loan.customer_id,
           customerName: `${loan.customers?.first_name} ${loan.customers?.last_name}`,
-          loanType: loan.loan_types?.type_name,
+          loanType: loan.loan_types?.type_name || 'Unknown',
           outstandingAmount: Math.round(loan.outstanding_balance),
-          daysPastDue: loan.days_past_due || 0,
+          daysPastDue: loan.overdue_days || 0,
           status: loan.loan_status
         })) || []
       };
@@ -493,7 +559,7 @@ class RiskReportService {
       const { data: loans, error: loanError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select('outstanding_balance, maturity_date')
-        .in('loan_status', ['ACTIVE', 'DISBURSED']);
+        .in('loan_status', ['ACTIVE']);
 
       if (loanError) throw loanError;
 
