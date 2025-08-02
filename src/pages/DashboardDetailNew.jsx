@@ -1356,7 +1356,7 @@ const DashboardDetailNew = () => {
                       data={detailData.raw.loans.slice(0, 10)}
                       columns={[
                         { header: 'Loan ID', accessor: (row) => row.loan_id },
-                        { header: 'Type', accessor: (row) => <Badge variant="outline">{row.loan_type}</Badge> },
+                        { header: 'Type', accessor: (row) => <Badge variant="outline">{row.loan_type_id || 'Unknown'}</Badge> },
                         { header: 'Outstanding', accessor: (row) => formatCurrency(row.outstanding_balance || 0) },
                         { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
                         { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }

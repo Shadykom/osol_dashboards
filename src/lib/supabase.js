@@ -272,9 +272,54 @@ export const supabaseBanking = (() => {
   return supabaseBankingInstance;
 })();
 
-// The supabaseCollection client now also points to kastle_banking schema
-// This maintains backward compatibility while using the unified schema
-export const supabaseCollection = supabaseBanking;
+// Create a separate client for kastle_collection schema
+let supabaseCollectionInstance = null;
+
+export const supabaseCollection = (() => {
+  if (!supabaseCollectionInstance) {
+    supabaseCollectionInstance = isSupabaseConfigured
+      ? createClient(supabaseUrl, supabaseAnonKey, {
+          db: {
+            schema: 'kastle_collection'
+          },
+          auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true,
+            storage: window.localStorage,
+            storageKey: 'osol-auth-collection',
+            // Disable cookie-based auth to prevent domain issues
+            flowType: 'implicit',
+            // Ensure cookies are not used for auth
+            cookieOptions: {
+              domain: '',
+              path: '/',
+              sameSite: 'lax',
+              secure: false
+            }
+          },
+          realtime: {
+            params: {
+              eventsPerSecond: 10
+            },
+            headers: {
+              'X-Client-Info': 'supabase-js-web'
+            }
+          },
+          global: {
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Prefer': 'return=representation',
+              'Accept-Profile': 'kastle_collection',
+              'Content-Profile': 'kastle_collection'
+            },
+            fetch: customFetch
+          }
+        })
+      : createMockClient();
+  }
+  return supabaseCollectionInstance;
+})();
 
 // Database schema constants - all tables now in kastle_banking schema
 export const TABLES = {
