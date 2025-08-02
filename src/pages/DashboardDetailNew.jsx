@@ -785,7 +785,9 @@ const DashboardDetailNew = () => {
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Breakdown Analysis</h2>
                   <p className="text-muted-foreground">
-                    Detailed breakdown of assets across different dimensions
+                    {section === 'customers' && widgetId === 'total_customers'
+                      ? 'Detailed breakdown of customers across different dimensions'
+                      : 'Detailed breakdown of assets across different dimensions'}
                   </p>
                 </div>
                 <Badge variant="outline" className="text-sm">
@@ -795,49 +797,100 @@ const DashboardDetailNew = () => {
               </div>
               
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {detailData.breakdown.byCategory && (
-                  <BreakdownCard 
-                    title="Asset Categories" 
-                    data={detailData.breakdown.byCategory} 
-                    type="pie"
-                    className="lg:col-span-1"
-                  />
-                )}
-                {detailData.breakdown.byAccountType && (
-                  <BreakdownCard 
-                    title="Account Types" 
-                    data={detailData.breakdown.byAccountType} 
-                    type="bar"
-                  />
-                )}
-                {detailData.breakdown.byProductType && (
-                  <BreakdownCard 
-                    title="Product Types" 
-                    data={detailData.breakdown.byProductType} 
-                    type="pie"
-                  />
-                )}
-                {detailData.breakdown.byBranch && (
-                  <BreakdownCard 
-                    title="Top Branches" 
-                    data={detailData.breakdown.byBranch} 
-                    type="list"
-                    className="md:col-span-2 lg:col-span-1"
-                  />
-                )}
-                {detailData.breakdown.byCurrency && (
-                  <BreakdownCard 
-                    title="Currency Distribution" 
-                    data={detailData.breakdown.byCurrency} 
-                    type="pie"
-                  />
-                )}
-                {detailData.breakdown.byStatus && (
-                  <BreakdownCard 
-                    title="Status Breakdown" 
-                    data={detailData.breakdown.byStatus} 
-                    type="bar"
-                  />
+                {section === 'customers' && widgetId === 'total_customers' ? (
+                  <>
+                    {detailData.breakdown.byCategory && (
+                      <BreakdownCard 
+                        title="Customer Segments" 
+                        data={detailData.breakdown.byCategory} 
+                        type="pie"
+                        className="lg:col-span-1"
+                      />
+                    )}
+                    {detailData.breakdown.byType && (
+                      <BreakdownCard 
+                        title="Customer Types" 
+                        data={detailData.breakdown.byType} 
+                        type="bar"
+                      />
+                    )}
+                    {detailData.breakdown.byRisk && (
+                      <BreakdownCard 
+                        title="Risk Categories" 
+                        data={detailData.breakdown.byRisk} 
+                        type="pie"
+                      />
+                    )}
+                    {detailData.breakdown.byBranch && (
+                      <BreakdownCard 
+                        title="Top Branches" 
+                        data={detailData.breakdown.byBranch} 
+                        type="list"
+                        className="md:col-span-2 lg:col-span-1"
+                      />
+                    )}
+                    {detailData.breakdown.byKYC && (
+                      <BreakdownCard 
+                        title="KYC Status" 
+                        data={detailData.breakdown.byKYC} 
+                        type="pie"
+                      />
+                    )}
+                    {detailData.breakdown.byStatus && (
+                      <BreakdownCard 
+                        title="Verification Status" 
+                        data={detailData.breakdown.byStatus} 
+                        type="bar"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {detailData.breakdown.byCategory && (
+                      <BreakdownCard 
+                        title="Asset Categories" 
+                        data={detailData.breakdown.byCategory} 
+                        type="pie"
+                        className="lg:col-span-1"
+                      />
+                    )}
+                    {detailData.breakdown.byAccountType && (
+                      <BreakdownCard 
+                        title="Account Types" 
+                        data={detailData.breakdown.byAccountType} 
+                        type="bar"
+                      />
+                    )}
+                    {detailData.breakdown.byProductType && (
+                      <BreakdownCard 
+                        title="Product Types" 
+                        data={detailData.breakdown.byProductType} 
+                        type="pie"
+                      />
+                    )}
+                    {detailData.breakdown.byBranch && (
+                      <BreakdownCard 
+                        title="Top Branches" 
+                        data={detailData.breakdown.byBranch} 
+                        type="list"
+                        className="md:col-span-2 lg:col-span-1"
+                      />
+                    )}
+                    {detailData.breakdown.byCurrency && (
+                      <BreakdownCard 
+                        title="Currency Distribution" 
+                        data={detailData.breakdown.byCurrency} 
+                        type="pie"
+                      />
+                    )}
+                    {detailData.breakdown.byStatus && (
+                      <BreakdownCard 
+                        title="Status Breakdown" 
+                        data={detailData.breakdown.byStatus} 
+                        type="bar"
+                      />
+                    )}
+                  </>
                 )}
               </div>
             </>
