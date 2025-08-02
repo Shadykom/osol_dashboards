@@ -27,7 +27,8 @@ import {
   Menu, ChevronLeft
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, addDays, subMonths } from 'date-fns';
-import { ar, enUS } from 'date-fns/locale';
+import { ar } from 'date-fns/locale/ar';
+import { enUS } from 'date-fns/locale/en-US';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import CustomerFootprintService from '@/services/customerFootprintService';

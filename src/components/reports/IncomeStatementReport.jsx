@@ -8,8 +8,9 @@ import {
   TrendingUp, TrendingDown, DollarSign, Users, 
   CreditCard, AlertCircle, CheckCircle, Activity, Building2, Calendar, Clock 
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ar, enUS } from 'date-fns/locale';
+import { format, parseISO, isValid } from 'date-fns';
+import { ar } from 'date-fns/locale/ar';
+import { enUS } from 'date-fns/locale/en-US';
 import { useTranslation } from 'react-i18next';
 import osoulLogo from '@/assets/osol-logo.png';
 
