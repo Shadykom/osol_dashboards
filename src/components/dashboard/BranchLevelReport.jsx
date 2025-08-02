@@ -38,6 +38,9 @@ import {
 } from 'lucide-react';
 import { BranchReportService } from '@/services/branchReportService';
 import { useRealtimeBranchPerformance, useRealtimeCollectionMetrics } from '@/hooks/useRealtimeData';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import PrintService from '@/services/printService';
+import { PrintView } from '@/components/ui/print-view';
 
 const BranchLevelReport = () => {
   const { t, ready } = useTranslation();
@@ -54,6 +57,7 @@ const BranchLevelReport = () => {
   
   // Filters
   const [dateRange, setDateRange] = useState('current_month');
+  const [customDateRange, setCustomDateRange] = useState({ from: null, to: null }); // NEW: Custom date range
   const [viewType, setViewType] = useState('daily'); // NEW: daily/weekly toggle
   const [productType, setProductType] = useState('all');
   const [delinquencyBucket, setDelinquencyBucket] = useState('all');
@@ -153,6 +157,7 @@ const BranchLevelReport = () => {
       setLoading(true);
       const filters = {
         dateRange,
+        customDateRange: dateRange === 'custom' ? customDateRange : null, // NEW: Include custom date range
         viewType, // NEW: Include viewType in filters
         productType,
         delinquencyBucket,
@@ -182,18 +187,66 @@ const BranchLevelReport = () => {
   // Handle export
   const handleExport = async (format) => {
     try {
-      const result = await BranchReportService.exportBranchReport(selectedBranch, format, {
-        dateRange,
-        productType,
-        delinquencyBucket,
-        customerType
-      });
-      
-      if (result.success && result.data?.url) {
-        window.open(result.data.url, '_blank');
+      if (format === 'pdf') {
+        // Use the new print service for PDF generation
+        const reportElement = document.getElementById('branch-report-content');
+        if (reportElement) {
+          const pdf = await PrintService.generatePDF(reportElement, {
+            title: `تقرير الفرع - ${branches.find(b => b.branch_id === selectedBranch)?.branch_name || ''}`,
+            orientation: 'landscape',
+            onProgress: (progress, message) => {
+              console.log(`PDF Generation: ${progress}% - ${message}`);
+            }
+          });
+          pdf.save(`branch_report_${selectedBranch}_${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+      } else if (format === 'excel') {
+        // Prepare data for Excel export
+        const branchName = branches.find(b => b.branch_id === selectedBranch)?.branch_name || '';
+        const exportData = [];
+        
+        // Add summary data
+        if (reportData?.summary) {
+          exportData.push(['ملخص الأداء']);
+          exportData.push(['المؤشر', 'القيمة']);
+          exportData.push(['إجمالي المحفظة', formatCurrency(reportData.summary.totalPortfolio)]);
+          exportData.push(['المحفظة المتأخرة', formatCurrency(reportData.summary.overduePortfolio)]);
+          exportData.push(['معدل التعثر', `${reportData.summary.delinquencyRate}%`]);
+          exportData.push(['معدل التحصيل', `${reportData.summary.collectionRate}%`]);
+          exportData.push([]);
+        }
+        
+        // Add officer performance data
+        if (reportData?.officerPerformance?.officers) {
+          exportData.push(['أداء الأخصائيين']);
+          exportData.push(['الاسم', 'الحالات', 'المبلغ المستحق', 'معدل التحصيل', 'معدل الاتصال']);
+          reportData.officerPerformance.officers.forEach(officer => {
+            exportData.push([
+              officer.officerName,
+              officer.totalCases,
+              formatCurrency(officer.totalOutstanding),
+              `${officer.performance}%`,
+              `${officer.contactRate}%`
+            ]);
+          });
+        }
+        
+        await PrintService.exportToExcel(exportData, {
+          filename: `branch_report_${branchName.replace(/\s+/g, '_')}`,
+          sheetName: 'تقرير الفرع',
+          title: `تقرير أداء الفرع - ${branchName}`,
+          metadata: {
+            'التاريخ': new Date().toLocaleDateString('ar-SA'),
+            'الفترة': dateRange,
+            'نوع المنتج': productType === 'all' ? 'جميع المنتجات' : productType
+          },
+          rtl: true,
+          columnWidths: { 0: 30, 1: 20, 2: 25, 3: 15, 4: 15 }
+        });
       }
     } catch (error) {
       console.error('Export error:', error);
+      alert('حدث خطأ أثناء التصدير');
     }
   };
 
@@ -341,17 +394,18 @@ const BranchLevelReport = () => {
 
           {/* Filter Controls */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current_month">الشهر الحالي</SelectItem>
-                <SelectItem value="last_month">الشهر الماضي</SelectItem>
-                <SelectItem value="current_quarter">الربع الحالي</SelectItem>
-                <SelectItem value="current_year">السنة الحالية</SelectItem>
-              </SelectContent>
-            </Select>
+            <DateRangePicker
+              value={customDateRange}
+              onChange={(range) => {
+                setCustomDateRange(range);
+                // Update dateRange to 'custom' when user selects a custom range
+                if (range?.from && range?.to) {
+                  setDateRange('custom');
+                }
+              }}
+              placeholder="اختر الفترة الزمنية"
+              className="w-full"
+            />
 
             <Select value={productType} onValueChange={setProductType}>
               <SelectTrigger>
@@ -396,7 +450,7 @@ const BranchLevelReport = () => {
       </div>
 
       {reportData && (
-        <>
+        <div id="branch-report-content">
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card className="bg-white hover:shadow-lg transition-shadow">
@@ -1237,7 +1291,7 @@ const BranchLevelReport = () => {
               </Card>
             </TabsContent>
           </Tabs>
-        </>
+        </div>
       )}
 
       {/* Officer Details Dialog */}
