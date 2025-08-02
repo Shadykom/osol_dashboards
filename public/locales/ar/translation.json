@@ -273,7 +273,10 @@
       "dashboardTemplates": "قوالب لوحة التحكم",
       "chooseTemplate": "اختر قالباً جاهزاً للبدء بسرعة",
       "active": "نشط",
-      "widgets": "أدوات"
+      "widgets": "أدوات",
+      "executive": "لوحة المدير التنفيذي",
+      "operations": "لوحة العمليات",
+      "risk": "لوحة المخاطر"
     },
     "noWidgets": {
       "title": "لا توجد أدوات في هذا القسم",
