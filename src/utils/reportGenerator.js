@@ -1413,35 +1413,54 @@ class ReportGenerator {
   printReport(doc) {
     if (!doc) return;
     
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow pop-ups to print the report');
-      return;
+    try {
+      // Get PDF as blob
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      // Create a new window/tab for printing
+      const printWindow = window.open(pdfUrl, '_blank');
+      
+      if (!printWindow) {
+        // If popup blocked, try alternative method
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = pdfUrl;
+        
+        document.body.appendChild(iframe);
+        
+        iframe.onload = function() {
+          try {
+            iframe.contentWindow.print();
+            // Clean up after a delay to ensure print dialog has opened
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+              URL.revokeObjectURL(pdfUrl);
+            }, 1000);
+          } catch (e) {
+            console.error('Error printing from iframe:', e);
+            // Fallback: download the PDF
+            this.savePDF(doc, 'report');
+            alert('Unable to open print dialog. The report has been downloaded instead.');
+          }
+        };
+      } else {
+        // For new window, set up print on load
+        printWindow.onload = function() {
+          printWindow.print();
+          // Optional: close window after print dialog
+          printWindow.onafterprint = function() {
+            printWindow.close();
+            URL.revokeObjectURL(pdfUrl);
+          };
+        };
+      }
+    } catch (error) {
+      console.error('Error in printReport:', error);
+      // Fallback to download
+      this.savePDF(doc, 'report');
+      alert('Unable to print. The report has been downloaded instead.');
     }
-    
-    // Get PDF as data URL
-    const pdfDataUri = doc.output('datauristring');
-    
-    // Create HTML for print window
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Print Report</title>
-        <style>
-          body { margin: 0; padding: 0; }
-          iframe { border: none; width: 100%; height: 100vh; }
-        </style>
-      </head>
-      <body>
-        <iframe src="${pdfDataUri}" onload="window.print(); window.onafterprint = function() { window.close(); }"></iframe>
-      </body>
-      </html>
-    `;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
   }
 }
 

@@ -553,26 +553,40 @@ This is an automated email from OSOL Banking System.
     } = scheduleData;
 
     try {
+      // Calculate next run time based on frequency
+      const nextRun = this.calculateNextRunTime(frequency, scheduleTime, dayOfWeek, dayOfMonth);
+      
+      // Map frequency to database format
+      const frequencyMap = {
+        'daily': 'DAILY',
+        'weekly': 'WEEKLY',
+        'monthly': 'MONTHLY'
+      };
+      
       // Save schedule to database
       const { data, error } = await supabaseBanking
         .from('report_schedules')
         .insert({
+          report_name: reportTitle,
           report_type: reportType,
-          report_title: reportTitle,
-          recipients: recipients,
-          frequency: frequency,
+          schedule_frequency: frequencyMap[frequency] || 'DAILY',
           schedule_time: scheduleTime,
-          day_of_week: dayOfWeek,
-          day_of_month: dayOfMonth,
+          schedule_day: dayOfWeek,
+          schedule_date: dayOfMonth,
+          recipients: recipients,
+          report_format: 'PDF',
           enabled: enabled,
+          next_run_date: nextRun,
           created_at: new Date().toISOString()
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
       return {
         success: true,
-        scheduleId: data[0].id,
+        scheduleId: data.schedule_id || data.id,
         message: 'Report schedule created successfully'
       };
     } catch (error) {
@@ -585,6 +599,48 @@ This is an automated email from OSOL Banking System.
   }
 
   /**
+   * Calculate next run time for scheduled report
+   */
+  calculateNextRunTime(frequency, scheduleTime, dayOfWeek, dayOfMonth) {
+    const now = new Date();
+    const [hours, minutes] = scheduleTime.split(':').map(Number);
+    let nextRun = new Date();
+    
+    nextRun.setHours(hours, minutes, 0, 0);
+    
+    switch (frequency) {
+      case 'daily':
+        if (nextRun <= now) {
+          nextRun.setDate(nextRun.getDate() + 1);
+        }
+        break;
+        
+      case 'weekly':
+        const targetDay = parseInt(dayOfWeek);
+        const currentDay = now.getDay();
+        let daysToAdd = targetDay - currentDay;
+        
+        if (daysToAdd < 0 || (daysToAdd === 0 && nextRun <= now)) {
+          daysToAdd += 7;
+        }
+        
+        nextRun.setDate(nextRun.getDate() + daysToAdd);
+        break;
+        
+      case 'monthly':
+        const targetDate = parseInt(dayOfMonth);
+        nextRun.setDate(targetDate);
+        
+        if (nextRun <= now) {
+          nextRun.setMonth(nextRun.getMonth() + 1);
+        }
+        break;
+    }
+    
+    return nextRun.toISOString();
+  }
+
+  /**
    * Get scheduled reports
    */
   async getScheduledReports() {
@@ -592,14 +648,29 @@ This is an automated email from OSOL Banking System.
       const { data, error } = await supabaseBanking
         .from('report_schedules')
         .select('*')
-        .eq('enabled', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      // Transform data for UI
+      const schedules = data.map(schedule => ({
+        id: schedule.schedule_id || schedule.id,
+        reportName: schedule.report_name,
+        reportType: schedule.report_type,
+        frequency: schedule.schedule_frequency ? schedule.schedule_frequency.toLowerCase() : 'daily',
+        recipients: schedule.recipients || [],
+        lastRun: schedule.last_run_date ? new Date(schedule.last_run_date).toLocaleString() : 'Never',
+        nextRun: schedule.next_run_date ? new Date(schedule.next_run_date).toLocaleString() : 'Not scheduled',
+        status: schedule.enabled ? 'active' : 'paused',
+        enabled: schedule.enabled,
+        scheduleTime: schedule.schedule_time,
+        dayOfWeek: schedule.schedule_day,
+        dayOfMonth: schedule.schedule_date
+      }));
+
       return {
         success: true,
-        schedules: data
+        schedules: schedules
       };
     } catch (error) {
       console.error('Error fetching scheduled reports:', error);
@@ -619,7 +690,7 @@ This is an automated email from OSOL Banking System.
       const { data, error } = await supabaseBanking
         .from('report_schedules')
         .update({ enabled: false })
-        .eq('id', scheduleId);
+        .or(`schedule_id.eq.${scheduleId},id.eq.${scheduleId}`);
 
       if (error) throw error;
 
@@ -628,7 +699,7 @@ This is an automated email from OSOL Banking System.
         message: 'Schedule cancelled successfully'
       };
     } catch (error) {
-      console.error('Error cancelling schedule:', error);
+      console.error('Error cancelling scheduled report:', error);
       return {
         success: false,
         error: error.message
