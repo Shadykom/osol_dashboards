@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataRefresh } from '@/hooks/useDataRefresh';
 import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { DashboardService } from '@/services/dashboardService';
+import { DashboardButtonService } from '@/services/dashboardButtonService';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BranchReportService } from '@/services/branchReportService';
@@ -16,6 +17,22 @@ import ComparisonControls from '@/components/dashboard/ComparisonControls';
 import ComparisonChart from '@/components/dashboard/ComparisonChart';
 import ComparisonInsights from '@/components/dashboard/ComparisonInsights';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   LineChart,
   Line,
@@ -76,7 +93,13 @@ import {
   Building2,
   Briefcase,
   TrendingUpIcon,
-  MoreVertical
+  MoreVertical,
+  ChevronDown,
+  Mail,
+  Link,
+  Copy,
+  Image,
+  FileSpreadsheet
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -344,12 +367,16 @@ export function ExecutiveDashboard() {
     metrics: ['all']
   });
   const [activeView, setActiveView] = useState('overview');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [customizationOpen, setCustomizationOpen] = useState(false);
   const { shouldRefresh, refreshComplete } = useDataRefresh();
 
   // Fetch real dashboard data
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching dashboard data...');
       
       const filters = {
         dateRange,
@@ -361,11 +388,14 @@ export function ExecutiveDashboard() {
       
       if (response && response.success && response.data) {
         setDashboardData(response.data);
+        console.log('✅ Dashboard data loaded successfully:', response.data);
+        toast.success('Dashboard data updated successfully');
       } else {
+        console.error('❌ Failed to load dashboard data:', response);
         toast.error('Failed to load dashboard data');
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('❌ Error fetching dashboard data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -389,19 +419,83 @@ export function ExecutiveDashboard() {
     setComparisonSettings(settings);
   };
 
-  const handleExport = () => {
-    toast.success('Exporting dashboard data...');
-    // Implement export functionality
+  // Export functionality
+  const handleExport = async (format = 'excel') => {
+    if (!dashboardData) {
+      toast.error('No data available to export');
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      const result = await DashboardButtonService.exportDashboard(dashboardData, format, {
+        elementId: 'executive-dashboard-container'
+      });
+      
+      if (result.success) {
+        toast.success(result.message);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error(error.message || 'Failed to export dashboard');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleShare = () => {
-    toast.success('Sharing dashboard...');
-    // Implement share functionality
+  // Share functionality
+  const handleShare = async (method = 'link') => {
+    if (!dashboardData) {
+      toast.error('No data available to share');
+      return;
+    }
+
+    try {
+      setIsSharing(true);
+      const result = await DashboardButtonService.shareDashboard(dashboardData, method);
+      
+      if (result.success) {
+        toast.success(result.message);
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      toast.error(error.message || 'Failed to share dashboard');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // Generate detailed report
+  const handleGenerateReport = async (format = 'pdf') => {
+    if (!dashboardData) {
+      toast.error('No data available for report generation');
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      const result = await DashboardButtonService.generateDetailedReport(dashboardData, { format });
+      
+      if (result.success) {
+        toast.success(result.message);
+      }
+    } catch (error) {
+      console.error('Report generation error:', error);
+      toast.error(error.message || 'Failed to generate report');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Customization functionality
+  const handleCustomization = () => {
+    setCustomizationOpen(true);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <motion.div
+        id="executive-dashboard-container"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
@@ -415,6 +509,11 @@ export function ExecutiveDashboard() {
             </h1>
             <p className="text-muted-foreground mt-1">
               Real-time insights and performance metrics
+              {dashboardData?.dataQuality && (
+                <Badge variant={dashboardData.dataQuality === 'live' ? 'default' : 'secondary'} className="ml-2">
+                  {dashboardData.dataQuality === 'live' ? 'Live Data' : 'Demo Data'}
+                </Badge>
+              )}
             </p>
           </div>
           
@@ -433,25 +532,81 @@ export function ExecutiveDashboard() {
               Refresh
             </Button>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            {/* Export Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isExporting || !dashboardData}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Excel (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF Report
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  CSV Data
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('image')}>
+                  <Image className="h-4 w-4 mr-2" />
+                  PNG Image
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('json')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  JSON Data
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleShare}
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
+            {/* Share Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isSharing || !dashboardData}
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Share Method</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleShare('link')}>
+                  <Link className="h-4 w-4 mr-2" />
+                  Copy Link
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleShare('email')}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email Summary
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleShare('copy')}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Summary
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
-            <Button variant="default" size="sm">
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={handleCustomization}
+            >
               <Settings className="h-4 w-4 mr-2" />
               Customize
             </Button>
@@ -502,6 +657,12 @@ export function ExecutiveDashboard() {
                 <Clock className="h-3 w-3 mr-1" />
                 <span className="hidden sm:inline">Live </span>Data
               </Badge>
+              {dashboardData?.lastUpdated && (
+                <Badge variant="outline" className="px-3 py-1">
+                  <span className="hidden sm:inline">Last updated: </span>
+                  {new Date(dashboardData.lastUpdated).toLocaleTimeString()}
+                </Badge>
+              )}
             </div>
           </div>
         </Card>
@@ -535,8 +696,8 @@ export function ExecutiveDashboard() {
                   title="Total Revenue"
                   value={dashboardData?.revenue?.current || 125000000}
                   previousValue={dashboardData?.revenue?.previous || 115000000}
-                  change="+8.7%"
-                  trend="up"
+                  change={dashboardData?.revenue?.change || "+8.7%"}
+                  trend={dashboardData?.revenue?.trend || "up"}
                   icon={DollarSign}
                   description="Total income generated"
                   format="currency"
@@ -548,8 +709,8 @@ export function ExecutiveDashboard() {
                   title="Active Loans"
                   value={dashboardData?.loans?.active || 8543}
                   previousValue={dashboardData?.loans?.previousActive || 8234}
-                  change="+3.8%"
-                  trend="up"
+                  change={dashboardData?.loans?.change || "+3.8%"}
+                  trend={dashboardData?.loans?.trend || "up"}
                   icon={CreditCard}
                   description="Currently active loans"
                   comparisonPeriod={comparisonSettings.type}
@@ -560,8 +721,8 @@ export function ExecutiveDashboard() {
                   title="Total Deposits"
                   value={dashboardData?.deposits?.total || 450000000}
                   previousValue={dashboardData?.deposits?.previousTotal || 425000000}
-                  change="+5.9%"
-                  trend="up"
+                  change={dashboardData?.deposits?.change || "+5.9%"}
+                  trend={dashboardData?.deposits?.trend || "up"}
                   icon={PiggyBank}
                   description="Customer deposits"
                   format="currency"
@@ -573,8 +734,8 @@ export function ExecutiveDashboard() {
                   title="NPL Ratio"
                   value={dashboardData?.npl?.ratio || 2.3}
                   previousValue={dashboardData?.npl?.previousRatio || 2.8}
-                  change="-0.5%"
-                  trend="down"
+                  change={dashboardData?.npl?.change || "-0.5%"}
+                  trend={dashboardData?.npl?.trend || "down"}
                   icon={AlertTriangle}
                   description="Non-performing loans"
                   format="percentage"
@@ -593,9 +754,21 @@ export function ExecutiveDashboard() {
                         <CardTitle className="text-lg">Revenue Trend</CardTitle>
                         <CardDescription>Monthly revenue comparison</CardDescription>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleExport('excel')}>
+                            Export Data
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleGenerateReport('pdf')}>
+                            Generate Report
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -662,9 +835,21 @@ export function ExecutiveDashboard() {
                         <CardTitle className="text-lg">Portfolio Distribution</CardTitle>
                         <CardDescription>Loan portfolio by category</CardDescription>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleExport('excel')}>
+                            Export Data
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleGenerateReport('pdf')}>
+                            Generate Report
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -708,9 +893,14 @@ export function ExecutiveDashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Risk Assessment</h3>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleGenerateReport('pdf')}
+                    disabled={isExporting}
+                  >
                     <FileText className="h-4 w-4 mr-2" />
-                    View Full Report
+                    {isExporting ? 'Generating...' : 'View Full Report'}
                   </Button>
                 </div>
                 
@@ -766,7 +956,7 @@ export function ExecutiveDashboard() {
                   ]}
                   comparisonType={comparisonSettings.type}
                   metrics={['revenue', 'profit', 'expenses']}
-                  onExport={() => toast.success('Exporting chart data...')}
+                  onExport={() => handleExport('excel')}
                 />
 
                 <ComparisonChart
@@ -782,7 +972,7 @@ export function ExecutiveDashboard() {
                   ]}
                   comparisonType={comparisonSettings.type}
                   metrics={['new_customers', 'active_customers', 'churned_customers']}
-                  onExport={() => toast.success('Exporting chart data...')}
+                  onExport={() => handleExport('excel')}
                 />
               </div>
 
@@ -841,7 +1031,7 @@ export function ExecutiveDashboard() {
                 ]}
                 comparisonType={comparisonSettings.type}
                 metrics={['disbursed_amount', 'outstanding_balance', 'npl_amount']}
-                onExport={() => toast.success('Exporting chart data...')}
+                onExport={() => handleExport('excel')}
               />
             </TabsContent>
 
@@ -870,6 +1060,25 @@ export function ExecutiveDashboard() {
             </TabsContent>
           </AnimatePresence>
         </Tabs>
+
+        {/* Customization Dialog */}
+        <Dialog open={customizationOpen} onOpenChange={setCustomizationOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Dashboard Customization</DialogTitle>
+              <DialogDescription>
+                Customize your executive dashboard layout, theme, and widgets.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="text-center py-8 text-muted-foreground">
+                <Settings className="h-12 w-12 mx-auto mb-4" />
+                <p>Customization panel will be implemented here.</p>
+                <p className="text-sm">Configure themes, layouts, widgets, and refresh intervals.</p>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </motion.div>
     </div>
   );
