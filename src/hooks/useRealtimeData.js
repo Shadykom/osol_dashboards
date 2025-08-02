@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
 
 /**
@@ -9,10 +9,10 @@ import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
  * @param {Object} filters - Optional filters for subscription
  */
 export const useRealtimeData = (table, schema = 'kastle_banking', onUpdate, filters = {}) => {
-  const [subscription, setSubscription] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [error, setError] = useState(null);
+  const subscriptionRef = useRef(null);
 
   // Get the appropriate Supabase client
   const supabase = schema === 'kastle_collection' ? supabaseCollection : supabaseBanking;
@@ -64,40 +64,68 @@ export const useRealtimeData = (table, schema = 'kastle_banking', onUpdate, filt
         }
       });
 
-      setSubscription(channel);
+      subscriptionRef.current = channel;
     } catch (err) {
       console.error('Error setting up real-time subscription:', err);
       setError(err.message);
     }
-  }, [table, schema, filters, onUpdate, supabase]);
+  }, [table, schema, filters.filter, onUpdate, supabase]); // Use specific filter property
 
   // Unsubscribe from real-time changes
   const unsubscribe = useCallback(() => {
-    if (subscription) {
+    if (subscriptionRef.current) {
       console.log('Unsubscribing from real-time updates');
-      supabase.removeChannel(subscription);
-      setSubscription(null);
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
       setIsConnected(false);
     }
-  }, [subscription, supabase]);
+  }, [supabase]);
 
   // Set up subscription on mount
   useEffect(() => {
-    subscribe();
+    // Only subscribe if we have valid parameters
+    if (!table || !schema) {
+      console.warn('Missing required parameters for real-time subscription');
+      return;
+    }
+
+    // Add a small delay to prevent immediate subscription on mount
+    const timeoutId = setTimeout(() => {
+      subscribe();
+    }, 100);
 
     // Cleanup on unmount
     return () => {
-      unsubscribe();
+      clearTimeout(timeoutId);
+      if (subscriptionRef.current) {
+        console.log('Unsubscribing from real-time updates');
+        supabase.removeChannel(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
     };
-  }, [subscribe, unsubscribe]);
+  }, []); // Empty dependency array - only run on mount/unmount
 
-  // Reconnect function
+  // Reconnect function with exponential backoff
   const reconnect = useCallback(() => {
     unsubscribe();
+    // Use exponential backoff to prevent rapid reconnection attempts
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+    reconnectAttempts.current++;
+    
     setTimeout(() => {
       subscribe();
-    }, 1000);
+    }, delay);
   }, [subscribe, unsubscribe]);
+
+  // Add a ref to track reconnection attempts
+  const reconnectAttempts = useRef(0);
+
+  // Reset reconnection attempts on successful connection
+  useEffect(() => {
+    if (isConnected) {
+      reconnectAttempts.current = 0;
+    }
+  }, [isConnected]);
 
   return {
     isConnected,

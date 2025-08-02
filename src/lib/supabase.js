@@ -194,11 +194,23 @@ export const supabase = (() => {
             persistSession: true,
             detectSessionInUrl: true,
             storage: window.localStorage,
-            storageKey: 'osol-auth'
+            storageKey: 'osol-auth',
+            // Disable cookie-based auth to prevent domain issues
+            flowType: 'implicit',
+            // Ensure cookies are not used for auth
+            cookieOptions: {
+              domain: '',
+              path: '/',
+              sameSite: 'lax',
+              secure: false
+            }
           },
           realtime: {
             params: {
               eventsPerSecond: 10
+            },
+            headers: {
+              'X-Client-Info': 'supabase-js-web'
             }
           },
           global: {
@@ -226,11 +238,23 @@ export const supabaseBanking = (() => {
                 persistSession: true,
                 detectSessionInUrl: true,
                 storage: window.localStorage,
-                storageKey: 'osol-auth-banking'
+                storageKey: 'osol-auth-banking',
+                // Disable cookie-based auth to prevent domain issues
+                flowType: 'implicit',
+                // Ensure cookies are not used for auth
+                cookieOptions: {
+                  domain: '',
+                  path: '/',
+                  sameSite: 'lax',
+                  secure: false
+                }
               },
           realtime: {
             params: {
               eventsPerSecond: 10
+            },
+            headers: {
+              'X-Client-Info': 'supabase-js-web'
             }
           },
           global: {
