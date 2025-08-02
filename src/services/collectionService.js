@@ -50,42 +50,12 @@ export class CollectionService {
         dateTo = null
       } = params;
 
-      // Build query
+      // Build query - Using simplified view to avoid parsing errors
       let query = supabaseCollection
-        .from('collection_cases')
-        .select(`
-          *,
-          kastle_banking.loan_accounts!loan_account_number (
-            loan_amount,
-            outstanding_balance,
-            overdue_amount,
-            overdue_days,
-            product_id,
-            kastle_banking.products!product_id (
-              product_name,
-              product_type
-            )
-          ),
-          kastle_banking.customers!customer_id (
-            full_name,
-            customer_type,
-            kastle_banking.customer_contacts!customer_id (
-              contact_type,
-              contact_value
-            )
-          ),
-          collection_officers!assigned_to (
-            officer_name,
-            officer_type,
-            team_id,
-            contact_number
-          ),
-          collection_buckets!bucket_id (
-            bucket_name,
-            min_days,
-            max_days
-          )
-        `, { count: 'exact' });
+        .from('collection_cases_detailed')
+        .select('*')
+        .order('priority', { ascending: false })
+        .order('days_past_due', { ascending: false });
 
       // Apply filters
       if (search) {
@@ -136,10 +106,6 @@ export class CollectionService {
       const from = (page - 1) * limit;
       const to = from + limit - 1;
       query = query.range(from, to);
-
-      // Order by priority and days past due
-      query = query.order('priority', { ascending: false })
-                   .order('days_past_due', { ascending: false });
 
       const { data, error, count } = await query;
 
@@ -206,28 +172,87 @@ export class CollectionService {
    */
   static async getCaseDetails(caseId) {
     try {
-      // Get case info with all related data
+      // Get case info with all related data using simplified view
       const { data: caseData, error: caseError } = await supabaseCollection
-        .from('collection_cases')
-        .select(`
-          *,
-          kastle_banking.loan_accounts!loan_account_number (
-            *,
-            kastle_banking.products!product_id (*)
-          ),
-          kastle_banking.customers!customer_id (
-            *,
-            kastle_banking.customer_contacts!customer_id (*),
-            kastle_banking.customer_addresses!customer_id (*)
-          ),
-          collection_officers!assigned_to (*),
-          collection_strategies!strategy_id (*),
-          collection_buckets!bucket_id (*)
-        `)
+        .from('collection_case_full_details')
+        .select('*')
         .eq('case_id', caseId)
         .single();
 
       if (caseError) throw caseError;
+
+      // Get customer contacts separately
+      const { data: customerContacts } = await supabaseCollection
+        .from('customer_contacts_by_case')
+        .select('*')
+        .eq('case_id', caseId);
+
+      // Get customer addresses separately
+      const { data: customerAddresses } = await supabaseCollection
+        .from('customer_addresses_by_case')
+        .select('*')
+        .eq('case_id', caseId);
+
+      // Restructure data to match expected format
+      const formattedCaseData = {
+        ...caseData,
+        kastle_banking: {
+          loan_accounts: {
+            loan_account_number: caseData.la_loan_account_number,
+            customer_id: caseData.la_customer_id,
+            product_id: caseData.la_product_id,
+            loan_amount: caseData.la_loan_amount,
+            disbursement_date: caseData.la_disbursement_date,
+            maturity_date: caseData.la_maturity_date,
+            interest_rate: caseData.la_interest_rate,
+            outstanding_balance: caseData.la_outstanding_balance,
+            overdue_amount: caseData.la_overdue_amount,
+            overdue_days: caseData.la_overdue_days,
+            status: caseData.la_status,
+            kastle_banking: {
+              products: {
+                product_name: caseData.product_name,
+                product_type: caseData.product_type,
+                product_code: caseData.product_code
+              }
+            }
+          },
+          customers: {
+            customer_id: caseData.c_customer_id,
+            full_name: caseData.customer_name,
+            customer_type: caseData.customer_type,
+            national_id: caseData.customer_national_id,
+            date_of_birth: caseData.customer_dob,
+            gender: caseData.customer_gender,
+            marital_status: caseData.customer_marital_status,
+            employment_status: caseData.customer_employment_status,
+            monthly_income: caseData.customer_monthly_income,
+            kastle_banking: {
+              customer_contacts: customerContacts || [],
+              customer_addresses: customerAddresses || []
+            }
+          }
+        },
+        collection_officers: {
+          officer_id: caseData.officer_id,
+          officer_name: caseData.officer_name,
+          officer_type: caseData.officer_type,
+          team_id: caseData.officer_team_id,
+          contact_number: caseData.officer_contact,
+          email: caseData.officer_email
+        },
+        collection_strategies: {
+          strategy_name: caseData.strategy_name,
+          strategy_type: caseData.strategy_type,
+          description: caseData.strategy_description
+        },
+        collection_buckets: {
+          bucket_name: caseData.bucket_name,
+          min_days: caseData.bucket_min_days,
+          max_days: caseData.bucket_max_days,
+          bucket_color: caseData.bucket_color
+        }
+      };
 
       // Get interactions
       const { data: interactions, error: interactionsError } = await supabaseCollection
@@ -291,7 +316,7 @@ export class CollectionService {
         .limit(30);
 
       return formatApiResponse({
-        caseInfo: caseData,
+        caseInfo: formattedCaseData,
         interactions: interactions || [],
         promisesToPay: promisesToPay || [],
         fieldVisits: fieldVisits || [],
@@ -1285,37 +1310,10 @@ export class CollectionService {
 
       if (specialistError) throw specialistError;
 
-      // Get cases assigned to specialist with all loan details
+      // Get cases assigned to specialist using simplified view
       let casesQuery = supabaseCollection
-        .from('collection_cases')
-        .select(`
-          *,
-          kastle_banking.loan_accounts!loan_account_number (
-            *,
-            kastle_banking.products!product_id (
-              product_name,
-              product_type
-            ),
-            kastle_banking.loan_schedules!loan_account_number (
-              installment_number,
-              due_date,
-              principal_amount,
-              interest_amount,
-              paid_date,
-              paid_amount,
-              status
-            )
-          ),
-          kastle_banking.customers!customer_id (
-            full_name,
-            customer_type,
-            national_id,
-            kastle_banking.customer_contacts!customer_id (
-              contact_type,
-              contact_value
-            )
-          )
-        `)
+        .from('collection_cases_detailed')
+        .select('*')
         .eq('assigned_to', specialistId)
         .eq('case_status', 'ACTIVE');
 
