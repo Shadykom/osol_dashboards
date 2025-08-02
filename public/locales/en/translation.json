@@ -1163,6 +1163,8 @@
     "fieldCollection": "Field Collection",
     "digitalCollection": "Digital Collection",
     "collectionCases": "Collection Cases",
+    "branchLevelReport": "Branch Level Report",
+    "productLevelReport": "Product Level Report",
     "delinquency": "Delinquency",
     "delinquencyExecutive": "Delinquency Executive",
     "earlyWarning": "Early Warning",

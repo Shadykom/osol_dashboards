@@ -1112,6 +1112,8 @@
     "fieldCollection": "التحصيل الميداني",
     "digitalCollection": "التحصيل الرقمي",
     "collectionCases": "حالات التحصيل",
+    "branchLevelReport": "تقرير مستوى الفرع",
+    "productLevelReport": "تقرير مستوى المنتج",
     "delinquency": "المتأخرات",
     "delinquencyExecutive": "المتأخرات التنفيذية",
     "earlyWarning": "الإنذار المبكر",
