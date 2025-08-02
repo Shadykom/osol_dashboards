@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { 
   Calendar, 
   TrendingUp, 
@@ -32,6 +33,7 @@ import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { cn } from '@/lib/utils';
 
 const ComparisonControls = ({ onComparisonChange, className }) => {
+  const { t } = useTranslation();
   const [comparisonType, setComparisonType] = useState('month-to-month');
   const [customDateRange, setCustomDateRange] = useState(null);
   const [selectedMetrics, setSelectedMetrics] = useState(['all']);
@@ -39,45 +41,45 @@ const ComparisonControls = ({ onComparisonChange, className }) => {
   const comparisonOptions = [
     { 
       value: 'month-to-month', 
-      label: 'Month to Month', 
+      label: t('collectionOverview.monthToMonth'), 
       icon: Calendar,
-      description: 'Compare monthly performance'
+      description: t('collectionOverview.compareMonthlyPerformance')
     },
     { 
       value: 'quarter-to-quarter', 
-      label: 'Quarter to Quarter', 
+      label: t('collectionOverview.quarterToQuarter'), 
       icon: CalendarDays,
-      description: 'Compare quarterly trends'
+      description: t('collectionOverview.compareQuarterlyTrends')
     },
     { 
       value: 'year-to-year', 
-      label: 'Year to Year', 
+      label: t('collectionOverview.yearToYear'), 
       icon: CalendarRange,
-      description: 'Compare annual growth'
+      description: t('collectionOverview.compareAnnualGrowth')
     },
     { 
       value: 'week-to-week', 
-      label: 'Week to Week', 
+      label: t('collectionOverview.weekToWeek'), 
       icon: Clock,
-      description: 'Compare weekly changes'
+      description: t('collectionOverview.compareWeeklyChanges')
     },
     { 
       value: 'custom', 
-      label: 'Custom Period', 
+      label: t('collectionOverview.customPeriod'), 
       icon: Target,
-      description: 'Define your own comparison'
+      description: t('collectionOverview.defineYourComparison')
     }
   ];
 
   const metricOptions = [
-    { value: 'all', label: 'All Metrics' },
-    { value: 'revenue', label: 'Revenue' },
-    { value: 'loans', label: 'Loans' },
-    { value: 'deposits', label: 'Deposits' },
-    { value: 'customers', label: 'Customers' },
-    { value: 'npl', label: 'NPL Ratio' },
-    { value: 'risk', label: 'Risk Score' },
-    { value: 'compliance', label: 'Compliance' }
+    { value: 'all', label: t('collectionOverview.allMetrics') },
+    { value: 'revenue', label: t('collectionOverview.revenue') },
+    { value: 'loans', label: t('collectionOverview.loans') },
+    { value: 'deposits', label: t('collectionOverview.deposits') },
+    { value: 'customers', label: t('collectionOverview.customers') },
+    { value: 'npl', label: t('collectionOverview.nplRatio') },
+    { value: 'risk', label: t('collectionOverview.riskScore') },
+    { value: 'compliance', label: t('collectionOverview.compliance') }
   ];
 
   const handleComparisonChange = (type) => {
@@ -128,19 +130,19 @@ const ComparisonControls = ({ onComparisonChange, className }) => {
                 <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Comparison Controls</h3>
-                <p className="text-sm text-muted-foreground">Analyze performance across different time periods</p>
+                <h3 className="text-lg font-semibold">{t('collectionOverview.comparisonControls')}</h3>
+                <p className="text-sm text-muted-foreground">{t('collectionOverview.analyzePerformance')}</p>
               </div>
             </div>
             <Badge variant="secondary" className="flex items-center gap-1">
               <Sparkles className="h-3 w-3" />
-              AI Insights Available
+              {t('collectionOverview.aiInsightsAvailable')}
             </Badge>
           </div>
 
           {/* Comparison Type Selection */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">Comparison Period</label>
+            <label className="text-sm font-medium">{t('collectionOverview.comparisonPeriod')}</label>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {comparisonOptions.map((option) => {
                 const Icon = option.icon;
@@ -188,7 +190,7 @@ const ComparisonControls = ({ onComparisonChange, className }) => {
               exit={{ opacity: 0, height: 0 }}
               className="space-y-3"
             >
-              <label className="text-sm font-medium">Select Date Range</label>
+              <label className="text-sm font-medium">{t('collectionOverview.selectDateRange')}</label>
               <DatePickerWithRange
                 date={customDateRange}
                 onDateChange={(range) => {
@@ -202,7 +204,7 @@ const ComparisonControls = ({ onComparisonChange, className }) => {
 
           {/* Metric Selection */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">Metrics to Compare</label>
+            <label className="text-sm font-medium">{t('collectionOverview.metricsToCompare')}</label>
             <div className="flex flex-wrap gap-2">
               {metricOptions.map((metric) => (
                 <Badge
@@ -222,25 +224,25 @@ const ComparisonControls = ({ onComparisonChange, className }) => {
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm">
-                Generate Report
+                {t('collectionOverview.generateReport')}
               </Button>
               <Button variant="outline" size="sm">
-                Export Data
+                {t('collectionOverview.exportData')}
               </Button>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
-                  More Options
+                  {t('collectionOverview.moreOptions')}
                   <ChevronDown className="h-4 w-4 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>Save Comparison</DropdownMenuItem>
-                <DropdownMenuItem>Load Previous</DropdownMenuItem>
+                <DropdownMenuItem>{t('collectionOverview.saveComparison')}</DropdownMenuItem>
+                <DropdownMenuItem>{t('collectionOverview.loadPrevious')}</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Schedule Report</DropdownMenuItem>
-                <DropdownMenuItem>Share Dashboard</DropdownMenuItem>
+                <DropdownMenuItem>{t('collectionOverview.scheduleReport')}</DropdownMenuItem>
+                <DropdownMenuItem>{t('collectionOverview.shareDashboard')}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

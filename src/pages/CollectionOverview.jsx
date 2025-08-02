@@ -182,10 +182,10 @@ const CollectionOverview = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center collection-overview-header">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Collection Overview</h1>
-          <p className="text-gray-600 mt-1">Comprehensive collection management dashboard</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('collectionOverview.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('collectionOverview.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -224,13 +224,13 @@ const CollectionOverview = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 collection-filter-section">
             <Select value={filters.branch} onValueChange={(value) => handleFilterChange('branch', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Branch" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem>
+                <SelectItem value="all">{t('collectionOverview.allBranches')}</SelectItem>
                 <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
                 <SelectItem value="JEDDAH">Jeddah</SelectItem>
                 <SelectItem value="DAMMAM">Dammam</SelectItem>
@@ -243,7 +243,7 @@ const CollectionOverview = () => {
                 <SelectValue placeholder="Team" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Teams</SelectItem>
+                <SelectItem value="all">{t('collectionOverview.allTeams')}</SelectItem>
                 <SelectItem value="TEAM_A">Team A</SelectItem>
                 <SelectItem value="TEAM_B">Team B</SelectItem>
                 <SelectItem value="TEAM_C">Team C</SelectItem>
@@ -256,7 +256,7 @@ const CollectionOverview = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">{t('collectionOverview.allStatuses')}</SelectItem>
                 <SelectItem value="ACTIVE">Active</SelectItem>
                 <SelectItem value="RESOLVED">Resolved</SelectItem>
                 <SelectItem value="LEGAL">Legal</SelectItem>
@@ -267,25 +267,25 @@ const CollectionOverview = () => {
             </Select>
             
             <Button variant="outline" onClick={clearFilters}>
-              Clear Filters
+{t('collectionOverview.clearFilters')}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Enhanced KPI Cards - Now Clickable */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mobile-kpi-grid">
         <Card 
           className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
           onClick={() => handleCardClick('total-cases', { 
-            title: 'Total Cases',
+            title: t('collectionOverview.totalCases'),
             value: overview?.totalCases || 0,
             activeCases: overview?.activeCases || 0,
             statusDistribution: overview?.statusDistribution || []
           })}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('collectionOverview.totalCases')}</CardTitle>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
               <Eye className="h-4 w-4 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -295,7 +295,7 @@ const CollectionOverview = () => {
             <div className="text-2xl font-bold">{formatNumber(overview?.totalCases || 0)}</div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                {formatNumber(overview?.activeCases || 0)} active cases
+                {formatNumber(overview?.activeCases || 0)} {t('collectionOverview.activeCases').toLowerCase()}
               </p>
               {getTrendIcon(overview?.totalCases, 0)}
             </div>
@@ -308,13 +308,13 @@ const CollectionOverview = () => {
         <Card 
           className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
           onClick={() => handleCardClick('total-outstanding', {
-            title: 'Total Outstanding',
+            title: t('collectionOverview.totalOutstanding'),
             value: overview?.totalOutstanding || 0,
             bucketDistribution: overview?.bucketDistribution || []
           })}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('collectionOverview.totalOutstanding')}</CardTitle>
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
               <Eye className="h-4 w-4 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -337,13 +337,13 @@ const CollectionOverview = () => {
         <Card 
           className="border-l-4 border-l-green-500 cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
           onClick={() => handleCardClick('monthly-recovery', {
-            title: 'Monthly Recovery',
+            title: t('collectionOverview.monthlyRecovery'),
             value: overview?.monthlyRecovery || 0,
             dailyTrends: performance?.dailyTrends || []
           })}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Recovery</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('collectionOverview.monthlyRecovery')}</CardTitle>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               <Eye className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -353,7 +353,7 @@ const CollectionOverview = () => {
             <div className="text-2xl font-bold">{formatCurrency(overview?.monthlyRecovery || 0)}</div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                This month's collection
+{t('collectionOverview.thisMonthsCollection')}
               </p>
               {getTrendIcon(overview?.monthlyRecovery, 0)}
             </div>
@@ -366,13 +366,13 @@ const CollectionOverview = () => {
         <Card 
           className="border-l-4 border-l-yellow-500 cursor-pointer hover:shadow-lg transition-shadow duration-200 group"
           onClick={() => handleCardClick('collection-rate', {
-            title: 'Collection Rate',
+            title: t('collectionOverview.collectionRate'),
             value: overview?.collectionRate || 0,
             teamPerformance: overview?.teamPerformance || []
           })}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Collection Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('collectionOverview.collectionRate')}</CardTitle>
             <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-muted-foreground" />
               <Eye className="h-4 w-4 text-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -382,7 +382,7 @@ const CollectionOverview = () => {
             <div className="text-2xl font-bold">{(overview?.collectionRate || 0).toFixed(1)}%</div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                Recovery efficiency
+{t('collectionOverview.recoveryEfficiency')}
               </p>
               {getTrendIcon(overview?.collectionRate, 0)}
             </div>
@@ -396,9 +396,9 @@ const CollectionOverview = () => {
       {/* Main Dashboard Content */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="overview">{t('collectionOverview.overview')}</TabsTrigger>
+          <TabsTrigger value="performance">{t('collectionOverview.performance')}</TabsTrigger>
+                      <TabsTrigger value="analytics">{t('collectionOverview.analytics')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -406,8 +406,8 @@ const CollectionOverview = () => {
             {/* Cases by Status */}
             <Card>
               <CardHeader>
-                <CardTitle>Cases by Status</CardTitle>
-                <CardDescription>Distribution of collection cases by current status</CardDescription>
+                <CardTitle>{t('collectionOverview.casesByStatus')}</CardTitle>
+                <CardDescription>{t('collectionOverview.distributionOfCollectionCases')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -436,8 +436,8 @@ const CollectionOverview = () => {
             {/* Cases by Bucket */}
             <Card>
               <CardHeader>
-                <CardTitle>Cases by Risk Bucket</CardTitle>
-                <CardDescription>Collection cases distributed by risk buckets</CardDescription>
+                <CardTitle>{t('collectionOverview.casesByRiskBucket')}</CardTitle>
+                <CardDescription>{t('collectionOverview.collectionCasesDistributed')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
