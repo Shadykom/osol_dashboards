@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useTranslation } from 'react-i18next';
 // Simple table components
 const Table = ({ children, className = "" }) => (
@@ -41,7 +42,7 @@ import {
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
   ArrowDownRight, Loader2, BarChart3, Shield, Zap, CreditCard,
-  Phone, MessageSquare, Trophy
+  Phone, MessageSquare, Trophy, Save, X
 } from 'lucide-react';
 import { ProductReportService } from '@/services/productReportService';
 import { BranchReportService } from '@/services/branchReportService';
@@ -50,7 +51,7 @@ const ProductLevelReport = () => {
   const { t, ready, i18n } = useTranslation();
   
   // State Management
-  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState([]); // Changed to array for multi-select
   const [products, setProducts] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,8 @@ const ProductLevelReport = () => {
   const [reportData, setReportData] = useState(null);
   const [showDefaulterDetails, setShowDefaulterDetails] = useState(false);
   const [selectedDefaulter, setSelectedDefaulter] = useState(null);
+  const [showProductSelector, setShowProductSelector] = useState(false); // NEW: Product selector dialog
+  const [savedPreferences, setSavedPreferences] = useState(null); // NEW: Saved preferences
   
   // Filters
   const [dateRange, setDateRange] = useState('current_month');
@@ -65,18 +68,52 @@ const ProductLevelReport = () => {
   const [customerType, setCustomerType] = useState('all');
   const [delinquencyBucket, setDelinquencyBucket] = useState('all');
   const [showComparison, setShowComparison] = useState(true);
+  const [trendPeriod, setTrendPeriod] = useState('3months'); // NEW: Trend analysis period
 
   // Load products and branches on mount
   useEffect(() => {
     loadInitialData();
+    loadSavedPreferences(); // NEW: Load saved preferences
   }, []);
 
-  // Load report data when product or filters change
+  // Load report data when products or filters change
   useEffect(() => {
-    if (selectedProduct) {
+    if (selectedProducts.length > 0) {
       loadProductReport();
     }
-  }, [selectedProduct, dateRange, branch, customerType, delinquencyBucket]);
+  }, [selectedProducts, dateRange, branch, customerType, delinquencyBucket, trendPeriod]);
+
+  // NEW: Load saved preferences from localStorage
+  const loadSavedPreferences = () => {
+    const saved = localStorage.getItem('productReportPreferences');
+    if (saved) {
+      const preferences = JSON.parse(saved);
+      setSavedPreferences(preferences);
+      setSelectedProducts(preferences.selectedProducts || []);
+      setDateRange(preferences.dateRange || 'current_month');
+      setBranch(preferences.branch || 'all');
+      setCustomerType(preferences.customerType || 'all');
+      setDelinquencyBucket(preferences.delinquencyBucket || 'all');
+      setTrendPeriod(preferences.trendPeriod || '3months');
+    }
+  };
+
+  // NEW: Save preferences
+  const savePreferences = () => {
+    const preferences = {
+      selectedProducts,
+      dateRange,
+      branch,
+      customerType,
+      delinquencyBucket,
+      trendPeriod,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('productReportPreferences', JSON.stringify(preferences));
+    setSavedPreferences(preferences);
+    // Show success message
+    alert('تم حفظ التفضيلات بنجاح');
+  };
 
   // Load initial data
   const loadInitialData = async () => {
@@ -89,8 +126,9 @@ const ProductLevelReport = () => {
       
       if (productsResult.success && productsResult.data) {
         setProducts(productsResult.data);
-        if (productsResult.data.length > 0) {
-          setSelectedProduct(productsResult.data[0].product_id);
+        // Only set default if no saved preferences
+        if (!savedPreferences && productsResult.data.length > 0) {
+          setSelectedProducts([productsResult.data[0].product_id]);
         }
       }
       
@@ -113,10 +151,11 @@ const ProductLevelReport = () => {
         branch,
         customerType,
         delinquencyBucket,
-        comparison: showComparison
+        comparison: showComparison,
+        trendPeriod // NEW: Pass trendPeriod
       };
       
-      const result = await ProductReportService.getProductReport(selectedProduct, filters);
+      const result = await ProductReportService.getProductReport(selectedProducts, filters);
       if (result.success && result.data) {
         setReportData(result.data);
       }
@@ -137,7 +176,7 @@ const ProductLevelReport = () => {
   // Handle export
   const handleExport = async (format) => {
     try {
-      const result = await ProductReportService.exportProductReport(selectedProduct, format, {
+      const result = await ProductReportService.exportProductReport(selectedProducts, format, {
         dateRange,
         branch,
         customerType,
@@ -207,22 +246,31 @@ const ProductLevelReport = () => {
           </div>
           
           <div className="flex flex-wrap gap-2">
-            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder={t('productReport.selectProduct')} />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map(product => (
-                  <SelectItem key={product.product_id} value={product.product_id}>
-                    {product.product_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowProductSelector(true)}
+              className="min-w-[200px] justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                {selectedProducts.length === 0 
+                  ? 'اختر المنتجات' 
+                  : selectedProducts.length === 1
+                  ? products.find(p => p.product_id === selectedProducts[0])?.product_name
+                  : `${selectedProducts.length} منتجات مختارة`
+                }
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
             
             <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
               <RefreshCw className={`h-4 w-4 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
               {t('productReport.refresh')}
+            </Button>
+            
+            <Button variant="outline" onClick={savePreferences}>
+              <Save className="h-4 w-4 ml-2" />
+              حفظ التفضيلات
             </Button>
             
             <div className="flex gap-1">
@@ -237,58 +285,81 @@ const ProductLevelReport = () => {
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-6">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="current_month">{t('productReport.filters.currentMonth')}</SelectItem>
-              <SelectItem value="last_month">{t('productReport.filters.lastMonth')}</SelectItem>
-              <SelectItem value="current_quarter">{t('productReport.filters.currentQuarter')}</SelectItem>
-              <SelectItem value="current_year">{t('productReport.filters.currentYear')}</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-4 mt-6">
+          {/* Saved Preferences Info */}
+          {savedPreferences && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                تم تحميل التفضيلات المحفوظة من {new Date(savedPreferences.savedAt).toLocaleString('ar-SA')}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current_month">{t('productReport.filters.currentMonth')}</SelectItem>
+                <SelectItem value="last_month">{t('productReport.filters.lastMonth')}</SelectItem>
+                <SelectItem value="current_quarter">{t('productReport.filters.currentQuarter')}</SelectItem>
+                <SelectItem value="current_year">{t('productReport.filters.currentYear')}</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={branch} onValueChange={setBranch}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('productReport.filters.allBranches')}</SelectItem>
-              {branches.map(br => (
-                <SelectItem key={br.branch_id} value={br.branch_id}>
-                  {br.branch_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={branch} onValueChange={setBranch}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('productReport.filters.allBranches')}</SelectItem>
+                {branches.map(br => (
+                  <SelectItem key={br.branch_id} value={br.branch_id}>
+                    {br.branch_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={delinquencyBucket} onValueChange={setDelinquencyBucket}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('productReport.filters.allCategories')}</SelectItem>
-              <SelectItem value="current">{t('productReport.filters.current')}</SelectItem>
-              <SelectItem value="1-30">{t('productReport.filters.days1_30')}</SelectItem>
-              <SelectItem value="31-60">{t('productReport.filters.days31_60')}</SelectItem>
-              <SelectItem value="61-90">{t('productReport.filters.days61_90')}</SelectItem>
-              <SelectItem value="90+">{t('productReport.filters.days90Plus')}</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={customerType} onValueChange={setCustomerType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('productReport.filters.allCustomers')}</SelectItem>
+                <SelectItem value="INDIVIDUAL">{t('productReport.filters.individual')}</SelectItem>
+                <SelectItem value="CORPORATE">{t('productReport.filters.corporate')}</SelectItem>
+                <SelectItem value="SME">{t('productReport.filters.sme')}</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={customerType} onValueChange={setCustomerType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('productReport.filters.allCustomers')}</SelectItem>
-              <SelectItem value="INDIVIDUAL">{t('productReport.filters.individual')}</SelectItem>
-              <SelectItem value="CORPORATE">{t('productReport.filters.corporate')}</SelectItem>
-              <SelectItem value="SME">{t('productReport.filters.sme')}</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={delinquencyBucket} onValueChange={setDelinquencyBucket}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('productReport.filters.allCategories')}</SelectItem>
+                <SelectItem value="current">{t('productReport.filters.current')}</SelectItem>
+                <SelectItem value="1-30">1-30 {t('productReport.filters.days')}</SelectItem>
+                <SelectItem value="31-60">31-60 {t('productReport.filters.days')}</SelectItem>
+                <SelectItem value="61-90">61-90 {t('productReport.filters.days')}</SelectItem>
+                <SelectItem value="90+">{t('productReport.filters.moreThan90')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={trendPeriod} onValueChange={setTrendPeriod}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="3months">آخر 3 أشهر</SelectItem>
+                <SelectItem value="6months">آخر 6 أشهر</SelectItem>
+                <SelectItem value="12months">آخر 12 شهر</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -1123,11 +1194,11 @@ const ProductLevelReport = () => {
                             {reportData.productComparison?.productComparison?.map((prod) => (
                               <TableRow 
                                 key={prod.productId}
-                                className={prod.productId === selectedProduct ? 'bg-primary/10' : ''}
+                                className={prod.productId === selectedProducts[0] ? 'bg-primary/10' : ''} // Changed to selectedProducts[0]
                               >
                                 <TableCell className="font-medium">
                                   {prod.productName}
-                                  {prod.productId === selectedProduct && (
+                                  {prod.productId === selectedProducts[0] && ( // Changed to selectedProducts[0]
                                     <Badge variant="default" className="mr-2">الحالي</Badge>
                                   )}
                                 </TableCell>
@@ -1239,6 +1310,146 @@ const ProductLevelReport = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Selector Dialog */}
+      <Dialog open={showProductSelector} onOpenChange={setShowProductSelector}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              اختر المنتجات للمقارنة
+            </DialogTitle>
+            <DialogDescription>
+              يمكنك اختيار منتجات متعددة لمقارنة أدائها. يُنصح باختيار 3-5 منتجات للحصول على أفضل عرض.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Product Categories */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-gray-700">منتجات التمويل الشخصي</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {products.filter(p => p.product_type === 'PERSONAL').map(product => (
+                  <div key={product.product_id} className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox
+                      id={product.product_id}
+                      checked={selectedProducts.includes(product.product_id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedProducts([...selectedProducts, product.product_id]);
+                        } else {
+                          setSelectedProducts(selectedProducts.filter(id => id !== product.product_id));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={product.product_id}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {product.product_name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-gray-700">منتجات تمويل السيارات</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {products.filter(p => p.product_type === 'AUTO').map(product => (
+                  <div key={product.product_id} className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox
+                      id={product.product_id}
+                      checked={selectedProducts.includes(product.product_id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedProducts([...selectedProducts, product.product_id]);
+                        } else {
+                          setSelectedProducts(selectedProducts.filter(id => id !== product.product_id));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={product.product_id}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {product.product_name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-gray-700">منتجات أخرى</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {products.filter(p => !['PERSONAL', 'AUTO'].includes(p.product_type)).map(product => (
+                  <div key={product.product_id} className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox
+                      id={product.product_id}
+                      checked={selectedProducts.includes(product.product_id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedProducts([...selectedProducts, product.product_id]);
+                        } else {
+                          setSelectedProducts(selectedProducts.filter(id => id !== product.product_id));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={product.product_id}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {product.product_name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Selected count and actions */}
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-gray-600">
+                {selectedProducts.length} منتج مختار
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedProducts([])}
+                  disabled={selectedProducts.length === 0}
+                >
+                  إلغاء التحديد
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedProducts(products.map(p => p.product_id))}
+                >
+                  تحديد الكل
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowProductSelector(false)}>
+              إلغاء
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowProductSelector(false);
+                if (selectedProducts.length > 0) {
+                  loadProductReport();
+                }
+              }}
+              disabled={selectedProducts.length === 0}
+            >
+              تطبيق التحديد
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

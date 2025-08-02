@@ -33,7 +33,8 @@ import {
   Building2, TrendingUp, Users, DollarSign, Phone, MessageSquare,
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
-  ArrowDownRight, Loader2, MapPin, BarChart3, Trophy
+  ArrowDownRight, Loader2, MapPin, BarChart3, Trophy, CalendarDays,
+  FileDown
 } from 'lucide-react';
 import { BranchReportService } from '@/services/branchReportService';
 
@@ -51,10 +52,12 @@ const BranchLevelReport = () => {
   
   // Filters
   const [dateRange, setDateRange] = useState('current_month');
+  const [viewType, setViewType] = useState('daily'); // NEW: daily/weekly toggle
   const [productType, setProductType] = useState('all');
   const [delinquencyBucket, setDelinquencyBucket] = useState('all');
   const [customerType, setCustomerType] = useState('all');
   const [showComparison, setShowComparison] = useState(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState(new Date()); // NEW: Track refresh time
 
   // Load branches on mount
   useEffect(() => {
@@ -66,7 +69,7 @@ const BranchLevelReport = () => {
     if (selectedBranch) {
       loadBranchReport();
     }
-  }, [selectedBranch, dateRange, productType, delinquencyBucket, customerType]);
+  }, [selectedBranch, dateRange, viewType, productType, delinquencyBucket, customerType]);
 
   // Load branches
   const loadBranches = async () => {
@@ -89,6 +92,7 @@ const BranchLevelReport = () => {
       setLoading(true);
       const filters = {
         dateRange,
+        viewType, // NEW: Include viewType in filters
         productType,
         delinquencyBucket,
         customerType,
@@ -98,6 +102,7 @@ const BranchLevelReport = () => {
       const result = await BranchReportService.getBranchReport(selectedBranch, filters);
       if (result.success && result.data) {
         setReportData(result.data);
+        setLastRefreshTime(new Date()); // NEW: Update refresh time
       }
     } catch (error) {
       console.error('Error loading branch report:', error);
@@ -224,57 +229,86 @@ const BranchLevelReport = () => {
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-6">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="current_month">الشهر الحالي</SelectItem>
-              <SelectItem value="last_month">الشهر الماضي</SelectItem>
-              <SelectItem value="current_quarter">الربع الحالي</SelectItem>
-              <SelectItem value="current_year">السنة الحالية</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-4 mt-6">
+          {/* View Type Toggle and Refresh Info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium">عرض البيانات:</span>
+              </div>
+              <Tabs value={viewType} onValueChange={setViewType} className="w-auto">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="daily">يومي</TabsTrigger>
+                  <TabsTrigger value="weekly">أسبوعي</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Clock className="h-4 w-4" />
+              <span>آخر تحديث: {lastRefreshTime.toLocaleString('ar-SA', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}</span>
+            </div>
+          </div>
 
-          <Select value={productType} onValueChange={setProductType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع المنتجات</SelectItem>
-              <SelectItem value="Tawarruq">قرض تورق</SelectItem>
-              <SelectItem value="Cash">قرض كاش</SelectItem>
-              <SelectItem value="Auto">تمويل سيارات</SelectItem>
-              <SelectItem value="Real Estate">تمويل عقاري</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Filter Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current_month">الشهر الحالي</SelectItem>
+                <SelectItem value="last_month">الشهر الماضي</SelectItem>
+                <SelectItem value="current_quarter">الربع الحالي</SelectItem>
+                <SelectItem value="current_year">السنة الحالية</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={delinquencyBucket} onValueChange={setDelinquencyBucket}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع الفئات</SelectItem>
-              <SelectItem value="current">جاري</SelectItem>
-              <SelectItem value="1-30">1-30 يوم</SelectItem>
-              <SelectItem value="31-60">31-60 يوم</SelectItem>
-              <SelectItem value="61-90">61-90 يوم</SelectItem>
-              <SelectItem value="90+">أكثر من 90 يوم</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={productType} onValueChange={setProductType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المنتجات</SelectItem>
+                <SelectItem value="Tawarruq">قرض تورق</SelectItem>
+                <SelectItem value="Cash">قرض كاش</SelectItem>
+                <SelectItem value="Auto">تمويل سيارات</SelectItem>
+                <SelectItem value="Real Estate">تمويل عقاري</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={customerType} onValueChange={setCustomerType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع العملاء</SelectItem>
-              <SelectItem value="INDIVIDUAL">أفراد</SelectItem>
-              <SelectItem value="CORPORATE">شركات</SelectItem>
-              <SelectItem value="SME">منشآت صغيرة</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={delinquencyBucket} onValueChange={setDelinquencyBucket}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع الفئات</SelectItem>
+                <SelectItem value="current">جاري</SelectItem>
+                <SelectItem value="1-30">1-30 يوم</SelectItem>
+                <SelectItem value="31-60">31-60 يوم</SelectItem>
+                <SelectItem value="61-90">61-90 يوم</SelectItem>
+                <SelectItem value="90+">أكثر من 90 يوم</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={customerType} onValueChange={setCustomerType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع العملاء</SelectItem>
+                <SelectItem value="INDIVIDUAL">أفراد</SelectItem>
+                <SelectItem value="CORPORATE">شركات</SelectItem>
+                <SelectItem value="SME">منشآت صغيرة</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
