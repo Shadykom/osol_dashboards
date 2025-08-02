@@ -220,6 +220,73 @@
   text-align: left;
 }
 
+/* Collection Overview specific RTL styles */
+[dir="rtl"] .collection-overview-header {
+  text-align: right;
+}
+
+[dir="rtl"] .collection-kpi-card .flex {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .collection-filter-section .grid {
+  direction: rtl;
+}
+
+/* Executive Dashboard specific RTL improvements */
+[dir="rtl"] .executive-dashboard-header .flex {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .executive-kpi-metrics .grid {
+  direction: rtl;
+}
+
+/* Dashboard card hover effects */
+[dir="rtl"] .dashboard-card:hover .card-hover-icon {
+  transform: translateX(-5px);
+}
+
+/* Chart legend RTL positioning */
+[dir="rtl"] .recharts-legend-wrapper {
+  direction: rtl;
+}
+
+[dir="rtl"] .recharts-legend-item {
+  direction: rtl;
+}
+
+/* Date picker RTL support */
+[dir="rtl"] .date-picker-content {
+  text-align: right;
+}
+
+/* Select dropdown RTL positioning */
+[dir="rtl"] .select-content {
+  text-align: right;
+}
+
+[dir="rtl"] .select-item {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+/* Badge and status indicators */
+[dir="rtl"] .status-badge {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Filter button group */
+[dir="rtl"] .filter-button-group {
+  flex-direction: row-reverse;
+}
+
+/* Tooltip positioning in RTL */
+[dir="rtl"] .tooltip-content {
+  text-align: right;
+}
+
 /* Mobile specific RTL adjustments */
 @media (max-width: 640px) {
   [dir="rtl"] .mobile-header-actions {
@@ -228,5 +295,17 @@
   
   [dir="rtl"] .mobile-filter-row {
     flex-direction: column;
+  }
+
+  [dir="rtl"] .mobile-kpi-grid {
+    direction: rtl;
+  }
+  
+  [dir="rtl"] .mobile-chart-container {
+    direction: ltr;
+  }
+  
+  [dir="rtl"] .mobile-chart-container > * {
+    direction: rtl;
   }
 }
