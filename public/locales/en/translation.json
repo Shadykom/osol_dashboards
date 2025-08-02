@@ -277,13 +277,59 @@
     },
     "details": {
       "subtitle": "Detailed analytics and insights",
+      "comprehensive": "Comprehensive analytics and insights for {{section}} section",
       "tabs": {
         "overview": "Overview",
-        "breakdown": "Breakdown",
-        "trends": "Trends"
+        "breakdown": "Breakdown Analysis",
+        "trends": "Trends",
+        "rawData": "Raw Data"
+      },
+      "analytics": {
+        "customerSummary": "Customer Summary",
+        "activeRatio": "Active Ratio",
+        "growthRate": "Growth Rate",
+        "customerInsights": "Customer Insights",
+        "growthTrend": "Growth Trend",
+        "customerHealth": "Customer Health",
+        "growing": "Growing",
+        "declining": "Declining",
+        "stable": "Stable",
+        "good": "Good",
+        "average": "Average",
+        "poor": "Poor"
+      },
+      "totalAssets": {
+        "title": "Total Assets",
+        "subtitle": "Comprehensive asset analysis and insights",
+        "description": "Combined deposits and loans",
+        "totalAssetsLabel": "Total Assets",
+        "activeAccountsLabel": "Active Accounts",
+        "loanPortfolioLabel": "Loan Portfolio",
+        "depositBaseLabel": "Deposit Base",
+        "ofAssets": "of assets",
+        "ofTotalAssets": "of total assets",
+        "totalAccountCount": "Total account count",
+        "combinedDepositsAndLoans": "Combined deposits and loans",
+        "allActiveAccounts": "All active accounts",
+        "currentLoanPortfolio": "Current loan portfolio",
+        "customerDepositBase": "Customer deposit base"
       },
       "customers": {
-        "title": "Customer Analytics"
+        "title": "Customer Analytics",
+        "totalCustomers": "Total Customers",
+        "activeCustomers": "Active Customers",
+        "inactiveCustomers": "Inactive Customers",
+        "individualCustomers": "Individual Customers",
+        "corporateCustomers": "Corporate Customers",
+        "premiumCustomers": "Premium Customers",
+        "newCustomers": "New Customers",
+        "allRegisteredCustomers": "All registered customers in the system",
+        "ofTotalCustomers": "of total customers",
+        "customersWithoutActiveAccounts": "Customers without active accounts",
+        "personalBankingCustomers": "Personal banking customers",
+        "businessAndCorporateClients": "Business and corporate clients",
+        "highValueCustomers": "High-value customers",
+        "thisMonth": "this month"
       },
       "accounts": {
         "title": "Account Analytics"
