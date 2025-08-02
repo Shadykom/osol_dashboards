@@ -146,7 +146,22 @@ export class DashboardService {
    */
   static async getCurrentPeriodMetrics(filters = {}) {
     try {
-      const dateRange = filters.dateRange || getDateRange('current_month');
+      // Handle different dateRange formats
+      let dateRange = filters.dateRange;
+      
+      // If dateRange is null, undefined, or has null from/to values, use default
+      if (!dateRange || (dateRange.from === null && dateRange.to === null)) {
+        dateRange = getDateRange('current_month');
+      } else if (dateRange.from && dateRange.to) {
+        // Convert from/to format to start/end format
+        dateRange = {
+          start: new Date(dateRange.from),
+          end: new Date(dateRange.to)
+        };
+      } else if (!dateRange.start || !dateRange.end) {
+        // Fallback to default if start/end are missing
+        dateRange = getDateRange('current_month');
+      }
       
       const results = await Promise.allSettled([
         // Customer metrics
@@ -282,7 +297,7 @@ export class DashboardService {
           outstanding_balance,
           loan_type,
           product_id,
-          products!inner(product_name, product_category)
+          products(product_name, product_type)
         `);
 
       if (error) throw error;
@@ -290,7 +305,7 @@ export class DashboardService {
       // Group by product category
       const distribution = {};
       loans?.forEach(loan => {
-        const category = loan.products?.product_category || loan.loan_type || 'Other';
+        const category = loan.products?.product_type || loan.loan_type || 'Other';
         const balance = parseFloat(loan.outstanding_balance) || 0;
         
         if (!distribution[category]) {
@@ -431,8 +446,11 @@ export class DashboardService {
         .from(TABLES.TRANSACTIONS)
         .select(`
           *,
-          accounts!inner(account_number, customer_id),
-          customers!inner(first_name, last_name)
+          accounts!inner(
+            account_number, 
+            customer_id,
+            customers!inner(first_name, last_name)
+          )
         `)
         .order('transaction_date', { ascending: false })
         .limit(limit);
@@ -441,8 +459,8 @@ export class DashboardService {
 
       const formattedTransactions = data?.map(tx => ({
         id: tx.transaction_id || tx.transaction_ref,
-        customer_name: tx.customers ? 
-          `${tx.customers.first_name} ${tx.customers.last_name}` : 
+        customer_name: tx.accounts?.customers ? 
+          `${tx.accounts.customers.first_name} ${tx.accounts.customers.last_name}` : 
           (tx.beneficiary_name || `Account ${tx.account_number}`),
         type: this.formatTransactionType(tx.transaction_type_id, tx.debit_credit),
         amount: parseFloat(tx.transaction_amount) || 0,
