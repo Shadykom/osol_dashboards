@@ -211,34 +211,28 @@ const getNavigationItems = (t, useTranslation = false) => {
               description: getText('navigation.vintageAnalysisDesc', 'Portfolio aging analysis')
             },
             { 
+              title: getText('navigation.branchLevelReport', 'Branch Level Report'),
+              href: '/collection/branch-report',
+              icon: Building2,
+              badge: getText('common.new', 'NEW'),
+              badgeVariant: 'default',
+              description: getText('navigation.branchLevelReportDesc', 'Compare collection performance across branches, identify underperformers and top performers')
+            },
+            {
+              title: getText('navigation.productLevelReport', 'Product Level Report'),
+              href: '/collection/product-report',
+              icon: Package,
+              badge: getText('common.new', 'NEW'),
+              badgeVariant: 'default',
+              description: getText('navigation.productLevelReportDesc', 'Evaluate risk and collection performance by product for data-driven lending decisions')
+            },
+            { 
               title: getText('navigation.specialistReport', 'Specialist Report'), 
               href: '/collection/specialist-report', 
               icon: UserSearch, 
               badge: getText('common.new', 'NEW'),
               badgeVariant: 'default',
               description: getText('navigation.specialistReportDesc', 'Track communication activities, contact efforts, and promises to pay for each specialist')
-            },
-            {
-              title: getText('navigation.collectionReports', 'Collection Reports'),
-              icon: FileText,
-              items: [
-                {
-                  title: getText('navigation.branchLevelReport', 'Branch Level Report'),
-                  href: '/collection/branch-report',
-                  icon: Building2,
-                  badge: getText('common.new', 'NEW'),
-                  badgeVariant: 'default',
-                  description: getText('navigation.branchLevelReportDesc', 'Compare collection performance across branches, identify underperformers and top performers')
-                },
-                {
-                  title: getText('navigation.productLevelReport', 'Product Level Report'),
-                  href: '/collection/product-report',
-                  icon: Package,
-                  badge: getText('common.new', 'NEW'),
-                  badgeVariant: 'default',
-                  description: getText('navigation.productLevelReportDesc', 'Evaluate risk and collection performance by product for data-driven lending decisions')
-                }
-              ]
             },
           ],
         },
