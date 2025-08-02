@@ -51,6 +51,11 @@ export const enhancedDashboardDetailsService = {
             overviewData = await this.getCustomersOverview(filters);
             overviewData.widgetType = widgetDef.type;
             overviewData.widgetName = widgetDef.nameEn || widgetDef.name || widgetId;
+          } else if (section === 'banking') {
+            // For banking section widgets
+            overviewData = await this.getBankingOverview(widgetId, filters);
+            overviewData.widgetType = widgetDef.type;
+            overviewData.widgetName = widgetDef.nameEn || widgetDef.name || widgetId;
           } else if (widgetDef.type === 'chart') {
             // For chart widgets, the data is usually an array
             overviewData = {
@@ -76,6 +81,10 @@ export const enhancedDashboardDetailsService = {
           breakdownData = await this.getCustomersBreakdown(widgetId, filters);
           trendsData = await this.getCustomersTrendsData(filters);
           rawData = await this.getCustomersRawData(filters);
+        } else if (section === 'banking') {
+          breakdownData = await this.getBankingBreakdown(widgetId, filters);
+          trendsData = await this.getBankingTrendsData(widgetId, filters);
+          rawData = await this.getBankingRawData(widgetId, filters);
         } else {
           breakdownData = await this.getGenericBreakdown(section, widgetId, filters);
           trendsData = await this.getTrendsData(section, widgetId, filters);
@@ -240,6 +249,139 @@ export const enhancedDashboardDetailsService = {
         activeRatio: '0',
         change: 0,
         trend: 'stable'
+      };
+    }
+  },
+
+  async getBankingOverview(widgetId, filters) {
+    try {
+      console.log('Getting banking overview for widget:', widgetId);
+      
+      // Apply branch filter if provided
+      let accountsQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select(`
+          *,
+          kastle_banking.account_types!account_type_id (
+            type_name,
+            account_category
+          )
+        `);
+      
+      if (filters?.branch && filters.branch !== 'all') {
+        accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+      }
+      
+      const { data: accounts } = await accountsQuery;
+      
+      if (!accounts) {
+        return {
+          totalAccounts: 0,
+          activeAccounts: 0,
+          totalBalance: 0,
+          avgBalance: 0,
+          change: 0,
+          trend: 'stable'
+        };
+      }
+
+      const totalAccounts = accounts.length;
+      const activeAccounts = accounts.filter(acc => acc.account_status === 'ACTIVE').length;
+      const totalBalance = accounts.reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0);
+      const avgBalance = totalAccounts > 0 ? totalBalance / totalAccounts : 0;
+      
+      // Account type breakdown for overview
+      const accountTypes = {};
+      accounts.forEach(account => {
+        const category = account.kastle_banking?.account_types?.account_category || 'Unknown';
+        accountTypes[category] = (accountTypes[category] || 0) + 1;
+      });
+
+      // Get previous period data for change calculation
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      let previousQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('current_balance')
+        .lte('created_at', thirtyDaysAgo.toISOString());
+      
+      if (filters?.branch && filters.branch !== 'all') {
+        previousQuery = previousQuery.eq('branch_id', filters.branch);
+      }
+      
+      const { data: previousAccounts } = await previousQuery;
+      const previousBalance = previousAccounts?.reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0) || 0;
+      
+      // Calculate change and trend
+      const change = previousBalance > 0 ? ((totalBalance - previousBalance) / previousBalance * 100) : 0;
+      const trend = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
+
+      // Get new accounts this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      let newAccountsQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfMonth.toISOString());
+      
+      if (filters?.branch && filters.branch !== 'all') {
+        newAccountsQuery = newAccountsQuery.eq('branch_id', filters.branch);
+      }
+      
+      const { count: newAccountsThisMonth } = await newAccountsQuery;
+
+      // Calculate ratios
+      const activeRatio = totalAccounts > 0 ? ((activeAccounts / totalAccounts) * 100).toFixed(1) : 0;
+      const dormantAccounts = accounts.filter(acc => acc.account_status === 'DORMANT').length;
+      const blockedAccounts = accounts.filter(acc => acc.account_status === 'BLOCKED').length;
+
+      return {
+        totalAccounts,
+        activeAccounts,
+        totalBalance,
+        avgBalance,
+        change,
+        trend,
+        accountTypes,
+        activeRatio,
+        dormantAccounts,
+        blockedAccounts,
+        newAccountsThisMonth: newAccountsThisMonth || 0,
+        // Additional banking-specific metrics
+        savingsAccounts: accounts.filter(acc => 
+          acc.kastle_banking?.account_types?.account_category === 'SAVINGS'
+        ).length,
+        currentAccounts: accounts.filter(acc => 
+          acc.kastle_banking?.account_types?.account_category === 'CURRENT'
+        ).length,
+        totalSavingsBalance: accounts
+          .filter(acc => acc.kastle_banking?.account_types?.account_category === 'SAVINGS')
+          .reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0),
+        totalCurrentBalance: accounts
+          .filter(acc => acc.kastle_banking?.account_types?.account_category === 'CURRENT')
+          .reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0)
+      };
+    } catch (error) {
+      console.error('Error fetching banking overview:', error);
+      return {
+        totalAccounts: 0,
+        activeAccounts: 0,
+        totalBalance: 0,
+        avgBalance: 0,
+        change: 0,
+        trend: 'stable',
+        accountTypes: {},
+        activeRatio: 0,
+        dormantAccounts: 0,
+        blockedAccounts: 0,
+        newAccountsThisMonth: 0,
+        savingsAccounts: 0,
+        currentAccounts: 0,
+        totalSavingsBalance: 0,
+        totalCurrentBalance: 0
       };
     }
   },
@@ -715,45 +857,226 @@ export const enhancedDashboardDetailsService = {
 
   async getBankingBreakdown(widgetId, filters) {
     try {
-      const dateFilter = getDateFilter(filters.dateRange);
+      console.log('Getting banking breakdown for widget:', widgetId);
       
-      switch (widgetId) {
-        case 'total_accounts':
-          const accountTypes = await supabaseBanking
-            .from(TABLES.ACCOUNTS)
-            .select('account_type_id, account_types!inner(type_name)')
-            .gte('created_at', dateFilter.start)
-            .lte('created_at', dateFilter.end);
-          
-          const typeBreakdown = {};
-          accountTypes.data?.forEach(acc => {
-            const typeName = acc.account_types?.type_name || 'Unknown';
-            typeBreakdown[typeName] = (typeBreakdown[typeName] || 0) + 1;
-          });
-          
-          return { byType: typeBreakdown };
-          
-        case 'total_deposits':
-          const deposits = await supabaseBanking
-            .from(TABLES.ACCOUNTS)
-            .select('account_type_id, current_balance, account_types!inner(type_name)')
-            .gte('created_at', dateFilter.start)
-            .lte('created_at', dateFilter.end);
-          
-          const depositBreakdown = {};
-          deposits.data?.forEach(acc => {
-            const typeName = acc.account_types?.type_name || 'Unknown';
-            depositBreakdown[typeName] = (depositBreakdown[typeName] || 0) + acc.current_balance;
-          });
-          
-          return { byType: depositBreakdown };
-          
-        default:
-          return {};
+      // Apply branch filter if provided
+      let accountsQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select(`
+          *,
+          kastle_banking.account_types!account_type_id (
+            type_name,
+            account_category
+          ),
+          kastle_banking.customers!customer_id (
+            customer_id,
+            first_name,
+            last_name
+          )
+        `);
+      
+      if (filters?.branch && filters.branch !== 'all') {
+        accountsQuery = accountsQuery.eq('branch_id', filters.branch);
       }
+      
+      const { data: accounts } = await accountsQuery;
+      
+      if (!accounts) {
+        return {
+          byCategory: {},
+          byAccountType: {},
+          byStatus: {},
+          byBranch: {},
+          byCurrency: {}
+        };
+      }
+
+      // Breakdown by account category
+      const byCategory = {};
+      accounts.forEach(account => {
+        const category = account.kastle_banking?.account_types?.account_category || 'Unknown';
+        if (!byCategory[category]) byCategory[category] = 0;
+        byCategory[category] += parseFloat(account.current_balance || 0);
+      });
+
+      // Breakdown by account type
+      const byAccountType = {};
+      accounts.forEach(account => {
+        const type = account.kastle_banking?.account_types?.type_name || 'Unknown';
+        if (!byAccountType[type]) byAccountType[type] = 0;
+        byAccountType[type] += parseFloat(account.current_balance || 0);
+      });
+
+      // Breakdown by account status
+      const byStatus = {};
+      accounts.forEach(account => {
+        const status = account.account_status || 'Unknown';
+        if (!byStatus[status]) byStatus[status] = 0;
+        byStatus[status] += 1;
+      });
+
+      // Breakdown by branch
+      const byBranch = {};
+      accounts.forEach(account => {
+        const branch = account.branch_id || 'Unknown';
+        if (!byBranch[branch]) byBranch[branch] = 0;
+        byBranch[branch] += parseFloat(account.current_balance || 0);
+      });
+
+      // Breakdown by currency
+      const byCurrency = {};
+      accounts.forEach(account => {
+        const currency = account.currency_code || 'SAR';
+        if (!byCurrency[currency]) byCurrency[currency] = 0;
+        byCurrency[currency] += parseFloat(account.current_balance || 0);
+      });
+
+      return {
+        byCategory,
+        byAccountType,
+        byStatus,
+        byBranch,
+        byCurrency
+      };
     } catch (error) {
-      console.error('Error in getBankingBreakdown:', error);
-      return {};
+      console.error('Error fetching banking breakdown:', error);
+      return {
+        byCategory: {},
+        byAccountType: {},
+        byStatus: {},
+        byBranch: {},
+        byCurrency: {}
+      };
+    }
+  },
+
+  async getBankingTrendsData(widgetId, filters) {
+    try {
+      console.log('Getting banking trends for widget:', widgetId);
+      
+      // Generate data for the last 30 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      const dates = [];
+      const totalBalances = [];
+      const accountCounts = [];
+      const growthRates = [];
+
+      // Apply branch filter if provided
+      let baseQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('*');
+      
+      if (filters?.branch && filters.branch !== 'all') {
+        baseQuery = baseQuery.eq('branch_id', filters.branch);
+      }
+
+      // Get all accounts in date range
+      const { data: allAccounts } = await baseQuery
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
+
+      // Generate daily data points
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        dates.push(dateStr);
+
+        // Get accounts created up to this date
+        const accountsUpToDate = allAccounts?.filter(acc => 
+          new Date(acc.created_at) <= d
+        ) || [];
+
+        const totalBalance = accountsUpToDate.reduce((sum, acc) => 
+          sum + parseFloat(acc.current_balance || 0), 0
+        );
+        
+        totalBalances.push(totalBalance);
+        accountCounts.push(accountsUpToDate.length);
+        
+        // Calculate growth rate
+        const prevBalance = totalBalances[totalBalances.length - 2] || 0;
+        const growthRate = prevBalance > 0 ? 
+          ((totalBalance - prevBalance) / prevBalance * 100) : 0;
+        growthRates.push(growthRate);
+      }
+
+      return {
+        dates,
+        totalBalances,
+        accountCounts,
+        growthRates
+      };
+    } catch (error) {
+      console.error('Error fetching banking trends:', error);
+      return {
+        dates: [],
+        totalBalances: [],
+        accountCounts: [],
+        growthRates: []
+      };
+    }
+  },
+
+  async getBankingRawData(widgetId, filters) {
+    try {
+      console.log('Getting banking raw data for widget:', widgetId);
+      
+      // Apply branch filter if provided
+      let accountsQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select(`
+          *,
+          kastle_banking.account_types!account_type_id (
+            type_name,
+            account_category
+          ),
+          kastle_banking.customers!customer_id (
+            customer_id,
+            first_name,
+            last_name,
+            customer_type_id
+          )
+        `)
+        .order('current_balance', { ascending: false })
+        .limit(50);
+      
+      if (filters?.branch && filters.branch !== 'all') {
+        accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+      }
+      
+      const { data: accounts } = await accountsQuery;
+
+      // Get account statistics
+      const totalAccountsQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('*', { count: 'exact', head: true });
+      
+      const activeAccountsQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('*', { count: 'exact', head: true })
+        .eq('account_status', 'ACTIVE');
+
+      const [totalResult, activeResult] = await Promise.all([
+        totalAccountsQuery,
+        activeAccountsQuery
+      ]);
+
+      return {
+        accounts: accounts || [],
+        totalAccounts: totalResult.count || 0,
+        activeAccounts: activeResult.count || 0,
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error fetching banking raw data:', error);
+      return {
+        accounts: [],
+        totalAccounts: 0,
+        activeAccounts: 0,
+        lastUpdated: new Date().toISOString()
+      };
     }
   },
 
