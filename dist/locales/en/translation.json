@@ -476,6 +476,8 @@
     "sme": "SME",
     "privateBanking": "Private Banking",
     "generating": "Generating...",
+    "generatingReport": "Generating report...",
+    "failedToFetchData": "Failed to fetch data",
     "preview": "Preview",
     "print": "Print",
     "email": "Email",

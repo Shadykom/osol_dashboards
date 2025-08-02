@@ -8,22 +8,24 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Set worker for react-pdf
-// First try to use local worker file to avoid CORS issues
-// Fallback to CDN if local file is not available
-const workerUrl = '/pdf-worker/pdf.worker.min.js';
+// Set worker for react-pdf with better error handling
+const setupPdfWorker = () => {
+  const workerUrl = '/pdf-worker/pdf.worker.min.js';
+  
+  try {
+    // Always use local worker file to avoid CloudFlare Access issues
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
+  } catch (error) {
+    console.error('Failed to configure PDF.js worker:', error);
+    // Try to use a fallback worker from unpkg (more reliable than CloudFlare)
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+    console.log('PDF.js worker fallback configured:', pdfjs.GlobalWorkerOptions.workerSrc);
+  }
+};
 
-// Check if we're in development or production
-if (import.meta.env.DEV) {
-  // In development, try local file first
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-} else {
-  // In production, use CDN with local fallback
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-}
-
-// Log the worker configuration for debugging
-console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
+// Initialize worker
+setupPdfWorker();
 
 const PDFViewer = ({ 
   isOpen, 
