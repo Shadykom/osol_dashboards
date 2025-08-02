@@ -283,8 +283,7 @@ export function ReportsResponsive() {
           case 'financial':
             data = await comprehensiveReportService.getFinancialReportData(
               selectedReport, 
-              dateRange?.from, 
-              dateRange?.to,
+              { startDate: dateRange?.from, endDate: dateRange?.to },
               {
                 filters: filters,
                 includeComparisons: true,
@@ -295,24 +294,21 @@ export function ReportsResponsive() {
           case 'regulatory':
             data = await comprehensiveReportService.getRegulatoryReportData(
               selectedReport,
-              dateRange?.from,
-              dateRange?.to,
+              { startDate: dateRange?.from, endDate: dateRange?.to },
               { filters: filters }
             );
             break;
           case 'customer':
             data = await comprehensiveReportService.getCustomerReportData(
               selectedReport,
-              dateRange?.from,
-              dateRange?.to,
+              { startDate: dateRange?.from, endDate: dateRange?.to },
               { filters: filters }
             );
             break;
           case 'risk':
             data = await comprehensiveReportService.getRiskReportData(
               selectedReport,
-              dateRange?.from,
-              dateRange?.to,
+              { startDate: dateRange?.from, endDate: dateRange?.to },
               { filters: filters }
             );
             break;
