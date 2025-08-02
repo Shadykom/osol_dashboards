@@ -35,7 +35,9 @@ import {
   CheckCircle2,
   User,
   UserCheck,
-  UserPlus
+  UserPlus,
+  Plus,
+  Lock
 } from 'lucide-react';
 import { enhancedDashboardDetailsService } from '../services/enhancedDashboardDetailsService';
 import { useFilters } from '../contexts/FilterContext';
@@ -463,6 +465,39 @@ const DashboardDetailNew = () => {
                 size="small"
               />
             </>
+          ) : section === 'banking' ? (
+            <>
+              <StatCard
+                title="Total Accounts"
+                value={(detailData.overview.totalAccounts || 0).toLocaleString()}
+                change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
+                trend={detailData.overview.trend}
+                description="All bank accounts"
+                icon={CreditCard}
+                size="small"
+              />
+              <StatCard
+                title="Active Accounts"
+                value={(detailData.overview.activeAccounts || 0).toLocaleString()}
+                description={`${detailData.overview.activeRatio || 0}% of total`}
+                icon={Activity}
+                size="small"
+              />
+              <StatCard
+                title="Total Balance"
+                value={formatCurrency(detailData.overview.totalBalance || 0)}
+                description="Combined account balances"
+                icon={DollarSign}
+                size="small"
+              />
+              <StatCard
+                title="New Accounts"
+                value={(detailData.overview.newAccountsThisMonth || 0).toLocaleString()}
+                description="Opened this month"
+                icon={Plus}
+                size="small"
+              />
+            </>
           ) : (
             <>
               <StatCard
@@ -645,6 +680,125 @@ const DashboardDetailNew = () => {
                     </CardContent>
                   </Card>
                 </>
+              ) : section === 'banking' ? (
+                <>
+                  {/* Main Banking KPI Grid */}
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                      title="Total Accounts"
+                      value={(detailData.overview.totalAccounts || 0).toLocaleString()}
+                      change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
+                      trend={detailData.overview.trend}
+                      description="All bank accounts in the system"
+                      icon={CreditCard}
+                      className="md:col-span-2 lg:col-span-1"
+                    />
+                    <StatCard
+                      title="Active Accounts"
+                      value={(detailData.overview.activeAccounts || 0).toLocaleString()}
+                      description={`${detailData.overview.activeRatio || 0}% of total accounts`}
+                      icon={Activity}
+                    />
+                    <StatCard
+                      title="Dormant Accounts"
+                      value={(detailData.overview.dormantAccounts || 0).toLocaleString()}
+                      description="Inactive accounts"
+                      icon={Lock}
+                    />
+                  </div>
+
+                  {/* Account Type Breakdown */}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                      title="Savings Accounts"
+                      value={(detailData.overview.savingsAccounts || 0).toLocaleString()}
+                      description={formatCurrency(detailData.overview.totalSavingsBalance || 0)}
+                      icon={DollarSign}
+                    />
+                    <StatCard
+                      title="Current Accounts"
+                      value={(detailData.overview.currentAccounts || 0).toLocaleString()}
+                      description={formatCurrency(detailData.overview.totalCurrentBalance || 0)}
+                      icon={CreditCard}
+                    />
+                    <StatCard
+                      title="Blocked Accounts"
+                      value={(detailData.overview.blockedAccounts || 0).toLocaleString()}
+                      description="Restricted accounts"
+                      icon={AlertCircle}
+                    />
+                    <StatCard
+                      title="New Accounts"
+                      value={(detailData.overview.newAccountsThisMonth || 0).toLocaleString()}
+                      description="Opened this month"
+                      icon={UserPlus}
+                    />
+                  </div>
+
+                  {/* Account Composition Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <PieChart className="h-5 w-5" />
+                        Account Portfolio
+                      </CardTitle>
+                      <CardDescription>
+                        Distribution of accounts by type and balances
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <ChartWidget
+                          data={Object.entries(detailData.overview.accountTypes || {}).map(([type, count]) => ({
+                            name: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
+                            value: count
+                          }))}
+                          chartType="pie"
+                          dataKey="value"
+                          height={300}
+                          showLegend={true}
+                        />
+                        <div className="space-y-4">
+                          <div className="p-4 bg-muted/30 rounded-lg">
+                            <h4 className="font-semibold mb-2">Account Summary</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Active Ratio:</span>
+                                <span className="font-medium">{detailData.overview.activeRatio || 0}%</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Average Balance:</span>
+                                <span className="font-medium">{formatCurrency(detailData.overview.avgBalance || 0)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Growth Rate:</span>
+                                <span className="font-medium">{detailData.overview.change ? `${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : '0%'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-4 bg-primary/5 rounded-lg">
+                            <h4 className="font-semibold mb-2 flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Portfolio Health
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Growth Trend:</span>
+                                <Badge variant={detailData.overview.trend === 'up' ? 'default' : 'secondary'}>
+                                  {detailData.overview.trend === 'up' ? 'Growing' : detailData.overview.trend === 'down' ? 'Declining' : 'Stable'}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Portfolio Health:</span>
+                                <Badge variant="default">Healthy</Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
               ) : (
                 <>
                   {/* Main KPI Grid */}
@@ -787,6 +941,8 @@ const DashboardDetailNew = () => {
                   <p className="text-muted-foreground">
                     {section === 'customers' && widgetId === 'total_customers'
                       ? 'Detailed breakdown of customers across different dimensions'
+                      : section === 'banking'
+                      ? 'Detailed breakdown of accounts by type, status, and branch'
                       : 'Detailed breakdown of assets across different dimensions'}
                   </p>
                 </div>
@@ -919,6 +1075,8 @@ const DashboardDetailNew = () => {
                   <p className="text-muted-foreground">
                     {section === 'customers' && widgetId === 'total_customers' 
                       ? 'Customer growth and activity over time'
+                      : section === 'banking'
+                      ? 'Account growth and balance trends over time'
                       : 'Asset growth and performance over time'}
                   </p>
                 </div>
@@ -930,11 +1088,15 @@ const DashboardDetailNew = () => {
                     <TrendingUp className="h-5 w-5" />
                     {section === 'customers' && widgetId === 'total_customers' 
                       ? 'Customer Growth Trend'
+                      : section === 'banking'
+                      ? 'Account Balance Growth Trend'
                       : 'Asset Growth Trend'}
                   </CardTitle>
                   <CardDescription>
                     {section === 'customers' && widgetId === 'total_customers'
                       ? '30-day historical customer performance'
+                      : section === 'banking'
+                      ? '30-day historical account balance performance'
                       : '30-day historical asset performance'}
                   </CardDescription>
                 </CardHeader>
@@ -959,6 +1121,27 @@ const DashboardDetailNew = () => {
                       <div className="text-center text-muted-foreground py-8">
                         <BarChart3 className="h-8 w-8 mx-auto mb-2" />
                         <p>No trend data available</p>
+                      </div>
+                    )
+                  ) : section === 'banking' ? (
+                    detailData.trends.dates && detailData.trends.totalBalances ? (
+                      <ChartWidget
+                        data={detailData.trends.dates.map((date, index) => ({
+                          date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                          'Total Balance': detailData.trends.totalBalances[index] || 0,
+                          'Account Count': detailData.trends.accountCounts[index] || 0
+                        }))}
+                        chartType="line"
+                        xAxisKey="date"
+                        yAxisKey="Total Balance"
+                        height={400}
+                        showLegend={true}
+                        multiLine={['Total Balance']}
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <BarChart3 className="h-8 w-8 mx-auto mb-2" />
+                        <p>No banking trend data available</p>
                       </div>
                     )
                   ) : (
@@ -1038,6 +1221,8 @@ const DashboardDetailNew = () => {
                   <p className="text-muted-foreground">
                     {section === 'customers' && widgetId === 'total_customers'
                       ? 'Detailed customer records and information'
+                      : section === 'banking'
+                      ? 'Detailed account records and banking information'
                       : 'Detailed transactional data and records'}
                   </p>
                 </div>
@@ -1088,6 +1273,60 @@ const DashboardDetailNew = () => {
                         <div className="p-4 bg-muted/30 rounded-lg">
                           <div className="text-2xl font-bold">
                             {new Date().toLocaleDateString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Last Updated</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : section === 'banking' ? (
+                <>
+                  {detailData.raw.accounts && detailData.raw.accounts.length > 0 && (
+                    <DataTable
+                      title="Account Records"
+                      data={detailData.raw.accounts.slice(0, 20)}
+                      columns={[
+                        { header: 'Account Number', accessor: (row) => row.account_number },
+                        { header: 'Customer', accessor: (row) => `${row.kastle_banking?.customers?.first_name || ''} ${row.kastle_banking?.customers?.last_name || ''}`.trim() || 'N/A' },
+                        { header: 'Type', accessor: (row) => (
+                          <Badge variant="outline">
+                            {row.kastle_banking?.account_types?.type_name || 'Unknown'}
+                          </Badge>
+                        )},
+                        { header: 'Balance', accessor: (row) => formatCurrency(row.current_balance || 0) },
+                        { header: 'Status', accessor: (row) => (
+                          <Badge variant={row.account_status === 'ACTIVE' ? 'default' : 'secondary'}>
+                            {row.account_status || 'Unknown'}
+                          </Badge>
+                        )},
+                        { header: 'Branch', accessor: (row) => row.branch_id || 'N/A' },
+                        { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
+                      ]}
+                    />
+                  )}
+
+                  {/* Banking Summary Statistics */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        Banking Data Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">{detailData.raw.totalAccounts || 0}</div>
+                          <div className="text-sm text-muted-foreground">Total Accounts</div>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">{detailData.raw.activeAccounts || 0}</div>
+                          <div className="text-sm text-muted-foreground">Active Accounts</div>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="text-2xl font-bold">
+                            {detailData.raw.lastUpdated ? new Date(detailData.raw.lastUpdated).toLocaleDateString() : 'N/A'}
                           </div>
                           <div className="text-sm text-muted-foreground">Last Updated</div>
                         </div>
