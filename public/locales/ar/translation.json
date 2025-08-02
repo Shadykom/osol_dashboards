@@ -289,13 +289,59 @@
     },
     "details": {
       "subtitle": "تحليلات ورؤى تفصيلية",
-      "tabs": {
-        "overview": "نظرة عامة",
-        "breakdown": "تفصيل",
-        "trends": "الاتجاهات"
+      "comprehensive": "تحليلات ورؤى شاملة لقسم {{section}}",
+              "tabs": {
+          "overview": "نظرة عامة",
+          "breakdown": "التحليل التفصيلي",
+          "trends": "الاتجاهات",
+          "rawData": "البيانات الخام"
+        },
+        "analytics": {
+          "customerSummary": "ملخص العملاء",
+          "activeRatio": "نسبة النشطاء",
+          "growthRate": "معدل النمو",
+          "customerInsights": "رؤى العملاء",
+          "growthTrend": "اتجاه النمو",
+          "customerHealth": "صحة العملاء",
+          "growing": "نامي",
+          "declining": "متراجع",
+          "stable": "مستقر",
+          "good": "جيد",
+          "average": "متوسط",
+          "poor": "ضعيف"
+        },
+      "totalAssets": {
+        "title": "إجمالي الأصول",
+        "subtitle": "تحليل ورؤى شاملة للأصول",
+        "description": "ودائع وقروض مجمعة",
+        "totalAssetsLabel": "إجمالي الأصول",
+        "activeAccountsLabel": "الحسابات النشطة",
+        "loanPortfolioLabel": "محفظة القروض",
+        "depositBaseLabel": "قاعدة الودائع",
+        "ofAssets": "من الأصول",
+        "ofTotalAssets": "من إجمالي الأصول",
+        "totalAccountCount": "إجمالي عدد الحسابات",
+        "combinedDepositsAndLoans": "ودائع وقروض مجمعة",
+        "allActiveAccounts": "جميع الحسابات النشطة",
+        "currentLoanPortfolio": "محفظة القروض الحالية",
+        "customerDepositBase": "قاعدة ودائع العملاء"
       },
       "customers": {
-        "title": "تحليلات العملاء"
+        "title": "تحليلات العملاء",
+        "totalCustomers": "إجمالي العملاء",
+        "activeCustomers": "العملاء النشطون",
+        "inactiveCustomers": "العملاء غير النشطين",
+        "individualCustomers": "العملاء الأفراد",
+        "corporateCustomers": "العملاء الشركات",
+        "premiumCustomers": "العملاء المميزون",
+        "newCustomers": "عملاء جدد",
+        "allRegisteredCustomers": "جميع العملاء المسجلين في النظام",
+        "ofTotalCustomers": "من إجمالي العملاء",
+        "customersWithoutActiveAccounts": "عملاء بدون حسابات نشطة",
+        "personalBankingCustomers": "عملاء الخدمات المصرفية الشخصية",
+        "businessAndCorporateClients": "عملاء الأعمال والشركات",
+        "highValueCustomers": "عملاء عالي القيمة",
+        "thisMonth": "هذا الشهر"
       },
       "accounts": {
         "title": "تحليلات الحسابات"

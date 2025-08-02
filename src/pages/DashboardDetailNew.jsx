@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { Button } from '../components/ui/button';
@@ -133,7 +134,7 @@ const BreakdownCard = ({ title, data, type = 'pie', className }) => {
         {total === 0 || chartData.every(item => item.value === 0) ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">No data available</p>
+            <p className="text-sm text-muted-foreground">{t('delinquencyDashboard.noData')}</p>
           </div>
         ) : type === 'pie' ? (
           <div className="space-y-4">
@@ -211,7 +212,7 @@ const DataTable = ({ data, columns, title }) => {
         <CardContent className="py-8">
           <div className="text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">No data available</p>
+            <p className="text-muted-foreground">{t('delinquencyDashboard.noData')}</p>
           </div>
         </CardContent>
       </Card>
@@ -223,7 +224,7 @@ const DataTable = ({ data, columns, title }) => {
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">{title}</CardTitle>
-          <Badge variant="secondary">{data.length} records</Badge>
+          <Badge variant="secondary">{data.length} {t('common.total')}</Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -270,6 +271,7 @@ const DashboardDetailNew = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { t } = useTranslation();
 
   // Fetch data on mount or when filters change
   useEffect(() => {
@@ -369,7 +371,7 @@ const DashboardDetailNew = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-red-600">Error Loading Data</h1>
+            <h1 className="text-2xl font-bold text-red-600">{t('errors.errorLoadingData')}</h1>
             <p className="text-sm text-muted-foreground">{error}</p>
           </div>
         </div>
@@ -377,12 +379,12 @@ const DashboardDetailNew = () => {
           <CardContent className="py-8">
             <div className="text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Unable to load widget data</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('errors.failedToLoad', { item: 'widget data' })}</h3>
               <p className="text-muted-foreground mb-4">{error}</p>
-              <Button onClick={handleRefresh}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Try Again
-              </Button>
+                              <Button onClick={handleRefresh}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {t('errors.tryAgainLater')}
+                </Button>
             </div>
           </CardContent>
         </Card>
@@ -401,30 +403,30 @@ const DashboardDetailNew = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-bold tracking-tight">
-                {detailData.metadata?.title || 'Total Assets'}
+                {detailData.metadata?.title || t('dashboard.widgets.totalAssets')}
               </h1>
               <Badge variant="outline" className="text-xs">
-                {section}
+                {t(`navigation.${section}`, section)}
               </Badge>
             </div>
             <p className="text-muted-foreground">
-              Comprehensive analytics and insights for {section} section
+              {t('dashboard.details.comprehensive', { section: t(`navigation.${section}`, section) })}
             </p>
           </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
-            <Download className="mr-2 h-4 w-4" /> Export CSV
+            <Download className="mr-2 h-4 w-4" /> {t('common.export')} CSV
           </Button>
           <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-            <Download className="mr-2 h-4 w-4" /> Export PDF
+            <Download className="mr-2 h-4 w-4" /> {t('common.export')} PDF
           </Button>
           <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" /> Print
+            <Printer className="mr-2 h-4 w-4" /> {t('reports.print')}
           </Button>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> 
-            Refresh
+            {t('common.refresh')}
           </Button>
         </div>
       </div>
@@ -435,18 +437,18 @@ const DashboardDetailNew = () => {
           {section === 'customers' && widgetId === 'total_customers' ? (
             <>
               <StatCard
-                title="Total Customers"
+                title={t('dashboard.details.customers.totalCustomers')}
                 value={(detailData.overview.totalCustomers || 0).toLocaleString()}
                 change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                 trend={detailData.overview.trend}
-                description="All registered customers"
+                description={t('dashboard.details.customers.allRegisteredCustomers')}
                 icon={Users}
                 size="small"
               />
               <StatCard
-                title="Active Customers"
+                title={t('dashboard.details.customers.activeCustomers')}
                 value={(detailData.overview.activeCustomers || 0).toLocaleString()}
-                description={`${detailData.overview.activeRatio || 0}% of total`}
+                description={`${detailData.overview.activeRatio || 0}% ${t('dashboard.details.customers.ofTotalCustomers')}`}
                 icon={UserCheck}
                 size="small"
               />
@@ -501,32 +503,32 @@ const DashboardDetailNew = () => {
           ) : (
             <>
               <StatCard
-                title="Total Assets"
+                title={t('dashboard.details.totalAssets.totalAssetsLabel')}
                 value={formatCurrency(detailData.overview.totalAssets || 0)}
                 change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                 trend={detailData.overview.trend}
-                description="Combined deposits and loans"
+                description={t('dashboard.details.totalAssets.combinedDepositsAndLoans')}
                 icon={DollarSign}
                 size="small"
               />
               <StatCard
-                title="Active Accounts"
+                title={t('dashboard.details.totalAssets.activeAccountsLabel')}
                 value={(detailData.overview.accountCount || 0).toLocaleString()}
-                description="Total account count"
+                description={t('dashboard.details.totalAssets.totalAccountCount')}
                 icon={Users}
                 size="small"
               />
               <StatCard
-                title="Loan Portfolio"
+                title={t('dashboard.details.totalAssets.loanPortfolioLabel')}
                 value={formatCurrency(detailData.overview.totalLoans || 0)}
-                description={`${detailData.overview.loanRatio || 0}% of assets`}
+                description={`${detailData.overview.loanRatio || 0}% ${t('dashboard.details.totalAssets.ofAssets')}`}
                 icon={TrendingUp}
                 size="small"
               />
               <StatCard
-                title="Deposit Base"
+                title={t('dashboard.details.totalAssets.depositBaseLabel')}
                 value={formatCurrency(detailData.overview.totalDeposits || 0)}
-                description={`${detailData.overview.depositRatio || 0}% of assets`}
+                description={`${detailData.overview.depositRatio || 0}% ${t('dashboard.details.totalAssets.ofAssets')}`}
                 icon={CreditCard}
                 size="small"
               />
@@ -542,19 +544,19 @@ const DashboardDetailNew = () => {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
-            Overview
+            {t('dashboard.details.tabs.overview')}
           </TabsTrigger>
           <TabsTrigger value="breakdown" className="flex items-center gap-2">
             <PieChart className="h-4 w-4" />
-            Breakdown Analysis
+            {t('dashboard.details.tabs.breakdown')}
           </TabsTrigger>
           <TabsTrigger value="trends" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            Trends
+            {t('dashboard.details.tabs.trends')}
           </TabsTrigger>
           <TabsTrigger value="data" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
-            Raw Data
+            {t('dashboard.details.tabs.rawData')}
           </TabsTrigger>
         </TabsList>
 
@@ -583,39 +585,39 @@ const DashboardDetailNew = () => {
                       value={(detailData.overview.activeCustomers || 0).toLocaleString()}
                       description={`${detailData.overview.activeRatio || 0}% of total customers`}
                       icon={UserCheck}
-                    />
-                    <StatCard
-                      title="Inactive Customers"
-                      value={(detailData.overview.inactiveCustomers || 0).toLocaleString()}
-                      description="Customers without active accounts"
-                      icon={Users}
-                    />
+                                  />
+              <StatCard
+                title={t('dashboard.details.customers.inactiveCustomers')}
+                value={(detailData.overview.inactiveCustomers || 0).toLocaleString()}
+                description={t('dashboard.details.customers.customersWithoutActiveAccounts')}
+                icon={Users}
+              />
                   </div>
 
                   {/* Customer Type Breakdown */}
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <StatCard
-                      title="Individual Customers"
+                      title={t('dashboard.details.customers.individualCustomers')}
                       value={(detailData.overview.individualCustomers || 0).toLocaleString()}
-                      description="Personal banking customers"
+                      description={t('dashboard.details.customers.personalBankingCustomers')}
                       icon={User}
                     />
                     <StatCard
-                      title="Corporate Customers"
+                      title={t('dashboard.details.customers.corporateCustomers')}
                       value={(detailData.overview.corporateCustomers || 0).toLocaleString()}
-                      description="Business accounts"
+                      description={t('dashboard.details.customers.businessAndCorporateClients')}
                       icon={Building2}
                     />
                     <StatCard
-                      title="VIP Customers"
+                      title={t('dashboard.details.customers.premiumCustomers')}
                       value={(detailData.overview.vipCustomers || 0).toLocaleString()}
-                      description="Premium banking clients"
+                      description={t('dashboard.details.customers.highValueCustomers')}
                       icon={Activity}
                     />
                     <StatCard
-                      title="New Customers"
+                      title={t('dashboard.details.customers.newCustomers')}
                       value={(detailData.overview.newCustomers || 0).toLocaleString()}
-                      description="Joined in last 30 days"
+                      description={`${t('common.add')} ${t('dashboard.details.customers.thisMonth')}`}
                       icon={UserPlus}
                     />
                   </div>
@@ -625,10 +627,10 @@ const DashboardDetailNew = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <PieChart className="h-5 w-5" />
-                        Customer Segmentation
+                        {t('dashboard.widgets.customerSegments')}
                       </CardTitle>
                       <CardDescription>
-                        Distribution of customers by type
+                        {t('reports.customerSegmentationDesc')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -645,14 +647,14 @@ const DashboardDetailNew = () => {
                         />
                         <div className="space-y-4">
                           <div className="p-4 bg-muted/30 rounded-lg">
-                            <h4 className="font-semibold mb-2">Customer Summary</h4>
+                            <h4 className="font-semibold mb-2">{t('dashboard.details.analytics.customerSummary')}</h4>
                             <div className="space-y-2 text-sm">
                               <div className="flex justify-between">
-                                <span>Active Ratio:</span>
+                                <span>{t('dashboard.details.analytics.activeRatio')}:</span>
                                 <span className="font-medium">{detailData.overview.activeRatio || 0}%</span>
                               </div>
                               <div className="flex justify-between">
-                                <span>Growth Rate:</span>
+                                <span>{t('dashboard.details.analytics.growthRate')}:</span>
                                 <span className="font-medium">{detailData.overview.change ? `${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : '0%'}</span>
                               </div>
                             </div>
@@ -660,18 +662,18 @@ const DashboardDetailNew = () => {
                           <div className="p-4 bg-primary/5 rounded-lg">
                             <h4 className="font-semibold mb-2 flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Customer Insights
+                              {t('dashboard.details.analytics.customerInsights')}
                             </h4>
                             <div className="space-y-2 text-sm">
                               <div className="flex justify-between">
-                                <span>Growth Trend:</span>
+                                <span>{t('dashboard.details.analytics.growthTrend')}:</span>
                                 <Badge variant={detailData.overview.trend === 'up' ? 'default' : 'secondary'}>
-                                  {detailData.overview.trend === 'up' ? 'Growing' : detailData.overview.trend === 'down' ? 'Declining' : 'Stable'}
+                                  {detailData.overview.trend === 'up' ? t('dashboard.details.analytics.growing') : detailData.overview.trend === 'down' ? t('dashboard.details.analytics.declining') : t('dashboard.details.analytics.stable')}
                                 </Badge>
                               </div>
                               <div className="flex justify-between">
-                                <span>Customer Health:</span>
-                                <Badge variant="default">Good</Badge>
+                                <span>{t('dashboard.details.analytics.customerHealth')}:</span>
+                                <Badge variant="default">{t('dashboard.details.analytics.good')}</Badge>
                               </div>
                             </div>
                           </div>
