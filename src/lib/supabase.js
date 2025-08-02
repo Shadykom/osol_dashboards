@@ -216,18 +216,18 @@ export const supabase = (() => {
 // Create a client specifically for kastle_banking schema
 export const supabaseBanking = (() => {
   if (!supabaseBankingInstance) {
-    supabaseBankingInstance = isSupabaseConfigured
-      ? createClient(supabaseUrl, supabaseAnonKey, {
-          db: {
-            schema: 'kastle_banking'
-          },
-          auth: {
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: true,
-            storage: window.localStorage,
-            storageKey: 'osol-auth'
-          },
+            supabaseBankingInstance = isSupabaseConfigured
+          ? createClient(supabaseUrl, supabaseAnonKey, {
+              db: {
+                schema: 'kastle_banking'
+              },
+              auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: true,
+                storage: window.localStorage,
+                storageKey: 'osol-auth-banking'
+              },
           realtime: {
             params: {
               eventsPerSecond: 10

@@ -899,7 +899,7 @@ class ReportGenerator {
   }
 
   // Generic PDF generator for array data
-  async generateGenericPDF(data, reportType, reportName, metadata = {}) {
+  async generateGenericPDF(data, reportName, metadata = {}) {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -915,7 +915,7 @@ class ReportGenerator {
     const topMargin = 20;
     const bottomMargin = 20;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let currentY = this.addOSOLHeader(doc, reportName, reportType);
+    let currentY = this.addOSOLHeader(doc, reportName, metadata.reportType || 'Report');
     
     // Add filter information
     currentY = await this.addFilterInfo(doc, currentY + 10, metadata);
@@ -983,11 +983,11 @@ class ReportGenerator {
         default:
           // For other reports, check if data is an array or object
           if (Array.isArray(data)) {
-            return this.generateGenericPDF(data, reportType, reportName, metadata);
+            return this.generateGenericPDF(data, reportName, { ...metadata, reportType });
           } else {
             // Convert object to array format for generic handling
             const dataArray = this.convertObjectToArray(data);
-            return this.generateGenericPDF(dataArray, reportType, reportName, metadata);
+            return this.generateGenericPDF(dataArray, reportName, { ...metadata, reportType });
           }
       }
     } catch (error) {
@@ -1411,7 +1411,17 @@ class ReportGenerator {
 
   // Print report
   printReport(doc) {
-    if (!doc) return;
+    if (!doc) {
+      console.error('No document provided to printReport');
+      return;
+    }
+    
+    // Check if doc has the output method (is a jsPDF instance)
+    if (typeof doc.output !== 'function') {
+      console.error('Invalid document object passed to printReport:', doc);
+      alert('Unable to print. Invalid document format.');
+      return;
+    }
     
     try {
       // Get PDF as blob
