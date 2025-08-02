@@ -216,7 +216,7 @@ const getNavigationItems = (t, useTranslation = false) => {
               icon: UserSearch, 
               badge: getText('common.new', 'NEW'),
               badgeVariant: 'default',
-              description: getText('navigation.specialistReportDesc', 'Detailed specialist reports')
+              description: getText('navigation.specialistReportDesc', 'Track communication activities, contact efforts, and promises to pay for each specialist')
             },
             {
               title: getText('navigation.collectionReports', 'Collection Reports'),
@@ -227,14 +227,16 @@ const getNavigationItems = (t, useTranslation = false) => {
                   href: '/collection/branch-report',
                   icon: Building2,
                   badge: getText('common.new', 'NEW'),
-                  badgeVariant: 'default'
+                  badgeVariant: 'default',
+                  description: getText('navigation.branchLevelReportDesc', 'Compare collection performance across branches, identify underperformers and top performers')
                 },
                 {
                   title: getText('navigation.productLevelReport', 'Product Level Report'),
                   href: '/collection/product-report',
                   icon: Package,
                   badge: getText('common.new', 'NEW'),
-                  badgeVariant: 'default'
+                  badgeVariant: 'default',
+                  description: getText('navigation.productLevelReportDesc', 'Evaluate risk and collection performance by product for data-driven lending decisions')
                 }
               ]
             },
