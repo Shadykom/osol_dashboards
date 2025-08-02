@@ -96,8 +96,73 @@ const getAuthToken = () => {
 const customFetch = (url, options = {}) => {
   const token = getAuthToken();
   
+  // Fix timezone format in URL parameters
+  if (url.includes('gmt+') || url.includes('gmt-')) {
+    url = url.replace(/gmt([+-])(\d{2})(\d{2})?/gi, (match, sign, hours, minutes = '00') => {
+      // Convert to proper timezone format
+      return `${sign}${hours}:${minutes}`;
+    });
+  }
+  
   // Determine if this is a data-modifying request
   const isDataRequest = ['POST', 'PUT', 'PATCH'].includes(options.method?.toUpperCase());
+  
+  // Fix timezone format in request body if present
+  if (options.body) {
+    try {
+      let bodyData = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+      
+      // Recursively fix date formats in the body
+      const fixDates = (obj) => {
+        if (obj === null || obj === undefined) return obj;
+        
+        if (typeof obj === 'string') {
+          // Check if it's a date string with invalid timezone format
+          if (obj.match(/gmt[+-]\d{2,4}/i)) {
+            // Extract the offset and convert to proper format
+            const match = obj.match(/gmt([+-])(\d{2})(\d{2})?/i);
+            if (match) {
+              const sign = match[1];
+              const hours = match[2];
+              const minutes = match[3] || '00';
+              // Replace the invalid format with a valid ISO format
+              obj = obj.replace(/gmt[+-]\d{2,4}/i, `${sign}${hours}:${minutes}`);
+              // Try to parse and convert to ISO string
+              try {
+                const date = new Date(obj);
+                if (!isNaN(date.getTime())) {
+                  return date.toISOString();
+                }
+              } catch (e) {
+                // If parsing fails, return the modified string
+              }
+            }
+          }
+          return obj;
+        }
+        
+        if (Array.isArray(obj)) {
+          return obj.map(fixDates);
+        }
+        
+        if (typeof obj === 'object') {
+          const fixed = {};
+          for (const key in obj) {
+            fixed[key] = fixDates(obj[key]);
+          }
+          return fixed;
+        }
+        
+        return obj;
+      };
+      
+      bodyData = fixDates(bodyData);
+      options.body = typeof options.body === 'string' ? JSON.stringify(bodyData) : bodyData;
+    } catch (e) {
+      // If we can't parse the body, leave it as is
+      console.warn('Could not parse request body for date fixing:', e);
+    }
+  }
   
   const headers = {
     ...options.headers,
