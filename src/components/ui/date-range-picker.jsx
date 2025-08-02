@@ -287,3 +287,6 @@ export function DatePicker({
     </Popover>
   );
 }
+
+// Alias for backward compatibility with existing imports
+export const DatePickerWithRange = DateRangePicker;
