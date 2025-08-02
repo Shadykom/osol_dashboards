@@ -34,9 +34,10 @@ import {
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
   ArrowDownRight, Loader2, MapPin, BarChart3, Trophy, CalendarDays,
-  FileDown
+  FileDown, Zap
 } from 'lucide-react';
 import { BranchReportService } from '@/services/branchReportService';
+import { useRealtimeBranchPerformance, useRealtimeCollectionMetrics } from '@/hooks/useRealtimeData';
 
 const BranchLevelReport = () => {
   const { t, ready } = useTranslation();
@@ -49,6 +50,7 @@ const BranchLevelReport = () => {
   const [reportData, setReportData] = useState(null);
   const [showOfficerDetails, setShowOfficerDetails] = useState(false);
   const [selectedOfficer, setSelectedOfficer] = useState(null);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(true); // NEW: Toggle for real-time updates
   
   // Filters
   const [dateRange, setDateRange] = useState('current_month');
@@ -58,6 +60,65 @@ const BranchLevelReport = () => {
   const [customerType, setCustomerType] = useState('all');
   const [showComparison, setShowComparison] = useState(true);
   const [lastRefreshTime, setLastRefreshTime] = useState(new Date()); // NEW: Track refresh time
+
+  // Real-time updates
+  const { isConnected: performanceConnected, lastUpdate: performanceUpdate } = useRealtimeBranchPerformance(
+    selectedBranch,
+    (payload) => {
+      if (realtimeEnabled) {
+        console.log('Branch performance update:', payload);
+        // Refresh the report data when performance metrics update
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          loadBranchReport();
+        }
+      }
+    }
+  );
+
+  const { isConnected: metricsConnected, lastUpdate: metricsUpdate } = useRealtimeCollectionMetrics(
+    selectedBranch,
+    (payload) => {
+      if (realtimeEnabled) {
+        console.log('Collection metrics update:', payload);
+        // Update specific metrics without full reload for better performance
+        if (reportData && payload.new) {
+          updateMetricsPartially(payload);
+        }
+      }
+    }
+  );
+
+  // Partial update function for real-time metrics
+  const updateMetricsPartially = (payload) => {
+    setReportData(prevData => {
+      if (!prevData) return prevData;
+      
+      // Update specific metrics based on the change
+      const updatedData = { ...prevData };
+      
+      // If it's a new overdue case
+      if (payload.eventType === 'INSERT' && payload.new.overdue_amount > 0) {
+        updatedData.summary = {
+          ...updatedData.summary,
+          overdueLoans: (updatedData.summary.overdueLoans || 0) + 1,
+          overduePortfolio: (updatedData.summary.overduePortfolio || 0) + payload.new.overdue_amount
+        };
+      }
+      
+      // If it's an update to collection status
+      if (payload.eventType === 'UPDATE' && payload.old.overdue_amount !== payload.new.overdue_amount) {
+        const difference = payload.new.overdue_amount - payload.old.overdue_amount;
+        updatedData.summary = {
+          ...updatedData.summary,
+          overduePortfolio: (updatedData.summary.overduePortfolio || 0) + difference
+        };
+      }
+      
+      return updatedData;
+    });
+    
+    setLastRefreshTime(new Date());
+  };
 
   // Load branches on mount
   useEffect(() => {
@@ -216,6 +277,28 @@ const BranchLevelReport = () => {
               <RefreshCw className={`h-4 w-4 ml-2 ${refreshing ? 'animate-spin' : ''}`} />
               تحديث
             </Button>
+            
+            {/* Real-time status indicator */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-md">
+              <div className={`w-2 h-2 rounded-full ${
+                performanceConnected && metricsConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+              }`} />
+              <span className="text-sm text-gray-600">
+                {performanceConnected && metricsConnected ? 'مباشر' : 'غير متصل'}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRealtimeEnabled(!realtimeEnabled)}
+                className="h-6 px-2"
+              >
+                {realtimeEnabled ? (
+                  <Zap className="h-3 w-3 text-yellow-500" />
+                ) : (
+                  <Zap className="h-3 w-3 text-gray-400" />
+                )}
+              </Button>
+            </div>
             
             <div className="flex gap-1">
               <Button variant="outline" size="icon" onClick={() => handleExport('excel')}>
