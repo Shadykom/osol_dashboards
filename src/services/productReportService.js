@@ -114,7 +114,7 @@ export class ProductReportService {
             customer_type,
             risk_category,
             onboarding_branch,
-            branches!onboarding_branch (
+            branches!customers_onboarding_branch_fkey (
               branch_id,
               branch_name,
               city,
@@ -699,7 +699,7 @@ export class ProductReportService {
             full_name,
             customer_type,
             onboarding_branch,
-            branches!onboarding_branch (
+            branches!customers_onboarding_branch_fkey (
               branch_name
             )
           )

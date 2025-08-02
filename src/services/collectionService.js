@@ -555,7 +555,7 @@ export class CollectionService {
               officer_name,
               officer_type,
               team_id,
-              collection_teams!team_id (
+              collection_teams!collection_officers_team_id_fkey (
                 team_name
               )
             )
@@ -1244,7 +1244,7 @@ export class CollectionService {
           team_id, 
           email, 
           contact_number,
-          collection_teams!team_id (
+          collection_teams!collection_officers_team_id_fkey (
             team_name,
             team_type
           )
