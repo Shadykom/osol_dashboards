@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist'],
       // Force re-optimization in development
       force: true
     }
