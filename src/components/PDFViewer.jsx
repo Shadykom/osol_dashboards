@@ -9,7 +9,21 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set worker for react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// First try to use local worker file to avoid CORS issues
+// Fallback to CDN if local file is not available
+const workerUrl = '/pdf-worker/pdf.worker.min.js';
+
+// Check if we're in development or production
+if (import.meta.env.DEV) {
+  // In development, try local file first
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+} else {
+  // In production, use CDN with local fallback
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+}
+
+// Log the worker configuration for debugging
+console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
 
 const PDFViewer = ({ 
   isOpen, 
@@ -139,6 +153,16 @@ const PDFViewer = ({
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setTotalPages(numPages);
+  };
+
+  const onDocumentLoadError = (error) => {
+    console.error('PDF load error:', error);
+    if (error.message && error.message.includes('worker')) {
+      console.error('PDF Worker Error - This might be a CORS or worker loading issue');
+      toast.error('PDF viewer initialization error. Please refresh the page.');
+    } else {
+      toast.error('Failed to load PDF document');
+    }
   };
 
   // Generate page thumbnails for quick navigation
@@ -315,6 +339,7 @@ const PDFViewer = ({
               <Document
                 file={pdfUrl}
                 onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={onDocumentLoadError}
                 loading={
                   <div className="flex items-center justify-center h-[600px]">
                     <p>Loading PDF...</p>
