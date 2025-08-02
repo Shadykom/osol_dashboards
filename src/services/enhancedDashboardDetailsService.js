@@ -397,7 +397,7 @@ export const enhancedDashboardDetailsService = {
           .gte('created_at', dateFilter.start)
           .lte('created_at', dateFilter.end),
         supabaseBanking.from(TABLES.LOAN_ACCOUNTS)
-          .select('loan_type, outstanding_balance, status, branch_id')
+          .select('loan_type_id, outstanding_balance, status, branch_id, loan_types(type_name)')
           .gte('created_at', dateFilter.start)
           .lte('created_at', dateFilter.end),
         supabaseBanking.from(TABLES.BRANCHES)
@@ -444,7 +444,7 @@ export const enhancedDashboardDetailsService = {
       // Breakdown by Product Type (Loan Types)
       const byProductType = {};
       loans.forEach(loan => {
-        const type = loan.loan_type || 'Other';
+        const type = loan.loan_types?.type_name || `Type ${loan.loan_type_id || 'Unknown'}`;
         byProductType[type] = (byProductType[type] || 0) + (parseFloat(loan.outstanding_balance) || 0);
       });
 
@@ -1088,13 +1088,14 @@ export const enhancedDashboardDetailsService = {
         case 'loan_portfolio':
           const loans = await supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
-            .select('loan_type, outstanding_balance')
+            .select('loan_type_id, outstanding_balance, loan_types(type_name)')
             .gte('created_at', dateFilter.start)
             .lte('created_at', dateFilter.end);
           
           const loanBreakdown = {};
           loans.data?.forEach(loan => {
-            loanBreakdown[loan.loan_type] = (loanBreakdown[loan.loan_type] || 0) + loan.outstanding_balance;
+            const loanType = loan.loan_types?.type_name || `Type ${loan.loan_type_id || 'Unknown'}`;
+            loanBreakdown[loanType] = (loanBreakdown[loanType] || 0) + loan.outstanding_balance;
           });
           
           return { byType: loanBreakdown };

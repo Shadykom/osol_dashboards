@@ -418,12 +418,12 @@ export class CustomerFootprintService {
         `)
         .eq('customer_id', customerId);
 
-      // Get loans
-      const { data: loans, error: loansError } = await supabaseBanking
+      // Get loans with fallback handling
+      let { data: loans, error: loansError } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           loan_account_number,
-          loan_type,
+          loan_type_id,
           original_amount,
           outstanding_balance,
           interest_rate,
@@ -433,9 +433,35 @@ export class CustomerFootprintService {
           maturity_date,
           next_payment_date,
           days_past_due,
-          product_id
+          product_id,
+          loan_types(type_name)
         `)
         .eq('customer_id', customerId);
+
+      // If loan_types join fails, fallback to query without join
+      if (loansError && loansError.message.includes('loan_types')) {
+        console.log('Loan types table not available, querying without join...');
+        const fallbackResult = await supabaseBanking
+          .from(TABLES.LOAN_ACCOUNTS)
+          .select(`
+            loan_account_number,
+            loan_type_id,
+            original_amount,
+            outstanding_balance,
+            interest_rate,
+            monthly_installment,
+            loan_status,
+            disbursement_date,
+            maturity_date,
+            next_payment_date,
+            days_past_due,
+            product_id
+          `)
+          .eq('customer_id', customerId);
+        
+        loans = fallbackResult.data;
+        loansError = fallbackResult.error;
+      }
 
       // Handle errors gracefully
       if (accountsError) {
@@ -471,7 +497,7 @@ export class CustomerFootprintService {
           products.push({
             id: loan.loan_account_number,
             type: 'قرض تورق',
-            product_name: loan.loan_type,
+            product_name: loan.loan_types?.type_name || `Type ${loan.loan_type_id || 'Unknown'}`,
             amount: loan.original_amount,
             outstanding: loan.outstanding_balance,
             status: loan.loan_status,
