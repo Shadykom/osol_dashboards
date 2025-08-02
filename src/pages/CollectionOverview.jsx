@@ -230,11 +230,11 @@ const CollectionOverview = () => {
                 <SelectValue placeholder="Branch" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t('filters.allBranches')}</SelectItem>
-                <SelectItem value="RIYADH_MAIN">{t('branches.riyadhMain')}</SelectItem>
-                <SelectItem value="JEDDAH">{t('branches.jeddah')}</SelectItem>
-                <SelectItem value="DAMMAM">{t('branches.dammam')}</SelectItem>
-                <SelectItem value="KHOBAR">{t('branches.khobar')}</SelectItem>
+                <SelectItem value="all">All Branches</SelectItem>
+                <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
+                <SelectItem value="JEDDAH">Jeddah</SelectItem>
+                <SelectItem value="DAMMAM">Dammam</SelectItem>
+                <SelectItem value="KHOBAR">Khobar</SelectItem>
               </SelectContent>
             </Select>
             

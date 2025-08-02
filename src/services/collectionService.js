@@ -55,21 +55,21 @@ export class CollectionService {
         .from('collection_cases')
         .select(`
           *,
-          loan_accounts:kastle_banking.loan_accounts!loan_account_number (
+          kastle_banking.loan_accounts!loan_account_number (
             loan_amount,
             outstanding_balance,
             overdue_amount,
             overdue_days,
             product_id,
-            products:kastle_banking.products!product_id (
+            kastle_banking.products!product_id (
               product_name,
               product_type
             )
           ),
-          customers:kastle_banking.customers!customer_id (
+          kastle_banking.customers!customer_id (
             full_name,
             customer_type,
-            customer_contacts:kastle_banking.customer_contacts!customer_id (
+            kastle_banking.customer_contacts!customer_id (
               contact_type,
               contact_value
             )
@@ -164,8 +164,8 @@ export class CollectionService {
         return {
           caseId: caseItem.case_id,
           caseNumber: caseItem.case_number,
-          customerName: caseItem.customers?.full_name || 'Unknown',
-          customerPhone: caseItem.customers?.customer_contacts?.find(c => c.contact_type === 'MOBILE')?.contact_value || 'N/A',
+          customerName: caseItem['kastle_banking.customers']?.full_name || 'Unknown',
+          customerPhone: caseItem['kastle_banking.customers']?.['kastle_banking.customer_contacts']?.find(c => c.contact_type === 'MOBILE')?.contact_value || 'N/A',
           customerId: caseItem.customer_id,
           accountNumber: caseItem.account_number,
           loanAccountNumber: caseItem.loan_account_number,
@@ -181,7 +181,7 @@ export class CollectionService {
           hasPromiseToPay: !!activePTP,
           ptpDetails: activePTP,
           totalInteractions: interactionCount || 0,
-          productType: caseItem.loan_accounts?.products?.product_type || 'Unknown',
+          productType: caseItem['kastle_banking.loan_accounts']?.['kastle_banking.products']?.product_type || 'Unknown',
           createdAt: caseItem.created_at,
           updatedAt: caseItem.updated_at
         };
@@ -211,14 +211,14 @@ export class CollectionService {
         .from('collection_cases')
         .select(`
           *,
-          loan_accounts:kastle_banking.loan_accounts!loan_account_number (
+          kastle_banking.loan_accounts!loan_account_number (
             *,
-            products:kastle_banking.products!product_id (*)
+            kastle_banking.products!product_id (*)
           ),
-          customers:kastle_banking.customers!customer_id (
+          kastle_banking.customers!customer_id (
             *,
-            customer_contacts:kastle_banking.customer_contacts!customer_id (*),
-            customer_addresses:kastle_banking.customer_addresses!customer_id (*)
+            kastle_banking.customer_contacts!customer_id (*),
+            kastle_banking.customer_addresses!customer_id (*)
           ),
           collection_officers!assigned_to (*),
           collection_strategies!strategy_id (*),
@@ -234,7 +234,7 @@ export class CollectionService {
         .from('collection_interactions')
         .select(`
           *,
-          collection_officers (
+          collection_officers!officer_id (
             officer_name,
             officer_type
           )
@@ -247,7 +247,7 @@ export class CollectionService {
         .from('promise_to_pay')
         .select(`
           *,
-          collection_officers (
+          collection_officers!created_by (
             officer_name
           )
         `)
@@ -259,7 +259,7 @@ export class CollectionService {
         .from('field_visits')
         .select(`
           *,
-          collection_officers (
+          collection_officers!officer_id (
             officer_name
           )
         `)
@@ -551,11 +551,11 @@ export class CollectionService {
           .from('officer_performance_summary')
           .select(`
             *,
-            collection_officers (
+            collection_officers!officer_id (
               officer_name,
               officer_type,
               team_id,
-              collection_teams (
+              collection_teams!team_id (
                 team_name
               )
             )
@@ -629,16 +629,20 @@ export class CollectionService {
         .select('*');
 
       const teamComparison = await Promise.all((teams || []).map(async (team) => {
+        // First get the officer IDs for this team
+        const { data: teamOfficers } = await supabaseCollection
+          .from('collection_officers')
+          .select('officer_id')
+          .eq('team_id', team.team_id);
+        
+        const officerIds = teamOfficers?.map(o => o.officer_id) || [];
+        
+        // Then get the performance data for those officers
         const { data: teamData } = await supabaseCollection
           .from('officer_performance_summary')
           .select('total_collected, total_cases, contact_rate')
           .lte('summary_date', queryDate)
-          .in('officer_id', 
-            supabaseCollection
-              .from('collection_officers')
-              .select('officer_id')
-              .eq('team_id', team.team_id)
-          );
+          .in('officer_id', officerIds);
 
         const totalCollected = teamData?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
         const totalCases = teamData?.reduce((sum, d) => sum + (d.total_cases || 0), 0) || 0;
@@ -937,7 +941,7 @@ export class CollectionService {
             .from('officer_performance_summary')
             .select(`
               *,
-              collection_officers (
+              collection_officers!officer_id (
                 officer_name,
                 officer_type,
                 team_id
@@ -1008,7 +1012,7 @@ export class CollectionService {
             .from('collection_teams')
             .select(`
               *,
-              collection_officers (
+              collection_officers!fk_officer_team (
                 officer_id,
                 officer_name
               )
@@ -1086,7 +1090,7 @@ export class CollectionService {
         .from('officer_performance_summary')
         .select(`
           *,
-          collection_officers (
+          collection_officers!officer_id (
             officer_name,
             officer_type,
             team_id
@@ -1137,7 +1141,7 @@ export class CollectionService {
         .from('collection_teams')
         .select(`
           *,
-          collection_officers (
+          collection_officers!fk_officer_team (
             officer_id,
             officer_name
           )
@@ -1357,9 +1361,9 @@ export class CollectionService {
 
       // Process and enrich loan data
       const enrichedLoans = cases?.map(caseItem => {
-        const loan = caseItem.loan_accounts;
-        const customer = caseItem.customers;
-        const schedules = loan?.loan_schedules || [];
+        const loan = caseItem['kastle_banking.loan_accounts'];
+        const customer = caseItem['kastle_banking.customers'];
+        const schedules = loan?.['kastle_banking.loan_schedules'] || [];
         
         // Calculate payment details
         const totalLoanAmount = loan?.loan_amount || 0;
@@ -1411,7 +1415,7 @@ export class CollectionService {
           customerId: customer?.national_id || caseItem.customer_id,
           customerName: customer?.full_name || 'Unknown',
           customerType: customer?.customer_type || 'INDIVIDUAL',
-          customerPhone: customer?.customer_contacts
+          customerPhone: customer?.['kastle_banking.customer_contacts']
             ?.find(c => c.contact_type === 'MOBILE')?.contact_value || 'N/A',
           
           // Loan identification
@@ -1435,7 +1439,7 @@ export class CollectionService {
           installmentDetails,
           
           // Product and status
-          productType: loan?.products?.product_type || 'Unknown',
+          productType: loan?.['kastle_banking.products']?.product_type || 'Unknown',
           loanStatus: loan?.loan_status || 'ACTIVE',
           
           // Communication data
