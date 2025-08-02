@@ -1,7 +1,8 @@
 // src/components/ui/date-range-picker.jsx
 import React, { useState } from 'react';
 import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays, subMonths, subQuarters, subYears } from 'date-fns';
-import { ar, enUS } from 'date-fns/locale';
+import { ar } from 'date-fns/locale/ar';
+import { enUS } from 'date-fns/locale/en-US';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -112,51 +113,57 @@ const presetRanges = [
 export function DateRangePicker({
   value,
   onChange,
+  placeholder = 'Select date range',
   className,
+  disabled = false,
+  showPresets = true,
   align = 'start',
-  placeholder = 'اختر التاريخ',
-  presets = true,
   ...props
 }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState(null);
-  const locale = i18n.language === 'ar' ? ar : enUS;
+  const [internalValue, setInternalValue] = useState(value || {});
+  const isRTL = i18n.language === 'ar';
+  const locale = isRTL ? ar : enUS;
 
-  const handlePresetClick = (preset) => {
-    const range = preset.getValue();
-    onChange(range);
-    setSelectedPreset(preset.value);
-    setOpen(false);
+  const handleSelect = (range) => {
+    try {
+      const newValue = range || {};
+      setInternalValue(newValue);
+      if (onChange) {
+        onChange(newValue);
+      }
+      if (newValue.from && newValue.to) {
+        setOpen(false);
+      }
+    } catch (error) {
+      console.error('DateRangePicker handleSelect error:', error);
+    }
   };
 
-  const handleDateSelect = (range) => {
-    onChange(range);
-    setSelectedPreset(null);
-    if (range?.from && range?.to) {
-      setOpen(false);
+  const handlePresetClick = (preset) => {
+    try {
+      const range = preset.getValue();
+      handleSelect(range);
+    } catch (error) {
+      console.error('DateRangePicker preset error:', error);
     }
   };
 
   const formatDateRange = () => {
-    if (!value?.from) return placeholder;
-    
-    if (value.to) {
-      if (value.from.toDateString() === value.to.toDateString()) {
-        return format(value.from, 'dd/MM/yyyy', { locale });
+    try {
+      const currentValue = value || internalValue;
+      if (!currentValue?.from) {
+        return placeholder;
       }
-      return `${format(value.from, 'dd/MM/yyyy', { locale })} - ${format(value.to, 'dd/MM/yyyy', { locale })}`;
+      if (!currentValue.to) {
+        return format(currentValue.from, 'PP', { locale });
+      }
+      return `${format(currentValue.from, 'PP', { locale })} - ${format(currentValue.to, 'PP', { locale })}`;
+    } catch (error) {
+      console.error('DateRangePicker format error:', error);
+      return placeholder;
     }
-    
-    return format(value.from, 'dd/MM/yyyy', { locale });
-  };
-
-  const getSelectedPresetLabel = () => {
-    if (selectedPreset) {
-      const preset = presetRanges.find(p => p.value === selectedPreset);
-      return preset?.label;
-    }
-    return null;
   };
 
   return (
@@ -165,32 +172,32 @@ export function DateRangePicker({
         <Button
           variant="outline"
           className={cn(
-            'justify-start text-left font-normal',
+            'w-full justify-between text-left font-normal',
             !value && 'text-muted-foreground',
             className
           )}
-          {...props}
+          disabled={disabled}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          <span className="flex-1 truncate">
-            {getSelectedPresetLabel() || formatDateRange()}
+          <span className="flex items-center">
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {formatDateRange()}
           </span>
-          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+          <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align={align}>
         <div className="flex">
-          {presets && (
-            <div className="flex flex-col gap-1 p-3 border-r">
-              <div className="text-sm font-medium mb-2 text-muted-foreground">
-                الفترات المحددة مسبقاً
+          {showPresets && (
+            <div className="flex flex-col gap-2 p-3 border-r">
+              <div className="text-sm font-medium px-3">
+                {isRTL ? 'النطاقات المحددة مسبقاً' : 'Preset Ranges'}
               </div>
               {presetRanges.map((preset) => (
                 <Button
                   key={preset.value}
-                  variant={selectedPreset === preset.value ? 'secondary' : 'ghost'}
+                  variant="ghost"
                   size="sm"
-                  className="justify-start text-right"
+                  className="justify-start"
                   onClick={() => handlePresetClick(preset)}
                 >
                   {preset.label}
@@ -199,41 +206,15 @@ export function DateRangePicker({
             </div>
           )}
           <div className="p-3">
-            <div className="text-sm font-medium mb-2 text-muted-foreground">
-              اختر فترة مخصصة
-            </div>
             <Calendar
               mode="range"
-              selected={value}
-              onSelect={handleDateSelect}
+              selected={value || internalValue}
+              onSelect={handleSelect}
               numberOfMonths={2}
               locale={locale}
-              dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}
-              disabled={(date) => date > new Date()}
-              className="rounded-md"
+              dir={isRTL ? 'rtl' : 'ltr'}
+              {...props}
             />
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => {
-                  onChange({ from: null, to: null });
-                  setSelectedPreset(null);
-                  setOpen(false);
-                }}
-              >
-                مسح
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1"
-                onClick={() => setOpen(false)}
-                disabled={!value?.from}
-              >
-                تطبيق
-              </Button>
-            </div>
           </div>
         </div>
       </PopoverContent>

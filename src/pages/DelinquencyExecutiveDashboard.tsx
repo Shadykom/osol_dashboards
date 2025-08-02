@@ -15,8 +15,9 @@ import {
   TrendingUp, TrendingDown, DollarSign, Users,
   AlertCircle, Calendar, Target, Activity
 } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
-import { ar, enUS } from 'date-fns/locale';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale/ar';
+import { enUS } from 'date-fns/locale/en-US';
 import { supabaseBanking, supabaseCollection } from '@/lib/supabase';
 
 
