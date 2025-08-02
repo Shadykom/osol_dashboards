@@ -33,9 +33,14 @@ import {
   Building2, TrendingUp, Users, DollarSign, Phone, MessageSquare,
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
-  ArrowDownRight, Loader2, MapPin, BarChart3, Trophy
+  ArrowDownRight, Loader2, MapPin, BarChart3, Trophy, CalendarDays,
+  FileDown, Zap
 } from 'lucide-react';
 import { BranchReportService } from '@/services/branchReportService';
+import { useRealtimeBranchPerformance, useRealtimeCollectionMetrics } from '@/hooks/useRealtimeData';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import PrintService from '@/services/printService';
+import { PrintView } from '@/components/ui/print-view';
 
 const BranchLevelReport = () => {
   const { t, ready } = useTranslation();
@@ -48,13 +53,76 @@ const BranchLevelReport = () => {
   const [reportData, setReportData] = useState(null);
   const [showOfficerDetails, setShowOfficerDetails] = useState(false);
   const [selectedOfficer, setSelectedOfficer] = useState(null);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(true); // NEW: Toggle for real-time updates
   
   // Filters
   const [dateRange, setDateRange] = useState('current_month');
+  const [customDateRange, setCustomDateRange] = useState({ from: null, to: null }); // NEW: Custom date range
+  const [viewType, setViewType] = useState('daily'); // NEW: daily/weekly toggle
   const [productType, setProductType] = useState('all');
   const [delinquencyBucket, setDelinquencyBucket] = useState('all');
   const [customerType, setCustomerType] = useState('all');
   const [showComparison, setShowComparison] = useState(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState(new Date()); // NEW: Track refresh time
+
+  // Real-time updates
+  const { isConnected: performanceConnected, lastUpdate: performanceUpdate } = useRealtimeBranchPerformance(
+    selectedBranch,
+    (payload) => {
+      if (realtimeEnabled) {
+        console.log('Branch performance update:', payload);
+        // Refresh the report data when performance metrics update
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          loadBranchReport();
+        }
+      }
+    }
+  );
+
+  const { isConnected: metricsConnected, lastUpdate: metricsUpdate } = useRealtimeCollectionMetrics(
+    selectedBranch,
+    (payload) => {
+      if (realtimeEnabled) {
+        console.log('Collection metrics update:', payload);
+        // Update specific metrics without full reload for better performance
+        if (reportData && payload.new) {
+          updateMetricsPartially(payload);
+        }
+      }
+    }
+  );
+
+  // Partial update function for real-time metrics
+  const updateMetricsPartially = (payload) => {
+    setReportData(prevData => {
+      if (!prevData) return prevData;
+      
+      // Update specific metrics based on the change
+      const updatedData = { ...prevData };
+      
+      // If it's a new overdue case
+      if (payload.eventType === 'INSERT' && payload.new.overdue_amount > 0) {
+        updatedData.summary = {
+          ...updatedData.summary,
+          overdueLoans: (updatedData.summary.overdueLoans || 0) + 1,
+          overduePortfolio: (updatedData.summary.overduePortfolio || 0) + payload.new.overdue_amount
+        };
+      }
+      
+      // If it's an update to collection status
+      if (payload.eventType === 'UPDATE' && payload.old.overdue_amount !== payload.new.overdue_amount) {
+        const difference = payload.new.overdue_amount - payload.old.overdue_amount;
+        updatedData.summary = {
+          ...updatedData.summary,
+          overduePortfolio: (updatedData.summary.overduePortfolio || 0) + difference
+        };
+      }
+      
+      return updatedData;
+    });
+    
+    setLastRefreshTime(new Date());
+  };
 
   // Load branches on mount
   useEffect(() => {
@@ -66,7 +134,7 @@ const BranchLevelReport = () => {
     if (selectedBranch) {
       loadBranchReport();
     }
-  }, [selectedBranch, dateRange, productType, delinquencyBucket, customerType]);
+  }, [selectedBranch, dateRange, viewType, productType, delinquencyBucket, customerType]);
 
   // Load branches
   const loadBranches = async () => {
@@ -89,6 +157,8 @@ const BranchLevelReport = () => {
       setLoading(true);
       const filters = {
         dateRange,
+        customDateRange: dateRange === 'custom' ? customDateRange : null, // NEW: Include custom date range
+        viewType, // NEW: Include viewType in filters
         productType,
         delinquencyBucket,
         customerType,
@@ -98,6 +168,7 @@ const BranchLevelReport = () => {
       const result = await BranchReportService.getBranchReport(selectedBranch, filters);
       if (result.success && result.data) {
         setReportData(result.data);
+        setLastRefreshTime(new Date()); // NEW: Update refresh time
       }
     } catch (error) {
       console.error('Error loading branch report:', error);
@@ -116,18 +187,66 @@ const BranchLevelReport = () => {
   // Handle export
   const handleExport = async (format) => {
     try {
-      const result = await BranchReportService.exportBranchReport(selectedBranch, format, {
-        dateRange,
-        productType,
-        delinquencyBucket,
-        customerType
-      });
-      
-      if (result.success && result.data?.url) {
-        window.open(result.data.url, '_blank');
+      if (format === 'pdf') {
+        // Use the new print service for PDF generation
+        const reportElement = document.getElementById('branch-report-content');
+        if (reportElement) {
+          const pdf = await PrintService.generatePDF(reportElement, {
+            title: `تقرير الفرع - ${branches.find(b => b.branch_id === selectedBranch)?.branch_name || ''}`,
+            orientation: 'landscape',
+            onProgress: (progress, message) => {
+              console.log(`PDF Generation: ${progress}% - ${message}`);
+            }
+          });
+          pdf.save(`branch_report_${selectedBranch}_${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+      } else if (format === 'excel') {
+        // Prepare data for Excel export
+        const branchName = branches.find(b => b.branch_id === selectedBranch)?.branch_name || '';
+        const exportData = [];
+        
+        // Add summary data
+        if (reportData?.summary) {
+          exportData.push(['ملخص الأداء']);
+          exportData.push(['المؤشر', 'القيمة']);
+          exportData.push(['إجمالي المحفظة', formatCurrency(reportData.summary.totalPortfolio)]);
+          exportData.push(['المحفظة المتأخرة', formatCurrency(reportData.summary.overduePortfolio)]);
+          exportData.push(['معدل التعثر', `${reportData.summary.delinquencyRate}%`]);
+          exportData.push(['معدل التحصيل', `${reportData.summary.collectionRate}%`]);
+          exportData.push([]);
+        }
+        
+        // Add officer performance data
+        if (reportData?.officerPerformance?.officers) {
+          exportData.push(['أداء الأخصائيين']);
+          exportData.push(['الاسم', 'الحالات', 'المبلغ المستحق', 'معدل التحصيل', 'معدل الاتصال']);
+          reportData.officerPerformance.officers.forEach(officer => {
+            exportData.push([
+              officer.officerName,
+              officer.totalCases,
+              formatCurrency(officer.totalOutstanding),
+              `${officer.performance}%`,
+              `${officer.contactRate}%`
+            ]);
+          });
+        }
+        
+        await PrintService.exportToExcel(exportData, {
+          filename: `branch_report_${branchName.replace(/\s+/g, '_')}`,
+          sheetName: 'تقرير الفرع',
+          title: `تقرير أداء الفرع - ${branchName}`,
+          metadata: {
+            'التاريخ': new Date().toLocaleDateString('ar-SA'),
+            'الفترة': dateRange,
+            'نوع المنتج': productType === 'all' ? 'جميع المنتجات' : productType
+          },
+          rtl: true,
+          columnWidths: { 0: 30, 1: 20, 2: 25, 3: 15, 4: 15 }
+        });
       }
     } catch (error) {
       console.error('Export error:', error);
+      alert('حدث خطأ أثناء التصدير');
     }
   };
 
@@ -212,6 +331,28 @@ const BranchLevelReport = () => {
               تحديث
             </Button>
             
+            {/* Real-time status indicator */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-md">
+              <div className={`w-2 h-2 rounded-full ${
+                performanceConnected && metricsConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+              }`} />
+              <span className="text-sm text-gray-600">
+                {performanceConnected && metricsConnected ? 'مباشر' : 'غير متصل'}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRealtimeEnabled(!realtimeEnabled)}
+                className="h-6 px-2"
+              >
+                {realtimeEnabled ? (
+                  <Zap className="h-3 w-3 text-yellow-500" />
+                ) : (
+                  <Zap className="h-3 w-3 text-gray-400" />
+                )}
+              </Button>
+            </div>
+            
             <div className="flex gap-1">
               <Button variant="outline" size="icon" onClick={() => handleExport('excel')}>
                 <Download className="h-4 w-4" />
@@ -224,62 +365,92 @@ const BranchLevelReport = () => {
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-6">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="current_month">الشهر الحالي</SelectItem>
-              <SelectItem value="last_month">الشهر الماضي</SelectItem>
-              <SelectItem value="current_quarter">الربع الحالي</SelectItem>
-              <SelectItem value="current_year">السنة الحالية</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-4 mt-6">
+          {/* View Type Toggle and Refresh Info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium">عرض البيانات:</span>
+              </div>
+              <Tabs value={viewType} onValueChange={setViewType} className="w-auto">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="daily">يومي</TabsTrigger>
+                  <TabsTrigger value="weekly">أسبوعي</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Clock className="h-4 w-4" />
+              <span>آخر تحديث: {lastRefreshTime.toLocaleString('ar-SA', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}</span>
+            </div>
+          </div>
 
-          <Select value={productType} onValueChange={setProductType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع المنتجات</SelectItem>
-              <SelectItem value="Tawarruq">قرض تورق</SelectItem>
-              <SelectItem value="Cash">قرض كاش</SelectItem>
-              <SelectItem value="Auto">تمويل سيارات</SelectItem>
-              <SelectItem value="Real Estate">تمويل عقاري</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Filter Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <DateRangePicker
+              value={customDateRange}
+              onChange={(range) => {
+                setCustomDateRange(range);
+                // Update dateRange to 'custom' when user selects a custom range
+                if (range?.from && range?.to) {
+                  setDateRange('custom');
+                }
+              }}
+              placeholder="اختر الفترة الزمنية"
+              className="w-full"
+            />
 
-          <Select value={delinquencyBucket} onValueChange={setDelinquencyBucket}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع الفئات</SelectItem>
-              <SelectItem value="current">جاري</SelectItem>
-              <SelectItem value="1-30">1-30 يوم</SelectItem>
-              <SelectItem value="31-60">31-60 يوم</SelectItem>
-              <SelectItem value="61-90">61-90 يوم</SelectItem>
-              <SelectItem value="90+">أكثر من 90 يوم</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={productType} onValueChange={setProductType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع المنتجات</SelectItem>
+                <SelectItem value="Tawarruq">قرض تورق</SelectItem>
+                <SelectItem value="Cash">قرض كاش</SelectItem>
+                <SelectItem value="Auto">تمويل سيارات</SelectItem>
+                <SelectItem value="Real Estate">تمويل عقاري</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={customerType} onValueChange={setCustomerType}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع العملاء</SelectItem>
-              <SelectItem value="INDIVIDUAL">أفراد</SelectItem>
-              <SelectItem value="CORPORATE">شركات</SelectItem>
-              <SelectItem value="SME">منشآت صغيرة</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={delinquencyBucket} onValueChange={setDelinquencyBucket}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع الفئات</SelectItem>
+                <SelectItem value="current">جاري</SelectItem>
+                <SelectItem value="1-30">1-30 يوم</SelectItem>
+                <SelectItem value="31-60">31-60 يوم</SelectItem>
+                <SelectItem value="61-90">61-90 يوم</SelectItem>
+                <SelectItem value="90+">أكثر من 90 يوم</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={customerType} onValueChange={setCustomerType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع العملاء</SelectItem>
+                <SelectItem value="INDIVIDUAL">أفراد</SelectItem>
+                <SelectItem value="CORPORATE">شركات</SelectItem>
+                <SelectItem value="SME">منشآت صغيرة</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       {reportData && (
-        <>
+        <div id="branch-report-content">
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card className="bg-white hover:shadow-lg transition-shadow">
@@ -1120,7 +1291,7 @@ const BranchLevelReport = () => {
               </Card>
             </TabsContent>
           </Tabs>
-        </>
+        </div>
       )}
 
       {/* Officer Details Dialog */}
