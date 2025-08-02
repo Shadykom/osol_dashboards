@@ -296,16 +296,32 @@ export class DashboardService {
         .select(`
           outstanding_balance,
           loan_type,
-          product_id,
-          products(product_name, product_type)
+          product_id
         `);
 
       if (error) throw error;
 
+      // Fetch product information separately if needed
+      const productIds = [...new Set(loans?.map(loan => loan.product_id).filter(Boolean))];
+      let products = {};
+      
+      if (productIds.length > 0) {
+        const { data: productData } = await supabaseBanking
+          .from(TABLES.PRODUCTS)
+          .select('product_id, product_name, product_type')
+          .in('product_id', productIds);
+        
+        products = productData?.reduce((acc, product) => {
+          acc[product.product_id] = product;
+          return acc;
+        }, {}) || {};
+      }
+
       // Group by product category
       const distribution = {};
       loans?.forEach(loan => {
-        const category = loan.products?.product_type || loan.loan_type || 'Other';
+        const product = products[loan.product_id];
+        const category = product?.product_type || loan.loan_type || 'Other';
         const balance = parseFloat(loan.outstanding_balance) || 0;
         
         if (!distribution[category]) {
@@ -347,7 +363,7 @@ export class DashboardService {
       const [loanMetrics, transactionMetrics] = await Promise.all([
         supabaseBanking
           .from(TABLES.LOAN_ACCOUNTS)
-          .select('outstanding_balance, loan_status, days_overdue'),
+          .select('outstanding_balance, loan_status, overdue_days'),
         
         supabaseBanking
           .from(TABLES.TRANSACTIONS)
@@ -361,7 +377,7 @@ export class DashboardService {
       // Calculate credit risk based on overdue loans
       if (loanMetrics.data?.length > 0) {
         const overdueLoans = loanMetrics.data.filter(loan => 
-          (loan.days_overdue || 0) > 30
+                      (loan.overdue_days || 0) > 30
         );
         creditRisk = Math.min(85, (overdueLoans.length / loanMetrics.data.length) * 100 + 10);
       }
