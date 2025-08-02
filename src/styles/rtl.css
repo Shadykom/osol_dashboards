@@ -113,3 +113,120 @@
 [dir="rtl"] .overflow-scroll > * {
   direction: rtl;
 }
+
+/* Executive Dashboard RTL styles */
+[dir="rtl"] .executive-dashboard {
+  direction: rtl;
+}
+
+/* KPI Cards - flip gradient and icon positions */
+[dir="rtl"] .kpi-card-gradient {
+  right: auto;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+/* Flip arrow icons for trends */
+[dir="rtl"] svg.lucide-arrow-up-right,
+[dir="rtl"] svg.lucide-arrow-down-right {
+  transform: scaleX(-1);
+}
+
+/* Adjust dropdown menu alignments */
+[dir="rtl"] [data-radix-dropdown-menu-content] {
+  text-align: right;
+}
+
+/* Tabs alignment for RTL */
+[dir="rtl"] .tabs-list {
+  direction: rtl;
+}
+
+/* Card headers with icons */
+[dir="rtl"] .card-header .flex-row {
+  flex-direction: row-reverse;
+}
+
+/* Progress bars should remain LTR */
+[dir="rtl"] .progress {
+  direction: ltr;
+}
+
+/* Chart containers should remain LTR for proper rendering */
+[dir="rtl"] .recharts-responsive-container {
+  direction: ltr;
+}
+
+/* Tooltips text alignment */
+[dir="rtl"] .recharts-tooltip-wrapper {
+  text-align: right;
+}
+
+/* Badge positioning in RTL */
+[dir="rtl"] .badge:not(:last-child) {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Button groups in header */
+[dir="rtl"] .button-group {
+  flex-direction: row-reverse;
+}
+
+/* Icon spacing adjustments */
+[dir="rtl"] .lucide {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+[dir="rtl"] .mr-1 {
+  margin-right: 0;
+  margin-left: 0.25rem;
+}
+
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+[dir="rtl"] .ml-1 {
+  margin-left: 0;
+  margin-right: 0.25rem;
+}
+
+[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+/* Space utilities for RTL */
+[dir="rtl"] .space-x-1 > * + * {
+  margin-right: 0.25rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-3 > * + * {
+  margin-right: 0.75rem;
+  margin-left: 0;
+}
+
+/* Comparison controls RTL */
+[dir="rtl"] .comparison-controls {
+  direction: rtl;
+}
+
+/* Risk score cards */
+[dir="rtl"] .risk-score-trend {
+  text-align: left;
+}
+
+/* Mobile specific RTL adjustments */
+@media (max-width: 640px) {
+  [dir="rtl"] .mobile-header-actions {
+    flex-direction: row-reverse;
+  }
+  
+  [dir="rtl"] .mobile-filter-row {
+    flex-direction: column;
+  }
+}
