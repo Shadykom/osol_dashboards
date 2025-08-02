@@ -28,7 +28,8 @@ import {
   Moon,
   Sun,
   Zap,
-  User
+  User,
+  Package
 } from 'lucide-react';
 
 const ModernSidebar = () => {
@@ -112,6 +113,18 @@ const ModernSidebar = () => {
           label: t('sidebar.collectionCases'),
           path: '/collection/cases',
           icon: FileText
+        },
+        {
+          id: 'branch-report',
+          label: t('sidebar.branchLevelReport'),
+          path: '/collection/branch-report',
+          icon: Building2
+        },
+        {
+          id: 'product-report',
+          label: t('sidebar.productLevelReport'),
+          path: '/collection/product-report',
+          icon: Package
         }
       ]
     },
