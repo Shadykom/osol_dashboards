@@ -287,11 +287,11 @@ function AppContent() {
           <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
           <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
           <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
-          <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
-          <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
-          <Route path="/collection/branch-report" element={<BranchReportPage />} />
-          <Route path="/collection/product-report" element={<ProductReportPage />} />
-          {/* Legacy URL Redirects (backwards compatibility) */}
+                      <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
+            <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
+            <Route path="/collection/branch-report" element={<BranchReportPage />} />
+            <Route path="/collection/product-report" element={<ProductReportPage />} />
+            {/* Legacy URL Redirects (backwards compatibility) */}
           <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
           <Route path="/collection-overview" element={<Navigate to="/collection/overview" replace />} />
           <Route path="/collection-cases" element={<Navigate to="/collection/cases" replace />} />
