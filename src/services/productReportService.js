@@ -114,7 +114,7 @@ export class ProductReportService {
             customer_type,
             risk_category,
             onboarding_branch,
-            branches!kastle_banking_customers_onboarding_branch_fkey (
+            branches!onboarding_branch (
               branch_id,
               branch_name,
               city,
