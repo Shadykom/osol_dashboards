@@ -4,13 +4,11 @@
 @import './styles/sidebar.css';
 @import './styles/print.css';
 @import './styles/mobile-reports.css';
+@import './styles/rtl.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import RTL-specific styles */
-@import './styles/rtl.css';
 
 @layer base {
   :root {
