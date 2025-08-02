@@ -1326,34 +1326,7 @@ class ComprehensiveReportService {
     }
   }
 
-  /**
-   * Get Customer Report Data
-   */
-  async getCustomerReportData(reportType, dateRange, filters = {}) {
-    try {
-      // Format dates to ensure PostgreSQL compatibility
-      const formattedDateRange = formatDateRangeForDB(dateRange);
-      const { startDate, endDate } = formattedDateRange;
-      
-      switch (reportType) {
-        case 'customer_analytics':
-          return await customerReportService.getCustomerAnalytics(startDate, endDate, filters);
-        case 'segmentation':
-          return await customerReportService.getSegmentationAnalysis(endDate, filters);
-        case 'behavior_analysis':
-          return await customerReportService.getBehaviorAnalysis(startDate, endDate, filters);
-        case 'satisfaction':
-          return await customerReportService.getSatisfactionReport(startDate, endDate, filters);
-        case 'retention':
-          return await customerReportService.getRetentionAnalysis(startDate, endDate, filters);
-        default:
-          throw new Error(`Unknown customer report type: ${reportType}`);
-      }
-    } catch (error) {
-      console.error('Error fetching customer report:', error);
-      throw error;
-    }
-  }
+
 
   /**
    * Get Risk Report Data
