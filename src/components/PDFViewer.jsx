@@ -4,6 +4,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Printer, X, Maximize2, Minimize2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+// Set worker for react-pdf
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 const PDFViewer = ({ 
   isOpen, 
@@ -19,8 +25,9 @@ const PDFViewer = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [showThumbnails, setShowThumbnails] = useState(false);
+  const [pageWidth, setPageWidth] = useState(800);
   const containerRef = useRef(null);
-  const iframeRef = useRef(null);
+  const documentRef = useRef(null);
 
   useEffect(() => {
     if (pdfDoc && pdfDoc.output) {
@@ -47,6 +54,20 @@ const PDFViewer = ({
       }
     }
   }, [pdfDoc]);
+
+  useEffect(() => {
+    // Update page width based on container size
+    const updatePageWidth = () => {
+      if (documentRef.current) {
+        const containerWidth = documentRef.current.offsetWidth;
+        setPageWidth(Math.min(containerWidth - 40, 800));
+      }
+    };
+
+    updatePageWidth();
+    window.addEventListener('resize', updatePageWidth);
+    return () => window.removeEventListener('resize', updatePageWidth);
+  }, []);
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(prev + 0.25, 3));
@@ -114,6 +135,10 @@ const PDFViewer = ({
     if (pdfDoc) {
       onDownload();
     }
+  };
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setTotalPages(numPages);
   };
 
   // Generate page thumbnails for quick navigation
@@ -279,30 +304,40 @@ const PDFViewer = ({
         </DialogHeader>
 
         {/* PDF Content */}
-        <div className="flex-1 overflow-auto bg-gray-100 p-4">
+        <div className="flex-1 overflow-auto bg-gray-100 p-4" ref={documentRef}>
           <div 
-            className="mx-auto bg-white shadow-lg"
+            className="mx-auto"
             style={{
-              transform: `scale(${scale})`,
-              transformOrigin: 'top center',
-              transition: 'transform 0.2s ease-in-out',
               width: 'fit-content'
             }}
           >
             {pdfUrl ? (
-              <iframe
-                ref={iframeRef}
-                src={`${pdfUrl}#page=${currentPage}`}
-                className="w-[800px] h-[1100px]"
-                style={{
-                  border: 'none',
-                  display: 'block'
-                }}
-                title="PDF Preview"
-              />
+              <Document
+                file={pdfUrl}
+                onLoadSuccess={onDocumentLoadSuccess}
+                loading={
+                  <div className="flex items-center justify-center h-[600px]">
+                    <p>Loading PDF...</p>
+                  </div>
+                }
+                error={
+                  <div className="flex items-center justify-center h-[600px] text-red-500">
+                    <p>Error loading PDF. Please try again.</p>
+                  </div>
+                }
+              >
+                <Page
+                  pageNumber={currentPage}
+                  scale={scale}
+                  width={pageWidth}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                  className="shadow-lg"
+                />
+              </Document>
             ) : (
-              <div className="w-[800px] h-[1100px] flex items-center justify-center text-muted-foreground">
-                <p>Loading PDF...</p>
+              <div className="w-[800px] h-[1100px] flex items-center justify-center text-muted-foreground bg-white shadow-lg">
+                <p>No PDF document available</p>
               </div>
             )}
           </div>

@@ -275,118 +275,124 @@ export function ReportsResponsive() {
         throw new Error(`Unknown report category for report: ${selectedReport}`);
       }
 
-      switch (category) {
-        case 'financial':
-          data = await comprehensiveReportService.getFinancialReportData(
-            selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
-            filters
-          );
-          break;
-        case 'regulatory':
-          data = await comprehensiveReportService.getFinancialReportData(
-            selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
-            filters
-          );
-          break;
-        case 'customer':
-          data = await comprehensiveReportService.getCustomerReportData(
-            selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
-            filters
-          );
-          break;
-        case 'risk':
-          data = await comprehensiveReportService.getRiskReportData(
-            selectedReport,
-            { startDate: dateRange.from.toISOString(), endDate: dateRange.to.toISOString() },
-            filters
-          );
-          break;
-        default:
-          throw new Error(`Unknown report category: ${category}`);
+      // Show loading toast
+      const loadingToast = toast.loading(t('reports.fetchingReportData'));
+
+      try {
+        switch (category) {
+          case 'financial':
+            data = await comprehensiveReportService.getFinancialReportData(
+              selectedReport, 
+              dateRange?.from, 
+              dateRange?.to,
+              {
+                filters: filters,
+                includeComparisons: true,
+                includeTrends: true
+              }
+            );
+            break;
+          case 'regulatory':
+            data = await comprehensiveReportService.getRegulatoryReportData(
+              selectedReport,
+              dateRange?.from,
+              dateRange?.to,
+              { filters: filters }
+            );
+            break;
+          case 'customer':
+            data = await comprehensiveReportService.getCustomerReportData(
+              selectedReport,
+              dateRange?.from,
+              dateRange?.to,
+              { filters: filters }
+            );
+            break;
+          case 'risk':
+            data = await comprehensiveReportService.getRiskReportData(
+              selectedReport,
+              dateRange?.from,
+              dateRange?.to,
+              { filters: filters }
+            );
+            break;
+          default:
+            throw new Error(`Unsupported report category: ${category}`);
+        }
+      } catch (dataError) {
+        console.error('Error fetching report data:', dataError);
+        toast.dismiss(loadingToast);
+        toast.error(t('reports.failedToFetchData') + ': ' + dataError.message);
+        setIsGenerating(false);
+        return;
       }
 
-      setReportData(data);
+      toast.dismiss(loadingToast);
+      toast.loading(t('reports.generatingReport'));
 
-      // Generate PDF and Excel with enhanced branding for Income Statement
+      // Generate PDF and Excel
       let pdf, excel;
-      // Prepare report metadata with filters
-      const reportMetadata = {
-        dateRange: {
-          from: dateRange.from.toISOString(),
-          to: dateRange.to.toISOString()
-        },
-        filters: filters,
-        generatedAt: new Date().toISOString()
-      };
+      
+      try {
+        // Generate PDF based on report type
+        if (selectedReport === 'income_statement') {
+          pdf = await reportGenerator.generateIncomeStatementPDF(data, t(reportInfo.name), {
+            dateRange,
+            filters: filters
+          });
+        } else if (category === 'financial') {
+          pdf = reportGenerator.generateGenericPDF(data, t(reportInfo.name), {
+            dateRange,
+            filters: filters,
+            reportType: selectedReport
+          });
+        } else if (category === 'regulatory') {
+          pdf = reportGenerator.generateRegulatoryReportPDF(data, selectedReport, t(reportInfo.name), {
+            dateRange,
+            filters: filters
+          });
+        } else if (category === 'customer') {
+          pdf = reportGenerator.generateCustomerReportPDF(data, selectedReport, t(reportInfo.name), {
+            dateRange,
+            filters: filters
+          });
+        } else if (category === 'risk') {
+          pdf = reportGenerator.generateRiskReportPDF(data, selectedReport, t(reportInfo.name), {
+            dateRange,
+            filters: filters
+          });
+        }
 
-      if (selectedReport === 'income_statement') {
-        pdf = reportGenerator.generateIncomeStatementPDF(data, t(reportInfo.name), reportMetadata);
-        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name), reportMetadata);
-      } else {
-        pdf = await reportGenerator.generatePDF(data, selectedReport, t(reportInfo.name), reportMetadata);
-        excel = await reportGenerator.generateExcel(data, selectedReport, t(reportInfo.name), reportMetadata);
+        // Generate Excel
+        excel = reportGenerator.generateExcel(data, t(reportInfo.name));
+      } catch (genError) {
+        console.error('Error generating report:', genError);
+        toast.error(t('reports.failedToGenerateReport') + ': ' + genError.message);
+        setIsGenerating(false);
+        return;
       }
 
+      // Store generated report
       setGeneratedReport({
         pdf,
         excel,
+        data,
         reportInfo,
-        data
+        generatedAt: new Date()
       });
-
-      // Automatically switch to preview tab
-      setActiveTab('preview');
 
       // Add to history
       const newHistoryItem = {
-        id: reportHistory.length + 1,
-        reportName: `${t(reportInfo.name)} - ${format(new Date(), 'MMMM yyyy')}`,
-        reportType: selectedReport,
-        generatedAt: format(new Date(), 'yyyy-MM-dd HH:mm'),
+        id: Date.now(),
+        reportName: t(reportInfo.name),
+        generatedAt: new Date().toLocaleString(),
         generatedBy: 'Current User',
-        size: '2.1 MB',
+        size: '2.4 MB',
         status: 'completed'
       };
-      setReportHistory([newHistoryItem, ...reportHistory]);
+      setReportHistory(prev => [newHistoryItem, ...prev]);
 
-      // Show success toast with action buttons
-      toast.success(
-        <div className="flex items-center justify-between w-full">
-          <span>{t('reports.reportGeneratedSuccessfully')}</span>
-          <div className="flex gap-2 ml-4">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs"
-              onClick={() => {
-                setPreviewDialogOpen(true);
-                toast.dismiss();
-              }}
-            >
-              <Eye className="mr-1 h-3 w-3" />
-              {t('reports.preview')}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 text-xs"
-              onClick={() => {
-                handlePrint();
-                toast.dismiss();
-              }}
-            >
-              <Printer className="mr-1 h-3 w-3" />
-              {t('reports.print')}
-            </Button>
-          </div>
-        </div>,
-        {
-          duration: 10000,
-        }
-      );
+      toast.success(t('reports.reportGeneratedSuccessfully'));
     } catch (error) {
       console.error('Error generating report:', error);
       toast.error(t('reports.failedToGenerateReport') + ': ' + error.message);
@@ -397,15 +403,31 @@ export function ReportsResponsive() {
 
   // Download report
   const handleDownload = (format) => {
-    if (!generatedReport) return;
-
-    if (format === 'pdf') {
-      reportGenerator.savePDF(generatedReport.pdf, t(generatedReport.reportInfo.name));
-    } else if (format === 'excel') {
-      reportGenerator.saveExcel(generatedReport.excel, t(generatedReport.reportInfo.name));
+    if (!generatedReport) {
+      toast.error(t('reports.pleaseGenerateReportFirst'));
+      return;
     }
-    
-    toast.success(`${format.toUpperCase()} ${t('reports.downloadedSuccessfully')}`);
+
+    try {
+      if (format === 'pdf') {
+        if (!generatedReport.pdf) {
+          throw new Error('PDF not available');
+        }
+        reportGenerator.savePDF(generatedReport.pdf, t(generatedReport.reportInfo.name));
+      } else if (format === 'excel') {
+        if (!generatedReport.excel) {
+          throw new Error('Excel file not available');
+        }
+        reportGenerator.saveExcel(generatedReport.excel, t(generatedReport.reportInfo.name));
+      } else {
+        throw new Error('Invalid format requested');
+      }
+      
+      toast.success(`${format.toUpperCase()} ${t('reports.downloadedSuccessfully')}`);
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      toast.error(t('reports.failedToDownload') + ': ' + error.message);
+    }
   };
 
   // Print report
