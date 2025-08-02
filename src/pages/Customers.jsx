@@ -910,9 +910,9 @@ const Customers = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-xl sm:text-2xl font-bold">{formatNumber(customerData.interactions.summary.total)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatNumber(customerData.interactions?.summary?.total || 0)}</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {isRTL ? `آخر تواصل: ${customerData.interactions.summary.last_contact ? format(parseISO(customerData.interactions.summary.last_contact), 'dd MMM yyyy') : 'N/A'}` : `Last contact: ${customerData.interactions.summary.last_contact ? format(parseISO(customerData.interactions.summary.last_contact), 'dd MMM yyyy') : 'N/A'}`}
+                          {isRTL ? `آخر تواصل: ${customerData.interactions?.summary?.last_contact ? format(parseISO(customerData.interactions.summary.last_contact), 'dd MMM yyyy') : 'N/A'}` : `Last contact: ${customerData.interactions?.summary?.last_contact ? format(parseISO(customerData.interactions.summary.last_contact), 'dd MMM yyyy') : 'N/A'}`}
                         </p>
                       </CardContent>
                     </Card>
@@ -924,10 +924,10 @@ const Customers = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-xl sm:text-2xl font-bold text-blue-600">{formatNumber(customerData.interactions.summary.calls)}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-blue-600">{formatNumber(customerData.interactions?.summary?.calls || 0)}</p>
                         <div className="flex gap-2 mt-2">
                           <PhoneCall className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
-                          <Progress value={(customerData.interactions.summary.calls / customerData.interactions.summary.total) * 100} className="flex-1" />
+                          <Progress value={(customerData.interactions?.summary?.calls || 0) / (customerData.interactions?.summary?.total || 1) * 100} className="flex-1" />
                         </div>
                       </CardContent>
                     </Card>
@@ -940,11 +940,11 @@ const Customers = () => {
                       </CardHeader>
                       <CardContent>
                         <p className="text-xl sm:text-2xl font-bold text-green-600">
-                          {formatNumber(customerData.interactions.summary.emails + customerData.interactions.summary.sms)}
+                          {formatNumber((customerData.interactions?.summary?.emails || 0) + (customerData.interactions?.summary?.sms || 0))}
                         </p>
                         <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                          <span><Mail className="h-3 w-3 inline" /> {customerData.interactions.summary.emails}</span>
-                          <span><MessageSquare className="h-3 w-3 inline" /> {customerData.interactions.summary.sms}</span>
+                          <span><Mail className="h-3 w-3 inline" /> {customerData.interactions?.summary?.emails || 0}</span>
+                          <span><MessageSquare className="h-3 w-3 inline" /> {customerData.interactions?.summary?.sms || 0}</span>
                         </div>
                       </CardContent>
                     </Card>
@@ -956,7 +956,7 @@ const Customers = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-xl sm:text-2xl font-bold text-purple-600">{formatNumber(customerData.interactions.summary.digital_logins)}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-purple-600">{formatNumber(customerData.interactions?.summary?.digital_logins || 0)}</p>
                         <p className="text-xs text-gray-500 mt-1">
                           <Globe className="h-3 w-3 inline mr-1" />
                           {isRTL ? 'مستخدم نشط رقمياً' : 'Active digital user'}
@@ -971,11 +971,11 @@ const Customers = () => {
                       <CardTitle className="text-base sm:text-lg">{isRTL ? 'تطور التفاعلات' : 'Interaction Timeline'}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {customerData.interactions.timeline && customerData.interactions.timeline.length > 0 && 
-                       customerData.interactions.summary.total > 0 ? (
+                      {customerData.interactions?.timeline && customerData.interactions?.timeline?.length > 0 && 
+                       customerData.interactions?.summary?.total > 0 ? (
                         <div className="h-60 sm:h-80">
                           <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={customerData.interactions.timeline}>
+                            <AreaChart data={customerData.interactions?.timeline || []}>
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="month" />
                               <YAxis />
@@ -1009,7 +1009,7 @@ const Customers = () => {
                     <CardContent>
                       <ScrollArea className="h-72 sm:h-96">
                         <div className="space-y-4">
-                          {customerData.interactions.recent.map((interaction) => (
+                          {(customerData.interactions?.recent || []).map((interaction) => (
                             <div key={interaction.id} className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
                               <div className={cn(
                                 "h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center flex-shrink-0",
@@ -1132,7 +1132,7 @@ const Customers = () => {
                     <CardContent>
                       <div className="h-60 sm:h-80">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={customerData.payment_behavior.monthly_trend}>
+                                                      <BarChart data={customerData.payment_behavior?.monthly_trend || []}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="month" />
                             <YAxis yAxisId="left" />
@@ -1191,7 +1191,7 @@ const Customers = () => {
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie
-                                data={customerData.transaction_patterns.top_categories}
+                                data={customerData.transaction_patterns?.top_categories || []}
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
@@ -1200,7 +1200,7 @@ const Customers = () => {
                                 fill="#8884d8"
                                 dataKey="percentage"
                               >
-                                {customerData.transaction_patterns.top_categories.map((entry, index) => (
+                                {(customerData.transaction_patterns?.top_categories || []).map((entry, index) => (
                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                               </Pie>
@@ -1209,7 +1209,7 @@ const Customers = () => {
                           </ResponsiveContainer>
                         </div>
                         <div className="space-y-3">
-                          {customerData.transaction_patterns.top_categories.map((category, index) => (
+                          {(customerData.transaction_patterns?.top_categories || []).map((category, index) => (
                             <div key={category.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div className="flex items-center gap-3">
                                 <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
@@ -1234,7 +1234,7 @@ const Customers = () => {
                     <CardContent>
                       <div className="h-60 sm:h-80">
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={customerData.transaction_patterns.monthly_spending}>
+                                                      <LineChart data={customerData.transaction_patterns?.monthly_spending || []}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="month" />
                             <YAxis yAxisId="left" />
@@ -1277,7 +1277,7 @@ const Customers = () => {
                           <div>
                             <h4 className="text-sm font-medium text-gray-600 mb-2">{isRTL ? 'الاهتمامات' : 'Interests'}</h4>
                             <div className="flex flex-wrap gap-2">
-                              {customerData.engagement_metrics.preferences.product_interests.map((interest) => (
+                              {(customerData.engagement_metrics?.preferences?.product_interests || []).map((interest) => (
                                 <Badge key={interest} variant="secondary" className="text-xs">{interest}</Badge>
                               ))}
                             </div>
@@ -1383,7 +1383,7 @@ const Customers = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {customerData.risk_profile.factors.map((factor) => (
+                        {(customerData.risk_profile?.factors || []).map((factor) => (
                           <div key={factor.factor}>
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-xs sm:text-sm font-medium">{factor.factor}</span>
