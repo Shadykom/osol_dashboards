@@ -22,7 +22,7 @@ class SpecialistReportService {
           contact_number,
           email,
           status,
-          collection_teams!team_id (
+          collection_teams!collection_officers_team_id_fkey (
             team_name,
             team_type
           )
@@ -118,7 +118,7 @@ class SpecialistReportService {
   async getSpecialistById(specialistId) {
     try {
       const { data, error } = await supabaseCollection
-        .from(COLLECTION_TABLES.COLLECTION_OFFICERS)
+        .from(TABLES.COLLECTION_OFFICERS)
         .select(`
           officer_id,
           officer_name,
@@ -499,7 +499,7 @@ class SpecialistReportService {
       
       // First try with all columns
       let query = supabaseCollection
-        .from(COLLECTION_TABLES.PROMISE_TO_PAY)
+        .from(TABLES.PROMISE_TO_PAY)
         .select(`
           ptp_id,
           case_id,
@@ -521,7 +521,7 @@ class SpecialistReportService {
         if (error.code === '42703' && (error.message.includes('actual_payment_date') || error.message.includes('actual_payment_amount'))) {
           console.warn('Some columns not found in promise_to_pay, retrying with basic columns');
           const { data: retryData, error: retryError } = await supabaseCollection
-            .from(COLLECTION_TABLES.PROMISE_TO_PAY)
+            .from(TABLES.PROMISE_TO_PAY)
             .select(`
               ptp_id,
               case_id,

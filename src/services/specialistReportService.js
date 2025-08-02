@@ -22,7 +22,7 @@ class SpecialistReportService {
           contact_number,
           email,
           status,
-          collection_teams!team_id (
+          collection_teams!collection_officers_team_id_fkey (
             team_name,
             team_type
           )

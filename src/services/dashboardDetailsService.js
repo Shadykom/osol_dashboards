@@ -601,7 +601,7 @@ export const revenueDetailsService = {
       // By branch
       const { data: branchAccounts } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
-        .select('account_id, customers!inner(branch_id, branches!inner(branch_name))');
+        .select('account_id, customers!inner(onboarding_branch, branches!customers_onboarding_branch_fkey(branch_name))');
 
       // This would need transaction data linked to accounts for accurate branch revenue
       // For now, we'll use a simplified approach

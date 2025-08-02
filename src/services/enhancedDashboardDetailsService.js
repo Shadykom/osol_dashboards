@@ -1155,7 +1155,7 @@ export const enhancedDashboardDetailsService = {
               kyc_status, 
               risk_category,
               onboarding_branch,
-              branches!onboarding_branch(branch_name, branch_code)
+              branches!customers_onboarding_branch_fkey(branch_name, branch_code)
             `);
           
           // Apply date filter only if explicitly requested
