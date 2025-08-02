@@ -290,14 +290,30 @@ export class DashboardService {
    */
   static async getPortfolioDistribution(filters = {}) {
     try {
-      // Query loan accounts by type or product
-      const { data: loans, error } = await supabaseBanking
+      // Try query loan accounts with loan_types join first
+      let { data: loans, error } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
         .select(`
           outstanding_balance,
-          loan_type,
-          product_id
+          loan_type_id,
+          product_id,
+          loan_types(type_name)
         `);
+
+      // If loan_types join fails, fallback to query without join
+      if (error && error.message.includes('loan_types')) {
+        console.log('Loan types table not available, querying without join...');
+        const fallbackResult = await supabaseBanking
+          .from(TABLES.LOAN_ACCOUNTS)
+          .select(`
+            outstanding_balance,
+            loan_type_id,
+            product_id
+          `);
+        
+        loans = fallbackResult.data;
+        error = fallbackResult.error;
+      }
 
       if (error) throw error;
 
@@ -321,7 +337,8 @@ export class DashboardService {
       const distribution = {};
       loans?.forEach(loan => {
         const product = products[loan.product_id];
-        const category = product?.product_type || loan.loan_type || 'Other';
+        const loanTypeName = loan.loan_types?.type_name || `Type ${loan.loan_type_id || 'Unknown'}`;
+        const category = product?.product_type || loanTypeName;
         const balance = parseFloat(loan.outstanding_balance) || 0;
         
         if (!distribution[category]) {
