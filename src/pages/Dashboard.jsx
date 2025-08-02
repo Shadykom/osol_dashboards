@@ -2502,24 +2502,7 @@ export default function EnhancedDashboard() {
           </AlertDescription>
         </Alert>
       )}
-      
-      {/* No Data Alert */}
-      {databaseStatus && databaseStatus.isConnected && !databaseStatus.hasData && (
-        <Alert className="mb-4">
-          <Info className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>No data found in database. Click to seed sample data.</span>
-            <Button
-              size="sm"
-              onClick={() => setShowDataSeeder(true)}
-              className="ml-4"
-            >
-              <Database className="h-4 w-4 mr-2" />
-              Seed Data
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+
 
       {/* Header Section */}
       <div className="space-y-4">
@@ -2535,7 +2518,7 @@ export default function EnhancedDashboard() {
             {selectedTemplate && !isMobile && (
               <Badge variant="outline" className="hidden sm:inline-flex">
                 <Layers className="w-3 h-3 mr-1" />
-                {DASHBOARD_TEMPLATES[selectedTemplate].nameEn}
+                {t(`dashboard.templates.${selectedTemplate}`, DASHBOARD_TEMPLATES[selectedTemplate].nameEn)}
               </Badge>
             )}
           </div>
@@ -2776,7 +2759,7 @@ export default function EnhancedDashboard() {
                   isMobile ? "h-3 w-3" : "h-4 w-4"
                 )} />
                 <span className={isMobile && key !== selectedSection ? "hidden" : ""}>
-                  {section.nameEn || key}
+                  {t(`dashboard.sections.${key}`, section.nameEn || key)}
                 </span>
               </Button>
             ))}
@@ -2792,10 +2775,10 @@ export default function EnhancedDashboard() {
               <div className={cn("p-2 rounded-lg", DASHBOARD_SECTIONS[selectedSection].color)}>
                 {React.createElement(DASHBOARD_SECTIONS[selectedSection].icon, { className: "h-5 w-5 text-white" })}
               </div>
-              {DASHBOARD_SECTIONS[selectedSection]?.nameEn || selectedSection}
+              {t(`dashboard.sections.${selectedSection}`, DASHBOARD_SECTIONS[selectedSection]?.nameEn || selectedSection)}
             </h2>
                           <p className="text-muted-foreground text-sm mt-1">
-                {DASHBOARD_SECTIONS[selectedSection]?.descriptionEn || ''}
+                {t(`dashboard.sectionDescriptions.${selectedSection}`, DASHBOARD_SECTIONS[selectedSection]?.descriptionEn || '')}
             </p>
           </div>
           
@@ -2848,7 +2831,7 @@ export default function EnhancedDashboard() {
               Add Widget
             </DialogTitle>
             <DialogDescription>
-              Choose a widget to add to {DASHBOARD_SECTIONS[selectedSection]?.nameEn || selectedSection} section
+              Choose a widget to add to {t(`dashboard.sections.${selectedSection}`, DASHBOARD_SECTIONS[selectedSection]?.nameEn || selectedSection)} section
             </DialogDescription>
           </DialogHeader>
           
@@ -2864,7 +2847,7 @@ export default function EnhancedDashboard() {
                     <div className="flex items-start gap-3">
                       <widget.icon className="h-5 w-5 text-primary mt-0.5" />
                       <div>
-                        <h4 className="font-medium">{widget.nameEn}</h4>
+                        <h4 className="font-medium">{t(`dashboard.widgets.${widgetKey}`, widget.nameEn)}</h4>
                         <p className="text-sm text-muted-foreground">
                           {widget.type === 'kpi' ? 'Performance Indicator' : 'Chart'}
                         </p>
@@ -2925,7 +2908,7 @@ export default function EnhancedDashboard() {
                     <div className="flex flex-wrap gap-2">
                       {template.sections.map((section) => (
                         <Badge key={section} variant="outline">
-                          {DASHBOARD_SECTIONS[section]?.nameEn || section}
+                          {t(`dashboard.sections.${section}`, DASHBOARD_SECTIONS[section]?.nameEn || section)}
                         </Badge>
                       ))}
                     </div>

@@ -261,7 +261,10 @@
       "dashboardTemplates": "Dashboard Templates",
       "chooseTemplate": "Choose a pre-built template to get started quickly",
       "active": "Active",
-      "widgets": "widgets"
+      "widgets": "widgets",
+      "executive": "Executive Dashboard",
+      "operations": "Operations Dashboard",
+      "risk": "Risk Dashboard"
     },
     "noWidgets": {
       "title": "No widgets in this section",
