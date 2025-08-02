@@ -1461,5 +1461,163 @@
   },
   "currency": {
     "sar": "ريال سعودي (SAR)"
+  },
+  "executiveCollection": {
+    "title": "لوحة التحصيل التنفيذية",
+    "subtitle": "نظرة عامة رفيعة المستوى للإدارة التنفيذية",
+    "selectBranch": "اختر الفرع",
+    "allBranches": "جميع الفروع",
+    "fromLastPeriod": "من الفترة السابقة",
+    "branches": {
+      "riyadhMain": "الرياض الرئيسي",
+      "jeddahCentral": "جدة المركزي",
+      "dammam": "الدمام",
+      "khobar": "الخبر",
+      "makkah": "مكة",
+      "madinah": "المدينة"
+    },
+    "periods": {
+      "daily": "يومي",
+      "weekly": "أسبوعي",
+      "monthly": "شهري",
+      "quarterly": "ربع سنوي"
+    },
+    "metrics": {
+      "totalOutstanding": "إجمالي المستحقات",
+      "collectionAchievement": "إنجاز التحصيل",
+      "npfRate": "معدل التمويل غير المنتظم",
+      "recoveryRate": "معدل الاسترداد"
+    },
+    "tabs": {
+      "overview": "نظرة عامة",
+      "performance": "الأداء",
+      "risk": "تحليل المخاطر",
+      "strategic": "الاستراتيجية",
+      "compliance": "الامتثال"
+    },
+    "priority": {
+      "critical": "حرج",
+      "high": "عالي",
+      "medium": "متوسط",
+      "low": "منخفض"
+    },
+    "charts": {
+      "npfTrend": {
+        "title": "اتجاه معدل التمويل غير المنتظم",
+        "description": "معدل التمويل غير المنتظم عبر الزمن"
+      },
+      "npfAmount": "مبلغ التمويل غير المنتظم",
+      "npfRatePercent": "معدل التمويل غير المنتظم (%)"
+    },
+    "portfolioHealth": {
+      "title": "درجة صحة المحفظة",
+      "description": "تقييم صحة محفظة التحصيل الشاملة",
+      "overallScore": "النتيجة الإجمالية",
+      "components": {
+        "CollectionEfficiency": "كفاءة التحصيل",
+        "RiskManagement": "إدارة المخاطر",
+        "CustomerContact": "الاتصال بالعملاء",
+        "DigitalAdoption": "التحول الرقمي",
+        "Compliance": "الامتثال"
+      }
+    },
+    "topDefaulters": {
+      "title": "أكبر 10 متعثرين",
+      "description": "أكبر المبالغ المستحقة التي تتطلب اهتمامًا فوريًا",
+      "customer": "العميل",
+      "outstanding": "المستحق",
+      "dpd": "أيام التأخر",
+      "priority": "الأولوية",
+      "action": "الإجراء"
+    },
+    "bucketDistribution": {
+      "title": "توزيع المحفظة حسب الفئة",
+      "description": "المبالغ المستحقة حسب فئات التأخر"
+    },
+    "branchPerformance": {
+      "title": "أداء التحصيل حسب الفرع",
+      "description": "إنجاز التحصيل حسب الفرع"
+    },
+    "performance": {
+      "contactCenter": {
+        "title": "مركز الاتصال",
+        "callsMade": "المكالمات المنجزة",
+        "contactRate": "معدل الاتصال",
+        "promiseRate": "معدل الوعود",
+        "avgCallTime": "متوسط وقت المكالمة"
+      },
+      "fieldCollection": {
+        "title": "التحصيل الميداني",
+        "visitsCompleted": "الزيارات المكتملة",
+        "successRate": "معدل النجاح",
+        "amountCollected": "المبلغ المحصل",
+        "costPerVisit": "تكلفة الزيارة"
+      },
+      "digitalCollection": {
+        "title": "التحصيل الرقمي",
+        "smsSent": "الرسائل المرسلة",
+        "emailCampaigns": "حملات البريد الإلكتروني",
+        "digitalPayments": "المدفوعات الرقمية",
+        "selfServiceRate": "معدل الخدمة الذاتية"
+      }
+    },
+    "riskIndicators": {
+      "title": "مؤشرات المخاطر الرئيسية",
+      "description": "المقاييس الحرجة التي تتطلب اهتمام الإدارة",
+      "threshold": "الحد",
+      "indicators": {
+        "FirstPaymentDefaultRate": "معدل التعثر في الدفعة الأولى",
+        "RollRate(30-60)": "معدل التحول (30-60)",
+        "CustomerContactRate": "معدل الاتصال بالعملاء",
+        "PTPKeepRate": "معدل الالتزام بالوعود",
+        "LegalSuccessRate": "معدل النجاح القانوني"
+      }
+    },
+    "strategicInitiatives": {
+      "title": "تقدم المبادرات الاستراتيجية",
+      "description": "برامج تحسين التحصيل الرئيسية",
+      "impact": "التأثير",
+      "complete": "مكتمل",
+      "status": {
+        "on_track": "على المسار الصحيح",
+        "at_risk": "في خطر",
+        "completed": "مكتمل"
+      },
+      "impactLevel": {
+        "high": "عالي",
+        "medium": "متوسط",
+        "low": "منخفض"
+      },
+      "initiatives": {
+        "DigitalCollectionEnhancement": "تحسين التحصيل الرقمي",
+        "AI-PoweredRiskScoring": "تقييم المخاطر بالذكاء الاصطناعي",
+        "FieldForceOptimization": "تحسين القوة الميدانية",
+        "CustomerSegmentation": "تقسيم العملاء"
+      },
+      "targets": {
+        "DigitalCollectionEnhancement": "زيادة التحصيل الرقمي بنسبة 40%",
+        "AI-PoweredRiskScoring": "تقليل معدل التعثر بنسبة 15%",
+        "FieldForceOptimization": "تحسين كفاءة التحصيل الميداني بنسبة 30%",
+        "CustomerSegmentation": "استراتيجيات تحصيل مخصصة"
+      }
+    },
+    "compliance": {
+      "sama": {
+        "title": "الامتثال لمؤسسة النقد",
+        "npfReporting": "تقارير التمويل غير المنتظم",
+        "provisionCoverage": "تغطية المخصصات",
+        "collectionPractices": "ممارسات التحصيل",
+        "customerProtection": "حماية العملاء",
+        "compliant": "متوافق",
+        "violation": "مخالفة"
+      },
+      "sharia": {
+        "title": "الامتثال الشرعي",
+        "latePaymentCharges": "رسوم التأخر في السداد",
+        "charityDistribution": "توزيع الأعمال الخيرية",
+        "complianceRate": "معدل الامتثال",
+        "completed": "مكتمل"
+      }
+    }
   }
 }
