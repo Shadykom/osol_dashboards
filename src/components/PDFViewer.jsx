@@ -8,17 +8,16 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Set worker for react-pdf with better error handling
+// Configure PDF.js worker with the correct approach for the current version
 const setupPdfWorker = () => {
-  const workerUrl = '/pdf-worker/pdf.worker.min.js';
-  
   try {
-    // Always use local worker file to avoid CloudFlare Access issues
-    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    // Use the local worker file that matches our pdfjs-dist version
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf-worker/pdf.worker.min.js';
     console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
+    console.log('PDF.js version:', pdfjs.version);
   } catch (error) {
     console.error('Failed to configure PDF.js worker:', error);
-    // Try to use a fallback worker from unpkg (more reliable than CloudFlare)
+    // Fallback to CDN worker with matching version
     pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
     console.log('PDF.js worker fallback configured:', pdfjs.GlobalWorkerOptions.workerSrc);
   }
