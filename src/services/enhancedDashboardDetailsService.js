@@ -71,10 +71,16 @@ export const enhancedDashboardDetailsService = {
           }
         }
 
-        // Get breakdown data based on widget type
-        breakdownData = await this.getGenericBreakdown(section, widgetId, filters);
-        trendsData = await this.getTrendsData(section, widgetId, filters);
-        rawData = await this.getRawData(section, widgetId, filters);
+        // Get breakdown data based on widget type and section
+        if (section === 'customers') {
+          breakdownData = await this.getCustomersBreakdown(widgetId, filters);
+          trendsData = await this.getCustomersTrendsData(filters);
+          rawData = await this.getCustomersRawData(filters);
+        } else {
+          breakdownData = await this.getGenericBreakdown(section, widgetId, filters);
+          trendsData = await this.getTrendsData(section, widgetId, filters);
+          rawData = await this.getRawData(section, widgetId, filters);
+        }
       } else {
         // Fallback for specific widgets
         switch (widgetKey) {
@@ -816,9 +822,18 @@ export const enhancedDashboardDetailsService = {
       
       switch (widgetId) {
         case 'total_customers':
+          // Query customers with branch information
           let customersQuery = supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('customer_type, customer_segment, customer_type_id, kyc_status, risk_category');
+            .select(`
+              customer_type, 
+              customer_segment, 
+              customer_type_id, 
+              kyc_status, 
+              risk_category,
+              onboarding_branch,
+              branches!onboarding_branch(branch_name, branch_code)
+            `);
           
           // Apply date filter only if explicitly requested
           if (shouldApplyDateFilter && filters?.dateRange && filters.dateRange !== 'all_time') {
@@ -835,32 +850,60 @@ export const enhancedDashboardDetailsService = {
             return {};
           }
           
-          const breakdowns = {
+          const rawBreakdowns = {
             byType: {},
             bySegment: {},
             byKYC: {},
-            byRisk: {}
+            byRisk: {},
+            byBranch: {}
           };
           
           customers?.forEach(cust => {
             // Customer Type breakdown
             const type = cust.customer_type || cust.customer_segment || 'Standard';
-            breakdowns.byType[type] = (breakdowns.byType[type] || 0) + 1;
+            rawBreakdowns.byType[type] = (rawBreakdowns.byType[type] || 0) + 1;
             
             // Customer Segment breakdown
             const segment = cust.customer_segment || cust.customer_type || 'Standard';
-            breakdowns.bySegment[segment] = (breakdowns.bySegment[segment] || 0) + 1;
+            rawBreakdowns.bySegment[segment] = (rawBreakdowns.bySegment[segment] || 0) + 1;
             
             // KYC Status breakdown
             const kycStatus = cust.kyc_status || 'Pending';
-            breakdowns.byKYC[kycStatus] = (breakdowns.byKYC[kycStatus] || 0) + 1;
+            rawBreakdowns.byKYC[kycStatus] = (rawBreakdowns.byKYC[kycStatus] || 0) + 1;
             
             // Risk Category breakdown
             const riskCategory = cust.risk_category || 'Medium';
-            breakdowns.byRisk[riskCategory] = (breakdowns.byRisk[riskCategory] || 0) + 1;
+            rawBreakdowns.byRisk[riskCategory] = (rawBreakdowns.byRisk[riskCategory] || 0) + 1;
+
+            // Branch breakdown
+            const branchName = cust.branches?.branch_name || 'Unknown Branch';
+            rawBreakdowns.byBranch[branchName] = (rawBreakdowns.byBranch[branchName] || 0) + 1;
           });
           
-          return breakdowns;
+          // Convert to format expected by UI (matching BreakdownCard component)
+          const convertToChartData = (breakdown, colors = ['#E6B800', '#4A5568', '#22c55e', '#3b82f6', '#ef4444', '#f97316']) => {
+            return Object.entries(breakdown)
+              .sort(([,a], [,b]) => b - a) // Sort by count descending
+              .map(([name, value], index) => ({
+                name,
+                value,
+                fill: colors[index % colors.length]
+              }));
+          };
+
+          // Format as expected by UI template
+          return {
+            byCategory: convertToChartData(rawBreakdowns.bySegment), // Use segment as main category
+            byType: convertToChartData(rawBreakdowns.byType),
+            bySegment: convertToChartData(rawBreakdowns.bySegment),
+            byKYC: convertToChartData(rawBreakdowns.byKYC),
+            byRisk: convertToChartData(rawBreakdowns.byRisk),
+            byBranch: Object.entries(rawBreakdowns.byBranch)
+              .sort(([,a], [,b]) => b - a)
+              .slice(0, 10) // Top 10 branches
+              .map(([name, value]) => ({ name, value })),
+            byStatus: convertToChartData(rawBreakdowns.byKYC) // Use KYC status as main status
+          };
           
         default:
           return {};
