@@ -337,7 +337,7 @@ export function ReportsResponsive() {
             filters: filters
           });
         } else if (category === 'financial') {
-          pdf = reportGenerator.generateGenericPDF(data, t(reportInfo.name), {
+          pdf = await reportGenerator.generateGenericPDF(data, t(reportInfo.name), {
             dateRange,
             filters: filters,
             reportType: selectedReport
