@@ -4,6 +4,7 @@ import financialReportService from './reports/financialReportService';
 import regulatoryReportService from './reports/regulatoryReportService';
 import customerReportService from './reports/customerReportService';
 import riskReportService from './reports/riskReportService';
+import { formatDateForDB, formatDateRangeForDB } from '@/utils/dateHelpers';
 
 class ComprehensiveReportService {
   /**
@@ -11,7 +12,9 @@ class ComprehensiveReportService {
    */
   async getFinancialReportData(reportType, dateRange, filters = {}) {
     try {
-      const { startDate, endDate } = dateRange;
+      // Format dates to ensure PostgreSQL compatibility
+      const formattedDateRange = formatDateRangeForDB(dateRange);
+      const { startDate, endDate } = formattedDateRange;
       
       // Transform filters to match expected format
       const transformedFilters = {
@@ -46,6 +49,10 @@ class ComprehensiveReportService {
    */
   async getIncomeStatement(startDate, endDate) {
     try {
+      // Format dates to ensure PostgreSQL compatibility
+      const formattedStartDate = formatDateForDB(startDate);
+      const formattedEndDate = formatDateForDB(endDate);
+      
       // Get transaction data for revenue - actual transaction fees
       const { data: transactionData, error: transactionError } = await supabaseBanking
         .from(TABLES.TRANSACTIONS)
@@ -55,8 +62,8 @@ class ComprehensiveReportService {
           transaction_date,
           transaction_types!inner(type_name)
         `)
-        .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate);
+        .gte('transaction_date', formattedStartDate)
+        .lte('transaction_date', formattedEndDate);
 
       if (transactionError) throw transactionError;
 
@@ -78,7 +85,7 @@ class ComprehensiveReportService {
           disbursement_date
         `)
         .eq('loan_status', 'ACTIVE')
-        .lte('disbursement_date', endDate);
+        .lte('disbursement_date', formattedEndDate);
 
       if (loanError) throw loanError;
 
@@ -482,9 +489,11 @@ class ComprehensiveReportService {
   /**
    * Get Customer Report Data
    */
-  async getCustomerReportData(reportType, dateRange) {
+  async getCustomerReportData(reportType, dateRange, filters = {}) {
     try {
-      const { startDate, endDate } = dateRange;
+      // Format dates to ensure PostgreSQL compatibility
+      const formattedDateRange = formatDateRangeForDB(dateRange);
+      const { startDate, endDate } = formattedDateRange;
       
       switch (reportType) {
         case 'customer_acquisition':
@@ -655,21 +664,23 @@ class ComprehensiveReportService {
   /**
    * Get Risk Report Data
    */
-  async getRiskReportData(reportType, dateRange) {
+  async getRiskReportData(reportType, dateRange, filters = {}) {
     try {
-      const { startDate, endDate } = dateRange;
+      // Format dates to ensure PostgreSQL compatibility
+      const formattedDateRange = formatDateRangeForDB(dateRange);
+      const { startDate, endDate } = formattedDateRange;
       
       switch (reportType) {
         case 'credit_risk':
-          return await this.getCreditRiskReport();
+          return await riskReportService.getCreditRiskReport(endDate, filters);
         case 'operational_risk':
-          return await this.getOperationalRiskReport();
+          return await riskReportService.getOperationalRiskReport(startDate, endDate, filters);
         case 'market_risk':
-          return await this.getMarketRiskReport();
-        case 'liquidity_risk':
-          return await this.getLiquidityRiskReport();
-        case 'npl_analysis':
-          return await this.getNPLAnalysisReport();
+          return await riskReportService.getMarketRiskReport(endDate, filters);
+        case 'compliance_risk':
+          return await riskReportService.getComplianceRiskReport(startDate, endDate, filters);
+        case 'risk_dashboard':
+          return await riskReportService.getRiskDashboard(endDate, filters);
         default:
           throw new Error(`Unknown risk report type: ${reportType}`);
       }
@@ -1289,24 +1300,25 @@ class ComprehensiveReportService {
   /**
    * Get Regulatory Report Data
    */
-  async getRegulatoryReportData(reportType, dateRange) {
+  async getRegulatorReportData(reportType, dateRange, filters = {}) {
     try {
-      const { startDate, endDate } = dateRange;
+      // Format dates to ensure PostgreSQL compatibility
+      const formattedDateRange = formatDateRangeForDB(dateRange);
+      const { startDate, endDate } = formattedDateRange;
       
       switch (reportType) {
-        case 'sama_monthly':
-          return await regulatoryReportService.getSAMAMonthlyReport(startDate, endDate);
         case 'basel_iii':
-          return await regulatoryReportService.getBaselIIICompliance(endDate);
+          return await regulatoryReportService.getBaselIIIReport(endDate, filters);
+        case 'cbuae_monthly':
+          return await regulatoryReportService.getCBUAEMonthlyReport(startDate, endDate, filters);
         case 'aml_report':
-          return await regulatoryReportService.getAMLReport(startDate, endDate);
+          return await regulatoryReportService.getAMLReport(startDate, endDate, filters);
         case 'liquidity_coverage':
-          return await regulatoryReportService.getLiquidityCoverageRatio(endDate);
-        case 'capital_adequacy':
-          return await regulatoryReportService.getCapitalAdequacyReport(endDate);
+          return await regulatoryReportService.getLiquidityCoverageReport(endDate, filters);
+        case 'stress_testing':
+          return await regulatoryReportService.getStressTestingReport(endDate, filters);
         default:
-          // Fallback to financial report for now
-          return await this.getFinancialReportData('income_statement', dateRange);
+          throw new Error(`Unknown regulatory report type: ${reportType}`);
       }
     } catch (error) {
       console.error('Error fetching regulatory report:', error);
@@ -1314,26 +1326,55 @@ class ComprehensiveReportService {
     }
   }
 
-
+  /**
+   * Get Customer Report Data
+   */
+  async getCustomerReportData(reportType, dateRange, filters = {}) {
+    try {
+      // Format dates to ensure PostgreSQL compatibility
+      const formattedDateRange = formatDateRangeForDB(dateRange);
+      const { startDate, endDate } = formattedDateRange;
+      
+      switch (reportType) {
+        case 'customer_analytics':
+          return await customerReportService.getCustomerAnalytics(startDate, endDate, filters);
+        case 'segmentation':
+          return await customerReportService.getSegmentationAnalysis(endDate, filters);
+        case 'behavior_analysis':
+          return await customerReportService.getBehaviorAnalysis(startDate, endDate, filters);
+        case 'satisfaction':
+          return await customerReportService.getSatisfactionReport(startDate, endDate, filters);
+        case 'retention':
+          return await customerReportService.getRetentionAnalysis(startDate, endDate, filters);
+        default:
+          throw new Error(`Unknown customer report type: ${reportType}`);
+      }
+    } catch (error) {
+      console.error('Error fetching customer report:', error);
+      throw error;
+    }
+  }
 
   /**
    * Get Risk Report Data
    */
-  async getRiskReportData(reportType, dateRange) {
+  async getRiskReportData(reportType, dateRange, filters = {}) {
     try {
-      const { startDate, endDate } = dateRange;
+      // Format dates to ensure PostgreSQL compatibility
+      const formattedDateRange = formatDateRangeForDB(dateRange);
+      const { startDate, endDate } = formattedDateRange;
       
       switch (reportType) {
         case 'credit_risk':
-          return await riskReportService.getCreditRiskReport(startDate, endDate);
-        case 'market_risk':
-          return await riskReportService.getMarketRiskReport(endDate);
+          return await riskReportService.getCreditRiskReport(endDate, filters);
         case 'operational_risk':
-          return await riskReportService.getOperationalRiskReport(startDate, endDate);
-        case 'npl_analysis':
-          return await riskReportService.getNPLAnalysis(startDate, endDate);
-        case 'liquidity_risk':
-          return await riskReportService.getLiquidityRiskReport(endDate);
+          return await riskReportService.getOperationalRiskReport(startDate, endDate, filters);
+        case 'market_risk':
+          return await riskReportService.getMarketRiskReport(endDate, filters);
+        case 'compliance_risk':
+          return await riskReportService.getComplianceRiskReport(startDate, endDate, filters);
+        case 'risk_dashboard':
+          return await riskReportService.getRiskDashboard(endDate, filters);
         default:
           throw new Error(`Unknown risk report type: ${reportType}`);
       }
