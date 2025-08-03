@@ -472,6 +472,9 @@ export function ExecutiveDashboard() {
 
   // Export functionality
   const handleExport = async (format = 'excel') => {
+    console.log('handleExport called with format:', format);
+    console.log('dashboardData:', dashboardData);
+    
     if (!dashboardData) {
       toast.error('No data available to export');
       return;
@@ -479,9 +482,12 @@ export function ExecutiveDashboard() {
 
     try {
       setIsExporting(true);
+      console.log('Calling DashboardButtonService.exportDashboard...');
       const result = await DashboardButtonService.exportDashboard(dashboardData, format, {
         elementId: 'executive-dashboard-container'
       });
+      
+      console.log('Export result:', result);
       
       if (result.success) {
         toast.success(result.message);
@@ -518,6 +524,9 @@ export function ExecutiveDashboard() {
 
   // Generate detailed report
   const handleGenerateReport = async (format = 'pdf') => {
+    console.log('handleGenerateReport called with format:', format);
+    console.log('dashboardData:', dashboardData);
+    
     if (!dashboardData) {
       toast.error('No data available for report generation');
       return;
@@ -525,7 +534,10 @@ export function ExecutiveDashboard() {
 
     try {
       setIsExporting(true);
+      console.log('Calling DashboardButtonService.generateDetailedReport...');
       const result = await DashboardButtonService.generateDetailedReport(dashboardData, { format });
+      
+      console.log('Report generation result:', result);
       
       if (result.success) {
         toast.success(result.message);
@@ -778,10 +790,15 @@ export function ExecutiveDashboard() {
               <span className="text-xs sm:text-sm font-medium">{t('executiveDashboard.quickFilters')}:</span>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
+            {/* Date Range and Branch Filter */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-start sm:items-center">
+              <DatePickerWithRange
+                date={dateRange}
+                onDateChange={handleDateChange}
+                className="w-full sm:w-auto"
+              />
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <Building2 className="h-4 w-4 mr-2" />
                   <SelectValue placeholder={t('executiveDashboard.selectBranch')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -792,11 +809,23 @@ export function ExecutiveDashboard() {
                 </SelectContent>
               </Select>
               
-              <DatePickerWithRange
-                date={dateRange}
-                onDateChange={setDateRange}
-                className="w-full sm:w-[300px]"
-              />
+              {/* Test buttons for debugging */}
+              <Button 
+                onClick={() => handleExport('excel')} 
+                variant="outline" 
+                size="sm"
+                className="test-export-btn"
+              >
+                Test Export Excel
+              </Button>
+              <Button 
+                onClick={() => handleGenerateReport('pdf')} 
+                variant="outline" 
+                size="sm"
+                className="test-report-btn"
+              >
+                Test Generate PDF
+              </Button>
             </div>
             
             <div className="flex items-center gap-2 flex-wrap">
@@ -916,10 +945,16 @@ export function ExecutiveDashboard() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleExport('excel')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Export Data clicked');
+                            handleExport('excel');
+                          }}>
                             {t('executiveDashboard.exportData')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleGenerateReport('pdf')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Generate Report clicked');
+                            handleGenerateReport('pdf');
+                          }}>
                             {t('executiveDashboard.generateReport')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -998,10 +1033,16 @@ export function ExecutiveDashboard() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleExport('excel')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Export Data clicked (second menu)');
+                            handleExport('excel');
+                          }}>
                             {t('executiveDashboard.exportData')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleGenerateReport('pdf')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Generate Report clicked (second menu)');
+                            handleGenerateReport('pdf');
+                          }}>
                             {t('executiveDashboard.generateReport')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
