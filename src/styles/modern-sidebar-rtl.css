@@ -1,0 +1,129 @@
+/* Modern Sidebar RTL Fixes */
+
+/* When RTL, the sidebar should be on the right side */
+[dir="rtl"] aside.fixed {
+  left: auto !important;
+  right: 0 !important;
+}
+
+/* Fix the transform for RTL when sidebar is closed on mobile */
+[dir="rtl"] aside.fixed.translate-x-full {
+  transform: translateX(100%) !important;
+}
+
+[dir="rtl"] aside.fixed.-translate-x-full {
+  transform: translateX(-100%) !important;
+}
+
+/* Ensure proper border positioning in RTL */
+[dir="rtl"] .border-e {
+  border-right-width: 0;
+  border-left-width: 1px;
+}
+
+[dir="rtl"] .border-l {
+  border-left-width: 1px;
+}
+
+[dir="rtl"] .border-r {
+  border-right-width: 0;
+}
+
+/* Fix main content area margin in RTL */
+[dir="rtl"] .lg\:ml-20 {
+  margin-left: 0;
+  margin-right: 5rem;
+}
+
+[dir="rtl"] .lg\:ml-64 {
+  margin-left: 0;
+  margin-right: 16rem;
+}
+
+/* Fix overlay positioning for RTL */
+[dir="rtl"] .fixed.inset-0 {
+  right: 0;
+  left: 0;
+}
+
+/* Ensure flex-row-reverse works properly in the main layout */
+[dir="rtl"] .flex {
+  direction: rtl;
+}
+
+[dir="rtl"] .flex-row-reverse {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix sidebar positioning on desktop */
+@media (min-width: 1024px) {
+  [dir="rtl"] aside.lg\:relative {
+    position: relative !important;
+    right: auto !important;
+    left: auto !important;
+    transform: none !important;
+  }
+}
+
+/* Fix chevron rotation in RTL */
+[dir="rtl"] .rotate-180 {
+  transform: rotate(-180deg);
+}
+
+/* Ensure text alignment in sidebar items */
+[dir="rtl"] .text-start {
+  text-align: right !important;
+}
+
+/* Fix padding and margins for RTL */
+[dir="rtl"] .pl-4 {
+  padding-left: 0;
+  padding-right: 1rem;
+}
+
+[dir="rtl"] .pr-4 {
+  padding-right: 0;
+  padding-left: 1rem;
+}
+
+[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+/* Fix sidebar width transitions */
+[dir="rtl"] aside {
+  transition-property: width, transform;
+}
+
+/* Ensure sidebar stays on the right in RTL mode on larger screens */
+@media (min-width: 1024px) {
+  [dir="rtl"] .flex-row-reverse > aside:first-child {
+    order: 2;
+  }
+  
+  [dir="rtl"] .flex-row-reverse > div:last-child {
+    order: 1;
+  }
+}
+
+/* Fix mobile sidebar slide direction */
+[dir="rtl"] aside.w-0:not(.lg\:w-20) {
+  transform: translateX(100%);
+}
+
+[dir="rtl"] aside.w-64 {
+  transform: translateX(0);
+}
+
+/* Override any conflicting transforms on desktop */
+@media (min-width: 1024px) {
+  [dir="rtl"] aside {
+    transform: none !important;
+  }
+}
