@@ -27,6 +27,8 @@ const FieldCollectionDashboard = () => {
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [mapView, setMapView] = useState('heat');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // Initialize field metrics state
   const [fieldMetrics, setFieldMetrics] = useState({
@@ -309,6 +311,56 @@ const FieldCollectionDashboard = () => {
   };
 
   const COLORS = ['#E6B800', '#F4D03F', '#F7DC6F', '#F9E79F', '#FCF3CF'];
+
+  // Add useEffect to handle loading
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        // Simulate data loading - in real app, this would be API calls
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setIsLoading(false);
+      } catch (err) {
+        setError(err.message || 'Failed to load field collection data');
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [selectedDate, selectedAgent, selectedRegion]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-gray-600">{t('common.loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Alert className="max-w-md">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+            size="sm"
+          >
+            {t('common.retry')}
+          </Button>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">

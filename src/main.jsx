@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './i18n/i18n'
 import App from './App.jsx'
+import { initializeWalletProtection } from './utils/walletConflictResolver'
+
+// Initialize wallet protection before anything else
+initializeWalletProtection();
 
 // Clear old language setting to ensure new default is applied
 // This can be removed after initial deployment
@@ -16,7 +20,9 @@ window.addEventListener('error', (event) => {
   // Ignore extension-related errors
   if (event.error?.message?.includes('extension://') || 
       event.error?.stack?.includes('extension://') ||
-      event.filename?.includes('extension://')) {
+      event.filename?.includes('extension://') ||
+      event.error?.message?.includes('ethereum') ||
+      event.error?.message?.includes('MetaMask')) {
     event.preventDefault();
     return;
   }

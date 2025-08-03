@@ -308,22 +308,30 @@ export const initializeSampleData = async () => {
       });
     }
     
-    // Insert customers with upsert to avoid duplicates
-    const { error: customerError } = await supabaseBanking
+    // Check if customers already exist
+    const { data: existingCustomers, error: checkError } = await supabaseBanking
       .from('customers')
-      .upsert(customers, { 
-        onConflict: 'customer_id',
-        ignoreDuplicates: true 
-      });
+      .select('customer_id')
+      .limit(1);
     
-    if (customerError) {
-      // Check if it's a duplicate key error
-      if (customerError.code === '23505' || customerError.code === '409') {
-        console.log('Customers already exist, continuing with other data...');
-      } else {
+    if (checkError) {
+      console.error('Error checking existing customers:', checkError);
+      return false;
+    }
+    
+    if (existingCustomers && existingCustomers.length > 0) {
+      console.log('Customers already exist, skipping customer insertion...');
+    } else {
+      // Insert customers only if they don't exist
+      const { error: customerError } = await supabaseBanking
+        .from('customers')
+        .insert(customers);
+      
+      if (customerError) {
         console.error('Error inserting customers:', customerError);
         return false;
       }
+      console.log('Customers inserted successfully');
     }
     
     // Create sample accounts
@@ -352,22 +360,30 @@ export const initializeSampleData = async () => {
       }
     });
     
-    // Insert accounts with upsert to avoid duplicates
-    const { error: accountError } = await supabaseBanking
+    // Check if accounts already exist
+    const { data: existingAccounts, error: checkAccountError } = await supabaseBanking
       .from('accounts')
-      .upsert(accounts, { 
-        onConflict: 'account_number',
-        ignoreDuplicates: true 
-      });
+      .select('account_number')
+      .limit(1);
     
-    if (accountError) {
-      // Check if it's a duplicate key error
-      if (accountError.code === '23505' || accountError.code === '409') {
-        console.log('Accounts already exist, continuing with other data...');
-      } else {
+    if (checkAccountError) {
+      console.error('Error checking existing accounts:', checkAccountError);
+      return false;
+    }
+    
+    if (existingAccounts && existingAccounts.length > 0) {
+      console.log('Accounts already exist, skipping account insertion...');
+    } else {
+      // Insert accounts only if they don't exist
+      const { error: accountError } = await supabaseBanking
+        .from('accounts')
+        .insert(accounts);
+      
+      if (accountError) {
         console.error('Error inserting accounts:', accountError);
         return false;
       }
+      console.log('Accounts inserted successfully');
     }
     
     // Create sample transactions
