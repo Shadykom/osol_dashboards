@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -368,14 +368,14 @@ function ModernRiskScoreCard({ category, score, status, trend, details }) {
 
 export function ExecutiveDashboard() {
   const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [comparisonSettings, setComparisonSettings] = useState({
-    type: 'month-to-month',
-    customRange: null,
-    metrics: ['all']
+    type: 'year-over-year',
+    period: 'current'
   });
   const [activeView, setActiveView] = useState('overview');
   const [isExporting, setIsExporting] = useState(false);
@@ -392,6 +392,36 @@ export function ExecutiveDashboard() {
     format: 'PDF'
   });
   const { shouldRefresh, refreshComplete } = useDataRefresh();
+
+  // Memoize the fallback portfolio data to avoid inline t() calls
+  const fallbackPortfolioData = useMemo(() => [
+    { name: t('executiveDashboard.personalLoans'), value: 35, growth: '+5%' },
+    { name: t('executiveDashboard.mortgages'), value: 28, growth: '+3%' },
+    { name: t('executiveDashboard.autoLoans'), value: 20, growth: '+8%' },
+    { name: t('executiveDashboard.businessLoans'), value: 12, growth: '+12%' },
+    { name: t('executiveDashboard.others'), value: 5, growth: '-2%' }
+  ], [t]);
+
+  // Memoize other data that uses translations
+  const loanPortfolioPerformanceData = useMemo(() => [
+    { period: t('executiveDashboard.personalLoans'), current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
+    { period: t('executiveDashboard.mortgages'), current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
+    { period: t('executiveDashboard.autoLoans'), current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
+    { period: t('executiveDashboard.businessLoans'), current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
+    { period: t('executiveDashboard.creditCards'), current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
+  ], [t]);
+
+  const customerGrowthMetrics = useMemo(() => [
+    t('executiveDashboard.newCustomers'), 
+    t('executiveDashboard.activeCustomers'), 
+    t('executiveDashboard.churnedCustomers')
+  ], [t]);
+
+  const loanPortfolioMetrics = useMemo(() => [
+    t('executiveDashboard.disbursedAmount'), 
+    t('executiveDashboard.outstandingBalance'), 
+    t('executiveDashboard.nplAmount')
+  ], [t]);
 
   // Fetch real dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -982,13 +1012,7 @@ export function ExecutiveDashboard() {
                     <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                       <PieChart>
                         <Pie
-                          data={dashboardData?.portfolio || [
-                            { name: t('executiveDashboard.personalLoans'), value: 35, growth: '+5%' },
-                            { name: t('executiveDashboard.mortgages'), value: 28, growth: '+3%' },
-                            { name: t('executiveDashboard.autoLoans'), value: 20, growth: '+8%' },
-                            { name: t('executiveDashboard.businessLoans'), value: 12, growth: '+12%' },
-                            { name: t('executiveDashboard.others'), value: 5, growth: '-2%' }
-                          ]}
+                          data={dashboardData?.portfolio || fallbackPortfolioData}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -1099,7 +1123,7 @@ export function ExecutiveDashboard() {
                     { period: 'Jun', current: 2100, previous: 1850, target: 2200, growth: 13.51 }
                   ]}
                   comparisonType={comparisonSettings.type}
-                  metrics={[t('executiveDashboard.newCustomers'), t('executiveDashboard.activeCustomers'), t('executiveDashboard.churnedCustomers')]}
+                  metrics={customerGrowthMetrics}
                   onExport={() => handleExport('excel')}
                 />
               </div>
@@ -1150,15 +1174,9 @@ export function ExecutiveDashboard() {
               <ComparisonChart
                 title={t('executiveDashboard.loanPortfolioPerformance')}
                 description={t('executiveDashboard.portfolioComparisonByProductType')}
-                data={[
-                  { period: t('executiveDashboard.personalLoans'), current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
-                  { period: t('executiveDashboard.mortgages'), current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
-                  { period: t('executiveDashboard.autoLoans'), current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
-                  { period: t('executiveDashboard.businessLoans'), current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
-                  { period: t('executiveDashboard.creditCards'), current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
-                ]}
+                data={loanPortfolioPerformanceData}
                 comparisonType={comparisonSettings.type}
-                metrics={[t('executiveDashboard.disbursedAmount'), t('executiveDashboard.outstandingBalance'), t('executiveDashboard.nplAmount')]}
+                metrics={loanPortfolioMetrics}
                 onExport={() => handleExport('excel')}
               />
             </TabsContent>
