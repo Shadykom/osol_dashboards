@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const DailyCollectionDashboard = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLive, setIsLive] = useState(true);
   const [selectedQueue, setSelectedQueue] = useState('all');
@@ -65,26 +65,26 @@ const DailyCollectionDashboard = () => {
     avgCallDuration: '3:25',
     
     recentPayments: [
-      { time: '10:45:23', customer: 'Ahmed Al-Rashid', amount: 25000, method: 'Online' },
-      { time: '10:44:15', customer: 'Fatima Enterprises', amount: 150000, method: 'Bank Transfer' },
-      { time: '10:43:58', customer: 'Gulf Trading Co.', amount: 75000, method: 'Field Collection' },
-      { time: '10:42:30', customer: 'Noor Holdings', amount: 45000, method: 'IVR Payment' },
-      { time: '10:41:12', customer: 'Desert Palm LLC', amount: 90000, method: 'Mobile App' }
+      { time: '10:45:23', customer: 'Ahmed Al-Rashid', amount: 25000, method: t('dailyCollectionDashboard.analytics.paymentMethods.online') },
+      { time: '10:44:15', customer: 'Fatima Enterprises', amount: 150000, method: t('dailyCollectionDashboard.analytics.paymentMethods.bankTransfer') },
+      { time: '10:43:58', customer: 'Gulf Trading Co.', amount: 75000, method: t('dailyCollectionDashboard.analytics.paymentMethods.fieldCollection') },
+      { time: '10:42:30', customer: 'Noor Holdings', amount: 45000, method: t('dailyCollectionDashboard.analytics.paymentMethods.ivr') },
+      { time: '10:41:12', customer: 'Desert Palm LLC', amount: 90000, method: t('dailyCollectionDashboard.analytics.paymentMethods.mobileApp') }
     ],
     
     criticalAlerts: [
-      { type: 'HIGH_VALUE', message: 'Large payment due: SAR 2.5M - Al-Jazeera Corp', time: '10:30' },
-      { type: 'LEGAL', message: 'Court hearing today: Case #2024-1234', time: '14:00' },
-      { type: 'SYSTEM', message: 'IVR system response slow - IT investigating', time: '09:45' }
+      { type: 'HIGH_VALUE', message: `${t('dailyCollectionDashboard.criticalAlerts.highValue')}: ${t('common.currency')} 2.5M - Al-Jazeera Corp`, time: '10:30' },
+      { type: 'LEGAL', message: `${t('dailyCollectionDashboard.criticalAlerts.legal')}: Case #2024-1234`, time: '14:00' },
+      { type: 'SYSTEM', message: `${t('dailyCollectionDashboard.criticalAlerts.system')}: IVR system response slow - IT investigating`, time: '09:45' }
     ]
   };
 
   const collectorActivity = [
-    { name: 'Mohammed Ali', status: 'ON_CALL', duration: '5:23', customer: 'Tech Solutions Ltd', team: 'Team A' },
-    { name: 'Sara Ahmed', status: 'AFTER_CALL', duration: '0:45', customer: 'Green Valley Trading', team: 'Team B' },
-    { name: 'Abdullah Hassan', status: 'BREAK', duration: '12:30', customer: '-', team: 'Team A' },
-    { name: 'Fatima Noor', status: 'ON_CALL', duration: '2:15', customer: 'Pearl Investments', team: 'Team C' },
-    { name: 'Khalid Omar', status: 'AVAILABLE', duration: '-', customer: '-', team: 'Team B' }
+    { name: 'Mohammed Ali', status: 'ON_CALL', duration: '5:23', customer: 'Tech Solutions Ltd', team: `${t('dailyCollectionDashboard.collectors.team')} A` },
+    { name: 'Sara Ahmed', status: 'AFTER_CALL', duration: '0:45', customer: 'Green Valley Trading', team: `${t('dailyCollectionDashboard.collectors.team')} B` },
+    { name: 'Abdullah Hassan', status: 'BREAK', duration: '12:30', customer: '-', team: `${t('dailyCollectionDashboard.collectors.team')} A` },
+    { name: 'Fatima Noor', status: 'ON_CALL', duration: '2:15', customer: 'Pearl Investments', team: `${t('dailyCollectionDashboard.collectors.team')} C` },
+    { name: 'Khalid Omar', status: 'AVAILABLE', duration: '-', customer: '-', team: `${t('dailyCollectionDashboard.collectors.team')} B` }
   ];
 
   const hourlyCollectionTrend = [
@@ -111,11 +111,11 @@ const DailyCollectionDashboard = () => {
   ];
 
   const channelPerformance = [
-    { channel: 'Phone Calls', attempts: 1245, successful: 845, amount: 2150000 },
-    { channel: 'SMS', attempts: 5670, successful: 234, amount: 450000 },
-    { channel: 'Email', attempts: 2340, successful: 156, amount: 320000 },
-    { channel: 'WhatsApp', attempts: 890, successful: 345, amount: 180000 },
-    { channel: 'Field Visit', attempts: 145, successful: 98, amount: 890000 }
+    { channel: t('dailyCollectionDashboard.performance.channels.phoneCalls'), attempts: 1245, successful: 845, amount: 2150000 },
+    { channel: t('dailyCollectionDashboard.performance.channels.sms'), attempts: 5670, successful: 234, amount: 450000 },
+    { channel: t('dailyCollectionDashboard.performance.channels.email'), attempts: 2340, successful: 156, amount: 320000 },
+    { channel: t('dailyCollectionDashboard.performance.channels.whatsapp'), attempts: 890, successful: 345, amount: 180000 },
+    { channel: t('dailyCollectionDashboard.performance.channels.fieldVisit'), attempts: 145, successful: 98, amount: 890000 }
   ];
 
   const slaCompliance = {
@@ -126,7 +126,7 @@ const DailyCollectionDashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -135,7 +135,7 @@ const DailyCollectionDashboard = () => {
   };
 
   const formatTime = (date) => {
-    return date.toLocaleTimeString('en-US', { 
+    return date.toLocaleTimeString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', { 
       hour: '2-digit', 
       minute: '2-digit', 
       second: '2-digit',
@@ -152,6 +152,17 @@ const DailyCollectionDashboard = () => {
       'OFFLINE': 'bg-gray-500'
     };
     return colors[status] || 'bg-gray-500';
+  };
+
+  const getStatusText = (status) => {
+    const statusMap = {
+      'ON_CALL': t('dailyCollectionDashboard.collectors.statuses.onCall'),
+      'AFTER_CALL': t('dailyCollectionDashboard.collectors.statuses.afterCall'),
+      'BREAK': t('dailyCollectionDashboard.collectors.statuses.break'),
+      'AVAILABLE': t('dailyCollectionDashboard.collectors.statuses.available'),
+      'OFFLINE': t('dailyCollectionDashboard.collectors.statuses.offline')
+    };
+    return statusMap[status] || status;
   };
 
   const getAlertIcon = (type) => {
@@ -174,13 +185,13 @@ const DailyCollectionDashboard = () => {
       {/* Header with Live Status */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Daily Collection Dashboard</h1>
-          <p className="text-gray-600 mt-1">Real-time monitoring of collection activities</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('dailyCollectionDashboard.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('dailyCollectionDashboard.subtitle')}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${isLive ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
-            <span className="text-sm font-medium">{isLive ? 'LIVE' : 'PAUSED'}</span>
+            <span className="text-sm font-medium">{isLive ? t('dailyCollectionDashboard.live') : t('dailyCollectionDashboard.paused')}</span>
           </div>
           <div className="text-lg font-medium">
             {formatTime(currentTime)}
@@ -190,7 +201,7 @@ const DailyCollectionDashboard = () => {
             size="sm"
             onClick={() => setIsLive(!isLive)}
           >
-            {isLive ? 'Pause' : 'Resume'}
+            {isLive ? t('dailyCollectionDashboard.pause') : t('dailyCollectionDashboard.resume')}
           </Button>
           <Button variant="outline" size="sm">
             <RefreshCw className="h-4 w-4" />
@@ -202,7 +213,7 @@ const DailyCollectionDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Due Today</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.totalDueToday')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(morningSnapshot.totalDueToday)}</div>
@@ -211,7 +222,7 @@ const DailyCollectionDashboard = () => {
 
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">PTP Due Today</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.ptpDueToday')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(morningSnapshot.ptpDueToday)}</div>
@@ -220,7 +231,7 @@ const DailyCollectionDashboard = () => {
 
         <Card className="border-l-4 border-l-yellow-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Field Visits</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.fieldVisits')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{morningSnapshot.fieldVisitsScheduled}</div>
@@ -229,7 +240,7 @@ const DailyCollectionDashboard = () => {
 
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Legal Updates</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.legalUpdates')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{morningSnapshot.legalCasesUpdates}</div>
@@ -238,7 +249,7 @@ const DailyCollectionDashboard = () => {
 
         <Card className="border-l-4 border-l-gray-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Yesterday's Achievement</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.yesterdayAchievement')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{morningSnapshot.yesterdayAchievement}%</div>
@@ -270,11 +281,11 @@ const DailyCollectionDashboard = () => {
       {/* Main Dashboard Content */}
       <Tabs defaultValue="live" className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="live">Live Tracking</TabsTrigger>
-          <TabsTrigger value="collectors">Collectors</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="queues">Queues</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="live">{t('dailyCollectionDashboard.tabs.liveTracking')}</TabsTrigger>
+          <TabsTrigger value="collectors">{t('dailyCollectionDashboard.tabs.collectors')}</TabsTrigger>
+          <TabsTrigger value="performance">{t('dailyCollectionDashboard.tabs.performance')}</TabsTrigger>
+          <TabsTrigger value="queues">{t('dailyCollectionDashboard.tabs.queues')}</TabsTrigger>
+          <TabsTrigger value="analytics">{t('dailyCollectionDashboard.tabs.analytics')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="live" className="space-y-4">
@@ -283,9 +294,9 @@ const DailyCollectionDashboard = () => {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>Live Payment Tracking</span>
+                  <span>{t('dailyCollectionDashboard.liveTracking.livePaymentTracking')}</span>
                   <Badge variant="secondary" className="animate-pulse">
-                    {liveTracking.paymentsCount} payments today
+                    {liveTracking.paymentsCount} {t('dailyCollectionDashboard.liveTracking.paymentsToday')}
                   </Badge>
                 </CardTitle>
               </CardHeader>
@@ -294,7 +305,7 @@ const DailyCollectionDashboard = () => {
                   <div className="text-3xl font-bold text-green-600">
                     {formatCurrency(liveTracking.realTimePayments)}
                   </div>
-                  <p className="text-sm text-gray-600">Collected so far today</p>
+                  <p className="text-sm text-gray-600">{t('dailyCollectionDashboard.liveTracking.collectedSoFar')}</p>
                 </div>
                 
                 <ScrollArea className="h-64">
@@ -321,28 +332,28 @@ const DailyCollectionDashboard = () => {
             {/* Collector Status Overview */}
             <Card>
               <CardHeader>
-                <CardTitle>Collector Status</CardTitle>
+                <CardTitle>{t('dailyCollectionDashboard.liveTracking.collectorStatus')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <UserCheck className="h-4 w-4 text-green-500" />
-                      <span className="text-sm">Online</span>
+                      <span className="text-sm">{t('dailyCollectionDashboard.liveTracking.online')}</span>
                     </div>
                     <span className="font-bold">{liveTracking.collectorsOnline}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Timer className="h-4 w-4 text-yellow-500" />
-                      <span className="text-sm">On Break</span>
+                      <span className="text-sm">{t('dailyCollectionDashboard.liveTracking.onBreak')}</span>
                     </div>
                     <span className="font-bold">{liveTracking.collectorsOnBreak}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <UserX className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">Offline</span>
+                      <span className="text-sm">{t('dailyCollectionDashboard.liveTracking.offline')}</span>
                     </div>
                     <span className="font-bold">{liveTracking.collectorsOffline}</span>
                   </div>
@@ -352,9 +363,9 @@ const DailyCollectionDashboard = () => {
                       <PieChart>
                         <Pie
                           data={[
-                            { name: 'Online', value: liveTracking.collectorsOnline },
-                            { name: 'Break', value: liveTracking.collectorsOnBreak },
-                            { name: 'Offline', value: liveTracking.collectorsOffline }
+                            { name: t('dailyCollectionDashboard.liveTracking.online'), value: liveTracking.collectorsOnline },
+                            { name: t('dailyCollectionDashboard.liveTracking.onBreak'), value: liveTracking.collectorsOnBreak },
+                            { name: t('dailyCollectionDashboard.liveTracking.offline'), value: liveTracking.collectorsOffline }
                           ]}
                           cx="50%"
                           cy="50%"
@@ -382,12 +393,12 @@ const DailyCollectionDashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  Active Calls
+                  {t('dailyCollectionDashboard.liveTracking.activeCalls')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{liveTracking.activeCalls}</div>
-                <p className="text-xs text-gray-600">Avg: {liveTracking.avgCallDuration}</p>
+                <p className="text-xs text-gray-600">{t('dailyCollectionDashboard.liveTracking.avgCallDuration')}: {liveTracking.avgCallDuration}</p>
               </CardContent>
             </Card>
 
@@ -395,7 +406,7 @@ const DailyCollectionDashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Target className="h-4 w-4" />
-                  Contact Success
+                  {t('dailyCollectionDashboard.liveTracking.contactSuccess')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -408,7 +419,7 @@ const DailyCollectionDashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
-                  PTP Progress
+                  {t('dailyCollectionDashboard.liveTracking.ptpProgress')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -426,14 +437,14 @@ const DailyCollectionDashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
-                  Hourly Trend
+                  {t('dailyCollectionDashboard.liveTracking.hourlyTrend')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {((liveTracking.currentHourCollection / liveTracking.lastHourCollection - 1) * 100).toFixed(1)}%
                 </div>
-                <p className="text-xs text-green-600">vs last hour</p>
+                <p className="text-xs text-green-600">{t('dailyCollectionDashboard.liveTracking.vsLastHour')}</p>
               </CardContent>
             </Card>
           </div>
@@ -441,8 +452,8 @@ const DailyCollectionDashboard = () => {
           {/* Hourly Collection Trend */}
           <Card>
             <CardHeader>
-              <CardTitle>Hourly Collection Trend</CardTitle>
-              <CardDescription>Collection performance throughout the day</CardDescription>
+              <CardTitle>{t('dailyCollectionDashboard.liveTracking.hourlyCollectionTrend')}</CardTitle>
+              <CardDescription>{t('dailyCollectionDashboard.liveTracking.collectionPerformance')}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -458,7 +469,7 @@ const DailyCollectionDashboard = () => {
                     stroke="#E6B800" 
                     fill="#E6B800" 
                     fillOpacity={0.6}
-                    name="Amount Collected"
+                    name={t('dailyCollectionDashboard.liveTracking.amountCollected')}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -470,20 +481,20 @@ const DailyCollectionDashboard = () => {
           {/* Collector Activity Status */}
           <Card>
             <CardHeader>
-              <CardTitle>Live Collector Activity</CardTitle>
-              <CardDescription>Real-time status of all active collectors</CardDescription>
+              <CardTitle>{t('dailyCollectionDashboard.collectors.liveCollectorActivity')}</CardTitle>
+              <CardDescription>{t('dailyCollectionDashboard.collectors.realtimeStatus')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2">Collector</th>
-                      <th className="text-left py-2">Status</th>
-                      <th className="text-left py-2">Duration</th>
-                      <th className="text-left py-2">Current Customer</th>
-                      <th className="text-left py-2">Team</th>
-                      <th className="text-center py-2">Actions</th>
+                      <th className="text-left py-2">{t('dailyCollectionDashboard.collectors.collector')}</th>
+                      <th className="text-left py-2">{t('dailyCollectionDashboard.collectors.status')}</th>
+                      <th className="text-left py-2">{t('dailyCollectionDashboard.collectors.duration')}</th>
+                      <th className="text-left py-2">{t('dailyCollectionDashboard.collectors.currentCustomer')}</th>
+                      <th className="text-left py-2">{t('dailyCollectionDashboard.collectors.team')}</th>
+                      <th className="text-center py-2">{t('dailyCollectionDashboard.collectors.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -492,7 +503,7 @@ const DailyCollectionDashboard = () => {
                         <td className="py-3 font-medium">{collector.name}</td>
                         <td className="py-3">
                           <Badge className={`${getStatusColor(collector.status)} text-white`}>
-                            {collector.status.replace('_', ' ')}
+                            {getStatusText(collector.status)}
                           </Badge>
                         </td>
                         <td className="py-3">{collector.duration}</td>
@@ -516,7 +527,7 @@ const DailyCollectionDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Award className="h-5 w-5" />
-                Today's Top Performers
+                {t('dailyCollectionDashboard.collectors.topPerformers')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -534,13 +545,13 @@ const DailyCollectionDashboard = () => {
                       <div>
                         <p className="font-medium">{performer.name}</p>
                         <p className="text-sm text-gray-600">
-                          {performer.calls} calls | {performer.ptp} PTPs
+                          {performer.calls} {t('dailyCollectionDashboard.collectors.calls')} | {performer.ptp} {t('dailyCollectionDashboard.collectors.ptps')}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-green-600">{formatCurrency(performer.collected)}</p>
-                      <p className="text-sm text-gray-600">Success: {performer.rate}%</p>
+                      <p className="text-sm text-gray-600">{t('dailyCollectionDashboard.collectors.successRate')}: {performer.rate}%</p>
                     </div>
                   </div>
                 ))}
@@ -553,19 +564,19 @@ const DailyCollectionDashboard = () => {
           {/* Channel Performance */}
           <Card>
             <CardHeader>
-              <CardTitle>Channel Performance</CardTitle>
-              <CardDescription>Effectiveness of different collection channels</CardDescription>
+              <CardTitle>{t('dailyCollectionDashboard.performance.channelPerformance')}</CardTitle>
+              <CardDescription>{t('dailyCollectionDashboard.performance.channelEffectiveness')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2">Channel</th>
-                      <th className="text-right py-2">Attempts</th>
-                      <th className="text-right py-2">Successful</th>
-                      <th className="text-right py-2">Success Rate</th>
-                      <th className="text-right py-2">Amount Collected</th>
+                      <th className="text-left py-2">{t('dailyCollectionDashboard.performance.channel')}</th>
+                      <th className="text-right py-2">{t('dailyCollectionDashboard.performance.attempts')}</th>
+                      <th className="text-right py-2">{t('dailyCollectionDashboard.performance.successful')}</th>
+                      <th className="text-right py-2">{t('dailyCollectionDashboard.performance.successRate')}</th>
+                      <th className="text-right py-2">{t('dailyCollectionDashboard.performance.amountCollected')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -593,8 +604,8 @@ const DailyCollectionDashboard = () => {
           {/* SLA Compliance */}
           <Card>
             <CardHeader>
-              <CardTitle>SLA Compliance</CardTitle>
-              <CardDescription>Service level agreement performance</CardDescription>
+              <CardTitle>{t('dailyCollectionDashboard.performance.slaCompliance')}</CardTitle>
+              <CardDescription>{t('dailyCollectionDashboard.performance.slaPerformance')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -602,15 +613,15 @@ const DailyCollectionDashboard = () => {
                   <div key={key} className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                        {t(`dailyCollectionDashboard.performance.metrics.${key}`)}
                       </span>
                       <Badge variant={metric.status === 'GOOD' ? 'default' : 'destructive'}>
-                        {metric.status}
+                        {t(`dailyCollectionDashboard.performance.${metric.status.toLowerCase()}`)}
                       </Badge>
                     </div>
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-bold">{metric.actual}</span>
-                      <span className="text-sm text-gray-600">/ {metric.target} target</span>
+                      <span className="text-sm text-gray-600">/ {metric.target} {t('dailyCollectionDashboard.performance.target')}</span>
                     </div>
                     <Progress 
                       value={(metric.actual / metric.target) * 100} 
@@ -627,32 +638,32 @@ const DailyCollectionDashboard = () => {
           {/* Queue Management */}
           <Card>
             <CardHeader>
-              <CardTitle>Queue Status</CardTitle>
-              <CardDescription>Real-time queue distribution and wait times</CardDescription>
+              <CardTitle>{t('dailyCollectionDashboard.queues.queueStatus')}</CardTitle>
+              <CardDescription>{t('dailyCollectionDashboard.queues.queueDistribution')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {Object.entries(queueStatus).map(([queue, stats]) => (
                   <Card key={queue}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm capitalize">{queue} Queue</CardTitle>
+                      <CardTitle className="text-sm">{t(`dailyCollectionDashboard.queues.queueTypes.${queue}`)}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm">Total</span>
+                          <span className="text-sm">{t('dailyCollectionDashboard.queues.total')}</span>
                           <span className="font-bold">{stats.total}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm">Assigned</span>
+                          <span className="text-sm">{t('dailyCollectionDashboard.queues.assigned')}</span>
                           <span className="font-bold text-green-600">{stats.assigned}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm">{t('common.pending')}</span>
+                          <span className="text-sm">{t('dailyCollectionDashboard.queues.pending')}</span>
                           <span className="font-bold text-yellow-600">{stats.pending}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm">Avg Wait</span>
+                          <span className="text-sm">{t('dailyCollectionDashboard.queues.avgWait')}</span>
                           <span className="font-bold">{stats.avgWait}</span>
                         </div>
                       </div>
@@ -666,8 +677,8 @@ const DailyCollectionDashboard = () => {
           {/* Workload Distribution */}
           <Card>
             <CardHeader>
-              <CardTitle>Workload Distribution</CardTitle>
-              <CardDescription>Cases assigned per collector</CardDescription>
+              <CardTitle>{t('dailyCollectionDashboard.queues.workloadDistribution')}</CardTitle>
+              <CardDescription>{t('dailyCollectionDashboard.queues.casesPerCollector')}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -683,7 +694,7 @@ const DailyCollectionDashboard = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="cases" fill="#E6B800" name="Cases Assigned" />
+                  <Bar dataKey="cases" fill="#E6B800" name={t('dailyCollectionDashboard.queues.casesAssigned')} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -695,8 +706,8 @@ const DailyCollectionDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Collection Velocity</CardTitle>
-                <CardDescription>Speed of collections throughout the day</CardDescription>
+                <CardTitle>{t('dailyCollectionDashboard.analytics.collectionVelocity')}</CardTitle>
+                <CardDescription>{t('dailyCollectionDashboard.analytics.speedOfCollections')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -709,13 +720,13 @@ const DailyCollectionDashboard = () => {
                       type="monotone" 
                       dataKey="calls" 
                       stroke="#8884d8" 
-                      name="Calls Made"
+                      name={t('dailyCollectionDashboard.analytics.callsMade')}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="contacts" 
                       stroke="#82ca9d" 
-                      name="Successful Contacts"
+                      name={t('dailyCollectionDashboard.analytics.successfulContacts')}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -724,19 +735,19 @@ const DailyCollectionDashboard = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Payment Methods Distribution</CardTitle>
-                <CardDescription>Breakdown of payment collection methods</CardDescription>
+                <CardTitle>{t('dailyCollectionDashboard.analytics.paymentMethodsDistribution')}</CardTitle>
+                <CardDescription>{t('dailyCollectionDashboard.analytics.breakdownPaymentMethods')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Online', value: 35 },
-                        { name: 'Bank Transfer', value: 25 },
-                        { name: 'Field Collection', value: 20 },
-                        { name: 'IVR', value: 12 },
-                        { name: 'Mobile App', value: 8 }
+                        { name: t('dailyCollectionDashboard.analytics.paymentMethods.online'), value: 35 },
+                        { name: t('dailyCollectionDashboard.analytics.paymentMethods.bankTransfer'), value: 25 },
+                        { name: t('dailyCollectionDashboard.analytics.paymentMethods.fieldCollection'), value: 20 },
+                        { name: t('dailyCollectionDashboard.analytics.paymentMethods.ivr'), value: 12 },
+                        { name: t('dailyCollectionDashboard.analytics.paymentMethods.mobileApp'), value: 8 }
                       ]}
                       cx="50%"
                       cy="50%"
@@ -760,28 +771,28 @@ const DailyCollectionDashboard = () => {
           {/* Predictive Analytics */}
           <Card>
             <CardHeader>
-              <CardTitle>End of Day Projections</CardTitle>
-              <CardDescription>AI-powered predictions based on current performance</CardDescription>
+              <CardTitle>{t('dailyCollectionDashboard.analytics.endOfDayProjections')}</CardTitle>
+              <CardDescription>{t('dailyCollectionDashboard.analytics.aiPoweredPredictions')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <BarChart3 className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                  <p className="text-sm text-gray-600">Projected Collection</p>
+                  <p className="text-sm text-gray-600">{t('dailyCollectionDashboard.analytics.projectedCollection')}</p>
                   <p className="text-2xl font-bold text-blue-600">{formatCurrency(18500000)}</p>
-                  <p className="text-xs text-gray-600 mt-1">119% of target</p>
+                  <p className="text-xs text-gray-600 mt-1">119% {t('dailyCollectionDashboard.analytics.ofTarget')}</p>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <TrendingUp className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                  <p className="text-sm text-gray-600">Expected PTPs</p>
+                  <p className="text-sm text-gray-600">{t('dailyCollectionDashboard.analytics.expectedPtps')}</p>
                   <p className="text-2xl font-bold text-green-600">285</p>
-                  <p className="text-xs text-gray-600 mt-1">95% of target</p>
+                  <p className="text-xs text-gray-600 mt-1">95% {t('dailyCollectionDashboard.analytics.ofTarget')}</p>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
                   <Users className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
-                  <p className="text-sm text-gray-600">Contacts to Make</p>
+                  <p className="text-sm text-gray-600">{t('dailyCollectionDashboard.analytics.contactsToMake')}</p>
                   <p className="text-2xl font-bold text-yellow-600">450</p>
-                  <p className="text-xs text-gray-600 mt-1">To achieve target</p>
+                  <p className="text-xs text-gray-600 mt-1">{t('dailyCollectionDashboard.analytics.toAchieveTarget')}</p>
                 </div>
               </div>
             </CardContent>
