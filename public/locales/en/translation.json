@@ -1718,7 +1718,205 @@
         "visitsCompleted": "Visits Completed",
         "successRate": "Success Rate",
         "amountCollected": "Amount Collected",
-        "costPerVisit": "Cost per Visit"
+        "costPerVisit": "Cost per Visit",
+        "dashboard": {
+          "title": "Field Collection Dashboard",
+          "subtitle": "Monitor and manage field collection activities",
+          "lastUpdated": "Last updated",
+          "refresh": "Refresh",
+          "selectRegion": "Select Region",
+          "selectAgent": "Select Agent",
+          "allRegions": "All Regions",
+          "allAgents": "All Agents",
+          "regions": {
+            "north": "North Riyadh",
+            "south": "South Riyadh",
+            "east": "East Riyadh",
+            "west": "West Riyadh",
+            "central": "Central"
+          }
+        },
+        "metrics": {
+          "visitsToday": "Visits Today",
+          "amountCollected": "Amount Collected",
+          "activeAgents": "Active Agents",
+          "successRate": "Success Rate",
+          "completed": "completed",
+          "average": "Avg",
+          "perVisit": "/visit",
+          "visitsInProgress": "visits in progress",
+          "collectionSuccess": "Collection success"
+        },
+        "tabs": {
+          "overview": "Overview",
+          "agents": "Agents",
+          "visits": "Visits",
+          "routing": "Routing",
+          "safety": "Safety",
+          "analytics": "Analytics"
+        },
+        "overview": {
+          "visitStatusDistribution": "Visit Status Distribution",
+          "todaysFieldVisitsByStatus": "Today's field visits by status",
+          "agentLocations": "Agent Locations",
+          "heat": "Heat",
+          "pins": "Pins",
+          "interactiveMapPlaceholder": "Interactive map would be displayed here",
+          "todaysFieldVisits": "Today's Field Visits",
+          "detailedVisitInformation": "Detailed visit information",
+          "upcomingVisits": "Upcoming Visits",
+          "nextScheduledFieldVisits": "Next scheduled field visits",
+          "visitStatus": {
+            "completed": "Completed",
+            "customerNotAvailable": "Customer Not Available",
+            "inProgress": "In Progress",
+            "pending": "Pending",
+            "wrongAddress": "Wrong Address",
+            "refused": "Refused"
+          },
+          "agentStatus": {
+            "onVisit": "ON VISIT",
+            "inTransit": "IN TRANSIT",
+            "available": "AVAILABLE",
+            "break": "BREAK",
+            "offline": "OFFLINE"
+          },
+          "tableHeaders": {
+            "visitId": "Visit ID",
+            "agent": "Agent",
+            "customer": "Customer",
+            "scheduled": "Scheduled",
+            "actual": "Actual",
+            "status": "Status",
+            "amount": "Amount",
+            "duration": "Duration",
+            "distance": "Distance"
+          },
+          "upcomingVisitDetails": {
+            "agent": "Agent",
+            "dpd": "DPD"
+          }
+        },
+        "agents": {
+          "fieldAgentPerformance": "Field Agent Performance",
+          "monthlyPerformanceMetrics": "Monthly performance metrics",
+          "agentActivityTimeline": "Agent Activity Timeline",
+          "realtimeAgentActivities": "Real-time agent activities",
+          "tableHeaders": {
+            "agentName": "Agent Name",
+            "visits": "Visits",
+            "successful": "Successful",
+            "successRate": "Success Rate",
+            "amountCollected": "Amount Collected",
+            "avgTime": "Avg Time",
+            "distance": "Distance",
+            "rating": "Rating"
+          },
+          "activities": {
+            "completedVisit": "Completed visit",
+            "startedVisit": "Started visit",
+            "enRoute": "En route",
+            "checkIn": "Check-in",
+            "visitAttempt": "Visit attempt",
+            "paymentCollected": "Payment collected",
+            "visitInProgress": "Visit in progress",
+            "eta": "ETA",
+            "safetyCheckCompleted": "Safety check completed",
+            "customerNotAvailable": "Customer not available",
+            "customer": "Customer",
+            "result": "Result"
+          }
+        },
+        "visits": {
+          "fieldVisitPerformanceTrend": "Field Visit Performance Trend",
+          "dailyVisitsAndCollectionAmounts": "Daily visits and collection amounts",
+          "performanceByRegion": "Performance by Region",
+          "fieldCollectionEffectivenessAcrossRegions": "Field collection effectiveness across regions",
+          "chartLabels": {
+            "totalVisits": "Total Visits",
+            "successful": "Successful",
+            "amount": "Amount (SAR)",
+            "visits": "Visits",
+            "successRate": "Success Rate (%)"
+          }
+        },
+        "routing": {
+          "routeOptimizationSummary": "Route Optimization Summary",
+          "dailyRouteEfficiencyImprovements": "Daily route efficiency improvements",
+          "routePlanning": "Route Planning",
+          "optimizedRoutesForFieldAgents": "Optimized routes for field agents",
+          "metrics": {
+            "originalDistance": "Original Distance",
+            "optimizedDistance": "Optimized Distance",
+            "timeSaved": "Time Saved",
+            "efficiencyGain": "Efficiency Gain",
+            "distanceSaved": "Distance Saved",
+            "fuelSaved": "Fuel Saved"
+          },
+          "mapPlaceholder": "Interactive route planning map",
+          "mapDescription": "Shows optimized routes, traffic conditions, and visit sequences"
+        },
+        "safety": {
+          "safetyScore": "Safety Score",
+          "daysWithoutIncident": "Days Without Incident",
+          "checkInsToday": "Check-ins Today",
+          "sosAlerts": "SOS Alerts",
+          "excellentSafetyRecord": "Excellent safety record",
+          "continuousImprovement": "Continuous improvement",
+          "noEmergenciesToday": "No emergencies today",
+          "safetyProtocolCompliance": "Safety Protocol Compliance",
+          "agentComplianceWithSafetyProcedures": "Agent compliance with safety procedures",
+          "protocols": {
+            "preVisitCheckIn": "Pre-visit Check-in",
+            "postVisitCheckOut": "Post-visit Check-out",
+            "routeSharing": "Route Sharing",
+            "emergencyContactUpdate": "Emergency Contact Update",
+            "vehicleInspection": "Vehicle Inspection"
+          },
+          "agentsCompliant": "agents compliant",
+          "of": "of"
+        },
+        "analytics": {
+          "fieldCollectionCostAnalysis": "Field Collection Cost Analysis",
+          "operationalCostsAndEfficiencyMetrics": "Operational costs and efficiency metrics",
+          "visitOutcomeAnalysis": "Visit Outcome Analysis",
+          "reasonsForUnsuccessfulVisits": "Reasons for unsuccessful visits",
+          "costMetrics": {
+            "totalFuelCost": "Total Fuel Cost",
+            "costPerVisit": "Cost per Visit",
+            "costPerCollection": "Cost per Collection"
+          },
+          "chartLabels": {
+            "costPerVisit": "Cost per Visit (SAR)",
+            "collectionRate": "Collection Rate (%)"
+          },
+          "visitOutcomes": {
+            "customerNotAvailable": "Customer Not Available",
+            "wrongAddress": "Wrong Address",
+            "customerRefused": "Customer Refused",
+            "partialPaymentOnly": "Partial Payment Only",
+            "rescheduled": "Rescheduled",
+            "other": "Other"
+          }
+        },
+        "alerts": {
+          "missedCheckIns": "agents missed safety check-ins today",
+          "viewDetails": "View Details"
+        },
+        "notes": {
+          "paymentCollectedInCash": "Payment collected in cash",
+          "customerOutOfTownRescheduled": "Customer out of town, rescheduled",
+          "partialPaymentReceived": "Partial payment received"
+        },
+        "priority": {
+          "high": "HIGH",
+          "medium": "MEDIUM",
+          "low": "LOW"
+        },
+        "time": {
+          "min": "min",
+          "km": "km"
+        }
       },
       "digitalCollection": {
         "title": "Digital Collection",

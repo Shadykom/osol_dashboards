@@ -1793,7 +1793,205 @@
         "visitsCompleted": "الزيارات المكتملة",
         "successRate": "معدل النجاح",
         "amountCollected": "المبلغ المحصل",
-        "costPerVisit": "تكلفة الزيارة"
+        "costPerVisit": "تكلفة الزيارة",
+        "dashboard": {
+          "title": "لوحة التحصيل الميداني",
+          "subtitle": "مراقبة وإدارة أنشطة التحصيل الميداني",
+          "lastUpdated": "آخر تحديث",
+          "refresh": "تحديث",
+          "selectRegion": "اختر المنطقة",
+          "selectAgent": "اختر الوكيل",
+          "allRegions": "جميع المناطق",
+          "allAgents": "جميع الوكلاء",
+          "regions": {
+            "north": "شمال الرياض",
+            "south": "جنوب الرياض",
+            "east": "شرق الرياض",
+            "west": "غرب الرياض",
+            "central": "وسط الرياض"
+          }
+        },
+        "metrics": {
+          "visitsToday": "الزيارات اليوم",
+          "amountCollected": "المبلغ المحصل",
+          "activeAgents": "الوكلاء النشطون",
+          "successRate": "معدل النجاح",
+          "completed": "مكتملة",
+          "average": "متوسط",
+          "perVisit": "/زيارة",
+          "visitsInProgress": "زيارات قيد التنفيذ",
+          "collectionSuccess": "نجاح التحصيل"
+        },
+        "tabs": {
+          "overview": "نظرة عامة",
+          "agents": "الوكلاء",
+          "visits": "الزيارات",
+          "routing": "التوجيه",
+          "safety": "السلامة",
+          "analytics": "التحليلات"
+        },
+        "overview": {
+          "visitStatusDistribution": "توزيع حالة الزيارات",
+          "todaysFieldVisitsByStatus": "زيارات اليوم الميدانية حسب الحالة",
+          "agentLocations": "مواقع الوكلاء",
+          "heat": "حرارية",
+          "pins": "دبابيس",
+          "interactiveMapPlaceholder": "سيتم عرض الخريطة التفاعلية هنا",
+          "todaysFieldVisits": "الزيارات الميدانية اليوم",
+          "detailedVisitInformation": "معلومات الزيارة المفصلة",
+          "upcomingVisits": "الزيارات القادمة",
+          "nextScheduledFieldVisits": "الزيارات الميدانية المجدولة التالية",
+          "visitStatus": {
+            "completed": "مكتملة",
+            "customerNotAvailable": "العميل غير متواجد",
+            "inProgress": "قيد التنفيذ",
+            "pending": "معلقة",
+            "wrongAddress": "عنوان خاطئ",
+            "refused": "مرفوضة"
+          },
+          "agentStatus": {
+            "onVisit": "في زيارة",
+            "inTransit": "في الطريق",
+            "available": "متاح",
+            "break": "استراحة",
+            "offline": "غير متصل"
+          },
+          "tableHeaders": {
+            "visitId": "رقم الزيارة",
+            "agent": "الوكيل",
+            "customer": "العميل",
+            "scheduled": "المجدولة",
+            "actual": "الفعلية",
+            "status": "الحالة",
+            "amount": "المبلغ",
+            "duration": "المدة",
+            "distance": "المسافة"
+          },
+          "upcomingVisitDetails": {
+            "agent": "الوكيل",
+            "dpd": "أيام التأخر"
+          }
+        },
+        "agents": {
+          "fieldAgentPerformance": "أداء الوكلاء الميدانيين",
+          "monthlyPerformanceMetrics": "مقاييس الأداء الشهرية",
+          "agentActivityTimeline": "الجدول الزمني لنشاط الوكيل",
+          "realtimeAgentActivities": "أنشطة الوكيل في الوقت الفعلي",
+          "tableHeaders": {
+            "agentName": "اسم الوكيل",
+            "visits": "الزيارات",
+            "successful": "الناجحة",
+            "successRate": "معدل النجاح",
+            "amountCollected": "المبلغ المحصل",
+            "avgTime": "متوسط الوقت",
+            "distance": "المسافة",
+            "rating": "التقييم"
+          },
+          "activities": {
+            "completedVisit": "أكمل الزيارة",
+            "startedVisit": "بدأ الزيارة",
+            "enRoute": "في الطريق",
+            "checkIn": "تسجيل الحضور",
+            "visitAttempt": "محاولة زيارة",
+            "paymentCollected": "تم تحصيل الدفعة",
+            "visitInProgress": "الزيارة قيد التنفيذ",
+            "eta": "الوقت المتوقع للوصول",
+            "safetyCheckCompleted": "تم إكمال فحص السلامة",
+            "customerNotAvailable": "العميل غير متواجد",
+            "customer": "العميل",
+            "result": "النتيجة"
+          }
+        },
+        "visits": {
+          "fieldVisitPerformanceTrend": "اتجاه أداء الزيارات الميدانية",
+          "dailyVisitsAndCollectionAmounts": "الزيارات اليومية ومبالغ التحصيل",
+          "performanceByRegion": "الأداء حسب المنطقة",
+          "fieldCollectionEffectivenessAcrossRegions": "فعالية التحصيل الميداني عبر المناطق",
+          "chartLabels": {
+            "totalVisits": "إجمالي الزيارات",
+            "successful": "الناجحة",
+            "amount": "المبلغ (ريال)",
+            "visits": "الزيارات",
+            "successRate": "معدل النجاح (%)"
+          }
+        },
+        "routing": {
+          "routeOptimizationSummary": "ملخص تحسين المسار",
+          "dailyRouteEfficiencyImprovements": "تحسينات كفاءة المسار اليومية",
+          "routePlanning": "تخطيط المسار",
+          "optimizedRoutesForFieldAgents": "المسارات المحسنة للوكلاء الميدانيين",
+          "metrics": {
+            "originalDistance": "المسافة الأصلية",
+            "optimizedDistance": "المسافة المحسنة",
+            "timeSaved": "الوقت الموفر",
+            "efficiencyGain": "زيادة الكفاءة",
+            "distanceSaved": "المسافة الموفرة",
+            "fuelSaved": "الوقود الموفر"
+          },
+          "mapPlaceholder": "خريطة تخطيط المسار التفاعلية",
+          "mapDescription": "تعرض المسارات المحسنة وظروف المرور وتسلسل الزيارات"
+        },
+        "safety": {
+          "safetyScore": "نقاط السلامة",
+          "daysWithoutIncident": "أيام بدون حوادث",
+          "checkInsToday": "تسجيلات الحضور اليوم",
+          "sosAlerts": "تنبيهات الطوارئ",
+          "excellentSafetyRecord": "سجل سلامة ممتاز",
+          "continuousImprovement": "تحسين مستمر",
+          "noEmergenciesToday": "لا توجد حالات طوارئ اليوم",
+          "safetyProtocolCompliance": "الامتثال لبروتوكول السلامة",
+          "agentComplianceWithSafetyProcedures": "امتثال الوكيل لإجراءات السلامة",
+          "protocols": {
+            "preVisitCheckIn": "تسجيل الحضور قبل الزيارة",
+            "postVisitCheckOut": "تسجيل المغادرة بعد الزيارة",
+            "routeSharing": "مشاركة المسار",
+            "emergencyContactUpdate": "تحديث جهة اتصال الطوارئ",
+            "vehicleInspection": "فحص المركبة"
+          },
+          "agentsCompliant": "وكلاء ملتزمون",
+          "of": "من"
+        },
+        "analytics": {
+          "fieldCollectionCostAnalysis": "تحليل تكلفة التحصيل الميداني",
+          "operationalCostsAndEfficiencyMetrics": "التكاليف التشغيلية ومقاييس الكفاءة",
+          "visitOutcomeAnalysis": "تحليل نتائج الزيارة",
+          "reasonsForUnsuccessfulVisits": "أسباب الزيارات غير الناجحة",
+          "costMetrics": {
+            "totalFuelCost": "إجمالي تكلفة الوقود",
+            "costPerVisit": "تكلفة الزيارة",
+            "costPerCollection": "تكلفة التحصيل"
+          },
+          "chartLabels": {
+            "costPerVisit": "تكلفة الزيارة (ريال)",
+            "collectionRate": "معدل التحصيل (%)"
+          },
+          "visitOutcomes": {
+            "customerNotAvailable": "العميل غير متواجد",
+            "wrongAddress": "عنوان خاطئ",
+            "customerRefused": "رفض العميل",
+            "partialPaymentOnly": "دفعة جزئية فقط",
+            "rescheduled": "تم إعادة الجدولة",
+            "other": "أخرى"
+          }
+        },
+        "alerts": {
+          "missedCheckIns": "وكلاء فاتتهم تسجيلات السلامة اليوم",
+          "viewDetails": "عرض التفاصيل"
+        },
+        "notes": {
+          "paymentCollectedInCash": "تم تحصيل الدفعة نقداً",
+          "customerOutOfTownRescheduled": "العميل خارج المدينة، تم إعادة الجدولة",
+          "partialPaymentReceived": "تم استلام دفعة جزئية"
+        },
+        "priority": {
+          "high": "عالية",
+          "medium": "متوسطة",
+          "low": "منخفضة"
+        },
+        "time": {
+          "min": "دقيقة",
+          "km": "كم"
+        }
       },
       "digitalCollection": {
         "title": "التحصيل الرقمي",
