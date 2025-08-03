@@ -57,298 +57,306 @@ import { useTheme } from '@/hooks/useTheme';
 import osoulLogo from '@/assets/osol-logo.png';
 
 // Navigation configuration
-const getNavigationConfig = (t) => [
-  {
-    section: t('navigation.sections.overview'),
-    items: [
-      {
-        id: 'dashboard',
-        title: t('navigation.mainDashboard'),
-        href: '/dashboard',
-        icon: Home,
-        badge: t('common.badges.live'),
-        badgeClass: 'bg-green-500'
-      }
-    ]
-  },
-  {
-    section: t('navigation.sections.dashboards'),
-    items: [
-      {
-        id: 'executive',
-        title: t('navigation.executiveDashboard'),
-        href: '/dashboards/executive',
-        icon: Building2
-      },
-      {
-        id: 'operations',
-        title: t('navigation.operationsDashboard'),
-        href: '/dashboards/operations',
-        icon: Activity
-      },
-      {
-        id: 'custom',
-        title: t('navigation.customDashboard'),
-        href: '/dashboards/custom',
-        icon: Target
-      }
-    ]
-  },
-  {
-    section: t('navigation.sections.collections'),
-    expanded: true,
-    items: [
-      {
-        id: 'collection-overview',
-        title: t('navigation.collectionOverview'),
-        href: '/collection/overview',
-        icon: Eye
-      },
-      {
-        id: 'daily-collection',
-        title: t('navigation.dailyCollection'),
-        href: '/collection/daily',
-        icon: Calendar,
-        badge: t('common.badges.live'),
-        badgeClass: 'bg-blue-500'
-      },
-      {
-        id: 'digital-collection',
-        title: t('navigation.digitalCollection'),
-        href: '/collection/digital',
-        icon: Smartphone
-      },
-      {
-        id: 'early-warning',
-        title: t('navigation.earlyWarning'),
-        href: '/collection/early-warning',
-        icon: AlertTriangle,
-        badge: '45',
-        badgeClass: 'bg-red-500'
-      },
-      {
-        id: 'executive-collection',
-        title: t('navigation.executiveCollection'),
-        href: '/collection/executive',
-        icon: Building2
-      },
-      {
-        id: 'delinquency-executive',
-        title: t('navigation.delinquencyExecutive'),
-        href: '/collection/delinquency-executive',
-        icon: TrendingUp,
-        badge: t('common.badges.new'),
-        badgeClass: 'bg-purple-500'
-      },
-      {
-        id: 'field-collection',
-        title: t('navigation.fieldCollection'),
-        href: '/collection/field',
-        icon: MapPin
-      },
-      {
-        id: 'officer-performance',
-        title: t('navigation.officerPerformance'),
-        href: '/collection/officer-performance',
-        icon: Trophy
-      },
-      {
-        id: 'sharia-compliance',
-        title: t('navigation.shariaCompliance'),
-        href: '/collection/sharia-compliance',
-        icon: BookOpen
-      },
-      {
-        id: 'vintage-analysis',
-        title: t('navigation.vintageAnalysis'),
-        href: '/collection/vintage-analysis',
-        icon: Layers
-      },
-      {
-        id: 'specialist-report',
-        title: t('navigation.specialistReport'),
-        href: '/collection/specialist-report',
-        icon: UserSearch,
-        badge: t('common.badges.new'),
-        badgeClass: 'bg-purple-500'
-      },
-      {
-        id: 'collection-reports',
-        title: t('navigation.collectionReports'),
-        icon: FileText,
-        children: [
-          {
-            id: 'branch-report',
-            title: t('navigation.branchLevelReport'),
-            href: '/collection/branch-report',
-            icon: Building2,
-            badge: t('common.badges.new'),
-            badgeClass: 'bg-purple-500'
-          },
-          {
-            id: 'product-report',
-            title: t('navigation.productLevelReport'),
-            href: '/collection/product-report',
-            icon: Package,
-            badge: t('common.badges.new'),
-            badgeClass: 'bg-purple-500'
-          }
-        ]
-      }
-    ]
-  },
-  {
-    section: t('navigation.sections.bankingOperations'),
-    items: [
-      {
-        id: 'customers',
-        title: t('navigation.customers'),
-        icon: Users,
-        children: [
-          {
-            id: 'all-customers',
-            title: t('navigation.allCustomers'),
-            href: '/customers',
-            icon: Users,
-            badge: '12.5k',
-            badgeClass: 'bg-gray-500'
-          },
-          {
-            id: 'add-customer',
-            title: t('navigation.addCustomer'),
-            href: '/customers/new',
-            icon: UserCheck
-          },
-          {
-            id: 'kyc-pending',
-            title: t('navigation.kycPending'),
-            href: '/customers/kyc-pending',
-            icon: FileWarning,
-            badge: '23',
-            badgeClass: 'bg-red-500'
-          },
-          {
-            id: 'risk-assessment',
-            title: t('navigation.riskAssessment'),
-            href: '/customers/risk',
-            icon: AlertTriangle
-          }
-        ]
-      },
-      {
-        id: 'accounts',
-        title: t('navigation.accounts'),
-        icon: CreditCard,
-        children: [
-          {
-            id: 'all-accounts',
-            title: t('navigation.allAccounts'),
-            href: '/accounts',
-            icon: CreditCard
-          },
-          {
-            id: 'open-account',
-            title: t('navigation.openAccount'),
-            href: '/accounts/new',
-            icon: CreditCard
-          },
-          {
-            id: 'blocked-accounts',
-            title: t('navigation.blockedAccounts'),
-            href: '/accounts/blocked',
-            icon: AlertTriangle,
-            badge: '5',
-            badgeClass: 'bg-red-500'
-          },
-          {
-            id: 'dormant-accounts',
-            title: t('navigation.dormantAccounts'),
-            href: '/accounts/dormant',
-            icon: Moon,
-            badge: '12',
-            badgeClass: 'bg-gray-500'
-          }
-        ]
-      },
-      {
-        id: 'transactions',
-        title: t('navigation.transactions'),
-        icon: ArrowUpDown,
-        children: [
-          {
-            id: 'all-transactions',
-            title: t('navigation.allTransactions'),
-            href: '/transactions',
-            icon: ArrowUpDown
-          },
-          {
-            id: 'pending-approval',
-            title: t('navigation.pendingApproval'),
-            href: '/transactions/pending',
-            icon: Clock,
-            badge: '156',
-            badgeClass: 'bg-yellow-500'
-          },
-          {
-            id: 'failed-transactions',
-            title: t('navigation.failedTransactions'),
-            href: '/transactions/failed',
-            icon: X,
-            badge: '23',
-            badgeClass: 'bg-red-500'
-          },
-          {
-            id: 'bulk-upload',
-            title: t('navigation.bulkUpload'),
-            href: '/transactions/bulk',
-            icon: FileText
-          }
-        ]
-      },
-      {
-        id: 'loans',
-        title: t('navigation.loans'),
-        icon: Wallet,
-        children: [
-          {
-            id: 'all-loans',
-            title: t('navigation.allLoans'),
-            href: '/loans',
-            icon: Wallet
-          },
-          {
-            id: 'loan-applications',
-            title: t('navigation.loanApplications'),
-            href: '/loans/applications',
-            icon: FileText,
-            badge: '45',
-            badgeClass: 'bg-blue-500'
-          },
-          {
-            id: 'disbursements',
-            title: t('navigation.disbursements'),
-            href: '/loans/disbursements',
-            icon: DollarSign
-          },
-          {
-            id: 'collections',
-            title: t('navigation.collections'),
-            href: '/loans/collections',
-            icon: Coins
-          },
-          {
-            id: 'overdue-loans',
-            title: t('navigation.overdueLoans'),
-            href: '/loans/overdue',
-            icon: AlertTriangle,
-            badge: '89',
-            badgeClass: 'bg-red-500'
-          }
-        ]
-      }
-    ]
+const getNavigationConfig = (t) => {
+  // Safety check for translation function
+  if (!t || typeof t !== 'function') {
+    console.warn('Translation function not available in getNavigationConfig');
+    return [];
   }
-];
+  
+  return [
+    {
+      section: t('navigation.sections.overview'),
+      items: [
+        {
+          id: 'dashboard',
+          title: t('navigation.mainDashboard'),
+          href: '/dashboard',
+          icon: Home,
+          badge: t('common.badges.live'),
+          badgeClass: 'bg-green-500'
+        }
+      ]
+    },
+    {
+      section: t('navigation.sections.dashboards'),
+      items: [
+        {
+          id: 'executive',
+          title: t('navigation.executiveDashboard'),
+          href: '/dashboards/executive',
+          icon: Building2
+        },
+        {
+          id: 'operations',
+          title: t('navigation.operationsDashboard'),
+          href: '/dashboards/operations',
+          icon: Activity
+        },
+        {
+          id: 'custom',
+          title: t('navigation.customDashboard'),
+          href: '/dashboards/custom',
+          icon: Target
+        }
+      ]
+    },
+    {
+      section: t('navigation.sections.collections'),
+      expanded: true,
+      items: [
+        {
+          id: 'collection-overview',
+          title: t('navigation.collectionOverview'),
+          href: '/collection/overview',
+          icon: Eye
+        },
+        {
+          id: 'daily-collection',
+          title: t('navigation.dailyCollection'),
+          href: '/collection/daily',
+          icon: Calendar,
+          badge: t('common.badges.live'),
+          badgeClass: 'bg-blue-500'
+        },
+        {
+          id: 'digital-collection',
+          title: t('navigation.digitalCollection'),
+          href: '/collection/digital',
+          icon: Smartphone
+        },
+        {
+          id: 'early-warning',
+          title: t('navigation.earlyWarning'),
+          href: '/collection/early-warning',
+          icon: AlertTriangle,
+          badge: '45',
+          badgeClass: 'bg-red-500'
+        },
+        {
+          id: 'executive-collection',
+          title: t('navigation.executiveCollection'),
+          href: '/collection/executive',
+          icon: Building2
+        },
+        {
+          id: 'delinquency-executive',
+          title: t('navigation.delinquencyExecutive'),
+          href: '/collection/delinquency-executive',
+          icon: TrendingUp,
+          badge: t('common.badges.new'),
+          badgeClass: 'bg-purple-500'
+        },
+        {
+          id: 'field-collection',
+          title: t('navigation.fieldCollection'),
+          href: '/collection/field',
+          icon: MapPin
+        },
+        {
+          id: 'officer-performance',
+          title: t('navigation.officerPerformance'),
+          href: '/collection/officer-performance',
+          icon: Trophy
+        },
+        {
+          id: 'sharia-compliance',
+          title: t('navigation.shariaCompliance'),
+          href: '/collection/sharia-compliance',
+          icon: BookOpen
+        },
+        {
+          id: 'vintage-analysis',
+          title: t('navigation.vintageAnalysis'),
+          href: '/collection/vintage-analysis',
+          icon: Layers
+        },
+        {
+          id: 'specialist-report',
+          title: t('navigation.specialistReport'),
+          href: '/collection/specialist-report',
+          icon: UserSearch,
+          badge: t('common.badges.new'),
+          badgeClass: 'bg-purple-500'
+        },
+        {
+          id: 'collection-reports',
+          title: t('navigation.collectionReports'),
+          icon: FileText,
+          children: [
+            {
+              id: 'branch-report',
+              title: t('navigation.branchLevelReport'),
+              href: '/collection/branch-report',
+              icon: Building2,
+              badge: t('common.badges.new'),
+              badgeClass: 'bg-purple-500'
+            },
+            {
+              id: 'product-report',
+              title: t('navigation.productLevelReport'),
+              href: '/collection/product-report',
+              icon: Package,
+              badge: t('common.badges.new'),
+              badgeClass: 'bg-purple-500'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      section: t('navigation.sections.bankingOperations'),
+      items: [
+        {
+          id: 'customers',
+          title: t('navigation.customers'),
+          icon: Users,
+          children: [
+            {
+              id: 'all-customers',
+              title: t('navigation.allCustomers'),
+              href: '/customers',
+              icon: Users,
+              badge: '12.5k',
+              badgeClass: 'bg-gray-500'
+            },
+            {
+              id: 'add-customer',
+              title: t('navigation.addCustomer'),
+              href: '/customers/new',
+              icon: UserCheck
+            },
+            {
+              id: 'kyc-pending',
+              title: t('navigation.kycPending'),
+              href: '/customers/kyc-pending',
+              icon: FileWarning,
+              badge: '23',
+              badgeClass: 'bg-red-500'
+            },
+            {
+              id: 'risk-assessment',
+              title: t('navigation.riskAssessment'),
+              href: '/customers/risk',
+              icon: AlertTriangle
+            }
+          ]
+        },
+        {
+          id: 'accounts',
+          title: t('navigation.accounts'),
+          icon: CreditCard,
+          children: [
+            {
+              id: 'all-accounts',
+              title: t('navigation.allAccounts'),
+              href: '/accounts',
+              icon: CreditCard
+            },
+            {
+              id: 'open-account',
+              title: t('navigation.openAccount'),
+              href: '/accounts/new',
+              icon: CreditCard
+            },
+            {
+              id: 'blocked-accounts',
+              title: t('navigation.blockedAccounts'),
+              href: '/accounts/blocked',
+              icon: AlertTriangle,
+              badge: '5',
+              badgeClass: 'bg-red-500'
+            },
+            {
+              id: 'dormant-accounts',
+              title: t('navigation.dormantAccounts'),
+              href: '/accounts/dormant',
+              icon: Moon,
+              badge: '12',
+              badgeClass: 'bg-gray-500'
+            }
+          ]
+        },
+        {
+          id: 'transactions',
+          title: t('navigation.transactions'),
+          icon: ArrowUpDown,
+          children: [
+            {
+              id: 'all-transactions',
+              title: t('navigation.allTransactions'),
+              href: '/transactions',
+              icon: ArrowUpDown
+            },
+            {
+              id: 'pending-approval',
+              title: t('navigation.pendingApproval'),
+              href: '/transactions/pending',
+              icon: Clock,
+              badge: '156',
+              badgeClass: 'bg-yellow-500'
+            },
+            {
+              id: 'failed-transactions',
+              title: t('navigation.failedTransactions'),
+              href: '/transactions/failed',
+              icon: X,
+              badge: '23',
+              badgeClass: 'bg-red-500'
+            },
+            {
+              id: 'bulk-upload',
+              title: t('navigation.bulkUpload'),
+              href: '/transactions/bulk',
+              icon: FileText
+            }
+          ]
+        },
+        {
+          id: 'loans',
+          title: t('navigation.loans'),
+          icon: Wallet,
+          children: [
+            {
+              id: 'all-loans',
+              title: t('navigation.allLoans'),
+              href: '/loans',
+              icon: Wallet
+            },
+            {
+              id: 'loan-applications',
+              title: t('navigation.loanApplications'),
+              href: '/loans/applications',
+              icon: FileText,
+              badge: '45',
+              badgeClass: 'bg-blue-500'
+            },
+            {
+              id: 'disbursements',
+              title: t('navigation.disbursements'),
+              href: '/loans/disbursements',
+              icon: DollarSign
+            },
+            {
+              id: 'collections',
+              title: t('navigation.collections'),
+              href: '/loans/collections',
+              icon: Coins
+            },
+            {
+              id: 'overdue-loans',
+              title: t('navigation.overdueLoans'),
+              href: '/loans/overdue',
+              icon: AlertTriangle,
+              badge: '89',
+              badgeClass: 'bg-red-500'
+            }
+          ]
+        }
+      ]
+    }
+  ];
+};
 
 // Navigation Item Component
 function NavigationItem({ item, isCollapsed, onItemClick, level = 0 }) {
