@@ -1786,5 +1786,129 @@
         "completed": "Completed"
       }
     }
+  },
+  "digitalCollection": {
+    "title": "Digital Collection Dashboard",
+    "subtitle": "Monitor and optimize digital collection channels",
+    "launchCampaign": "Launch Campaign",
+    "selectChannel": "Select Channel",
+    "allChannels": "All Channels",
+    "channels": {
+      "ivr": "IVR",
+      "sms": "SMS",
+      "email": "Email",
+      "whatsapp": "WhatsApp",
+      "mobileApp": "Mobile App",
+      "webPortal": "Web Portal",
+      "chatbot": "Chatbot"
+    },
+    "periods": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly"
+    },
+    "metrics": {
+      "digitalPayments": "Digital Payments",
+      "transactions": "transactions",
+      "adoptionRate": "Adoption Rate",
+      "ofTotalCollections": "of total collections",
+      "selfServiceRate": "Self-Service Rate",
+      "fullyAutomated": "fully automated",
+      "costSavings": "Cost Savings",
+      "vsTraditional": "vs traditional methods"
+    },
+    "channelPerformance": {
+      "title": "Channel Performance",
+      "subtitle": "Effectiveness and ROI by collection channel",
+      "attempts": "Attempts",
+      "successful": "Successful",
+      "amount": "Amount",
+      "cost": "Cost",
+      "roi": "ROI",
+      "successRate": "Success Rate",
+      "viewDetails": "View Details"
+    },
+    "automationMetrics": {
+      "title": "Automation & Campaign Performance",
+      "subtitle": "Automated collection tools effectiveness",
+      "autoDialer": "Auto Dialer",
+      "smsCampaigns": "SMS Campaigns",
+      "emailCampaigns": "Email Campaigns",
+      "chatbotInteractions": "Chatbot",
+      "ivrPayments": "IVR Payments",
+      "calls": "Calls",
+      "connected": "Connected",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "clicked": "Clicked",
+      "payments": "Payments",
+      "interactions": "Interactions",
+      "resolved": "Resolved",
+      "escalated": "Escalated",
+      "attempts": "Attempts",
+      "failureRate": "Failure Rate"
+    },
+    "paymentMethods": {
+      "title": "Payment Method Distribution",
+      "subtitle": "Customer payment preferences",
+      "creditCard": "Credit Card",
+      "debitCard": "Debit Card",
+      "bankTransfer": "Bank Transfer",
+      "digitalWallet": "Digital Wallet",
+      "sadad": "SADAD",
+      "count": "Count",
+      "amount": "Amount"
+    },
+    "timeAnalysis": {
+      "title": "Payment Time Analysis",
+      "subtitle": "Optimal times for digital collections",
+      "hourlyDistribution": "Hourly Distribution",
+      "peakHours": "Peak Hours",
+      "payments": "Payments",
+      "amount": "Amount",
+      "ofDailyTotal": "of daily total"
+    },
+    "conversionFunnel": {
+      "title": "Digital Collection Funnel",
+      "subtitle": "Customer journey from contact to payment",
+      "messageSent": "Message Sent",
+      "messageOpened": "Message Opened",
+      "linkClicked": "Link Clicked",
+      "paymentStarted": "Payment Started",
+      "paymentCompleted": "Payment Completed",
+      "conversionRate": "Conversion Rate"
+    },
+    "campaignPerformance": {
+      "title": "Recent Campaign Performance",
+      "subtitle": "Top performing digital campaigns",
+      "channel": "Channel",
+      "sent": "Sent",
+      "responseRate": "Response Rate",
+      "collected": "Collected"
+    },
+    "customerSegments": {
+      "title": "Customer Segment Response",
+      "subtitle": "Digital collection effectiveness by segment",
+      "highRisk": "High Risk",
+      "mediumRisk": "Medium Risk",
+      "lowRisk": "Low Risk",
+      "newCustomers": "New Customers",
+      "attempts": "Attempts",
+      "responseRate": "Response Rate",
+      "avgPayment": "Avg Payment"
+    },
+    "alerts": {
+      "highPerformance": "Digital collection channels are performing above target with {{rate}}% adoption rate",
+      "systemStatus": "All digital collection systems operational"
+    },
+    "tabs": {
+      "channels": "Channels",
+      "automation": "Automation",
+      "payments": "Payments",
+      "campaigns": "Campaigns",
+      "analytics": "Analytics",
+      "optimization": "Optimization"
+    }
   }
 }
