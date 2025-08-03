@@ -1,4 +1,5 @@
 {
+  "appName": "Osoul",
   "common": {
     "search": "Search",
     "searchPlaceholder": "Search customers, accounts, transactions...",
@@ -46,6 +47,11 @@
     "language": "Language",
     "english": "English",
     "arabic": "العربية",
+    "adminUser": "Admin User",
+    "toggleMenu": "Toggle Menu",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "closeSidebar": "Close Sidebar",
     "customerList": "Customer List",
     "customersFound": "customers found",
     "badges": {
@@ -184,6 +190,11 @@
     "topCustomers": "Top Customers",
     "performanceMetrics": "Performance Metrics",
     "quickActions": "Quick Actions",
+    "keyMetrics": "Key Metrics",
+    "keyMetricsDesc": "Overview of key performance indicators",
+    "recentActivity": "Recent Activity",
+    "viewDetails": "View Details",
+    "goTo": "Go to",
     "sections": {
       "overview": "Overview",
       "banking": "Banking Services",

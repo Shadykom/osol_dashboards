@@ -1,4 +1,5 @@
 {
+  "appName": "أصول",
   "common": {
     "search": "بحث",
     "searchPlaceholder": "البحث عن العملاء، الحسابات، المعاملات...",
@@ -38,6 +39,11 @@
     "language": "اللغة",
     "english": "English",
     "arabic": "العربية",
+    "adminUser": "المستخدم الإداري",
+    "toggleMenu": "تبديل القائمة",
+    "lightMode": "الوضع الفاتح",
+    "darkMode": "الوضع الداكن",
+    "closeSidebar": "إغلاق الشريط الجانبي",
     "customerList": "قائمة العملاء",
     "customersFound": "عملاء تم العثور عليهم",
     "badges": {
@@ -196,6 +202,11 @@
     "topCustomers": "أفضل العملاء",
     "performanceMetrics": "مقاييس الأداء",
     "quickActions": "إجراءات سريعة",
+    "keyMetrics": "المؤشرات الرئيسية",
+    "keyMetricsDesc": "نظرة عامة على مؤشرات الأداء الرئيسية",
+    "recentActivity": "النشاط الأخير",
+    "viewDetails": "عرض التفاصيل",
+    "goTo": "انتقل إلى",
     "sections": {
       "overview": "نظرة عامة",
       "banking": "الخدمات المصرفية",

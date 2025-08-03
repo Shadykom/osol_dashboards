@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import ModernLayout from './components/layout/ModernLayout';
 import { FilterProvider } from './contexts/FilterContext';
+import { RTLWrapper } from './components/ui/rtl-wrapper';
 
 // Import test utility for debugging
 import './utils/testCustomerCount';
@@ -120,6 +121,30 @@ function NotFound() {
 function App() {
   const { i18n } = useTranslation();
 
+  // Set up mobile viewport
+  useEffect(() => {
+    // Add viewport meta tag for proper mobile scaling
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) {
+      const meta = document.createElement('meta');
+      meta.name = 'viewport';
+      meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+      document.head.appendChild(meta);
+    }
+
+    // Add mobile-specific classes to body
+    const checkMobile = () => {
+      const isMobile = window.innerWidth <= 768;
+      document.body.classList.toggle('mobile', isMobile);
+      document.body.classList.toggle('desktop', !isMobile);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <ErrorBoundary>
       <FilterProvider>
@@ -133,12 +158,13 @@ function App() {
 
 // App Content Component that can use Router hooks
 function AppContent() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRTL, setIsRTL] = useState(i18n.language === 'ar');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Add test function to window for debugging
   useEffect(() => {
@@ -147,21 +173,58 @@ function AppContent() {
       console.log('💡 Run window.testDashboardConsistency() in console to test dashboard data consistency');
     }
   }, []);
+
+  // Handle mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
-  // Ensure document language and direction are set
+  // Ensure document language and direction are set with proper mobile handling
   useEffect(() => {
     const currentLang = i18n.language || 'en'; // Default to English
     document.documentElement.lang = currentLang;
     document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    
+    // Add language-specific class to html element
+    document.documentElement.className = document.documentElement.className
+      .replace(/lang-\w+/g, '')
+      .trim() + ` lang-${currentLang}`;
+    
+    // Set proper font family based on language
+    if (currentLang === 'ar') {
+      document.documentElement.style.fontFamily = "'Noto Sans Arabic', 'Segoe UI', system-ui, -apple-system, sans-serif";
+    } else {
+      document.documentElement.style.fontFamily = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
+    }
   }, [i18n.language]);
 
-  // Handle language changes
+  // Handle language changes with enhanced mobile support
   useEffect(() => {
     const handleLanguageChange = (lng) => {
       const isArabic = lng === 'ar';
       setIsRTL(isArabic);
       document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
       document.documentElement.lang = lng;
+      
+      // Update language class
+      document.documentElement.className = document.documentElement.className
+        .replace(/lang-\w+/g, '')
+        .trim() + ` lang-${lng}`;
+      
+      // Update font family
+      if (isArabic) {
+        document.documentElement.style.fontFamily = "'Noto Sans Arabic', 'Segoe UI', system-ui, -apple-system, sans-serif";
+      } else {
+        document.documentElement.style.fontFamily = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif";
+      }
+      
+      // Force re-render of components that depend on text direction
+      window.dispatchEvent(new Event('languagechange'));
     };
 
     i18n.on('languageChanged', handleLanguageChange);
@@ -170,7 +233,7 @@ function AppContent() {
     };
   }, [i18n]);
 
-  // Handle dark mode
+  // Handle dark mode with mobile considerations
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -195,11 +258,18 @@ function AppContent() {
     }
   };
 
+  // Close sidebar on mobile when navigating
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname, isMobile]);
+
   return (
-    <div className="app">
+    <RTLWrapper className="app min-h-screen">
       <RouteRedirect />
       <Routes>
-        <Route element={<ModernLayout />}>
+        <Route element={<ModernLayout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} isMobile={isMobile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />}>
           {/* Main Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -309,7 +379,7 @@ function AppContent() {
         </Route>
       </Routes>
       <Toaster />
-    </div>
+    </RTLWrapper>
   );
 }
 

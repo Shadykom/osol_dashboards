@@ -1,0 +1,338 @@
+/* RTL/LTR and Mobile Responsive Utilities */
+
+/* Base RTL Support */
+:root {
+  --direction: ltr;
+  --text-align: left;
+  --text-align-opposite: right;
+  --margin-inline-start: margin-left;
+  --margin-inline-end: margin-right;
+  --padding-inline-start: padding-left;
+  --padding-inline-end: padding-right;
+  --border-inline-start: border-left;
+  --border-inline-end: border-right;
+  --inline-start: left;
+  --inline-end: right;
+}
+
+/* RTL Variables */
+[dir="rtl"] {
+  --direction: rtl;
+  --text-align: right;
+  --text-align-opposite: left;
+  --margin-inline-start: margin-right;
+  --margin-inline-end: margin-left;
+  --padding-inline-start: padding-right;
+  --padding-inline-end: padding-left;
+  --border-inline-start: border-right;
+  --border-inline-end: border-left;
+  --inline-start: right;
+  --inline-end: left;
+}
+
+/* Font Family for Arabic */
+.lang-ar,
+[lang="ar"] {
+  font-family: 'Noto Sans Arabic', 'Segoe UI', 'Tahoma', system-ui, -apple-system, sans-serif;
+}
+
+/* RTL Layout Utilities */
+.rtl-container {
+  direction: var(--direction);
+  text-align: var(--text-align);
+}
+
+/* Flexbox RTL Support */
+[dir="rtl"] .flex-row {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .space-x-1 > :not([hidden]) ~ :not([hidden]) {
+  margin-right: 0.25rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]) {
+  margin-right: 0.5rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-3 > :not([hidden]) ~ :not([hidden]) {
+  margin-right: 0.75rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-5 > :not([hidden]) ~ :not([hidden]) {
+  margin-right: 1.25rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-right: 1.5rem;
+  margin-left: 0;
+}
+
+/* Grid RTL Support */
+[dir="rtl"] .grid {
+  direction: rtl;
+}
+
+/* Position RTL Support */
+.start-0 {
+  inset-inline-start: 0;
+}
+
+.end-0 {
+  inset-inline-end: 0;
+}
+
+.start-auto {
+  inset-inline-start: auto;
+}
+
+.end-auto {
+  inset-inline-end: auto;
+}
+
+/* Margin RTL Support */
+.ms-1 { margin-inline-start: 0.25rem; }
+.ms-2 { margin-inline-start: 0.5rem; }
+.ms-3 { margin-inline-start: 0.75rem; }
+.ms-4 { margin-inline-start: 1rem; }
+.ms-5 { margin-inline-start: 1.25rem; }
+.ms-6 { margin-inline-start: 1.5rem; }
+.ms-8 { margin-inline-start: 2rem; }
+.ms-10 { margin-inline-start: 2.5rem; }
+
+.me-1 { margin-inline-end: 0.25rem; }
+.me-2 { margin-inline-end: 0.5rem; }
+.me-3 { margin-inline-end: 0.75rem; }
+.me-4 { margin-inline-end: 1rem; }
+.me-5 { margin-inline-end: 1.25rem; }
+.me-6 { margin-inline-end: 1.5rem; }
+.me-8 { margin-inline-end: 2rem; }
+.me-10 { margin-inline-end: 2.5rem; }
+
+/* Padding RTL Support */
+.ps-1 { padding-inline-start: 0.25rem; }
+.ps-2 { padding-inline-start: 0.5rem; }
+.ps-3 { padding-inline-start: 0.75rem; }
+.ps-4 { padding-inline-start: 1rem; }
+.ps-5 { padding-inline-start: 1.25rem; }
+.ps-6 { padding-inline-start: 1.5rem; }
+.ps-8 { padding-inline-start: 2rem; }
+.ps-10 { padding-inline-start: 2.5rem; }
+
+.pe-1 { padding-inline-end: 0.25rem; }
+.pe-2 { padding-inline-end: 0.5rem; }
+.pe-3 { padding-inline-end: 0.75rem; }
+.pe-4 { padding-inline-end: 1rem; }
+.pe-5 { padding-inline-end: 1.25rem; }
+.pe-6 { padding-inline-end: 1.5rem; }
+.pe-8 { padding-inline-end: 2rem; }
+.pe-10 { padding-inline-end: 2.5rem; }
+
+/* Border RTL Support */
+.border-s { border-inline-start-width: 1px; }
+.border-e { border-inline-end-width: 1px; }
+.border-s-2 { border-inline-start-width: 2px; }
+.border-e-2 { border-inline-end-width: 2px; }
+
+/* Rounded Corners RTL Support */
+.rounded-s { border-start-start-radius: 0.25rem; border-end-start-radius: 0.25rem; }
+.rounded-e { border-start-end-radius: 0.25rem; border-end-end-radius: 0.25rem; }
+.rounded-s-md { border-start-start-radius: 0.375rem; border-end-start-radius: 0.375rem; }
+.rounded-e-md { border-start-end-radius: 0.375rem; border-end-end-radius: 0.375rem; }
+.rounded-s-lg { border-start-start-radius: 0.5rem; border-end-start-radius: 0.5rem; }
+.rounded-e-lg { border-start-end-radius: 0.5rem; border-end-end-radius: 0.5rem; }
+
+/* Text Alignment */
+.text-start { text-align: start; }
+.text-end { text-align: end; }
+
+/* Float RTL Support */
+.float-start { float: inline-start; }
+.float-end { float: inline-end; }
+
+/* Mobile Responsive Breakpoints */
+@media (max-width: 640px) {
+  /* Mobile Navigation */
+  .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+  }
+
+  /* Mobile Padding Adjustments */
+  .mobile\:p-2 { padding: 0.5rem; }
+  .mobile\:p-3 { padding: 0.75rem; }
+  .mobile\:p-4 { padding: 1rem; }
+  
+  .mobile\:px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+  .mobile\:px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .mobile\:px-4 { padding-left: 1rem; padding-right: 1rem; }
+  
+  .mobile\:py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .mobile\:py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  .mobile\:py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+
+  /* Mobile Text Sizes */
+  .mobile\:text-xs { font-size: 0.75rem; line-height: 1rem; }
+  .mobile\:text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+  .mobile\:text-base { font-size: 1rem; line-height: 1.5rem; }
+
+  /* Mobile Grid */
+  .mobile\:grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .mobile\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Mobile Flex Direction */
+  .mobile\:flex-col { flex-direction: column; }
+  .mobile\:flex-row { flex-direction: row; }
+
+  /* Mobile Hidden/Visible */
+  .mobile\:hidden { display: none; }
+  .mobile\:block { display: block; }
+  .mobile\:inline-block { display: inline-block; }
+  .mobile\:flex { display: flex; }
+
+  /* Mobile Spacing */
+  .mobile\:space-y-2 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.5rem;
+  }
+  
+  .mobile\:space-y-3 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.75rem;
+  }
+  
+  .mobile\:space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1rem;
+  }
+
+  /* Mobile Width */
+  .mobile\:w-full { width: 100%; }
+  .mobile\:w-auto { width: auto; }
+
+  /* Mobile Max Width */
+  .mobile\:max-w-full { max-width: 100%; }
+  .mobile\:max-w-sm { max-width: 24rem; }
+  .mobile\:max-w-md { max-width: 28rem; }
+
+  /* Mobile Margins */
+  .mobile\:m-0 { margin: 0; }
+  .mobile\:m-2 { margin: 0.5rem; }
+  .mobile\:m-3 { margin: 0.75rem; }
+  .mobile\:m-4 { margin: 1rem; }
+
+  .mobile\:mx-auto { margin-left: auto; margin-right: auto; }
+  .mobile\:my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+  .mobile\:my-3 { margin-top: 0.75rem; margin-bottom: 0.75rem; }
+  .mobile\:my-4 { margin-top: 1rem; margin-bottom: 1rem; }
+
+  /* Mobile Border Radius */
+  .mobile\:rounded-none { border-radius: 0; }
+  .mobile\:rounded { border-radius: 0.25rem; }
+  .mobile\:rounded-md { border-radius: 0.375rem; }
+  .mobile\:rounded-lg { border-radius: 0.5rem; }
+
+  /* Mobile Shadows */
+  .mobile\:shadow-none { box-shadow: none; }
+  .mobile\:shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+  .mobile\:shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); }
+}
+
+/* Tablet Responsive Breakpoints */
+@media (min-width: 641px) and (max-width: 768px) {
+  .tablet\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tablet\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  
+  .tablet\:px-4 { padding-left: 1rem; padding-right: 1rem; }
+  .tablet\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+  
+  .tablet\:text-base { font-size: 1rem; line-height: 1.5rem; }
+  .tablet\:text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+}
+
+/* Desktop Responsive Breakpoints */
+@media (min-width: 769px) {
+  .desktop\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .desktop\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  
+  .desktop\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .desktop\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+  
+  .desktop\:text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+  .desktop\:text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+}
+
+/* Animations for Mobile */
+@media (max-width: 640px) {
+  /* Disable complex animations on mobile for better performance */
+  .mobile\:no-animation,
+  .mobile\:no-animation * {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  /* Simple fade transitions for mobile */
+  .mobile\:transition-opacity {
+    transition-property: opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+}
+
+/* Touch-friendly sizes for mobile */
+@media (max-width: 768px) {
+  /* Minimum touch target size */
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="link"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Larger click areas for mobile */
+  .touch-target {
+    position: relative;
+  }
+  
+  .touch-target::before {
+    content: "";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    bottom: -8px;
+    left: -8px;
+  }
+}
+
+/* Scrollbar styling for RTL */
+[dir="rtl"] ::-webkit-scrollbar {
+  direction: rtl;
+}
+
+[dir="rtl"] ::-webkit-scrollbar-track {
+  direction: rtl;
+}
+
+/* Print styles with RTL support */
+@media print {
+  [dir="rtl"] {
+    direction: rtl;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
