@@ -1861,5 +1861,137 @@
         "completed": "مكتمل"
       }
     }
+  },
+  "dailyCollectionDashboard": {
+    "title": "لوحة التحصيل اليومي",
+    "subtitle": "المراقبة الفورية لأنشطة التحصيل",
+    "live": "مباشر",
+    "paused": "متوقف",
+    "pause": "إيقاف مؤقت",
+    "resume": "استئناف",
+    "morningSnapshot": {
+      "totalDueToday": "إجمالي المستحق اليوم",
+      "ptpDueToday": "وعود السداد المستحقة اليوم",
+      "fieldVisits": "الزيارات الميدانية",
+      "legalUpdates": "التحديثات القانونية",
+      "yesterdayAchievement": "إنجاز الأمس"
+    },
+    "criticalAlerts": {
+      "highValue": "دفعة كبيرة مستحقة",
+      "legal": "جلسة محكمة اليوم",
+      "system": "تنبيه النظام"
+    },
+    "tabs": {
+      "liveTracking": "التتبع المباشر",
+      "collectors": "المحصلون",
+      "performance": "الأداء",
+      "queues": "قوائم الانتظار",
+      "analytics": "التحليلات"
+    },
+    "liveTracking": {
+      "livePaymentTracking": "تتبع المدفوعات المباشر",
+      "paymentsToday": "دفعات اليوم",
+      "collectedSoFar": "المحصل حتى الآن اليوم",
+      "collectorStatus": "حالة المحصلين",
+      "online": "متصل",
+      "onBreak": "في استراحة",
+      "offline": "غير متصل",
+      "activeCalls": "المكالمات النشطة",
+      "avgCallDuration": "المتوسط",
+      "contactSuccess": "نجاح الاتصال",
+      "ptpProgress": "تقدم وعود السداد",
+      "hourlyTrend": "الاتجاه بالساعة",
+      "vsLastHour": "مقابل الساعة الماضية",
+      "hourlyCollectionTrend": "اتجاه التحصيل بالساعة",
+      "collectionPerformance": "أداء التحصيل على مدار اليوم",
+      "amountCollected": "المبلغ المحصل"
+    },
+    "collectors": {
+      "liveCollectorActivity": "نشاط المحصلين المباشر",
+      "realtimeStatus": "الحالة الفورية لجميع المحصلين النشطين",
+      "collector": "المحصل",
+      "status": "الحالة",
+      "duration": "المدة",
+      "currentCustomer": "العميل الحالي",
+      "team": "الفريق",
+      "actions": "الإجراءات",
+      "statuses": {
+        "onCall": "في مكالمة",
+        "afterCall": "بعد المكالمة",
+        "break": "استراحة",
+        "available": "متاح",
+        "offline": "غير متصل"
+      },
+      "topPerformers": "أفضل المؤدين اليوم",
+      "calls": "مكالمات",
+      "ptps": "وعود سداد",
+      "successRate": "النجاح"
+    },
+    "performance": {
+      "channelPerformance": "أداء القنوات",
+      "channelEffectiveness": "فعالية قنوات التحصيل المختلفة",
+      "channel": "القناة",
+      "attempts": "المحاولات",
+      "successful": "ناجحة",
+      "successRate": "معدل النجاح",
+      "amountCollected": "المبلغ المحصل",
+      "channels": {
+        "phoneCalls": "المكالمات الهاتفية",
+        "sms": "الرسائل النصية",
+        "email": "البريد الإلكتروني",
+        "whatsapp": "واتساب",
+        "fieldVisit": "الزيارة الميدانية"
+      },
+      "slaCompliance": "الامتثال لاتفاقية مستوى الخدمة",
+      "slaPerformance": "أداء اتفاقية مستوى الخدمة",
+      "metrics": {
+        "firstCallResolution": "حل المكالمة الأولى",
+        "avgResponseTime": "متوسط وقت الاستجابة",
+        "ptpFollowUp": "متابعة وعود السداد",
+        "escalationTime": "وقت التصعيد"
+      },
+      "target": "الهدف",
+      "good": "جيد",
+      "warning": "تحذير"
+    },
+    "queues": {
+      "queueStatus": "حالة قوائم الانتظار",
+      "queueDistribution": "توزيع قوائم الانتظار وأوقات الانتظار الفورية",
+      "queueTypes": {
+        "priority": "قائمة الأولوية",
+        "normal": "القائمة العادية",
+        "automated": "القائمة الآلية",
+        "legal": "القائمة القانونية"
+      },
+      "total": "الإجمالي",
+      "assigned": "المخصص",
+      "pending": "معلق",
+      "avgWait": "متوسط الانتظار",
+      "workloadDistribution": "توزيع عبء العمل",
+      "casesPerCollector": "الحالات المخصصة لكل محصل",
+      "casesAssigned": "الحالات المخصصة"
+    },
+    "analytics": {
+      "collectionVelocity": "سرعة التحصيل",
+      "speedOfCollections": "سرعة التحصيلات على مدار اليوم",
+      "callsMade": "المكالمات المجراة",
+      "successfulContacts": "الاتصالات الناجحة",
+      "paymentMethodsDistribution": "توزيع طرق الدفع",
+      "breakdownPaymentMethods": "تفصيل طرق تحصيل المدفوعات",
+      "paymentMethods": {
+        "online": "عبر الإنترنت",
+        "bankTransfer": "التحويل البنكي",
+        "fieldCollection": "التحصيل الميداني",
+        "ivr": "الرد الصوتي التفاعلي",
+        "mobileApp": "التطبيق المحمول"
+      },
+      "endOfDayProjections": "توقعات نهاية اليوم",
+      "aiPoweredPredictions": "تنبؤات مدعومة بالذكاء الاصطناعي بناءً على الأداء الحالي",
+      "projectedCollection": "التحصيل المتوقع",
+      "expectedPtps": "وعود السداد المتوقعة",
+      "contactsToMake": "الاتصالات المطلوبة",
+      "ofTarget": "من الهدف",
+      "toAchieveTarget": "لتحقيق الهدف"
+    }
   }
 }
