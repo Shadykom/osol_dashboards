@@ -394,34 +394,70 @@ export function ExecutiveDashboard() {
   const { shouldRefresh, refreshComplete } = useDataRefresh();
 
   // Memoize the fallback portfolio data to avoid inline t() calls
-  const fallbackPortfolioData = useMemo(() => [
-    { name: t('executiveDashboard.personalLoans'), value: 35, growth: '+5%' },
-    { name: t('executiveDashboard.mortgages'), value: 28, growth: '+3%' },
-    { name: t('executiveDashboard.autoLoans'), value: 20, growth: '+8%' },
-    { name: t('executiveDashboard.businessLoans'), value: 12, growth: '+12%' },
-    { name: t('executiveDashboard.others'), value: 5, growth: '-2%' }
-  ], [t]);
+  const fallbackPortfolioData = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return [
+        { name: 'Personal Loans', value: 35, growth: '+5%' },
+        { name: 'Mortgages', value: 28, growth: '+3%' },
+        { name: 'Auto Loans', value: 20, growth: '+8%' },
+        { name: 'Business Loans', value: 12, growth: '+12%' },
+        { name: 'Others', value: 5, growth: '-2%' }
+      ];
+    }
+    return [
+      { name: t('executiveDashboard.personalLoans'), value: 35, growth: '+5%' },
+      { name: t('executiveDashboard.mortgages'), value: 28, growth: '+3%' },
+      { name: t('executiveDashboard.autoLoans'), value: 20, growth: '+8%' },
+      { name: t('executiveDashboard.businessLoans'), value: 12, growth: '+12%' },
+      { name: t('executiveDashboard.others'), value: 5, growth: '-2%' }
+    ];
+  }, [t]);
 
   // Memoize other data that uses translations
-  const loanPortfolioPerformanceData = useMemo(() => [
-    { period: t('executiveDashboard.personalLoans'), current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
-    { period: t('executiveDashboard.mortgages'), current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
-    { period: t('executiveDashboard.autoLoans'), current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
-    { period: t('executiveDashboard.businessLoans'), current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
-    { period: t('executiveDashboard.creditCards'), current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
-  ], [t]);
+  const loanPortfolioPerformanceData = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return [
+        { period: 'Personal Loans', current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
+        { period: 'Mortgages', current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
+        { period: 'Auto Loans', current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
+        { period: 'Business Loans', current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
+        { period: 'Credit Cards', current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
+      ];
+    }
+    return [
+      { period: t('executiveDashboard.personalLoans'), current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
+      { period: t('executiveDashboard.mortgages'), current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
+      { period: t('executiveDashboard.autoLoans'), current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
+      { period: t('executiveDashboard.businessLoans'), current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
+      { period: t('executiveDashboard.creditCards'), current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
+    ];
+  }, [t]);
 
-  const customerGrowthMetrics = useMemo(() => [
-    t('executiveDashboard.newCustomers'), 
-    t('executiveDashboard.activeCustomers'), 
-    t('executiveDashboard.churnedCustomers')
-  ], [t]);
+  const customerGrowthMetrics = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return ['New Customers', 'Active Customers', 'Churned Customers'];
+    }
+    return [
+      t('executiveDashboard.newCustomers'), 
+      t('executiveDashboard.activeCustomers'), 
+      t('executiveDashboard.churnedCustomers')
+    ];
+  }, [t]);
 
-  const loanPortfolioMetrics = useMemo(() => [
-    t('executiveDashboard.disbursedAmount'), 
-    t('executiveDashboard.outstandingBalance'), 
-    t('executiveDashboard.nplAmount')
-  ], [t]);
+  const loanPortfolioMetrics = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return ['Disbursed Amount', 'Outstanding Balance', 'NPL Amount'];
+    }
+    return [
+      t('executiveDashboard.disbursedAmount'), 
+      t('executiveDashboard.outstandingBalance'), 
+      t('executiveDashboard.nplAmount')
+    ];
+  }, [t]);
 
   // Fetch real dashboard data
   const fetchDashboardData = useCallback(async () => {
