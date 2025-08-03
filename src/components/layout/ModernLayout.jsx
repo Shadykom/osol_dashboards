@@ -122,7 +122,7 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
 
 // Main layout content
 const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, toggleDarkMode }) => {
-  const { isOpen } = useSidebar();
+  const { isOpen, closeSidebar } = useSidebar();
   const { i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
 
@@ -147,7 +147,7 @@ const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, togg
       {isMobile && isOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 

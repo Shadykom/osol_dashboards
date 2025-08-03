@@ -41,6 +41,7 @@ const ModernSidebar = ({ isMobile }) => {
     isOpen, 
     expandedGroups, 
     closeSidebar, 
+    toggleSidebar,
     toggleGroup,
     isGroupExpanded 
   } = useSidebar();
@@ -305,10 +306,12 @@ const ModernSidebar = ({ isMobile }) => {
           "hover:bg-gray-100 dark:hover:bg-gray-700/50",
           isActive && "bg-primary/10 text-primary dark:bg-primary/20",
           !isActive && "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white",
-          level > 0 && paddingStart(level * 4)
+          level > 0 && paddingStart(level * 4),
+          !isOpen && !isMobile && "justify-center"
         )}
         onClick={onClick}
         responsive={false}
+        title={!isOpen && !isMobile ? item.label : undefined}
       >
         {ItemIcon && (
           <RTLIcon position="start">
@@ -319,19 +322,23 @@ const ModernSidebar = ({ isMobile }) => {
           </RTLIcon>
         )}
         
-        <span className={cn(
-          "font-medium text-sm flex-1",
-          isRTL ? "text-right" : "text-left"
-        )}>
-          {item.label}
-        </span>
-        
-        {hasChildren && (
-          <ChevronDown className={cn(
-            "w-4 h-4 transition-transform duration-200",
-            isExpanded && "rotate-180",
-            "text-gray-400"
-          )} />
+        {(isOpen || isMobile) && (
+          <>
+            <span className={cn(
+              "font-medium text-sm flex-1",
+              isRTL ? "text-right" : "text-left"
+            )}>
+              {item.label}
+            </span>
+            
+            {hasChildren && (
+              <ChevronDown className={cn(
+                "w-4 h-4 transition-transform duration-200",
+                isExpanded && "rotate-180",
+                "text-gray-400"
+              )} />
+            )}
+          </>
         )}
       </RTLFlex>
     );
@@ -380,9 +387,9 @@ const ModernSidebar = ({ isMobile }) => {
         {/* Header */}
         <div className={cn(
           "flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700",
-          !isOpen && "lg:justify-center"
+          !isOpen && !isMobile && "justify-center"
         )}>
-          {isOpen ? (
+          {(isOpen || isMobile) ? (
             <RTLFlex className="items-center gap-3" responsive={false}>
               <img 
                 src={osoulLogo} 
@@ -398,6 +405,7 @@ const ModernSidebar = ({ isMobile }) => {
               src={osoulLogo} 
               alt="Osoul" 
               className="h-8 w-auto"
+              title={t('appName', 'Osoul')}
             />
           )}
           
@@ -434,10 +442,11 @@ const ModernSidebar = ({ isMobile }) => {
                   />
                   
                   {/* Sub-items */}
-                  {item.items && isGroupExpanded(item.id) && isOpen && (
+                  {item.items && isGroupExpanded(item.id) && (isOpen || !isMobile) && (
                     <div className={cn(
                       "mt-1 space-y-1",
-                      "transition-all duration-200"
+                      "transition-all duration-200",
+                      !isOpen && !isMobile && "lg:hidden"
                     )}>
                       {item.items.map((subItem) => (
                         <NavItem
@@ -461,38 +470,54 @@ const ModernSidebar = ({ isMobile }) => {
         </nav>
 
         {/* Footer */}
-        {isOpen && (
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <RTLFlex className="items-center gap-3 mb-3" responsive={false}>
-              <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {t('common.adminUser')}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  admin@osoul.com
-                </p>
-              </div>
-            </RTLFlex>
-            
-            <button className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 rounded-lg",
-              "text-gray-700 dark:text-gray-300",
-              "hover:bg-gray-100 dark:hover:bg-gray-700/50",
-              "transition-colors"
-            )}>
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm">{t('common.logout')}</span>
-            </button>
+        {(isOpen || !isMobile) && (
+          <div className={cn(
+            "p-4 border-t border-gray-200 dark:border-gray-700",
+            !isOpen && !isMobile && "lg:px-2"
+          )}>
+            {isOpen ? (
+              <>
+                <RTLFlex className="items-center gap-3 mb-3" responsive={false}>
+                  <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {t('common.adminUser')}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      admin@osoul.com
+                    </p>
+                  </div>
+                </RTLFlex>
+                
+                <button className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 rounded-lg",
+                  "text-gray-700 dark:text-gray-300",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700/50",
+                  "transition-colors"
+                )}>
+                  <LogOut className="w-4 h-4" />
+                  <span className="text-sm">{t('common.logout')}</span>
+                </button>
+              </>
+            ) : (
+              <button className={cn(
+                "w-full flex items-center justify-center p-2 rounded-lg",
+                "text-gray-700 dark:text-gray-300",
+                "hover:bg-gray-100 dark:hover:bg-gray-700/50",
+                "transition-colors"
+              )}>
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
 
         {/* Collapse button for desktop */}
         {!isMobile && (
           <button
-            onClick={() => toggleGroup('sidebar')}
+            onClick={toggleSidebar}
             className={cn(
               "absolute -end-3 top-9",
               "w-6 h-6 bg-white dark:bg-gray-800",
