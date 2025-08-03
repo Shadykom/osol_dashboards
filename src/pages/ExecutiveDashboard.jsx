@@ -32,7 +32,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   LineChart,
   Line,
@@ -99,7 +105,8 @@ import {
   Link,
   Copy,
   Image,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Upload
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -374,6 +381,16 @@ export function ExecutiveDashboard() {
   const [isExporting, setIsExporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [customizationOpen, setCustomizationOpen] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [loadComparisonDialogOpen, setLoadComparisonDialogOpen] = useState(false);
+  const [savedComparisons, setSavedComparisons] = useState([]);
+  const [scheduleSettings, setScheduleSettings] = useState({
+    name: 'Executive Dashboard Report',
+    frequency: 'DAILY',
+    time: '08:00',
+    recipients: '',
+    format: 'PDF'
+  });
   const { shouldRefresh, refreshComplete } = useDataRefresh();
 
   // Fetch real dashboard data
@@ -496,6 +513,71 @@ export function ExecutiveDashboard() {
     setCustomizationOpen(true);
   };
 
+  // Save current comparison
+  const handleSaveComparison = async () => {
+    try {
+      const comparisonName = prompt(t('executiveDashboard.enterComparisonName'));
+      if (!comparisonName) return;
+
+      const result = await DashboardService.saveComparison({
+        name: comparisonName,
+        settings: comparisonSettings,
+        data: dashboardData,
+        filters: { dateRange, selectedBranch }
+      });
+
+      if (result.success) {
+        toast.success(t('executiveDashboard.comparisonSaved'));
+      }
+    } catch (error) {
+      console.error('Save comparison error:', error);
+      toast.error(t('executiveDashboard.failedToSaveComparison'));
+    }
+  };
+
+  // Load saved comparisons
+  const handleLoadComparison = async () => {
+    try {
+      const result = await DashboardService.loadSavedComparisons();
+      if (result.success && result.data) {
+        setSavedComparisons(result.data);
+        setLoadComparisonDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Load comparison error:', error);
+      toast.error(t('executiveDashboard.failedToLoadComparisons'));
+    }
+  };
+
+  // Apply loaded comparison
+  const applyComparison = (comparison) => {
+    setComparisonSettings(comparison.settings);
+    setDateRange(comparison.filters.dateRange);
+    setSelectedBranch(comparison.filters.selectedBranch);
+    setLoadComparisonDialogOpen(false);
+    toast.success(t('executiveDashboard.comparisonLoaded'));
+    fetchDashboardData();
+  };
+
+  // Schedule report
+  const handleScheduleReport = async () => {
+    try {
+      const result = await DashboardService.scheduleReport({
+        ...scheduleSettings,
+        recipients: scheduleSettings.recipients.split(',').map(email => email.trim()),
+        filters: { dateRange, selectedBranch, comparison: comparisonSettings }
+      });
+
+      if (result.success) {
+        toast.success(t('executiveDashboard.reportScheduled'));
+        setScheduleDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('Schedule report error:', error);
+      toast.error(t('executiveDashboard.failedToScheduleReport'));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <motion.div
@@ -603,6 +685,39 @@ export function ExecutiveDashboard() {
                 <DropdownMenuItem onClick={() => handleShare('copy')}>
                   <Copy className="h-4 w-4 mr-2" />
                   {t('executiveDashboard.copySummary')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {/* More Options Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                >
+                  <MoreVertical className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">{t('executiveDashboard.moreOptions')}</span>
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSaveComparison}>
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.saveComparison')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLoadComparison}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.loadPrevious')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.scheduleReport')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCustomization}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.customize')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1090,6 +1205,140 @@ export function ExecutiveDashboard() {
                 <p className="text-sm">{t('executiveDashboard.configureThemes')}</p>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Report Dialog */}
+        <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t('executiveDashboard.scheduleReport')}</DialogTitle>
+              <DialogDescription>
+                {t('executiveDashboard.configureReportSchedule')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="report-name">{t('executiveDashboard.reportName')}</Label>
+                <Input
+                  id="report-name"
+                  value={scheduleSettings.name}
+                  onChange={(e) => setScheduleSettings({...scheduleSettings, name: e.target.value})}
+                  placeholder={t('executiveDashboard.enterReportName')}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>{t('executiveDashboard.frequency')}</Label>
+                <RadioGroup
+                  value={scheduleSettings.frequency}
+                  onValueChange={(value) => setScheduleSettings({...scheduleSettings, frequency: value})}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="DAILY" id="daily" />
+                    <Label htmlFor="daily">{t('executiveDashboard.daily')}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="WEEKLY" id="weekly" />
+                    <Label htmlFor="weekly">{t('executiveDashboard.weekly')}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="MONTHLY" id="monthly" />
+                    <Label htmlFor="monthly">{t('executiveDashboard.monthly')}</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="schedule-time">{t('executiveDashboard.scheduleTime')}</Label>
+                <Input
+                  id="schedule-time"
+                  type="time"
+                  value={scheduleSettings.time}
+                  onChange={(e) => setScheduleSettings({...scheduleSettings, time: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="recipients">{t('executiveDashboard.emailRecipients')}</Label>
+                <Textarea
+                  id="recipients"
+                  value={scheduleSettings.recipients}
+                  onChange={(e) => setScheduleSettings({...scheduleSettings, recipients: e.target.value})}
+                  placeholder={t('executiveDashboard.enterEmailsSeparatedByComma')}
+                  rows={3}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>{t('executiveDashboard.reportFormat')}</Label>
+                <RadioGroup
+                  value={scheduleSettings.format}
+                  onValueChange={(value) => setScheduleSettings({...scheduleSettings, format: value})}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="PDF" id="pdf" />
+                    <Label htmlFor="pdf">PDF</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="EXCEL" id="excel" />
+                    <Label htmlFor="excel">Excel</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
+                {t('executiveDashboard.cancel')}
+              </Button>
+              <Button onClick={handleScheduleReport}>
+                {t('executiveDashboard.scheduleReport')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Load Comparison Dialog */}
+        <Dialog open={loadComparisonDialogOpen} onOpenChange={setLoadComparisonDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t('executiveDashboard.loadPrevious')}</DialogTitle>
+              <DialogDescription>
+                {t('executiveDashboard.selectPreviousComparison')}
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+              <div className="space-y-2">
+                {savedComparisons.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    {t('executiveDashboard.noSavedComparisons')}
+                  </p>
+                ) : (
+                  savedComparisons.map((comparison) => (
+                    <Card
+                      key={comparison.id}
+                      className="p-4 cursor-pointer hover:bg-accent"
+                      onClick={() => applyComparison(comparison)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-medium">{comparison.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(comparison.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4" />
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLoadComparisonDialogOpen(false)}>
+                {t('executiveDashboard.close')}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </motion.div>
