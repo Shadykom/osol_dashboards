@@ -182,7 +182,7 @@ export class DashboardService {
         // Account metrics
         supabaseBanking
           .from(TABLES.ACCOUNTS)
-          .select('current_balance, account_status, branch_code, product_id')
+          .select('current_balance, account_status, branch_id, product_id')
           .eq('account_status', 'ACTIVE'),
         
         // Loan metrics
@@ -531,7 +531,7 @@ export class DashboardService {
       const { data: branchData, error } = await supabaseBanking
         .from(TABLES.ACCOUNTS)
         .select(`
-          branch_code,
+          branch_id,
           current_balance,
           account_status
         `);
@@ -541,7 +541,7 @@ export class DashboardService {
       // Group by branch
       const branchMetrics = {};
       branchData?.forEach(account => {
-        const branch = account.branch_code || 'UNKNOWN';
+        const branch = account.branch_id || 'UNKNOWN';
         if (!branchMetrics[branch]) {
           branchMetrics[branch] = {
             totalBalance: 0,

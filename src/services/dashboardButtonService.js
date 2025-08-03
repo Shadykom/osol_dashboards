@@ -10,6 +10,11 @@ export class DashboardButtonService {
    * Export dashboard data in various formats
    */
   static async exportDashboard(data, format = 'excel', options = {}) {
+    console.log('DashboardButtonService.exportDashboard called');
+    console.log('Format:', format);
+    console.log('Data:', data);
+    console.log('Options:', options);
+    
     try {
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `executive-dashboard-${timestamp}`;
@@ -487,6 +492,10 @@ Risk Scores:
    * Generate detailed report
    */
   static async generateDetailedReport(data, options = {}) {
+    console.log('DashboardButtonService.generateDetailedReport called');
+    console.log('Data:', data);
+    console.log('Options:', options);
+    
     try {
       const reportData = {
         ...data,
