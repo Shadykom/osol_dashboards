@@ -1786,5 +1786,137 @@
         "completed": "Completed"
       }
     }
+  },
+  "dailyCollectionDashboard": {
+    "title": "Daily Collection Dashboard",
+    "subtitle": "Real-time monitoring of collection activities",
+    "live": "LIVE",
+    "paused": "PAUSED",
+    "pause": "Pause",
+    "resume": "Resume",
+    "morningSnapshot": {
+      "totalDueToday": "Total Due Today",
+      "ptpDueToday": "PTP Due Today",
+      "fieldVisits": "Field Visits",
+      "legalUpdates": "Legal Updates",
+      "yesterdayAchievement": "Yesterday's Achievement"
+    },
+    "criticalAlerts": {
+      "highValue": "Large payment due",
+      "legal": "Court hearing today",
+      "system": "System alert"
+    },
+    "tabs": {
+      "liveTracking": "Live Tracking",
+      "collectors": "Collectors",
+      "performance": "Performance",
+      "queues": "Queues",
+      "analytics": "Analytics"
+    },
+    "liveTracking": {
+      "livePaymentTracking": "Live Payment Tracking",
+      "paymentsToday": "payments today",
+      "collectedSoFar": "Collected so far today",
+      "collectorStatus": "Collector Status",
+      "online": "Online",
+      "onBreak": "On Break",
+      "offline": "Offline",
+      "activeCalls": "Active Calls",
+      "avgCallDuration": "Avg",
+      "contactSuccess": "Contact Success",
+      "ptpProgress": "PTP Progress",
+      "hourlyTrend": "Hourly Trend",
+      "vsLastHour": "vs last hour",
+      "hourlyCollectionTrend": "Hourly Collection Trend",
+      "collectionPerformance": "Collection performance throughout the day",
+      "amountCollected": "Amount Collected"
+    },
+    "collectors": {
+      "liveCollectorActivity": "Live Collector Activity",
+      "realtimeStatus": "Real-time status of all active collectors",
+      "collector": "Collector",
+      "status": "Status",
+      "duration": "Duration",
+      "currentCustomer": "Current Customer",
+      "team": "Team",
+      "actions": "Actions",
+      "statuses": {
+        "onCall": "ON CALL",
+        "afterCall": "AFTER CALL",
+        "break": "BREAK",
+        "available": "AVAILABLE",
+        "offline": "OFFLINE"
+      },
+      "topPerformers": "Today's Top Performers",
+      "calls": "calls",
+      "ptps": "PTPs",
+      "successRate": "Success"
+    },
+    "performance": {
+      "channelPerformance": "Channel Performance",
+      "channelEffectiveness": "Effectiveness of different collection channels",
+      "channel": "Channel",
+      "attempts": "Attempts",
+      "successful": "Successful",
+      "successRate": "Success Rate",
+      "amountCollected": "Amount Collected",
+      "channels": {
+        "phoneCalls": "Phone Calls",
+        "sms": "SMS",
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "fieldVisit": "Field Visit"
+      },
+      "slaCompliance": "SLA Compliance",
+      "slaPerformance": "Service level agreement performance",
+      "metrics": {
+        "firstCallResolution": "First Call Resolution",
+        "avgResponseTime": "Avg Response Time",
+        "ptpFollowUp": "PTP Follow Up",
+        "escalationTime": "Escalation Time"
+      },
+      "target": "target",
+      "good": "GOOD",
+      "warning": "WARNING"
+    },
+    "queues": {
+      "queueStatus": "Queue Status",
+      "queueDistribution": "Real-time queue distribution and wait times",
+      "queueTypes": {
+        "priority": "Priority Queue",
+        "normal": "Normal Queue",
+        "automated": "Automated Queue",
+        "legal": "Legal Queue"
+      },
+      "total": "Total",
+      "assigned": "Assigned",
+      "pending": "Pending",
+      "avgWait": "Avg Wait",
+      "workloadDistribution": "Workload Distribution",
+      "casesPerCollector": "Cases assigned per collector",
+      "casesAssigned": "Cases Assigned"
+    },
+    "analytics": {
+      "collectionVelocity": "Collection Velocity",
+      "speedOfCollections": "Speed of collections throughout the day",
+      "callsMade": "Calls Made",
+      "successfulContacts": "Successful Contacts",
+      "paymentMethodsDistribution": "Payment Methods Distribution",
+      "breakdownPaymentMethods": "Breakdown of payment collection methods",
+      "paymentMethods": {
+        "online": "Online",
+        "bankTransfer": "Bank Transfer",
+        "fieldCollection": "Field Collection",
+        "ivr": "IVR",
+        "mobileApp": "Mobile App"
+      },
+      "endOfDayProjections": "End of Day Projections",
+      "aiPoweredPredictions": "AI-powered predictions based on current performance",
+      "projectedCollection": "Projected Collection",
+      "expectedPtps": "Expected PTPs",
+      "contactsToMake": "Contacts to Make",
+      "ofTarget": "of target",
+      "toAchieveTarget": "To achieve target"
+    }
   }
 }
