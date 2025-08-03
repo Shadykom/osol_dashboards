@@ -513,81 +513,124 @@ export function ExecutiveDashboard() {
 
   // Export functionality
   const handleExport = async (format = 'excel') => {
-    console.log('handleExport called with format:', format);
-    console.log('dashboardData:', dashboardData);
+    console.log('🚀 handleExport called with format:', format);
+    console.log('📊 dashboardData availability:', !!dashboardData);
+    console.log('📊 dashboardData:', dashboardData);
     
     if (!dashboardData) {
+      console.warn('⚠️ No data available to export');
       toast.error('No data available to export');
       return;
     }
 
     try {
       setIsExporting(true);
-      console.log('Calling DashboardButtonService.exportDashboard...');
+      console.log('📤 Setting export state to true');
+      console.log('🔧 Calling DashboardButtonService.exportDashboard...');
+      
+      // Test if the service is available
+      if (!DashboardButtonService) {
+        throw new Error('DashboardButtonService is not available');
+      }
+      
       const result = await DashboardButtonService.exportDashboard(dashboardData, format, {
         elementId: 'executive-dashboard-container'
       });
       
-      console.log('Export result:', result);
+      console.log('✅ Export result:', result);
       
       if (result.success) {
         toast.success(result.message);
+      } else {
+        throw new Error(result.message || 'Export failed');
       }
     } catch (error) {
-      console.error('Export error:', error);
+      console.error('❌ Export error:', error);
+      console.error('❌ Error stack:', error.stack);
       toast.error(error.message || 'Failed to export dashboard');
     } finally {
       setIsExporting(false);
+      console.log('📤 Setting export state to false');
     }
   };
 
   // Share functionality
   const handleShare = async (method = 'link') => {
+    console.log('🚀 handleShare called with method:', method);
+    console.log('📊 dashboardData availability:', !!dashboardData);
+    
     if (!dashboardData) {
+      console.warn('⚠️ No data available to share');
       toast.error('No data available to share');
       return;
     }
 
     try {
       setIsSharing(true);
+      console.log('🔗 Setting share state to true');
+      
+      // Test if the service is available
+      if (!DashboardButtonService) {
+        throw new Error('DashboardButtonService is not available');
+      }
+      
       const result = await DashboardButtonService.shareDashboard(dashboardData, method);
+      
+      console.log('✅ Share result:', result);
       
       if (result.success) {
         toast.success(result.message);
+      } else {
+        throw new Error(result.message || 'Share failed');
       }
     } catch (error) {
-      console.error('Share error:', error);
+      console.error('❌ Share error:', error);
+      console.error('❌ Error stack:', error.stack);
       toast.error(error.message || 'Failed to share dashboard');
     } finally {
       setIsSharing(false);
+      console.log('🔗 Setting share state to false');
     }
   };
 
   // Generate detailed report
   const handleGenerateReport = async (format = 'pdf') => {
-    console.log('handleGenerateReport called with format:', format);
-    console.log('dashboardData:', dashboardData);
+    console.log('🚀 handleGenerateReport called with format:', format);
+    console.log('📊 dashboardData availability:', !!dashboardData);
+    console.log('📊 dashboardData:', dashboardData);
     
     if (!dashboardData) {
+      console.warn('⚠️ No data available for report generation');
       toast.error('No data available for report generation');
       return;
     }
 
     try {
       setIsExporting(true);
-      console.log('Calling DashboardButtonService.generateDetailedReport...');
+      console.log('📝 Setting export state to true for report generation');
+      console.log('🔧 Calling DashboardButtonService.generateDetailedReport...');
+      
+      // Test if the service is available
+      if (!DashboardButtonService) {
+        throw new Error('DashboardButtonService is not available');
+      }
+      
       const result = await DashboardButtonService.generateDetailedReport(dashboardData, { format });
       
-      console.log('Report generation result:', result);
+      console.log('✅ Report generation result:', result);
       
       if (result.success) {
         toast.success(result.message);
+      } else {
+        throw new Error(result.message || 'Report generation failed');
       }
     } catch (error) {
-      console.error('Report generation error:', error);
+      console.error('❌ Report generation error:', error);
+      console.error('❌ Error stack:', error.stack);
       toast.error(error.message || 'Failed to generate report');
     } finally {
       setIsExporting(false);
+      console.log('📝 Setting export state to false');
     }
   };
 
@@ -660,6 +703,8 @@ export function ExecutiveDashboard() {
       toast.error(t('executiveDashboard.failedToScheduleReport'));
     }
   };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -849,24 +894,7 @@ export function ExecutiveDashboard() {
                   <SelectItem value="dammam">{t('executiveDashboard.dammam')}</SelectItem>
                 </SelectContent>
               </Select>
-              
-              {/* Test buttons for debugging */}
-              <Button 
-                onClick={() => handleExport('excel')} 
-                variant="outline" 
-                size="sm"
-                className="test-export-btn"
-              >
-                Test Export Excel
-              </Button>
-              <Button 
-                onClick={() => handleGenerateReport('pdf')} 
-                variant="outline" 
-                size="sm"
-                className="test-report-btn"
-              >
-                Test Generate PDF
-              </Button>
+
             </div>
             
             <div className="flex items-center gap-2 flex-wrap">
