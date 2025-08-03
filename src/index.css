@@ -10,6 +10,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import RTL and Mobile Responsive Utilities */
+@import './styles/rtl-mobile.css';
+
 @layer base {
   :root {
     --background: 0 0% 100%;
