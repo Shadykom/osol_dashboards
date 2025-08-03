@@ -1,4 +1,5 @@
 {
+  "appName": "Osoul",
   "common": {
     "search": "Search",
     "searchPlaceholder": "Search customers, accounts, transactions...",
@@ -46,6 +47,11 @@
     "language": "Language",
     "english": "English",
     "arabic": "العربية",
+    "adminUser": "Admin User",
+    "toggleMenu": "Toggle Menu",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "closeSidebar": "Close Sidebar",
     "customerList": "Customer List",
     "customersFound": "customers found",
     "badges": {
@@ -184,6 +190,11 @@
     "topCustomers": "Top Customers",
     "performanceMetrics": "Performance Metrics",
     "quickActions": "Quick Actions",
+    "keyMetrics": "Key Metrics",
+    "keyMetricsDesc": "Overview of key performance indicators",
+    "recentActivity": "Recent Activity",
+    "viewDetails": "View Details",
+    "goTo": "Go to",
     "sections": {
       "overview": "Overview",
       "banking": "Banking Services",
@@ -261,7 +272,10 @@
       "dashboardTemplates": "Dashboard Templates",
       "chooseTemplate": "Choose a pre-built template to get started quickly",
       "active": "Active",
-      "widgets": "widgets"
+      "widgets": "widgets",
+      "executive": "Executive Dashboard",
+      "operations": "Operations Dashboard",
+      "risk": "Risk Dashboard"
     },
     "noWidgets": {
       "title": "No widgets in this section",
@@ -1414,6 +1428,7 @@
   "executiveDashboard": {
     "title": "Executive Dashboard",
     "subtitle": "High-level business performance overview",
+    "realTimeInsights": "Real-time business insights and analytics",
     "kpiOverview": "KPI Overview",
     "financialMetrics": "Financial Metrics",
     "operationalMetrics": "Operational Metrics",
@@ -1437,7 +1452,126 @@
     "marketShare": "Market Share",
     "customerSatisfaction": "Customer Satisfaction",
     "employeeEngagement": "Employee Engagement",
-    "innovationIndex": "Innovation Index"
+    "innovationIndex": "Innovation Index",
+    "totalRevenue": "Total Revenue",
+    "activeLoans": "Active Loans",
+    "totalDeposits": "Total Deposits",
+    "nplRatio": "NPL Ratio",
+    "creditRisk": "Credit Risk",
+    "marketRisk": "Market Risk",
+    "operationalRisk": "Operational Risk",
+    "complianceRisk": "Compliance Risk",
+    "totalIncomeGenerated": "Total income generated",
+    "currentlyActiveLoans": "Currently active loans",
+    "customerDeposits": "Customer deposits",
+    "nonPerformingLoans": "Non-performing loans ratio",
+    "creditRiskDetails": "Credit risk reduced due to improved underwriting standards",
+    "marketRiskDetails": "Market volatility has increased risk exposure",
+    "operationalRiskDetails": "Process improvements have reduced operational risk",
+    "complianceRiskDetails": "Strong compliance framework maintains low risk levels",
+    "previously": "Previously",
+    "target": "Target",
+    "industryAvg": "Industry Avg",
+    "lowRisk": "Low Risk",
+    "mediumRisk": "Medium Risk",
+    "highRisk": "High Risk",
+    "riskDetails": "Risk Details",
+    "noAdditionalDetails": "No additional details available",
+    "vsLastPeriod": "vs last period",
+    "refresh": "Refresh",
+    "export": "Export",
+    "share": "Share",
+    "customize": "Customize",
+    "exportFormat": "Export Format",
+    "excelFormat": "Excel Spreadsheet",
+    "pdfReport": "PDF Report",
+    "csvData": "CSV Data",
+    "pngImage": "PNG Image",
+    "jsonData": "JSON Data",
+    "shareMethod": "Share Method",
+    "copyLink": "Copy Link",
+    "emailSummary": "Email Summary",
+    "copySummary": "Copy Summary",
+    "quickFilters": "Quick Filters",
+    "selectBranch": "Select Branch",
+    "allBranches": "All Branches",
+    "riyadh": "Riyadh",
+    "jeddah": "Jeddah",
+    "dammam": "Dammam",
+    "aiInsights": "AI Insights",
+    "on": "On",
+    "data": "Data",
+    "liveData": "Live Data",
+    "demoData": "Demo Data",
+    "lastUpdated": "Last Updated",
+    "overview": "Overview",
+    "performance": "Performance",
+    "riskAnalysis": "Risk Analysis",
+    "revenueTrend": "Revenue Trend",
+    "monthlyRevenueComparison": "Monthly revenue comparison",
+    "exportData": "Export Data",
+    "generateReport": "Generate Report",
+    "currentPeriod": "Current Period",
+    "previousPeriod": "Previous Period",
+    "portfolioDistribution": "Portfolio Distribution",
+    "loanPortfolioByCategory": "Loan portfolio by category",
+    "personalLoans": "Personal Loans",
+    "mortgages": "Mortgages",
+    "autoLoans": "Auto Loans",
+    "businessLoans": "Business Loans",
+    "creditCards": "Credit Cards",
+    "others": "Others",
+    "riskAssessment": "Risk Assessment",
+    "generating": "Generating...",
+    "viewFullReport": "View Full Report",
+    "revenueComparison": "Revenue Comparison",
+    "comparing": "Comparing",
+    "customerGrowth": "Customer Growth",
+    "customerAcquisition": "Customer acquisition and retention",
+    "newCustomers": "New Customers",
+    "activeCustomers": "Active Customers",
+    "churnedCustomers": "Churned Customers",
+    "efficiencyRatio": "Efficiency Ratio",
+    "roe": "Return on Equity",
+    "costToIncome": "Cost to Income Ratio",
+    "loanPortfolioPerformance": "Loan Portfolio Performance",
+    "portfolioComparisonByProductType": "Portfolio comparison by product type",
+    "disbursedAmount": "Disbursed Amount",
+    "outstandingBalance": "Outstanding Balance",
+    "nplAmount": "NPL Amount",
+    "riskAnalysisDashboard": "Risk Analysis Dashboard",
+    "comprehensiveRiskAssessment": "Comprehensive risk assessment and monitoring",
+    "riskAnalysisVisualization": "Risk analysis visualization coming soon",
+    "dashboardCustomization": "Dashboard Customization",
+    "customizeLayout": "Customize your dashboard layout and preferences",
+    "customizationPanel": "Customization panel coming soon",
+    "configureThemes": "Configure themes, widgets, and refresh intervals",
+    "moreOptions": "More Options",
+    "saveComparison": "Save Comparison",
+    "loadPrevious": "Load Previous",
+    "scheduleReport": "Schedule Report",
+    "enterComparisonName": "Enter comparison name",
+    "comparisonSaved": "Comparison saved successfully",
+    "failedToSaveComparison": "Failed to save comparison",
+    "failedToLoadComparisons": "Failed to load comparisons",
+    "comparisonLoaded": "Comparison loaded successfully",
+    "reportScheduled": "Report scheduled successfully",
+    "failedToScheduleReport": "Failed to schedule report",
+    "configureReportSchedule": "Configure automatic report generation and delivery",
+    "reportName": "Report Name",
+    "enterReportName": "Enter report name",
+    "frequency": "Frequency",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "scheduleTime": "Schedule Time",
+    "emailRecipients": "Email Recipients",
+    "enterEmailsSeparatedByComma": "Enter email addresses separated by commas",
+    "reportFormat": "Report Format",
+    "cancel": "Cancel",
+    "selectPreviousComparison": "Select a previously saved comparison to load",
+    "noSavedComparisons": "No saved comparisons found",
+    "close": "Close"
   },
   "collectionOverview": {
     "title": "Collection Overview",
@@ -1704,7 +1838,205 @@
         "visitsCompleted": "Visits Completed",
         "successRate": "Success Rate",
         "amountCollected": "Amount Collected",
-        "costPerVisit": "Cost per Visit"
+        "costPerVisit": "Cost per Visit",
+        "dashboard": {
+          "title": "Field Collection Dashboard",
+          "subtitle": "Monitor and manage field collection activities",
+          "lastUpdated": "Last updated",
+          "refresh": "Refresh",
+          "selectRegion": "Select Region",
+          "selectAgent": "Select Agent",
+          "allRegions": "All Regions",
+          "allAgents": "All Agents",
+          "regions": {
+            "north": "North Riyadh",
+            "south": "South Riyadh",
+            "east": "East Riyadh",
+            "west": "West Riyadh",
+            "central": "Central"
+          }
+        },
+        "metrics": {
+          "visitsToday": "Visits Today",
+          "amountCollected": "Amount Collected",
+          "activeAgents": "Active Agents",
+          "successRate": "Success Rate",
+          "completed": "completed",
+          "average": "Avg",
+          "perVisit": "/visit",
+          "visitsInProgress": "visits in progress",
+          "collectionSuccess": "Collection success"
+        },
+        "tabs": {
+          "overview": "Overview",
+          "agents": "Agents",
+          "visits": "Visits",
+          "routing": "Routing",
+          "safety": "Safety",
+          "analytics": "Analytics"
+        },
+        "overview": {
+          "visitStatusDistribution": "Visit Status Distribution",
+          "todaysFieldVisitsByStatus": "Today's field visits by status",
+          "agentLocations": "Agent Locations",
+          "heat": "Heat",
+          "pins": "Pins",
+          "interactiveMapPlaceholder": "Interactive map would be displayed here",
+          "todaysFieldVisits": "Today's Field Visits",
+          "detailedVisitInformation": "Detailed visit information",
+          "upcomingVisits": "Upcoming Visits",
+          "nextScheduledFieldVisits": "Next scheduled field visits",
+          "visitStatus": {
+            "completed": "Completed",
+            "customerNotAvailable": "Customer Not Available",
+            "inProgress": "In Progress",
+            "pending": "Pending",
+            "wrongAddress": "Wrong Address",
+            "refused": "Refused"
+          },
+          "agentStatus": {
+            "onVisit": "ON VISIT",
+            "inTransit": "IN TRANSIT",
+            "available": "AVAILABLE",
+            "break": "BREAK",
+            "offline": "OFFLINE"
+          },
+          "tableHeaders": {
+            "visitId": "Visit ID",
+            "agent": "Agent",
+            "customer": "Customer",
+            "scheduled": "Scheduled",
+            "actual": "Actual",
+            "status": "Status",
+            "amount": "Amount",
+            "duration": "Duration",
+            "distance": "Distance"
+          },
+          "upcomingVisitDetails": {
+            "agent": "Agent",
+            "dpd": "DPD"
+          }
+        },
+        "agents": {
+          "fieldAgentPerformance": "Field Agent Performance",
+          "monthlyPerformanceMetrics": "Monthly performance metrics",
+          "agentActivityTimeline": "Agent Activity Timeline",
+          "realtimeAgentActivities": "Real-time agent activities",
+          "tableHeaders": {
+            "agentName": "Agent Name",
+            "visits": "Visits",
+            "successful": "Successful",
+            "successRate": "Success Rate",
+            "amountCollected": "Amount Collected",
+            "avgTime": "Avg Time",
+            "distance": "Distance",
+            "rating": "Rating"
+          },
+          "activities": {
+            "completedVisit": "Completed visit",
+            "startedVisit": "Started visit",
+            "enRoute": "En route",
+            "checkIn": "Check-in",
+            "visitAttempt": "Visit attempt",
+            "paymentCollected": "Payment collected",
+            "visitInProgress": "Visit in progress",
+            "eta": "ETA",
+            "safetyCheckCompleted": "Safety check completed",
+            "customerNotAvailable": "Customer not available",
+            "customer": "Customer",
+            "result": "Result"
+          }
+        },
+        "visits": {
+          "fieldVisitPerformanceTrend": "Field Visit Performance Trend",
+          "dailyVisitsAndCollectionAmounts": "Daily visits and collection amounts",
+          "performanceByRegion": "Performance by Region",
+          "fieldCollectionEffectivenessAcrossRegions": "Field collection effectiveness across regions",
+          "chartLabels": {
+            "totalVisits": "Total Visits",
+            "successful": "Successful",
+            "amount": "Amount (SAR)",
+            "visits": "Visits",
+            "successRate": "Success Rate (%)"
+          }
+        },
+        "routing": {
+          "routeOptimizationSummary": "Route Optimization Summary",
+          "dailyRouteEfficiencyImprovements": "Daily route efficiency improvements",
+          "routePlanning": "Route Planning",
+          "optimizedRoutesForFieldAgents": "Optimized routes for field agents",
+          "metrics": {
+            "originalDistance": "Original Distance",
+            "optimizedDistance": "Optimized Distance",
+            "timeSaved": "Time Saved",
+            "efficiencyGain": "Efficiency Gain",
+            "distanceSaved": "Distance Saved",
+            "fuelSaved": "Fuel Saved"
+          },
+          "mapPlaceholder": "Interactive route planning map",
+          "mapDescription": "Shows optimized routes, traffic conditions, and visit sequences"
+        },
+        "safety": {
+          "safetyScore": "Safety Score",
+          "daysWithoutIncident": "Days Without Incident",
+          "checkInsToday": "Check-ins Today",
+          "sosAlerts": "SOS Alerts",
+          "excellentSafetyRecord": "Excellent safety record",
+          "continuousImprovement": "Continuous improvement",
+          "noEmergenciesToday": "No emergencies today",
+          "safetyProtocolCompliance": "Safety Protocol Compliance",
+          "agentComplianceWithSafetyProcedures": "Agent compliance with safety procedures",
+          "protocols": {
+            "preVisitCheckIn": "Pre-visit Check-in",
+            "postVisitCheckOut": "Post-visit Check-out",
+            "routeSharing": "Route Sharing",
+            "emergencyContactUpdate": "Emergency Contact Update",
+            "vehicleInspection": "Vehicle Inspection"
+          },
+          "agentsCompliant": "agents compliant",
+          "of": "of"
+        },
+        "analytics": {
+          "fieldCollectionCostAnalysis": "Field Collection Cost Analysis",
+          "operationalCostsAndEfficiencyMetrics": "Operational costs and efficiency metrics",
+          "visitOutcomeAnalysis": "Visit Outcome Analysis",
+          "reasonsForUnsuccessfulVisits": "Reasons for unsuccessful visits",
+          "costMetrics": {
+            "totalFuelCost": "Total Fuel Cost",
+            "costPerVisit": "Cost per Visit",
+            "costPerCollection": "Cost per Collection"
+          },
+          "chartLabels": {
+            "costPerVisit": "Cost per Visit (SAR)",
+            "collectionRate": "Collection Rate (%)"
+          },
+          "visitOutcomes": {
+            "customerNotAvailable": "Customer Not Available",
+            "wrongAddress": "Wrong Address",
+            "customerRefused": "Customer Refused",
+            "partialPaymentOnly": "Partial Payment Only",
+            "rescheduled": "Rescheduled",
+            "other": "Other"
+          }
+        },
+        "alerts": {
+          "missedCheckIns": "agents missed safety check-ins today",
+          "viewDetails": "View Details"
+        },
+        "notes": {
+          "paymentCollectedInCash": "Payment collected in cash",
+          "customerOutOfTownRescheduled": "Customer out of town, rescheduled",
+          "partialPaymentReceived": "Partial payment received"
+        },
+        "priority": {
+          "high": "HIGH",
+          "medium": "MEDIUM",
+          "low": "LOW"
+        },
+        "time": {
+          "min": "min",
+          "km": "km"
+        }
       },
       "digitalCollection": {
         "title": "Digital Collection",
@@ -1771,6 +2103,138 @@
         "complianceRate": "Compliance Rate",
         "completed": "Completed"
       }
+    }
+  },
+  "dailyCollectionDashboard": {
+    "title": "Daily Collection Dashboard",
+    "subtitle": "Real-time monitoring of collection activities",
+    "live": "LIVE",
+    "paused": "PAUSED",
+    "pause": "Pause",
+    "resume": "Resume",
+    "morningSnapshot": {
+      "totalDueToday": "Total Due Today",
+      "ptpDueToday": "PTP Due Today",
+      "fieldVisits": "Field Visits",
+      "legalUpdates": "Legal Updates",
+      "yesterdayAchievement": "Yesterday's Achievement"
+    },
+    "criticalAlerts": {
+      "highValue": "Large payment due",
+      "legal": "Court hearing today",
+      "system": "System alert"
+    },
+    "tabs": {
+      "liveTracking": "Live Tracking",
+      "collectors": "Collectors",
+      "performance": "Performance",
+      "queues": "Queues",
+      "analytics": "Analytics"
+    },
+    "liveTracking": {
+      "livePaymentTracking": "Live Payment Tracking",
+      "paymentsToday": "payments today",
+      "collectedSoFar": "Collected so far today",
+      "collectorStatus": "Collector Status",
+      "online": "Online",
+      "onBreak": "On Break",
+      "offline": "Offline",
+      "activeCalls": "Active Calls",
+      "avgCallDuration": "Avg",
+      "contactSuccess": "Contact Success",
+      "ptpProgress": "PTP Progress",
+      "hourlyTrend": "Hourly Trend",
+      "vsLastHour": "vs last hour",
+      "hourlyCollectionTrend": "Hourly Collection Trend",
+      "collectionPerformance": "Collection performance throughout the day",
+      "amountCollected": "Amount Collected"
+    },
+    "collectors": {
+      "liveCollectorActivity": "Live Collector Activity",
+      "realtimeStatus": "Real-time status of all active collectors",
+      "collector": "Collector",
+      "status": "Status",
+      "duration": "Duration",
+      "currentCustomer": "Current Customer",
+      "team": "Team",
+      "actions": "Actions",
+      "statuses": {
+        "onCall": "ON CALL",
+        "afterCall": "AFTER CALL",
+        "break": "BREAK",
+        "available": "AVAILABLE",
+        "offline": "OFFLINE"
+      },
+      "topPerformers": "Today's Top Performers",
+      "calls": "calls",
+      "ptps": "PTPs",
+      "successRate": "Success"
+    },
+    "performance": {
+      "channelPerformance": "Channel Performance",
+      "channelEffectiveness": "Effectiveness of different collection channels",
+      "channel": "Channel",
+      "attempts": "Attempts",
+      "successful": "Successful",
+      "successRate": "Success Rate",
+      "amountCollected": "Amount Collected",
+      "channels": {
+        "phoneCalls": "Phone Calls",
+        "sms": "SMS",
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "fieldVisit": "Field Visit"
+      },
+      "slaCompliance": "SLA Compliance",
+      "slaPerformance": "Service level agreement performance",
+      "metrics": {
+        "firstCallResolution": "First Call Resolution",
+        "avgResponseTime": "Avg Response Time",
+        "ptpFollowUp": "PTP Follow Up",
+        "escalationTime": "Escalation Time"
+      },
+      "target": "target",
+      "good": "GOOD",
+      "warning": "WARNING"
+    },
+    "queues": {
+      "queueStatus": "Queue Status",
+      "queueDistribution": "Real-time queue distribution and wait times",
+      "queueTypes": {
+        "priority": "Priority Queue",
+        "normal": "Normal Queue",
+        "automated": "Automated Queue",
+        "legal": "Legal Queue"
+      },
+      "total": "Total",
+      "assigned": "Assigned",
+      "pending": "Pending",
+      "avgWait": "Avg Wait",
+      "workloadDistribution": "Workload Distribution",
+      "casesPerCollector": "Cases assigned per collector",
+      "casesAssigned": "Cases Assigned"
+    },
+    "analytics": {
+      "collectionVelocity": "Collection Velocity",
+      "speedOfCollections": "Speed of collections throughout the day",
+      "callsMade": "Calls Made",
+      "successfulContacts": "Successful Contacts",
+      "paymentMethodsDistribution": "Payment Methods Distribution",
+      "breakdownPaymentMethods": "Breakdown of payment collection methods",
+      "paymentMethods": {
+        "online": "Online",
+        "bankTransfer": "Bank Transfer",
+        "fieldCollection": "Field Collection",
+        "ivr": "IVR",
+        "mobileApp": "Mobile App"
+      },
+      "endOfDayProjections": "End of Day Projections",
+      "aiPoweredPredictions": "AI-powered predictions based on current performance",
+      "projectedCollection": "Projected Collection",
+      "expectedPtps": "Expected PTPs",
+      "contactsToMake": "Contacts to Make",
+      "ofTarget": "of target",
+      "toAchieveTarget": "To achieve target"
     }
   }
 }

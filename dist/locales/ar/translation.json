@@ -1,4 +1,5 @@
 {
+  "appName": "أصول",
   "common": {
     "search": "بحث",
     "searchPlaceholder": "البحث عن العملاء، الحسابات، المعاملات...",
@@ -38,6 +39,11 @@
     "language": "اللغة",
     "english": "English",
     "arabic": "العربية",
+    "adminUser": "المستخدم الإداري",
+    "toggleMenu": "تبديل القائمة",
+    "lightMode": "الوضع الفاتح",
+    "darkMode": "الوضع الداكن",
+    "closeSidebar": "إغلاق الشريط الجانبي",
     "customerList": "قائمة العملاء",
     "customersFound": "عملاء تم العثور عليهم",
     "badges": {
@@ -196,6 +202,11 @@
     "topCustomers": "أفضل العملاء",
     "performanceMetrics": "مقاييس الأداء",
     "quickActions": "إجراءات سريعة",
+    "keyMetrics": "المؤشرات الرئيسية",
+    "keyMetricsDesc": "نظرة عامة على مؤشرات الأداء الرئيسية",
+    "recentActivity": "النشاط الأخير",
+    "viewDetails": "عرض التفاصيل",
+    "goTo": "انتقل إلى",
     "sections": {
       "overview": "نظرة عامة",
       "banking": "الخدمات المصرفية",
@@ -273,7 +284,10 @@
       "dashboardTemplates": "قوالب لوحة التحكم",
       "chooseTemplate": "اختر قالباً جاهزاً للبدء بسرعة",
       "active": "نشط",
-      "widgets": "أدوات"
+      "widgets": "أدوات",
+      "executive": "لوحة المدير التنفيذي",
+      "operations": "لوحة العمليات",
+      "risk": "لوحة المخاطر"
     },
     "noWidgets": {
       "title": "لا توجد أدوات في هذا القسم",
@@ -1779,7 +1793,205 @@
         "visitsCompleted": "الزيارات المكتملة",
         "successRate": "معدل النجاح",
         "amountCollected": "المبلغ المحصل",
-        "costPerVisit": "تكلفة الزيارة"
+        "costPerVisit": "تكلفة الزيارة",
+        "dashboard": {
+          "title": "لوحة التحصيل الميداني",
+          "subtitle": "مراقبة وإدارة أنشطة التحصيل الميداني",
+          "lastUpdated": "آخر تحديث",
+          "refresh": "تحديث",
+          "selectRegion": "اختر المنطقة",
+          "selectAgent": "اختر الوكيل",
+          "allRegions": "جميع المناطق",
+          "allAgents": "جميع الوكلاء",
+          "regions": {
+            "north": "شمال الرياض",
+            "south": "جنوب الرياض",
+            "east": "شرق الرياض",
+            "west": "غرب الرياض",
+            "central": "وسط الرياض"
+          }
+        },
+        "metrics": {
+          "visitsToday": "الزيارات اليوم",
+          "amountCollected": "المبلغ المحصل",
+          "activeAgents": "الوكلاء النشطون",
+          "successRate": "معدل النجاح",
+          "completed": "مكتملة",
+          "average": "متوسط",
+          "perVisit": "/زيارة",
+          "visitsInProgress": "زيارات قيد التنفيذ",
+          "collectionSuccess": "نجاح التحصيل"
+        },
+        "tabs": {
+          "overview": "نظرة عامة",
+          "agents": "الوكلاء",
+          "visits": "الزيارات",
+          "routing": "التوجيه",
+          "safety": "السلامة",
+          "analytics": "التحليلات"
+        },
+        "overview": {
+          "visitStatusDistribution": "توزيع حالة الزيارات",
+          "todaysFieldVisitsByStatus": "زيارات اليوم الميدانية حسب الحالة",
+          "agentLocations": "مواقع الوكلاء",
+          "heat": "حرارية",
+          "pins": "دبابيس",
+          "interactiveMapPlaceholder": "سيتم عرض الخريطة التفاعلية هنا",
+          "todaysFieldVisits": "الزيارات الميدانية اليوم",
+          "detailedVisitInformation": "معلومات الزيارة المفصلة",
+          "upcomingVisits": "الزيارات القادمة",
+          "nextScheduledFieldVisits": "الزيارات الميدانية المجدولة التالية",
+          "visitStatus": {
+            "completed": "مكتملة",
+            "customerNotAvailable": "العميل غير متواجد",
+            "inProgress": "قيد التنفيذ",
+            "pending": "معلقة",
+            "wrongAddress": "عنوان خاطئ",
+            "refused": "مرفوضة"
+          },
+          "agentStatus": {
+            "onVisit": "في زيارة",
+            "inTransit": "في الطريق",
+            "available": "متاح",
+            "break": "استراحة",
+            "offline": "غير متصل"
+          },
+          "tableHeaders": {
+            "visitId": "رقم الزيارة",
+            "agent": "الوكيل",
+            "customer": "العميل",
+            "scheduled": "المجدولة",
+            "actual": "الفعلية",
+            "status": "الحالة",
+            "amount": "المبلغ",
+            "duration": "المدة",
+            "distance": "المسافة"
+          },
+          "upcomingVisitDetails": {
+            "agent": "الوكيل",
+            "dpd": "أيام التأخر"
+          }
+        },
+        "agents": {
+          "fieldAgentPerformance": "أداء الوكلاء الميدانيين",
+          "monthlyPerformanceMetrics": "مقاييس الأداء الشهرية",
+          "agentActivityTimeline": "الجدول الزمني لنشاط الوكيل",
+          "realtimeAgentActivities": "أنشطة الوكيل في الوقت الفعلي",
+          "tableHeaders": {
+            "agentName": "اسم الوكيل",
+            "visits": "الزيارات",
+            "successful": "الناجحة",
+            "successRate": "معدل النجاح",
+            "amountCollected": "المبلغ المحصل",
+            "avgTime": "متوسط الوقت",
+            "distance": "المسافة",
+            "rating": "التقييم"
+          },
+          "activities": {
+            "completedVisit": "أكمل الزيارة",
+            "startedVisit": "بدأ الزيارة",
+            "enRoute": "في الطريق",
+            "checkIn": "تسجيل الحضور",
+            "visitAttempt": "محاولة زيارة",
+            "paymentCollected": "تم تحصيل الدفعة",
+            "visitInProgress": "الزيارة قيد التنفيذ",
+            "eta": "الوقت المتوقع للوصول",
+            "safetyCheckCompleted": "تم إكمال فحص السلامة",
+            "customerNotAvailable": "العميل غير متواجد",
+            "customer": "العميل",
+            "result": "النتيجة"
+          }
+        },
+        "visits": {
+          "fieldVisitPerformanceTrend": "اتجاه أداء الزيارات الميدانية",
+          "dailyVisitsAndCollectionAmounts": "الزيارات اليومية ومبالغ التحصيل",
+          "performanceByRegion": "الأداء حسب المنطقة",
+          "fieldCollectionEffectivenessAcrossRegions": "فعالية التحصيل الميداني عبر المناطق",
+          "chartLabels": {
+            "totalVisits": "إجمالي الزيارات",
+            "successful": "الناجحة",
+            "amount": "المبلغ (ريال)",
+            "visits": "الزيارات",
+            "successRate": "معدل النجاح (%)"
+          }
+        },
+        "routing": {
+          "routeOptimizationSummary": "ملخص تحسين المسار",
+          "dailyRouteEfficiencyImprovements": "تحسينات كفاءة المسار اليومية",
+          "routePlanning": "تخطيط المسار",
+          "optimizedRoutesForFieldAgents": "المسارات المحسنة للوكلاء الميدانيين",
+          "metrics": {
+            "originalDistance": "المسافة الأصلية",
+            "optimizedDistance": "المسافة المحسنة",
+            "timeSaved": "الوقت الموفر",
+            "efficiencyGain": "زيادة الكفاءة",
+            "distanceSaved": "المسافة الموفرة",
+            "fuelSaved": "الوقود الموفر"
+          },
+          "mapPlaceholder": "خريطة تخطيط المسار التفاعلية",
+          "mapDescription": "تعرض المسارات المحسنة وظروف المرور وتسلسل الزيارات"
+        },
+        "safety": {
+          "safetyScore": "نقاط السلامة",
+          "daysWithoutIncident": "أيام بدون حوادث",
+          "checkInsToday": "تسجيلات الحضور اليوم",
+          "sosAlerts": "تنبيهات الطوارئ",
+          "excellentSafetyRecord": "سجل سلامة ممتاز",
+          "continuousImprovement": "تحسين مستمر",
+          "noEmergenciesToday": "لا توجد حالات طوارئ اليوم",
+          "safetyProtocolCompliance": "الامتثال لبروتوكول السلامة",
+          "agentComplianceWithSafetyProcedures": "امتثال الوكيل لإجراءات السلامة",
+          "protocols": {
+            "preVisitCheckIn": "تسجيل الحضور قبل الزيارة",
+            "postVisitCheckOut": "تسجيل المغادرة بعد الزيارة",
+            "routeSharing": "مشاركة المسار",
+            "emergencyContactUpdate": "تحديث جهة اتصال الطوارئ",
+            "vehicleInspection": "فحص المركبة"
+          },
+          "agentsCompliant": "وكلاء ملتزمون",
+          "of": "من"
+        },
+        "analytics": {
+          "fieldCollectionCostAnalysis": "تحليل تكلفة التحصيل الميداني",
+          "operationalCostsAndEfficiencyMetrics": "التكاليف التشغيلية ومقاييس الكفاءة",
+          "visitOutcomeAnalysis": "تحليل نتائج الزيارة",
+          "reasonsForUnsuccessfulVisits": "أسباب الزيارات غير الناجحة",
+          "costMetrics": {
+            "totalFuelCost": "إجمالي تكلفة الوقود",
+            "costPerVisit": "تكلفة الزيارة",
+            "costPerCollection": "تكلفة التحصيل"
+          },
+          "chartLabels": {
+            "costPerVisit": "تكلفة الزيارة (ريال)",
+            "collectionRate": "معدل التحصيل (%)"
+          },
+          "visitOutcomes": {
+            "customerNotAvailable": "العميل غير متواجد",
+            "wrongAddress": "عنوان خاطئ",
+            "customerRefused": "رفض العميل",
+            "partialPaymentOnly": "دفعة جزئية فقط",
+            "rescheduled": "تم إعادة الجدولة",
+            "other": "أخرى"
+          }
+        },
+        "alerts": {
+          "missedCheckIns": "وكلاء فاتتهم تسجيلات السلامة اليوم",
+          "viewDetails": "عرض التفاصيل"
+        },
+        "notes": {
+          "paymentCollectedInCash": "تم تحصيل الدفعة نقداً",
+          "customerOutOfTownRescheduled": "العميل خارج المدينة، تم إعادة الجدولة",
+          "partialPaymentReceived": "تم استلام دفعة جزئية"
+        },
+        "priority": {
+          "high": "عالية",
+          "medium": "متوسطة",
+          "low": "منخفضة"
+        },
+        "time": {
+          "min": "دقيقة",
+          "km": "كم"
+        }
       },
       "digitalCollection": {
         "title": "التحصيل الرقمي",
@@ -1846,6 +2058,138 @@
         "complianceRate": "معدل الامتثال",
         "completed": "مكتمل"
       }
+    }
+  },
+  "dailyCollectionDashboard": {
+    "title": "لوحة التحصيل اليومي",
+    "subtitle": "المراقبة الفورية لأنشطة التحصيل",
+    "live": "مباشر",
+    "paused": "متوقف",
+    "pause": "إيقاف مؤقت",
+    "resume": "استئناف",
+    "morningSnapshot": {
+      "totalDueToday": "إجمالي المستحق اليوم",
+      "ptpDueToday": "وعود السداد المستحقة اليوم",
+      "fieldVisits": "الزيارات الميدانية",
+      "legalUpdates": "التحديثات القانونية",
+      "yesterdayAchievement": "إنجاز الأمس"
+    },
+    "criticalAlerts": {
+      "highValue": "دفعة كبيرة مستحقة",
+      "legal": "جلسة محكمة اليوم",
+      "system": "تنبيه النظام"
+    },
+    "tabs": {
+      "liveTracking": "التتبع المباشر",
+      "collectors": "المحصلون",
+      "performance": "الأداء",
+      "queues": "قوائم الانتظار",
+      "analytics": "التحليلات"
+    },
+    "liveTracking": {
+      "livePaymentTracking": "تتبع المدفوعات المباشر",
+      "paymentsToday": "دفعات اليوم",
+      "collectedSoFar": "المحصل حتى الآن اليوم",
+      "collectorStatus": "حالة المحصلين",
+      "online": "متصل",
+      "onBreak": "في استراحة",
+      "offline": "غير متصل",
+      "activeCalls": "المكالمات النشطة",
+      "avgCallDuration": "المتوسط",
+      "contactSuccess": "نجاح الاتصال",
+      "ptpProgress": "تقدم وعود السداد",
+      "hourlyTrend": "الاتجاه بالساعة",
+      "vsLastHour": "مقابل الساعة الماضية",
+      "hourlyCollectionTrend": "اتجاه التحصيل بالساعة",
+      "collectionPerformance": "أداء التحصيل على مدار اليوم",
+      "amountCollected": "المبلغ المحصل"
+    },
+    "collectors": {
+      "liveCollectorActivity": "نشاط المحصلين المباشر",
+      "realtimeStatus": "الحالة الفورية لجميع المحصلين النشطين",
+      "collector": "المحصل",
+      "status": "الحالة",
+      "duration": "المدة",
+      "currentCustomer": "العميل الحالي",
+      "team": "الفريق",
+      "actions": "الإجراءات",
+      "statuses": {
+        "onCall": "في مكالمة",
+        "afterCall": "بعد المكالمة",
+        "break": "استراحة",
+        "available": "متاح",
+        "offline": "غير متصل"
+      },
+      "topPerformers": "أفضل المؤدين اليوم",
+      "calls": "مكالمات",
+      "ptps": "وعود سداد",
+      "successRate": "النجاح"
+    },
+    "performance": {
+      "channelPerformance": "أداء القنوات",
+      "channelEffectiveness": "فعالية قنوات التحصيل المختلفة",
+      "channel": "القناة",
+      "attempts": "المحاولات",
+      "successful": "ناجحة",
+      "successRate": "معدل النجاح",
+      "amountCollected": "المبلغ المحصل",
+      "channels": {
+        "phoneCalls": "المكالمات الهاتفية",
+        "sms": "الرسائل النصية",
+        "email": "البريد الإلكتروني",
+        "whatsapp": "واتساب",
+        "fieldVisit": "الزيارة الميدانية"
+      },
+      "slaCompliance": "الامتثال لاتفاقية مستوى الخدمة",
+      "slaPerformance": "أداء اتفاقية مستوى الخدمة",
+      "metrics": {
+        "firstCallResolution": "حل المكالمة الأولى",
+        "avgResponseTime": "متوسط وقت الاستجابة",
+        "ptpFollowUp": "متابعة وعود السداد",
+        "escalationTime": "وقت التصعيد"
+      },
+      "target": "الهدف",
+      "good": "جيد",
+      "warning": "تحذير"
+    },
+    "queues": {
+      "queueStatus": "حالة قوائم الانتظار",
+      "queueDistribution": "توزيع قوائم الانتظار وأوقات الانتظار الفورية",
+      "queueTypes": {
+        "priority": "قائمة الأولوية",
+        "normal": "القائمة العادية",
+        "automated": "القائمة الآلية",
+        "legal": "القائمة القانونية"
+      },
+      "total": "الإجمالي",
+      "assigned": "المخصص",
+      "pending": "معلق",
+      "avgWait": "متوسط الانتظار",
+      "workloadDistribution": "توزيع عبء العمل",
+      "casesPerCollector": "الحالات المخصصة لكل محصل",
+      "casesAssigned": "الحالات المخصصة"
+    },
+    "analytics": {
+      "collectionVelocity": "سرعة التحصيل",
+      "speedOfCollections": "سرعة التحصيلات على مدار اليوم",
+      "callsMade": "المكالمات المجراة",
+      "successfulContacts": "الاتصالات الناجحة",
+      "paymentMethodsDistribution": "توزيع طرق الدفع",
+      "breakdownPaymentMethods": "تفصيل طرق تحصيل المدفوعات",
+      "paymentMethods": {
+        "online": "عبر الإنترنت",
+        "bankTransfer": "التحويل البنكي",
+        "fieldCollection": "التحصيل الميداني",
+        "ivr": "الرد الصوتي التفاعلي",
+        "mobileApp": "التطبيق المحمول"
+      },
+      "endOfDayProjections": "توقعات نهاية اليوم",
+      "aiPoweredPredictions": "تنبؤات مدعومة بالذكاء الاصطناعي بناءً على الأداء الحالي",
+      "projectedCollection": "التحصيل المتوقع",
+      "expectedPtps": "وعود السداد المتوقعة",
+      "contactsToMake": "الاتصالات المطلوبة",
+      "ofTarget": "من الهدف",
+      "toAchieveTarget": "لتحقيق الهدف"
     }
   }
 }
