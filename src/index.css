@@ -2,6 +2,7 @@
 @import './styles/new-sidebar.css';
 @import './styles/mobile-sidebar.css';
 @import './styles/sidebar.css';
+@import './styles/modern-sidebar-rtl.css';
 @import './styles/print.css';
 @import './styles/mobile-reports.css';
 @import './styles/rtl.css';
