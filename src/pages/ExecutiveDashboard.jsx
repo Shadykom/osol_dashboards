@@ -378,6 +378,11 @@ export function ExecutiveDashboard() {
     period: 'current'
   });
   const [activeView, setActiveView] = useState('overview');
+
+  // Handle date range change
+  const handleDateChange = (newDateRange) => {
+    setDateRange(newDateRange);
+  };
   const [isExporting, setIsExporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [customizationOpen, setCustomizationOpen] = useState(false);
