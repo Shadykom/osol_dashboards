@@ -14,7 +14,10 @@ export const useSidebar = () => {
 
 // Sidebar Provider component
 export const SidebarProvider = ({ children }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    // Default to true on desktop, false on mobile
+    return window.innerWidth >= 1024;
+  });
   const [isMobile, setIsMobile] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(() => {
     // Load expanded groups from localStorage
@@ -27,9 +30,11 @@ export const SidebarProvider = ({ children }) => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 1024;
       setIsMobile(mobile);
-      // Auto-close sidebar on mobile
+      // Auto-close sidebar on mobile, auto-open on desktop
       if (mobile) {
         setIsOpen(false);
+      } else {
+        setIsOpen(true);
       }
     };
 
