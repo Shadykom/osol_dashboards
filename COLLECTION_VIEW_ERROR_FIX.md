@@ -7,12 +7,16 @@ LINE 58: LEFT JOIN kastle_banking.accounts a ON cc.account_id = a.account_id
 
 ERROR: 42703: column cb.id does not exist
 LINE 62: LEFT JOIN kastle_banking.collection_buckets cb ON cc.bucket_id = cb.id
+
+ERROR: 42703: column c.customer_number does not exist
+LINE 17: c.customer_number,
 ```
 
 ## Root Cause
 The errors occurred because:
 1. The SQL script was trying to reference `cc.account_id` which doesn't exist in the `collection_cases` table. The actual column name is `account_number`.
 2. The `collection_buckets` table uses `bucket_id` as its primary key, not `id`.
+3. The `customers` table doesn't have a `customer_number` column - it uses `customer_id` as the identifier.
 
 ## Solution
 Created a corrected view definition that uses the actual column names from the `collection_cases` table.
@@ -32,7 +36,7 @@ Run the corrected SQL script in your Supabase SQL editor:
 
 ```sql
 -- Copy and run the contents of:
-/workspace/fix_collection_cases_view_final.sql
+/workspace/fix_collection_cases_view_simple.sql
 ```
 
 This script will:

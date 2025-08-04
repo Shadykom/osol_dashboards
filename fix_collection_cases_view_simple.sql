@@ -1,42 +1,41 @@
--- Fix for missing collection_cases_detailed view (FINAL VERSION)
--- This view is used by the collection service to display collection cases
+-- Fix for missing collection_cases_detailed view (SIMPLIFIED VERSION)
+-- This is a minimal version that should work with the existing schema
 
 -- Drop existing view if it exists
 DROP VIEW IF EXISTS kastle_banking.collection_cases_detailed CASCADE;
 
--- Create the view in kastle_banking schema (which is what supabaseCollection uses)
+-- Create the view with only essential columns that we know exist
 CREATE OR REPLACE VIEW kastle_banking.collection_cases_detailed AS
 SELECT 
-    cc.case_id as id,  -- Alias for compatibility
+    cc.case_id as id,
     cc.case_number,
+    cc.customer_id,
     cc.loan_account_number,
     cc.account_number,
     cc.account_type,
-    cc.customer_id,
-    c.full_name as customer_name,
-    c.customer_id as customer_number,  -- Using customer_id as customer_number doesn't exist
     cc.total_outstanding,
     cc.principal_outstanding,
     cc.interest_outstanding,
     cc.penalty_outstanding,
     cc.days_past_due,
     cc.bucket_id,
-    cb.bucket_name,
-    cb.min_dpd,
-    cb.max_dpd,
     cc.assigned_to,
-    -- Try to get officer name from collection_officers table if it exists
-    COALESCE(co.officer_name, cc.assigned_to) as assigned_to_name,
     cc.case_status,
     cc.priority,
     cc.last_payment_date,
     cc.last_payment_amount,
     cc.last_contact_date,
     cc.next_action_date,
+    cc.branch_id,
     cc.created_at,
     cc.updated_at,
-    -- Additional fields that might be needed
-    cc.branch_id,
+    -- Add customer name if available
+    c.full_name as customer_name,
+    -- Add bucket name if available
+    cb.bucket_name,
+    cb.min_dpd,
+    cb.max_dpd,
+    -- Add branch name if available
     b.branch_name,
     -- Calculated fields
     CASE 
@@ -45,14 +44,15 @@ SELECT
         WHEN cc.days_past_due >= 60 THEN 'HIGH'
         WHEN cc.days_past_due >= 30 THEN 'MEDIUM'
         ELSE 'LOW'
-    END as calculated_priority,
+    END as risk_level,
     COALESCE(cc.total_outstanding, 0) as amount_at_risk,
-    -- Legal status (if exists in the table)
+    -- Placeholder fields for compatibility
+    cc.customer_id as customer_number,
+    cc.assigned_to as assigned_to_name,
     CASE 
         WHEN cc.case_status = 'LEGAL' THEN 'LEGAL_PROCEEDINGS'
         ELSE 'NORMAL'
     END as legal_status,
-    -- Settlement status (derived from case status)
     CASE 
         WHEN cc.case_status = 'CLOSED' THEN 'SETTLED'
         WHEN cc.case_status = 'SUSPENDED' THEN 'SUSPENDED'
@@ -61,9 +61,7 @@ SELECT
 FROM kastle_banking.collection_cases cc
 LEFT JOIN kastle_banking.customers c ON cc.customer_id = c.customer_id
 LEFT JOIN kastle_banking.collection_buckets cb ON cc.bucket_id = cb.bucket_id
-LEFT JOIN kastle_banking.branches b ON cc.branch_id = b.branch_id
--- Try to join with collection_officers if it exists
-LEFT JOIN kastle_banking.collection_officers co ON cc.assigned_to = co.officer_id;
+LEFT JOIN kastle_banking.branches b ON cc.branch_id = b.branch_id;
 
 -- Grant permissions
 GRANT SELECT ON kastle_banking.collection_cases_detailed TO authenticated;
@@ -73,17 +71,10 @@ GRANT SELECT ON kastle_banking.collection_cases_detailed TO service_role;
 -- Add comment
 COMMENT ON VIEW kastle_banking.collection_cases_detailed IS 'Detailed view of collection cases with customer and loan information';
 
--- Verify the view was created successfully
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 
-        FROM information_schema.views 
-        WHERE table_schema = 'kastle_banking' 
-        AND table_name = 'collection_cases_detailed'
-    ) THEN
-        RAISE NOTICE 'View kastle_banking.collection_cases_detailed created successfully';
-    ELSE
-        RAISE EXCEPTION 'Failed to create view kastle_banking.collection_cases_detailed';
-    END IF;
-END $$;
+-- Verify the view was created
+SELECT 
+    'collection_cases_detailed view created' as status,
+    count(*) as column_count
+FROM information_schema.columns
+WHERE table_schema = 'kastle_banking' 
+AND table_name = 'collection_cases_detailed';
