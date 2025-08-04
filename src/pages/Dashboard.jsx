@@ -93,6 +93,7 @@ import { ProductReportService } from '@/services/productReportService';
 import { CustomerSegmentService } from '@/services/customerSegmentService';
 import { fixDashboardData, checkDatabaseStatus } from '@/utils/fixDashboardData';
 
+
 // Removed mock Supabase clients - using real database connections only
 
 // Import with fallback - using regular imports
@@ -287,7 +288,7 @@ export const WIDGET_CATALOG = {
             // Revenue performance
             supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
             // Customer growth
-            supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
+            supabaseBanking.from(TABLES.CUSTOMERS).select('customer_id, is_active').eq('is_active', true),
             // Loan portfolio
             supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
             // Transaction volume
@@ -295,7 +296,7 @@ export const WIDGET_CATALOG = {
           ]);
 
           const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
-          const customerCount = customerResult.count || 0;
+          const customerCount = customerResult.data?.length || 0;
           const totalLoans = loanResult.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
           const transactionCount = transactionResult.count || 0;
 
@@ -391,14 +392,16 @@ export const WIDGET_CATALOG = {
         try {
           let query = supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true });
+            .select('customer_id');
           
           // Apply customer segment filter
           if (filters?.customerSegment && filters.customerSegment !== 'all') {
             query = query.eq('customer_segment', filters.customerSegment);
           }
           
-          const { count, error } = await query;
+          const { data: customers, error } = await query;
+          
+          const count = customers?.length || 0;
           
           if (error) throw error;
           
@@ -1787,6 +1790,7 @@ export default function EnhancedDashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const hasInitialized = useRef(false);
+  const isFirstRender = useRef(true);
   const isMobile = useIsMobile();
   const rtl = useRTLClasses();
   
@@ -2025,6 +2029,12 @@ export default function EnhancedDashboard() {
 
   // Fetch data when widgets or filters change
   useEffect(() => {
+    // Skip the first render to avoid duplicate fetching
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
     if (widgets.length > 0) {
       fetchDashboardData();
     }
@@ -2218,6 +2228,8 @@ export default function EnhancedDashboard() {
     const currentWidgetData = widgetData[dataKey] || {};
     const isLoading = widgetLoadingStates[dataKey];
     const hasError = widgetErrorStates.includes(widget.id);
+    
+
     
     // Get widget name from translations
     const widgetName = widgetDef.widgetKey ? t(`dashboard.widgets.${widgetDef.widgetKey}`) : 
@@ -2968,6 +2980,8 @@ export default function EnhancedDashboard() {
           <RefreshCw className="h-4 w-4" />
           Refresh Data
         </Button>
+        
+
       </div>
     </div>
   );
