@@ -1865,9 +1865,10 @@
         "contactRate": "Contact Rate",
         "promiseRate": "Promise Rate",
         "avgCallTime": "Avg. Call Time"
-      },
-      "fieldCollection": {
-        "title": "Field Collection",
+      }
+    },
+    "fieldCollection": {
+      "title": "Field Collection",
         "visitsCompleted": "Visits Completed",
         "successRate": "Success Rate",
         "amountCollected": "Amount Collected",
