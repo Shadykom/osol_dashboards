@@ -378,11 +378,17 @@ const ModernSidebar = ({ isMobile }) => {
           "border-gray-200 dark:border-gray-700",
           "transition-all duration-300 ease-in-out",
           "flex flex-col",
-          isOpen ? "w-64" : "w-0 lg:w-20",
-          isMobile && "top-0 bottom-0",
+          // Desktop width handling
+          !isMobile && (isOpen ? "w-64" : "w-20"),
+          // Mobile positioning
+          isMobile && "top-0 bottom-0 w-64",
           isMobile && (isRTL ? "right-0" : "left-0"),
+          // Transform handling
           !isMobile && "lg:translate-x-0",
-          isMobile && !isOpen && (isRTL ? "translate-x-full" : "-translate-x-full")
+          isMobile && (isOpen 
+            ? "translate-x-0" 
+            : (isRTL ? "translate-x-full" : "-translate-x-full")
+          )
         )}
       >
         {/* Header */}
