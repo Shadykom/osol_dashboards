@@ -144,8 +144,7 @@ function formatCurrency(amount, currency = 'SAR') {
 }
 
 // Enhanced KPI Card with comparison features
-function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon, description, format = 'number', comparisonPeriod, color = 'primary' }) {
-  const { t } = useTranslation();
+function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon, description, format = 'number', comparisonPeriod, color = 'primary', t }) {
   
   const formattedValue = format === 'currency' ? formatCurrency(value) : 
                         format === 'percentage' ? `${value}%` : 
@@ -263,8 +262,7 @@ function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon,
 }
 
 // Modern Risk Score Card with visual indicators
-function ModernRiskScoreCard({ category, score, status, trend, details }) {
-  const { t } = useTranslation();
+function ModernRiskScoreCard({ category, score, status, trend, details, t }) {
   
   const getStatusConfig = (status) => {
     switch(status) {
@@ -956,6 +954,7 @@ export function ExecutiveDashboard() {
                   format="currency"
                   comparisonPeriod={comparisonSettings.type}
                   color="success"
+                  t={t}
                 />
                 
                 <ModernKPICard
@@ -968,6 +967,7 @@ export function ExecutiveDashboard() {
                   description={t('executiveDashboard.currentlyActiveLoans')}
                   comparisonPeriod={comparisonSettings.type}
                   color="primary"
+                  t={t}
                 />
                 
                 <ModernKPICard
@@ -981,6 +981,7 @@ export function ExecutiveDashboard() {
                   format="currency"
                   comparisonPeriod={comparisonSettings.type}
                   color="info"
+                  t={t}
                 />
                 
                 <ModernKPICard
@@ -994,6 +995,7 @@ export function ExecutiveDashboard() {
                   format="percentage"
                   comparisonPeriod={comparisonSettings.type}
                   color="warning"
+                  t={t}
                 />
               </div>
 
@@ -1173,6 +1175,7 @@ export function ExecutiveDashboard() {
                     status="low"
                     trend={-2}
                     details={t('executiveDashboard.creditRiskDetails')}
+                    t={t}
                   />
                   
                   <ModernRiskScoreCard
@@ -1181,6 +1184,7 @@ export function ExecutiveDashboard() {
                     status="medium"
                     trend={5}
                     details={t('executiveDashboard.marketRiskDetails')}
+                    t={t}
                   />
                   
                   <ModernRiskScoreCard
@@ -1189,6 +1193,7 @@ export function ExecutiveDashboard() {
                     status="low"
                     trend={-1}
                     details={t('executiveDashboard.operationalRiskDetails')}
+                    t={t}
                   />
                   
                   <ModernRiskScoreCard
@@ -1197,6 +1202,7 @@ export function ExecutiveDashboard() {
                     status="low"
                     trend={0}
                     details={t('executiveDashboard.complianceRiskDetails')}
+                    t={t}
                   />
                 </div>
               </div>
