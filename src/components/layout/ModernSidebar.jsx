@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 
 const ModernSidebar = ({ isMobile }) => {
-  const { t, i18n } = useTranslation();
+  const { t, i18n, ready } = useTranslation('translation');
   const location = useLocation();
   const { 
     isOpen, 
@@ -50,6 +50,11 @@ const ModernSidebar = ({ isMobile }) => {
   const [theme, setTheme] = React.useState(() => 
     localStorage.getItem('theme') || (document.documentElement.classList.contains('dark') ? 'dark' : 'light')
   );
+
+  // Don't render until translations are ready
+  if (!ready) {
+    return null;
+  }
 
   // Dashboard menu structure with categories
   const menuItems = [
