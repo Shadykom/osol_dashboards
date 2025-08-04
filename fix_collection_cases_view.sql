@@ -54,9 +54,9 @@ SELECT
     ptp.ptp_amount AS latest_ptp_amount
 FROM 
     kastle_banking.collection_cases cc
-    LEFT JOIN kastle_banking.customers c ON cc.customer_id = c.id
-    LEFT JOIN kastle_banking.accounts a ON cc.account_id = a.id
-    LEFT JOIN kastle_banking.collection_officers co ON cc.assigned_to = co.id
+    LEFT JOIN kastle_banking.customers c ON cc.customer_id = c.customer_id
+    LEFT JOIN kastle_banking.accounts a ON cc.account_id = a.account_id
+    LEFT JOIN kastle_banking.collection_officers co ON cc.assigned_to = co.officer_id
     -- Communication counts for current month
     LEFT JOIN LATERAL (
         SELECT 
