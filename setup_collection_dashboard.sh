@@ -25,8 +25,12 @@ run_sql() {
 }
 
 # Main setup
-echo "1. Creating collection dashboard tables..."
-run_sql "fix_collection_tables_safe.sql" "Create tables"
+echo "1. Running diagnostics..."
+run_sql "diagnose_collection_tables.sql" "Diagnostics"
+
+echo ""
+echo "2. Creating collection dashboard tables step by step..."
+run_sql "create_all_collection_tables_step_by_step.sql" "Create tables"
 
 echo ""
 echo "Setup complete!"
