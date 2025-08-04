@@ -26,7 +26,7 @@
 - Added proper permissions for authenticated, anon, and service_role users
 - View joins collection_cases with related tables (customers, loan_accounts, etc.)
 
-**SQL Script**: `/workspace/fix_collection_cases_view_corrected.sql`
+**SQL Script**: `/workspace/fix_collection_cases_view_final.sql`
 
 ### 3. Multiple GoTrueClient Instances Warning
 **Warning**: Multiple GoTrueClient instances detected

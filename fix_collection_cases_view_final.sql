@@ -1,4 +1,4 @@
--- Fix for missing collection_cases_detailed view (CORRECTED)
+-- Fix for missing collection_cases_detailed view (FINAL VERSION)
 -- This view is used by the collection service to display collection cases
 
 -- Drop existing view if it exists
@@ -25,7 +25,8 @@ SELECT
     cb.min_dpd,
     cb.max_dpd,
     cc.assigned_to,
-    u.full_name as assigned_to_name,
+    -- Try to get officer name from collection_officers table if it exists
+    COALESCE(co.officer_name, cc.assigned_to) as assigned_to_name,
     cc.case_status,
     cc.priority,
     cc.last_payment_date,
@@ -60,8 +61,9 @@ SELECT
 FROM kastle_banking.collection_cases cc
 LEFT JOIN kastle_banking.customers c ON cc.customer_id = c.customer_id
 LEFT JOIN kastle_banking.collection_buckets cb ON cc.bucket_id = cb.bucket_id
-LEFT JOIN kastle_banking.auth_user_profiles u ON cc.assigned_to = u.user_id
-LEFT JOIN kastle_banking.branches b ON cc.branch_id = b.branch_id;
+LEFT JOIN kastle_banking.branches b ON cc.branch_id = b.branch_id
+-- Try to join with collection_officers if it exists
+LEFT JOIN kastle_banking.collection_officers co ON cc.assigned_to = co.officer_id;
 
 -- Grant permissions
 GRANT SELECT ON kastle_banking.collection_cases_detailed TO authenticated;
