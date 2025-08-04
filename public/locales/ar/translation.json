@@ -711,11 +711,44 @@
     "escalatedCases": "الحالات المصعدة",
     "todaysTarget": "هدف اليوم",
     "achieved": "محقق",
-    "pending": "معلق",
-    "fieldOfficers": "موظفو الميدان",
-    "digitalChannels": "القنوات الرقمية",
-    "callCenter": "مركز الاتصال"
-  },
+          "pending": "معلق",
+      "fieldOfficers": "موظفو الميدان",
+      "digitalChannels": "القنوات الرقمية",
+      "callCenter": "مركز الاتصال",
+      "executiveDashboard": {
+        "title": "لوحة التحصيل التنفيذية",
+        "subtitle": "نظرة عامة عالية المستوى على محفظة القروض وأداء التحصيل"
+      },
+      "metrics": {
+        "totalPortfolioValue": "إجمالي قيمة المحفظة",
+        "totalOverdueAmount": "إجمالي المبلغ المتأخر",
+        "nplRatio": "نسبة القروض غير المنتظمة",
+        "collectionRate": "معدل التحصيل",
+        "totalAccounts": "{{count}} إجمالي الحسابات"
+      },
+      "agingDistribution": {
+        "title": "القروض المتأخرة حسب العمر",
+        "description": "توزيع المبالغ المتأخرة حسب أيام التأخر"
+      },
+      "remediation": {
+        "title": "ملخص جهود المعالجة",
+        "description": "نظرة عامة على استراتيجيات التحصيل وفعاليتها",
+        "restructured": "القروض المعاد هيكلتها",
+        "settlements": "التسويات",
+        "legalReferrals": "الإحالات القانونية",
+        "writeOffs": "الشطب"
+      },
+      "nplTrend": {
+        "title": "اتجاه نسبة القروض غير المنتظمة",
+        "description": "اتجاه 6 أشهر لنسبة القروض غير المنتظمة ومعدل التحصيل"
+      },
+      "performance": {
+        "title": "الأداء مقابل الهدف",
+        "description": "أداء الشهر الحالي مقارنة بالأهداف",
+        "collectionTarget": "هدف التحصيل",
+        "monthComparison": "مقارنة شهرية"
+      }
+    },
   "compliance": {
     "title": "الامتثال",
     "shariaCompliance": "الامتثال الشرعي",

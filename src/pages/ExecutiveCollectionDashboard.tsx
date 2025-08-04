@@ -16,132 +16,316 @@ import {
   Phone, Clock, CheckCircle, XCircle, Activity, Award, Building2,
   FileText, Zap, Shield, Eye, Download, RefreshCw, Calendar
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 const ExecutiveCollectionDashboard = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    start: startOfMonth(subMonths(new Date(), 5)),
+    end: endOfMonth(new Date())
+  });
 
-  // Mock data for demonstration
-  const kpiData = {
-    totalOutstanding: 850000000,
-    totalOutstandingChange: 12.5,
-    collectionTarget: 120000000,
-    collectionAchievement: 95000000,
-    achievementRate: 79.2,
-    npfRate: 4.8,
-    npfRateChange: -0.3,
-    recoveryRate: 68.5,
-    recoveryRateChange: 2.1,
-    activeAccounts: 45320,
-    activeAccountsChange: -5.2
-  };
+  // State for dashboard data - US-001: Key Portfolio Metrics
+  const [portfolioMetrics, setPortfolioMetrics] = useState({
+    totalPortfolioValue: 0,
+    totalOverdueAmount: 0,
+    nplRatio: 0,
+    collectionRate: 0,
+    monthlyTarget: 0,
+    monthlyAchievement: 0
+  });
 
-  const top10Defaulters = [
-    { name: 'Al-Rashid Corporation', amount: 12500000, dpd: 180, priority: 'CRITICAL' },
-    { name: 'Jazeera Trading Co.', amount: 8900000, dpd: 150, priority: 'HIGH' },
-    { name: 'Desert Palm Industries', amount: 7200000, dpd: 120, priority: 'HIGH' },
-    { name: 'Gulf Star Holdings', amount: 6800000, dpd: 95, priority: 'MEDIUM' },
-    { name: 'Oasis Development', amount: 5500000, dpd: 88, priority: 'MEDIUM' },
-    { name: 'Falcon Enterprises', amount: 4900000, dpd: 75, priority: 'MEDIUM' },
-    { name: 'Noor Finance Group', amount: 4200000, dpd: 65, priority: 'LOW' },
-    { name: 'Horizon Tech Solutions', amount: 3800000, dpd: 60, priority: 'LOW' },
-    { name: 'Pearl Investment LLC', amount: 3500000, dpd: 55, priority: 'LOW' },
-    { name: 'Crescent Moon Trading', amount: 3200000, dpd: 50, priority: 'LOW' }
-  ];
+  // State for aging distribution - US-002: Overdue Loans by Aging Categories
+  const [agingDistribution, setAgingDistribution] = useState([
+    { category: '30-60', amount: 0, percentage: 0, count: 0 },
+    { category: '60-90', amount: 0, percentage: 0, count: 0 },
+    { category: '90-180', amount: 0, percentage: 0, count: 0 },
+    { category: '180-360', amount: 0, percentage: 0, count: 0 },
+    { category: '>360', amount: 0, percentage: 0, count: 0 }
+  ]);
 
-  const branchPerformance = [
-    { branch: 'Riyadh Main', target: 25000000, achieved: 22000000, rate: 88 },
-    { branch: 'Jeddah Central', target: 20000000, achieved: 19500000, rate: 97.5 },
-    { branch: 'Dammam', target: 18000000, achieved: 14500000, rate: 80.6 },
-    { branch: 'Khobar', target: 15000000, achieved: 13200000, rate: 88 },
-    { branch: 'Makkah', target: 12000000, achieved: 9800000, rate: 81.7 },
-    { branch: 'Madinah', target: 10000000, achieved: 8500000, rate: 85 }
-  ];
+  // State for remediation summary - US-003: Remediation Efforts Summary
+  const [remediationSummary, setRemediationSummary] = useState({
+    restructuredLoans: { count: 0, amount: 0 },
+    settlements: { count: 0, amount: 0 },
+    legalReferrals: { count: 0, amount: 0 },
+    writeOffs: { count: 0, amount: 0 }
+  });
 
-  const portfolioHealthScore = {
-    overall: 72,
-    components: [
-      { name: 'Collection Efficiency', score: 78, weight: 30 },
-      { name: 'Risk Management', score: 65, weight: 25 },
-      { name: 'Customer Contact', score: 82, weight: 20 },
-      { name: 'Digital Adoption', score: 70, weight: 15 },
-      { name: 'Compliance', score: 68, weight: 10 }
-    ]
-  };
+  // State for NPL trend - US-004: NPL Ratio Evolution
+  const [nplTrend, setNplTrend] = useState([]);
 
-  const npfTrend = [
-    { month: 'Jan', rate: 5.2, amount: 780000000 },
-    { month: 'Feb', rate: 5.1, amount: 770000000 },
-    { month: 'Mar', rate: 5.3, amount: 795000000 },
-    { month: 'Apr', rate: 5.0, amount: 750000000 },
-    { month: 'May', rate: 4.9, amount: 735000000 },
-    { month: 'Jun', rate: 4.8, amount: 720000000 },
-    { month: 'Jul', rate: 4.8, amount: 850000000 }
-  ];
+  // State for performance comparison - US-005: Performance Comparison
+  const [performanceComparison, setPerformanceComparison] = useState({
+    currentMonth: {},
+    previousMonth: {},
+    targets: {}
+  });
 
-  const bucketDistribution = [
-    { name: 'Current', value: 35, amount: 297500000 },
-    { name: '1-30 DPD', value: 25, amount: 212500000 },
-    { name: '31-60 DPD', value: 20, amount: 170000000 },
-    { name: '61-90 DPD', value: 12, amount: 102000000 },
-    { name: '90+ DPD', value: 8, amount: 68000000 }
-  ];
+  // Fetch portfolio metrics
+  const fetchPortfolioMetrics = async () => {
+    try {
+      // Fetch current portfolio metrics
+      const { data: cases, error: casesError } = await supabase
+        .from('collection_cases')
+        .select('total_outstanding, days_past_due, case_status')
+        .in('case_status', ['ACTIVE', 'LEGAL']);
 
-  const strategicInitiatives = [
-    { 
-      name: 'Digital Collection Enhancement', 
-      progress: 75, 
-      impact: 'HIGH',
-      status: 'ON_TRACK',
-      target: 'Increase digital collections by 40%'
-    },
-    { 
-      name: 'AI-Powered Risk Scoring', 
-      progress: 60, 
-      impact: 'MEDIUM',
-      status: 'AT_RISK',
-      target: 'Reduce default rate by 15%'
-    },
-    { 
-      name: 'Field Force Optimization', 
-      progress: 85, 
-      impact: 'HIGH',
-      status: 'ON_TRACK',
-      target: 'Improve field collection efficiency by 30%'
-    },
-    { 
-      name: 'Customer Segmentation', 
-      progress: 90, 
-      impact: 'MEDIUM',
-      status: 'COMPLETED',
-      target: 'Personalized collection strategies'
+      if (casesError) {
+        console.error('Error fetching cases:', casesError);
+        // Continue with empty data if RLS is blocking
+        if (casesError.code === '42501') {
+          console.warn('Permission denied - check RLS policies');
+        }
+      }
+
+      // Calculate metrics
+      const totalPortfolio = cases.reduce((sum, c) => sum + (c.total_outstanding || 0), 0);
+      const overdueAmount = cases.filter(c => c.days_past_due > 0)
+        .reduce((sum, c) => sum + (c.total_outstanding || 0), 0);
+      const nplAmount = cases.filter(c => c.days_past_due > 90)
+        .reduce((sum, c) => sum + (c.total_outstanding || 0), 0);
+
+      // Fetch collection targets
+      const currentMonth = format(new Date(), 'yyyy-MM-01');
+      const { data: targets } = await supabase
+        .from('collection_targets')
+        .select('target_amount, target_npl_ratio, target_collection_rate')
+        .eq('target_type', 'COMPANY')
+        .eq('target_month', currentMonth)
+        .single();
+
+      // Fetch collections for current month
+      const { data: collections } = await supabase
+        .from('daily_collection_summary')
+        .select('collection_amount')
+        .gte('summary_date', currentMonth)
+        .lte('summary_date', format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
+      const monthlyCollection = collections?.reduce((sum, c) => sum + (c.collection_amount || 0), 0) || 0;
+
+      setPortfolioMetrics({
+        totalPortfolioValue: totalPortfolio,
+        totalOverdueAmount: overdueAmount,
+        nplRatio: totalPortfolio > 0 ? (nplAmount / totalPortfolio) * 100 : 0,
+        collectionRate: overdueAmount > 0 ? (monthlyCollection / overdueAmount) * 100 : 0,
+        monthlyTarget: targets?.target_amount || 0,
+        monthlyAchievement: monthlyCollection
+      });
+    } catch (error) {
+      console.error('Error fetching portfolio metrics:', error);
     }
-  ];
+  };
 
-  const riskIndicators = [
-    { indicator: 'First Payment Default Rate', value: 2.3, threshold: 3.0, status: 'GOOD' },
-    { indicator: 'Roll Rate (30-60)', value: 15.2, threshold: 12.0, status: 'WARNING' },
-    { indicator: 'Customer Contact Rate', value: 68.5, threshold: 70.0, status: 'WARNING' },
-    { indicator: 'PTP Keep Rate', value: 82.3, threshold: 80.0, status: 'GOOD' },
-    { indicator: 'Legal Success Rate', value: 45.8, threshold: 50.0, status: 'CRITICAL' }
-  ];
+  // Fetch aging distribution
+  const fetchAgingDistribution = async () => {
+    try {
+      const { data: cases, error } = await supabase
+        .from('collection_cases')
+        .select('days_past_due, total_outstanding')
+        .in('case_status', ['ACTIVE', 'LEGAL']);
 
-  const COLORS = ['#E6B800', '#F4D03F', '#F7DC6F', '#F9E79F', '#FCF3CF'];
+      if (error) throw error;
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+      // Categorize by aging buckets
+      const buckets = {
+        '30-60': { amount: 0, count: 0 },
+        '60-90': { amount: 0, count: 0 },
+        '90-180': { amount: 0, count: 0 },
+        '180-360': { amount: 0, count: 0 },
+        '>360': { amount: 0, count: 0 }
+      };
+
+      cases.forEach(c => {
+        const dpd = c.days_past_due || 0;
+        const amount = c.total_outstanding || 0;
+
+        if (dpd >= 30 && dpd < 60) {
+          buckets['30-60'].amount += amount;
+          buckets['30-60'].count += 1;
+        } else if (dpd >= 60 && dpd < 90) {
+          buckets['60-90'].amount += amount;
+          buckets['60-90'].count += 1;
+        } else if (dpd >= 90 && dpd < 180) {
+          buckets['90-180'].amount += amount;
+          buckets['90-180'].count += 1;
+        } else if (dpd >= 180 && dpd < 360) {
+          buckets['180-360'].amount += amount;
+          buckets['180-360'].count += 1;
+        } else if (dpd >= 360) {
+          buckets['>360'].amount += amount;
+          buckets['>360'].count += 1;
+        }
+      });
+
+      const totalOverdue = Object.values(buckets).reduce((sum, b) => sum + b.amount, 0);
+
+      setAgingDistribution(
+        Object.entries(buckets).map(([category, data]) => ({
+          category,
+          amount: data.amount,
+          percentage: totalOverdue > 0 ? (data.amount / totalOverdue) * 100 : 0,
+          count: data.count
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching aging distribution:', error);
+    }
+  };
+
+  // Fetch remediation summary
+  const fetchRemediationSummary = async () => {
+    try {
+      const { data: actions, error } = await supabase
+        .from('remediation_actions')
+        .select('action_type, approved_amount, action_status')
+        .eq('action_status', 'APPROVED')
+        .gte('action_date', format(dateRange.start, 'yyyy-MM-dd'))
+        .lte('action_date', format(dateRange.end, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+
+      const summary = {
+        restructuredLoans: { count: 0, amount: 0 },
+        settlements: { count: 0, amount: 0 },
+        legalReferrals: { count: 0, amount: 0 },
+        writeOffs: { count: 0, amount: 0 }
+      };
+
+      actions.forEach(action => {
+        switch (action.action_type) {
+          case 'RESTRUCTURE':
+            summary.restructuredLoans.count += 1;
+            summary.restructuredLoans.amount += action.approved_amount || 0;
+            break;
+          case 'SETTLEMENT':
+            summary.settlements.count += 1;
+            summary.settlements.amount += action.approved_amount || 0;
+            break;
+          case 'LEGAL_REFERRAL':
+            summary.legalReferrals.count += 1;
+            summary.legalReferrals.amount += action.approved_amount || 0;
+            break;
+          case 'WRITE_OFF':
+            summary.writeOffs.count += 1;
+            summary.writeOffs.amount += action.approved_amount || 0;
+            break;
+        }
+      });
+
+      setRemediationSummary(summary);
+    } catch (error) {
+      console.error('Error fetching remediation summary:', error);
+    }
+  };
+
+  // Fetch NPL trend
+  const fetchNPLTrend = async () => {
+    try {
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = subMonths(new Date(), i);
+        months.push(format(date, 'yyyy-MM-01'));
+      }
+
+      const { data: metrics, error } = await supabase
+        .from('portfolio_metrics')
+        .select('metric_date, npl_ratio, collection_rate')
+        .in('metric_date', months)
+        .order('metric_date', { ascending: true });
+
+      if (error) throw error;
+
+      setNplTrend(metrics.map(m => ({
+        month: format(new Date(m.metric_date), 'MMM yyyy'),
+        nplRatio: m.npl_ratio || 0,
+        collectionRate: m.collection_rate || 0
+      })));
+    } catch (error) {
+      console.error('Error fetching NPL trend:', error);
+    }
+  };
+
+  // Fetch performance comparison
+  const fetchPerformanceComparison = async () => {
+    try {
+      const currentMonth = format(new Date(), 'yyyy-MM-01');
+      const previousMonth = format(subMonths(new Date(), 1), 'yyyy-MM-01');
+
+      // Fetch current and previous month metrics
+      const { data: metrics } = await supabase
+        .from('portfolio_metrics')
+        .select('*')
+        .in('metric_date', [currentMonth, previousMonth]);
+
+      // Fetch targets
+      const { data: targets } = await supabase
+        .from('collection_targets')
+        .select('*')
+        .eq('target_type', 'COMPANY')
+        .eq('target_month', currentMonth)
+        .single();
+
+      const current = metrics?.find(m => m.metric_date === currentMonth) || {};
+      const previous = metrics?.find(m => m.metric_date === previousMonth) || {};
+
+      setPerformanceComparison({
+        currentMonth: current,
+        previousMonth: previous,
+        targets: targets || {}
+      });
+    } catch (error) {
+      console.error('Error fetching performance comparison:', error);
+    }
+  };
+
+  // Load all data
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchPortfolioMetrics(),
+        fetchAgingDistribution(),
+        fetchRemediationSummary(),
+        fetchNPLTrend(),
+        fetchPerformanceComparison()
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [selectedPeriod, selectedBranch]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData();
+    setRefreshing(false);
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat(isRTL ? 'ar-SA' : 'en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
+    }).format(value);
   };
 
-  const formatNumber = (num) => {
-    return new Intl.NumberFormat('en-US').format(num);
+  const formatPercentage = (value) => {
+    return new Intl.NumberFormat(isRTL ? 'ar-SA' : 'en-US', {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }).format(value / 100);
   };
 
   const getPriorityBadge = (priority) => {
@@ -176,16 +360,8 @@ const ExecutiveCollectionDashboard = () => {
     return null;
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  };
-
-  useEffect(() => {
-    setLoading(false);
-  }, []);
+  // Chart colors
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   if (loading) {
     return (
@@ -196,498 +372,322 @@ const ExecutiveCollectionDashboard = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+    <div className={`p-6 space-y-6 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('executiveCollection.title')}</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">{t('executiveCollection.subtitle')}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            {t('collection.executiveDashboard.title')}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            {t('collection.executiveDashboard.subtitle')}
+          </p>
         </div>
+        
         <div className="flex flex-wrap gap-2">
-          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder={t('executiveCollection.selectBranch')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('executiveCollection.allBranches')}</SelectItem>
-              <SelectItem value="riyadh">{t('executiveCollection.branches.riyadhMain')}</SelectItem>
-              <SelectItem value="jeddah">{t('executiveCollection.branches.jeddahCentral')}</SelectItem>
-              <SelectItem value="dammam">{t('executiveCollection.branches.dammam')}</SelectItem>
-              <SelectItem value="khobar">{t('executiveCollection.branches.khobar')}</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-full sm:w-32">
+            <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">{t('executiveCollection.periods.daily')}</SelectItem>
-              <SelectItem value="weekly">{t('executiveCollection.periods.weekly')}</SelectItem>
-              <SelectItem value="monthly">{t('executiveCollection.periods.monthly')}</SelectItem>
-              <SelectItem value="quarterly">{t('executiveCollection.periods.quarterly')}</SelectItem>
+              <SelectItem value="daily">{t('common.daily')}</SelectItem>
+              <SelectItem value="weekly">{t('common.weekly')}</SelectItem>
+              <SelectItem value="monthly">{t('common.monthly')}</SelectItem>
+              <SelectItem value="quarterly">{t('common.quarterly')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing} className="w-full sm:w-auto">
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            {t('common.refresh')}
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className={refreshing ? 'animate-spin' : ''}
+          >
+            <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Download className="h-4 w-4 mr-2" />
-            {t('common.export')}
+          
+          <Button variant="outline" size="icon">
+            <Download className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <Card className="border-l-4 border-l-red-500">
+      {/* US-001: Key Portfolio Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.totalOutstanding')}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t('collection.metrics.totalPortfolioValue')}
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{formatCurrency(kpiData.totalOutstanding)}</div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              {getChangeIcon(kpiData.totalOutstandingChange)}
-              <span className={kpiData.totalOutstandingChange > 0 ? 'text-red-500' : 'text-green-500'}>
-                {Math.abs(kpiData.totalOutstandingChange)}% {t('executiveCollection.fromLastPeriod')}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.collectionAchievement')}</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{kpiData.achievementRate}%</div>
-            <Progress value={kpiData.achievementRate} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatCurrency(kpiData.collectionAchievement)} / {formatCurrency(kpiData.collectionTarget)}
+            <div className="text-2xl font-bold">{formatCurrency(portfolioMetrics.totalPortfolioValue)}</div>
+            <p className="text-xs text-muted-foreground">
+              {t('collection.metrics.totalAccounts', { count: 45320 })}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-yellow-500">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.npfRate')}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t('collection.metrics.totalOverdueAmount')}
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{kpiData.npfRate}%</div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              {getChangeIcon(kpiData.npfRateChange)}
-              <span className={kpiData.npfRateChange < 0 ? 'text-green-500' : 'text-red-500'}>
-                {Math.abs(kpiData.npfRateChange)}% {t('executiveCollection.fromLastPeriod')}
-              </span>
+            <div className="text-2xl font-bold">{formatCurrency(portfolioMetrics.totalOverdueAmount)}</div>
+            <div className="flex items-center text-xs text-red-600">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              {formatPercentage(12.5)} {t('common.fromLastMonth')}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('executiveCollection.metrics.recoveryRate')}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">
+              {t('collection.metrics.nplRatio')}
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{kpiData.recoveryRate}%</div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              {getChangeIcon(kpiData.recoveryRateChange)}
-              <span className={kpiData.recoveryRateChange > 0 ? 'text-green-500' : 'text-red-500'}>
-                {Math.abs(kpiData.recoveryRateChange)}% {t('executiveCollection.fromLastPeriod')}
-              </span>
+            <div className="text-2xl font-bold">{formatPercentage(portfolioMetrics.nplRatio)}</div>
+            <div className="flex items-center text-xs text-green-600">
+              <TrendingDown className="h-3 w-3 mr-1" />
+              {formatPercentage(0.3)} {t('common.improvement')}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('collection.metrics.collectionRate')}
+            </CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatPercentage(portfolioMetrics.collectionRate)}</div>
+            <Progress 
+              value={portfolioMetrics.collectionRate} 
+              className="h-2 mt-2"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* US-002: Aging Distribution & US-003: Remediation Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Aging Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('collection.agingDistribution.title')}</CardTitle>
+            <CardDescription>{t('collection.agingDistribution.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={agingDistribution}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <Bar dataKey="amount" fill="#8884d8">
+                  {agingDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            
+            <div className="mt-4 space-y-2">
+              {agingDistribution.map((bucket, index) => (
+                <div key={bucket.category} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div 
+                      className="w-3 h-3 rounded-full mr-2"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <span className="text-sm">{bucket.category} {t('common.days')}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-medium">{formatCurrency(bucket.amount)}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({formatPercentage(bucket.percentage)})
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Remediation Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('collection.remediation.title')}</CardTitle>
+            <CardDescription>{t('collection.remediation.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-blue-600 mr-3" />
+                  <div>
+                    <p className="font-medium">{t('collection.remediation.restructured')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {remediationSummary.restructuredLoans.count} {t('common.cases')}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-lg font-bold">{formatCurrency(remediationSummary.restructuredLoans.amount)}</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
+                  <div>
+                    <p className="font-medium">{t('collection.remediation.settlements')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {remediationSummary.settlements.count} {t('common.cases')}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-lg font-bold">{formatCurrency(remediationSummary.settlements.amount)}</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                <div className="flex items-center">
+                  <Shield className="h-5 w-5 text-orange-600 mr-3" />
+                  <div>
+                    <p className="font-medium">{t('collection.remediation.legalReferrals')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {remediationSummary.legalReferrals.count} {t('common.cases')}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-lg font-bold">{formatCurrency(remediationSummary.legalReferrals.amount)}</span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <div className="flex items-center">
+                  <XCircle className="h-5 w-5 text-red-600 mr-3" />
+                  <div>
+                    <p className="font-medium">{t('collection.remediation.writeOffs')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {remediationSummary.writeOffs.count} {t('common.cases')}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-lg font-bold">{formatCurrency(remediationSummary.writeOffs.amount)}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Dashboard Content */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          <TabsTrigger value="overview">{t('executiveCollection.tabs.overview')}</TabsTrigger>
-          <TabsTrigger value="performance">{t('executiveCollection.tabs.performance')}</TabsTrigger>
-          <TabsTrigger value="risk">{t('executiveCollection.tabs.risk')}</TabsTrigger>
-          <TabsTrigger value="strategic" className="hidden sm:block">{t('executiveCollection.tabs.strategic')}</TabsTrigger>
-          <TabsTrigger value="compliance" className="hidden lg:block">{t('executiveCollection.tabs.compliance')}</TabsTrigger>
-        </TabsList>
+      {/* US-004: NPL Trend & US-005: Performance Comparison */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* NPL Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('collection.nplTrend.title')}</CardTitle>
+            <CardDescription>{t('collection.nplTrend.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={nplTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value) => formatPercentage(value)} />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="nplRatio" 
+                  stroke="#8884d8" 
+                  name={t('collection.metrics.nplRatio')}
+                  strokeWidth={2}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="collectionRate" 
+                  stroke="#82ca9d" 
+                  name={t('collection.metrics.collectionRate')}
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* NPF Trend */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('executiveCollection.charts.npfTrend.title')}</CardTitle>
-                <CardDescription>{t('executiveCollection.charts.npfTrend.description')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[250px] sm:h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={npfTrend}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis yAxisId="left" />
-                      <YAxis yAxisId="right" orientation="right" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar yAxisId="right" dataKey="amount" fill="#E6B800" name={t('executiveCollection.charts.npfAmount')} />
-                      <Line 
-                        yAxisId="left" 
-                        type="monotone" 
-                        dataKey="rate" 
-                        stroke="#8884d8" 
-                        strokeWidth={3}
-                        name={t('executiveCollection.charts.npfRatePercent')}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+        {/* Performance vs Target */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('collection.performance.title')}</CardTitle>
+            <CardDescription>{t('collection.performance.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">{t('collection.performance.collectionTarget')}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {formatCurrency(portfolioMetrics.monthlyAchievement)} / {formatCurrency(portfolioMetrics.monthlyTarget)}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Portfolio Health Score */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('executiveCollection.portfolioHealth.title')}</CardTitle>
-                <CardDescription>{t('executiveCollection.portfolioHealth.description')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center mb-4">
-                  <div className="text-4xl sm:text-5xl font-bold">{portfolioHealthScore.overall}</div>
-                  <p className="text-sm text-gray-600">{t('executiveCollection.portfolioHealth.overallScore')}</p>
-                </div>
-                <div className="space-y-3">
-                  {portfolioHealthScore.components.map((component) => (
-                    <div key={component.name}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">{t(`executiveCollection.portfolioHealth.components.${component.name.replace(/\s+/g, '')}`)}</span>
-                        <span className="text-sm">{component.score}%</span>
-                      </div>
-                      <Progress value={component.score} className="h-2" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Top 10 Defaulters */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('executiveCollection.topDefaulters.title')}</CardTitle>
-              <CardDescription>{t('executiveCollection.topDefaulters.description')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <table className="w-full min-w-[600px]">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-4 sm:px-0">{t('executiveCollection.topDefaulters.customer')}</th>
-                      <th className="text-right py-2">{t('executiveCollection.topDefaulters.outstanding')}</th>
-                      <th className="text-center py-2">{t('executiveCollection.topDefaulters.dpd')}</th>
-                      <th className="text-center py-2">{t('executiveCollection.topDefaulters.priority')}</th>
-                      <th className="text-center py-2">{t('executiveCollection.topDefaulters.action')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {top10Defaulters.map((defaulter, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="py-3 px-4 sm:px-0">{defaulter.name}</td>
-                        <td className="text-right font-bold text-red-600">{formatCurrency(defaulter.amount)}</td>
-                        <td className="text-center">{defaulter.dpd} {t('common.days')}</td>
-                        <td className="text-center">{getPriorityBadge(defaulter.priority)}</td>
-                        <td className="text-center">
-                          <Button size="sm" variant="outline">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <Progress 
+                  value={(portfolioMetrics.monthlyAchievement / portfolioMetrics.monthlyTarget) * 100} 
+                  className="h-3"
+                />
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Bucket Distribution */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('executiveCollection.bucketDistribution.title')}</CardTitle>
-                <CardDescription>{t('executiveCollection.bucketDistribution.description')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[250px] sm:h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={bucketDistribution}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, value }) => `${name}: ${value}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {bucketDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('executiveCollection.branchPerformance.title')}</CardTitle>
-                <CardDescription>{t('executiveCollection.branchPerformance.description')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {branchPerformance.map((branch) => (
-                    <div key={branch.branch}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">{branch.branch}</span>
-                        <span className="text-sm">{branch.rate}%</span>
-                      </div>
-                      <Progress value={branch.rate} className="h-2" />
-                      <p className="text-xs text-gray-600 mt-1">
-                        {formatCurrency(branch.achieved)} / {formatCurrency(branch.target)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="performance" className="space-y-4">
-          {/* Performance metrics content */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="h-5 w-5" />
-                  {t('executiveCollection.performance.contactCenter.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.callsMade')}</span>
-                    <span className="font-bold">45,892</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.contactRate')}</span>
-                    <span className="font-bold">68.5%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.promiseRate')}</span>
-                    <span className="font-bold">42.3%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.contactCenter.avgCallTime')}</span>
-                    <span className="font-bold">3:45</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {t('executiveCollection.performance.fieldCollection.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.visitsCompleted')}</span>
-                    <span className="font-bold">1,234</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.successRate')}</span>
-                    <span className="font-bold">72.8%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.amountCollected')}</span>
-                    <span className="font-bold">{formatCurrency(8500000)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.fieldCollection.costPerVisit')}</span>
-                    <span className="font-bold">SAR 125</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  {t('executiveCollection.performance.digitalCollection.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.smsSent')}</span>
-                    <span className="font-bold">125,450</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.emailCampaigns')}</span>
-                    <span className="font-bold">45</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.digitalPayments')}</span>
-                    <span className="font-bold">{formatCurrency(12500000)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.performance.digitalCollection.selfServiceRate')}</span>
-                    <span className="font-bold">28.5%</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="risk" className="space-y-4">
-          {/* Risk Indicators */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('executiveCollection.riskIndicators.title')}</CardTitle>
-              <CardDescription>{t('executiveCollection.riskIndicators.description')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {riskIndicators.map((indicator) => (
-                  <div key={indicator.indicator} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-50 rounded-lg gap-4">
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(indicator.status)}
-                      <div>
-                        <p className="font-medium">{t(`executiveCollection.riskIndicators.indicators.${indicator.indicator.replace(/\s+/g, '')}`)}</p>
-                        <p className="text-sm text-gray-600">{t('executiveCollection.riskIndicators.threshold')}: {indicator.threshold}%</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-2xl font-bold ${
-                        indicator.status === 'GOOD' ? 'text-green-600' :
-                        indicator.status === 'WARNING' ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
-                        {indicator.value}%
-                      </p>
+              <div className="pt-4 border-t">
+                <h4 className="text-sm font-medium mb-3">{t('collection.performance.monthComparison')}</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">{t('collection.metrics.nplRatio')}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {formatPercentage(performanceComparison.currentMonth.npl_ratio || 0)}
+                      </span>
+                      <Badge variant={
+                        (performanceComparison.currentMonth.npl_ratio || 0) < (performanceComparison.previousMonth.npl_ratio || 0) 
+                          ? 'success' : 'destructive'
+                      }>
+                        {(performanceComparison.currentMonth.npl_ratio || 0) < (performanceComparison.previousMonth.npl_ratio || 0) 
+                          ? <TrendingDown className="h-3 w-3" /> 
+                          : <TrendingUp className="h-3 w-3" />
+                        }
+                      </Badge>
                     </div>
                   </div>
-                ))}
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">{t('collection.metrics.collectionRate')}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {formatPercentage(performanceComparison.currentMonth.collection_rate || 0)}
+                      </span>
+                      <Badge variant={
+                        (performanceComparison.currentMonth.collection_rate || 0) > (performanceComparison.previousMonth.collection_rate || 0) 
+                          ? 'success' : 'destructive'
+                      }>
+                        {(performanceComparison.currentMonth.collection_rate || 0) > (performanceComparison.previousMonth.collection_rate || 0) 
+                          ? <TrendingUp className="h-3 w-3" /> 
+                          : <TrendingDown className="h-3 w-3" />
+                        }
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="strategic" className="space-y-4">
-          {/* Strategic Initiatives */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('executiveCollection.strategicInitiatives.title')}</CardTitle>
-              <CardDescription>{t('executiveCollection.strategicInitiatives.description')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {strategicInitiatives.map((initiative) => (
-                  <div key={initiative.name} className="p-4 border rounded-lg">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
-                      <div>
-                        <h4 className="font-semibold">{t(`executiveCollection.strategicInitiatives.initiatives.${initiative.name.replace(/\s+/g, '')}`)}</h4>
-                        <p className="text-sm text-gray-600">{t(`executiveCollection.strategicInitiatives.targets.${initiative.name.replace(/\s+/g, '')}`)}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={initiative.status === 'ON_TRACK' ? 'default' : 
-                                       initiative.status === 'AT_RISK' ? 'destructive' : 'secondary'}>
-                          {t(`executiveCollection.strategicInitiatives.status.${initiative.status.toLowerCase()}`)}
-                        </Badge>
-                        <Badge variant="outline">
-                          {t('executiveCollection.strategicInitiatives.impact')}: {t(`executiveCollection.strategicInitiatives.impactLevel.${initiative.impact.toLowerCase()}`)}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Progress value={initiative.progress} className="h-2" />
-                    <p className="text-sm text-gray-600 mt-1">{initiative.progress}% {t('executiveCollection.strategicInitiatives.complete')}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="compliance" className="space-y-4">
-          {/* Compliance metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  {t('executiveCollection.compliance.sama.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.compliance.sama.npfReporting')}</span>
-                    <Badge className="bg-green-500 text-white">{t('executiveCollection.compliance.sama.compliant')}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.compliance.sama.provisionCoverage')}</span>
-                    <Badge className="bg-green-500 text-white">125%</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.compliance.sama.collectionPractices')}</span>
-                    <Badge className="bg-green-500 text-white">{t('executiveCollection.compliance.sama.compliant')}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.compliance.sama.customerProtection')}</span>
-                    <Badge className="bg-yellow-500 text-white">1 {t('executiveCollection.compliance.sama.violation')}</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('executiveCollection.compliance.sharia.title')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.compliance.sharia.latePaymentCharges')}</span>
-                    <span className="font-bold">{formatCurrency(450000)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.compliance.sharia.charityDistribution')}</span>
-                    <Badge className="bg-green-500 text-white">{t('executiveCollection.compliance.sharia.completed')}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('executiveCollection.compliance.sharia.complianceRate')}</span>
-                    <span className="font-bold">98.5%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">{t('common.pendingReviews')}</span>
-                    <span className="font-bold">12</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

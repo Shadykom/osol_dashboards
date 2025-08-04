@@ -32,6 +32,7 @@ import ShariaComplianceDashboard from './pages/ShariaComplianceDashboard';
 import VintageAnalysisDashboard from './pages/VintageAnalysisDashboard';
 import DelinquencyExecutiveDashboard from './pages/DelinquencyExecutiveDashboard';
 import SpecialistLevelReport from './pages/SpecialistLevelReport';
+import SpecialistCollectionDashboard from './pages/SpecialistCollectionDashboard';
 import DatabaseTest from './pages/DatabaseTest';
 import DiagnosticPage from './pages/DiagnosticPage';
 import DatabaseDiagnostic from './pages/DatabaseDiagnostic';
@@ -357,10 +358,11 @@ function AppContent() {
           <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
           <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
           <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
-                      <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
-            <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
-            <Route path="/collection/branch-report" element={<BranchReportPage />} />
-            <Route path="/collection/product-report" element={<ProductReportPage />} />
+          <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
+          <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
+          <Route path="/collection/specialist" element={<SpecialistCollectionDashboard />} />
+          <Route path="/collection/branch-report" element={<BranchReportPage />} />
+          <Route path="/collection/product-report" element={<ProductReportPage />} />
             {/* Legacy URL Redirects (backwards compatibility) */}
           <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
           <Route path="/collection-overview" element={<Navigate to="/collection/overview" replace />} />
