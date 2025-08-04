@@ -701,7 +701,40 @@
     "pending": "Pending",
     "fieldOfficers": "Field Officers",
     "digitalChannels": "Digital Channels",
-    "callCenter": "Call Center"
+    "callCenter": "Call Center",
+    "executiveDashboard": {
+      "title": "Executive Collection Dashboard",
+      "subtitle": "High-level overview of loan portfolio and collection performance"
+    },
+    "metrics": {
+      "totalPortfolioValue": "Total Portfolio Value",
+      "totalOverdueAmount": "Total Overdue Amount",
+      "nplRatio": "NPL Ratio",
+      "collectionRate": "Collection Rate",
+      "totalAccounts": "{{count}} total accounts"
+    },
+    "agingDistribution": {
+      "title": "Overdue Loans by Aging",
+      "description": "Distribution of overdue amounts by days past due"
+    },
+    "remediation": {
+      "title": "Remediation Efforts Summary",
+      "description": "Overview of collection strategies and their effectiveness",
+      "restructured": "Restructured Loans",
+      "settlements": "Settlements",
+      "legalReferrals": "Legal Referrals",
+      "writeOffs": "Write-offs"
+    },
+    "nplTrend": {
+      "title": "NPL Ratio Trend",
+      "description": "6-month trend of NPL ratio and collection rate"
+    },
+    "performance": {
+      "title": "Performance vs Target",
+      "description": "Current month performance compared to targets",
+      "collectionTarget": "Collection Target",
+      "monthComparison": "Month-over-Month Comparison"
+    }
   },
   "compliance": {
     "title": "Compliance",
