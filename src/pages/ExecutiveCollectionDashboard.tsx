@@ -77,7 +77,13 @@ const ExecutiveCollectionDashboard = () => {
         .select('total_outstanding, days_past_due, case_status')
         .in('case_status', ['ACTIVE', 'LEGAL']);
 
-      if (casesError) throw casesError;
+      if (casesError) {
+        console.error('Error fetching cases:', casesError);
+        // Continue with empty data if RLS is blocking
+        if (casesError.code === '42501') {
+          console.warn('Permission denied - check RLS policies');
+        }
+      }
 
       // Calculate metrics
       const totalPortfolio = cases.reduce((sum, c) => sum + (c.total_outstanding || 0), 0);
