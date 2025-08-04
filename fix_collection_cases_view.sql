@@ -27,9 +27,8 @@ SELECT
     cc.updated_at,
     -- Customer details
     c.full_name AS customer_name,
-    c.phone_number AS customer_phone,
+    c.mobile_number AS customer_phone,
     c.email AS customer_email,
-    c.address AS customer_address,
     -- Account details (from regular accounts)
     a.account_id,
     a.product_type AS account_product_type,
@@ -40,7 +39,7 @@ SELECT
     la.branch_id AS loan_branch_id,
     -- Assignment details
     co.officer_name AS assigned_officer_name,
-    co.phone_number AS officer_phone,
+    co.contact_number AS officer_phone,
     co.email AS officer_email,
     -- Computed fields
     CASE 
