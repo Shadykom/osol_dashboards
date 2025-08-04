@@ -54,7 +54,7 @@ SELECT
     COALESCE(comm_counts.call_count, 0) AS calls_this_month,
     COALESCE(comm_counts.message_count, 0) AS messages_this_month,
     -- PTP status
-    CASE WHEN ptp.id IS NOT NULL THEN true ELSE false END AS has_promise_to_pay,
+    CASE WHEN ptp.ptp_id IS NOT NULL THEN true ELSE false END AS has_promise_to_pay,
     ptp.ptp_date AS latest_ptp_date,
     ptp.ptp_amount AS latest_ptp_amount
 FROM 
@@ -70,15 +70,15 @@ FROM
             COUNT(CASE WHEN interaction_type IN ('SMS', 'EMAIL') THEN 1 END) AS message_count
         FROM kastle_banking.collection_interactions ci
         WHERE ci.case_id = cc.case_id
-        AND ci.interaction_date >= date_trunc('month', CURRENT_DATE)
+        AND ci.interaction_datetime >= date_trunc('month', CURRENT_DATE)
     ) comm_counts ON true
     -- Latest PTP
     LEFT JOIN LATERAL (
-        SELECT id, ptp_date, ptp_amount
-        FROM kastle_banking.collection_ptp cp
-        WHERE cp.case_id = cc.case_id
-        AND cp.status = 'PENDING'
-        ORDER BY cp.ptp_date DESC
+        SELECT ptp_id, ptp_date, ptp_amount
+        FROM kastle_banking.promise_to_pay ptp
+        WHERE ptp.case_id = cc.case_id
+        AND ptp.status = 'PENDING'
+        ORDER BY ptp.ptp_date DESC
         LIMIT 1
     ) ptp ON true;
 
