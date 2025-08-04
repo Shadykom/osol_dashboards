@@ -12,6 +12,7 @@ SELECT
     cc.customer_id,
     cc.account_number,
     cc.loan_account_number,
+    cc.product_type,
     cc.total_outstanding,
     cc.principal_outstanding,
     cc.interest_outstanding,
@@ -31,11 +32,9 @@ SELECT
     c.email AS customer_email,
     -- Account details (from regular accounts)
     a.account_id,
-    a.product_type AS account_product_type,
     a.branch_id AS account_branch_id,
     -- Loan account details (if it's a loan)
     la.loan_account_id,
-    la.product_id AS loan_product_id,
     la.branch_id AS loan_branch_id,
     -- Assignment details
     co.officer_name AS assigned_officer_name,
