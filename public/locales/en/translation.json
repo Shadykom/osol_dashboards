@@ -2137,8 +2137,7 @@
         "complianceRate": "Compliance Rate",
         "completed": "Completed"
       }
-    }
-  },
+    },
   "dailyCollectionDashboard": {
     "title": "Daily Collection Dashboard",
     "subtitle": "Real-time monitoring of collection activities",
