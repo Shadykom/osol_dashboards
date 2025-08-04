@@ -22,13 +22,28 @@ import {
 } from 'lucide-react';
 
 const FieldCollectionDashboard = () => {
-  const { t, i18n } = useTranslation();
+  const { t, i18n, ready } = useTranslation('translation');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [mapView, setMapView] = useState('heat');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Force translation reload if needed
+  useEffect(() => {
+    if (!ready && i18n.language) {
+      i18n.reloadResources();
+    }
+    // Debug: Check if translations are loaded
+    console.log('FieldCollectionDashboard - Translation ready:', ready);
+    console.log('FieldCollectionDashboard - Language:', i18n.language);
+    console.log('FieldCollectionDashboard - Has namespace:', i18n.hasResourceBundle(i18n.language, 'translation'));
+    if (ready) {
+      console.log('FieldCollectionDashboard - Test key:', t('common.loading'));
+      console.log('FieldCollectionDashboard - Nested key:', t('executiveCollection.fieldCollection.metrics.completed'));
+    }
+  }, [ready, i18n, t]);
   
   // Initialize field metrics state
   const [fieldMetrics, setFieldMetrics] = useState({
@@ -362,13 +377,22 @@ const FieldCollectionDashboard = () => {
     );
   }
 
+  // Wait for translations to be ready
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t('executiveCollection.fieldCollection.dashboard.title')}</h1>
-          <p className="text-gray-600 mt-1">{t('executiveCollection.fieldCollection.dashboard.subtitle')}</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('executiveCollection.fieldCollection.dashboard.title') || 'Field Collection Dashboard'}</h1>
+          <p className="text-gray-600 mt-1">{t('executiveCollection.fieldCollection.dashboard.subtitle') || 'Monitor and manage field collection activities'}</p>
         </div>
         <div className="flex gap-2 items-center">
           <Badge variant="outline" className="text-xs">
