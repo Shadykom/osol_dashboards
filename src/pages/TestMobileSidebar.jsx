@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Menu, Smartphone, Monitor, Check, X } from 'lucide-react';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 export default function TestMobileSidebar() {
   const isMobile = useMediaQuery('(max-width: 1023px)');
