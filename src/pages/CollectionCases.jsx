@@ -260,10 +260,6 @@ const CollectionCases = () => {
             <FileText className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
             {t('collectionCases.export')}
           </Button>
-          <Button>
-            <User className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-            {t('collectionCases.assignCases')}
-          </Button>
         </div>
       </div>
 
