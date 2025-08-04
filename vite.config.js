@@ -52,6 +52,7 @@ export default defineConfig(({ mode }) => {
         overlay: true
       }
     },
+    publicDir: 'public',
     // Clear cache on start
     cacheDir: '.vite-cache',
     build: {

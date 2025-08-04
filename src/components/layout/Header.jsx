@@ -19,8 +19,11 @@ import osoulLogo from '@/assets/osol-logo.png';
 
 export function Header({ onMenuClick }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const { t, i18n } = useTranslation();
+  const { t, i18n, ready } = useTranslation('translation');
 
+  if (!ready) {
+    return null;
+  }
 
   return (
     <header className="flex h-20 items-center justify-between border-b bg-white dark:bg-gray-900 px-4 md:px-6 shadow-sm">

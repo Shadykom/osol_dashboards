@@ -34,9 +34,13 @@ const LanguageSwitcher = () => {
 
 // Header component
 const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
-  const { i18n, t } = useTranslation();
+  const { i18n, t, ready } = useTranslation('translation');
   const { toggleSidebar } = useSidebar();
   const { isRTL, marginStart, marginEnd } = useRTLClasses();
+
+  if (!ready) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
@@ -123,7 +127,7 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
 // Main layout content
 const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, toggleDarkMode }) => {
   const { isOpen, closeSidebar } = useSidebar();
-  const { i18n } = useTranslation();
+  const { i18n, ready } = useTranslation('translation');
   const isRTL = i18n.language === 'ar';
 
   // Debug logging
@@ -134,6 +138,10 @@ const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, togg
     console.log('🚀 [ModernLayout] RTL Mode:', isRTL);
     console.log('🚀 [ModernLayout] Mobile Mode:', isMobile);
   }, [isRTL, isMobile]);
+
+  if (!ready) {
+    return null;
+  }
 
   // Handle body scroll locking on mobile
   React.useEffect(() => {
