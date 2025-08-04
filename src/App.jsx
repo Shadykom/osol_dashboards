@@ -43,6 +43,7 @@ import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
 import { BasicSidebarTest } from './pages/BasicSidebarTest';
 import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
+import TestMobileSidebar from './pages/TestMobileSidebar';
 import DashboardDetail from './pages/DashboardDetail';
 import DashboardDetailNew from './pages/DashboardDetailNew';
 import ModernDashboardDetail from './pages/ModernDashboardDetail';
@@ -342,6 +343,7 @@ function AppContent() {
           <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
           <Route path="/test-modern-layout" element={<TestModernLayout />} />
           <Route path="/simple-test" element={<SimpleTest />} />
+          <Route path="/test-mobile-sidebar" element={<TestMobileSidebar />} />
           
           
           {/* Collection Routes */}

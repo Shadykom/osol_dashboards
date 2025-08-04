@@ -363,16 +363,15 @@ function NavigationItem({ item, isCollapsed, onItemClick, level = 0 }) {
   const location = useLocation();
   const [isExpanded, setIsExpanded] = useState(false);
   const { i18n } = useTranslation();
-  
   const isRTL = i18n.language === 'ar';
-  const hasChildren = item.children && item.children.length > 0;
   
-  const isActive = item.href === location.pathname || 
-    (hasChildren && item.children.some(child => child.href === location.pathname));
+  const hasChildren = item.children && item.children.length > 0;
+  const isActive = location.pathname === item.href || 
+    (hasChildren && item.children.some(child => location.pathname === child.href));
 
   // Auto-expand if child is active or item is configured to be expanded
   useEffect(() => {
-    if (hasChildren && item.children.some(child => child.href === location.pathname)) {
+    if (hasChildren && item.children.some(child => location.pathname === child.href)) {
       setIsExpanded(true);
     }
   }, [location.pathname, hasChildren, item.children]);
@@ -380,11 +379,13 @@ function NavigationItem({ item, isCollapsed, onItemClick, level = 0 }) {
   const Icon = item.icon;
   const paddingLeft = level * 16;
 
-  const handleClick = () => {
-    if (hasChildren) {
+  const handleClick = (e) => {
+    if (hasChildren && !isCollapsed) {
+      e.preventDefault();
       setIsExpanded(!isExpanded);
-    } else if (item.href) {
-      onItemClick?.();
+    } else if (item.href && onItemClick) {
+      // Call onItemClick for navigation
+      onItemClick(item);
     }
   };
 
@@ -630,7 +631,9 @@ export function NewSidebar({
       "flex flex-col h-full bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 transition-all duration-300",
       isCollapsed ? "w-16" : "w-72",
       isRTL && "border-r-0 border-l",
-      className
+      className,
+      // Add mobile-specific class for easier targeting
+      "mobile-sidebar"
     )} dir={isRTL ? "rtl" : "ltr"}>
       
       {/* Header */}
@@ -684,7 +687,7 @@ export function NewSidebar({
       />
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto px-3 py-2">
+      <div className="flex-1 overflow-y-auto px-3 py-2 overscroll-contain">
         {searchQuery && filteredNavigation.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Search className="h-8 w-8 text-gray-400 mb-2" />
