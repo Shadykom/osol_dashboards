@@ -86,7 +86,8 @@
     "autoLoan": "Auto Loan",
     "takeAction": "Take Action",
     "verified": "Verified",
-    "expired": "Expired"
+    "expired": "Expired",
+    "na": "N/A"
   },
   "navigation": {
     "sections": {
@@ -701,7 +702,40 @@
     "pending": "Pending",
     "fieldOfficers": "Field Officers",
     "digitalChannels": "Digital Channels",
-    "callCenter": "Call Center"
+    "callCenter": "Call Center",
+    "executiveDashboard": {
+      "title": "Executive Collection Dashboard",
+      "subtitle": "High-level overview of loan portfolio and collection performance"
+    },
+    "metrics": {
+      "totalPortfolioValue": "Total Portfolio Value",
+      "totalOverdueAmount": "Total Overdue Amount",
+      "nplRatio": "NPL Ratio",
+      "collectionRate": "Collection Rate",
+      "totalAccounts": "{{count}} total accounts"
+    },
+    "agingDistribution": {
+      "title": "Overdue Loans by Aging",
+      "description": "Distribution of overdue amounts by days past due"
+    },
+    "remediation": {
+      "title": "Remediation Efforts Summary",
+      "description": "Overview of collection strategies and their effectiveness",
+      "restructured": "Restructured Loans",
+      "settlements": "Settlements",
+      "legalReferrals": "Legal Referrals",
+      "writeOffs": "Write-offs"
+    },
+    "nplTrend": {
+      "title": "NPL Ratio Trend",
+      "description": "6-month trend of NPL ratio and collection rate"
+    },
+    "performance": {
+      "title": "Performance vs Target",
+      "description": "Current month performance compared to targets",
+      "collectionTarget": "Collection Target",
+      "monthComparison": "Month-over-Month Comparison"
+    }
   },
   "compliance": {
     "title": "Compliance",
@@ -1633,9 +1667,13 @@
     "subtitle": "Manage and track collection cases",
     "searchCases": "Search cases...",
     "filterCases": "Filter Cases",
+    "filters": "Filters",
+    "clearFilters": "Clear Filters",
     "newCase": "New Case",
     "importCases": "Import Cases",
+    "export": "Export",
     "exportCases": "Export Cases",
+    "assignCases": "Assign Cases",
     "allCases": "All Cases",
     "activeCases": "Active Cases",
     "pendingCases": "Pending Cases",
@@ -1643,17 +1681,39 @@
     "escalatedCases": "Escalated Cases",
     "caseDetails": "Case Details",
     "caseId": "Case ID",
+    "caseNumber": "Case Number",
+    "customer": "Customer",
     "customerName": "Customer Name",
+    "customerPhone": "Customer Phone",
+    "customerEmail": "Customer Email",
+    "account": "Account",
     "accountNumber": "Account Number",
+    "outstanding": "Outstanding",
     "outstandingAmount": "Outstanding Amount",
+    "totalOutstanding": "Total Outstanding",
+    "principalOutstanding": "Principal Outstanding",
+    "interestOutstanding": "Interest Outstanding",
+    "penaltyOutstanding": "Penalty Outstanding",
+    "dpd": "DPD",
     "daysOverdue": "Days Overdue",
+    "daysPastDue": "Days Past Due",
+    "days": "days",
+    "bucket": "Bucket",
+    "delinquencyBucket": "Delinquency Bucket",
     "assignedTo": "Assigned To",
+    "unassigned": "Unassigned",
     "priority": "Priority",
     "status": "Status",
     "lastContact": "Last Contact",
+    "lastContactDate": "Last Contact Date",
     "nextAction": "Next Action",
     "caseHistory": "Case History",
+    "communication": "Communication",
     "communications": "Communications",
+    "callsThisMonth": "Calls This Month",
+    "messagesThisMonth": "Messages This Month",
+    "hasPromiseToPay": "Has Promise to Pay",
+    "ptp": "Promise to Pay",
     "payments": "Payments",
     "notes": "Notes",
     "documents": "Documents",
@@ -1665,7 +1725,72 @@
     "sendReminder": "Send Reminder",
     "recordPayment": "Record Payment",
     "addNote": "Add Note",
-    "viewFullDetails": "View Full Details"
+    "viewFullDetails": "View Full Details",
+    "showing": "Showing",
+    "of": "of",
+    "totalCases": "total cases",
+    "previous": "Previous",
+    "next": "Next",
+    "allStatuses": "All Statuses",
+    "allPriorities": "All Priorities",
+    "allBuckets": "All Buckets",
+    "minAmount": "Min Amount",
+    "maxAmount": "Max Amount",
+    "minDpd": "Min DPD",
+    "maxDpd": "Max DPD",
+    "statusTypes": {
+      "active": "Active",
+      "resolved": "Resolved",
+      "legal": "Legal",
+      "writtenOff": "Written Off",
+      "settled": "Settled",
+      "closed": "Closed"
+    },
+    "priorityTypes": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "bucketTypes": {
+      "current": "Current",
+      "1-30Days": "1-30 Days",
+      "31-60Days": "31-60 Days",
+      "61-90Days": "61-90 Days",
+      "90+Days": "90+ Days"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "interactions": "Interactions",
+      "promises": "Promises",
+      "visits": "Field Visits",
+      "legal": "Legal"
+    },
+    "customerInformation": "Customer Information",
+    "financialDetails": "Financial Details",
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "principal": "Principal",
+    "interest": "Interest",
+    "penalty": "Penalty",
+    "interactionType": {
+      "call": "Call",
+      "email": "Email",
+      "visit": "Visit",
+      "sms": "SMS"
+    },
+    "by": "by",
+    "promiseDate": "Promise Date",
+    "officer": "Officer",
+    "received": "Received",
+    "collected": "Collected",
+    "legalCaseInformation": "Legal Case Information",
+    "court": "Court",
+    "filingDate": "Filing Date",
+    "currentStage": "Current Stage",
+    "noLegalCase": "No legal case associated with this collection case",
+    "completeInformation": "Complete case information and interaction history"
   },
   "digitalCollectionDashboard": {
     "title": "Digital Collection Dashboard",
@@ -1832,9 +1957,10 @@
         "contactRate": "Contact Rate",
         "promiseRate": "Promise Rate",
         "avgCallTime": "Avg. Call Time"
-      },
-      "fieldCollection": {
-        "title": "Field Collection",
+      }
+    },
+    "fieldCollection": {
+      "title": "Field Collection",
         "visitsCompleted": "Visits Completed",
         "successRate": "Success Rate",
         "amountCollected": "Amount Collected",
@@ -2103,8 +2229,7 @@
         "complianceRate": "Compliance Rate",
         "completed": "Completed"
       }
-    }
-  },
+    },
   "dailyCollectionDashboard": {
     "title": "Daily Collection Dashboard",
     "subtitle": "Real-time monitoring of collection activities",
