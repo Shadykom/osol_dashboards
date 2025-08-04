@@ -26,7 +26,7 @@ SELECT
     cc.created_at,
     cc.updated_at,
     -- Customer details
-    c.customer_name,
+    c.full_name AS customer_name,
     c.phone_number AS customer_phone,
     c.email AS customer_email,
     c.address AS customer_address,
