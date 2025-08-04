@@ -135,6 +135,19 @@ const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, togg
     console.log('🚀 [ModernLayout] Mobile Mode:', isMobile);
   }, [isRTL, isMobile]);
 
+  // Handle body scroll locking on mobile
+  React.useEffect(() => {
+    if (isMobile && isOpen) {
+      document.body.classList.add('sidebar-open');
+    } else {
+      document.body.classList.remove('sidebar-open');
+    }
+    
+    return () => {
+      document.body.classList.remove('sidebar-open');
+    };
+  }, [isMobile, isOpen]);
+
   return (
     <div className={cn(
       "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
