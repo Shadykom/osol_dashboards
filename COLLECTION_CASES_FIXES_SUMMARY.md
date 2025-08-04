@@ -58,7 +58,7 @@ SELECT
     cc.interest_outstanding,
     cc.penalty_outstanding,
     cc.days_past_due,
-    cc.delinquency_bucket,
+    cc.bucket_id AS delinquency_bucket,
     cc.priority,
     cc.case_status AS status,
     cc.assigned_to,
