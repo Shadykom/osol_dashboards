@@ -36,6 +36,9 @@ i18n
     lng: 'en', // Force English as default
     debug: false,
     supportedLngs: ['en', 'ar'],
+    defaultNS: 'translation',
+    ns: ['translation'],
+    fallbackNS: 'translation',
     
     interpolation: {
       escapeValue: false,
@@ -84,6 +87,20 @@ i18n
     
     react: {
       useSuspense: false,
+    },
+    
+    // Return the key if translation is missing (for debugging)
+    returnEmptyString: false,
+    returnNull: false,
+    returnObjects: true, // Allow returning objects for nested keys
+    
+    // Load translation bundles synchronously in development
+    initImmediate: true,
+    
+    // Ensure keys are returned when translation is missing
+    missingKeyHandler: (lng, ns, key, fallbackValue) => {
+      console.warn(`Missing translation: ${lng}/${ns}/${key}`);
+      return fallbackValue || key;
     },
   });
 
