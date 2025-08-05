@@ -104,6 +104,41 @@ import { useRTLClasses } from '@/components/ui/rtl-wrapper';
 
 const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181', '#F6AD55'];
 
+// Helper function to get date range from filter
+function getDateRangeFromFilter(dateRange) {
+  const now = new Date();
+  switch (dateRange) {
+    case 'today':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+      };
+    case 'week':
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - 7);
+      return { start: weekStart, end: now };
+    case 'month':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      };
+    case 'quarter':
+      const quarterStart = new Date(now);
+      quarterStart.setMonth(now.getMonth() - 3);
+      return { start: quarterStart, end: now };
+    case 'year':
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear(), 11, 31)
+      };
+    default:
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: now
+      };
+  }
+}
+
 // Mock data generators for fallback
 const getMockKPIData = () => ({
   value: Math.floor(Math.random() * 100000) + 50000,
@@ -281,20 +316,46 @@ export const WIDGET_CATALOG = {
       icon: Target,
       type: 'chart',
       chartType: 'radar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
+          // Build queries with filters
+          let revenueQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE');
+          let customerQuery = supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true);
+          let loanQuery = supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE');
+          let transactionQuery = supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true });
+          let accountsQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE');
+
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            revenueQuery = revenueQuery.eq('branch_id', filters.branch);
+            customerQuery = customerQuery.eq('branch_id', filters.branch);
+            loanQuery = loanQuery.eq('branch_id', filters.branch);
+            transactionQuery = transactionQuery.eq('branch_id', filters.branch);
+            accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+          }
+
+          if (filters.productType && filters.productType !== 'all') {
+            revenueQuery = revenueQuery.eq('product_type', filters.productType);
+            loanQuery = loanQuery.eq('product_type', filters.productType);
+            accountsQuery = accountsQuery.eq('product_type', filters.productType);
+          }
+
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            customerQuery = customerQuery.eq('customer_segment', filters.customerSegment);
+          }
+
+          if (filters.dateRange && filters.dateRange !== 'all') {
+            const { start, end } = getDateRangeFromFilter(filters.dateRange);
+            transactionQuery = transactionQuery.gte('transaction_date', start.toISOString()).lte('transaction_date', end.toISOString());
+          }
+
           // Fetch real performance metrics from database
           const [revenueResult, customerResult, loanResult, transactionResult, accountsCount] = await Promise.all([
-            // Revenue performance - sum of all account balances
-            supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-            // Customer growth - count active customers
-            supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-            // Loan portfolio - sum of outstanding loans
-            supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
-            // Transaction volume
-            supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true }),
-            // Active accounts count
-            supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE')
+            revenueQuery,
+            customerQuery,
+            loanQuery,
+            transactionQuery,
+            accountsQuery
           ]);
 
           const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
@@ -367,18 +428,45 @@ export const WIDGET_CATALOG = {
       icon: TrendingUp,
       type: 'chart',
       chartType: 'area',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get last 6 months of data
           const sixMonthsAgo = new Date();
           sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
           
-          // Fetch monthly transaction volumes
-          const { data: transactions, error } = await supabaseBanking
+          // Build query with filters
+          let query = supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_amount, transaction_date')
+            .select('transaction_amount, transaction_date, branch_id, customer_id')
             .gte('transaction_date', sixMonthsAgo.toISOString())
             .order('transaction_date', { ascending: true });
+
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            // Need to join with customers table
+            const { data: customers } = await supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('customer_segment', filters.customerSegment);
+            
+            if (customers && customers.length > 0) {
+              const customerIds = customers.map(c => c.customer_id);
+              query = query.in('customer_id', customerIds);
+            }
+          }
+
+          // Override date range if specified
+          if (filters.dateRange && filters.dateRange !== 'all') {
+            const { start, end } = getDateRangeFromFilter(filters.dateRange);
+            query = query.gte('transaction_date', start.toISOString())
+                       .lte('transaction_date', end.toISOString());
+          }
+
+          const { data: transactions, error } = await query;
 
           if (error) throw error;
 
@@ -2203,13 +2291,40 @@ export default function EnhancedDashboard() {
     console.log('🖱️ Widget clicked:', {
       section: widget.section,
       widget: widget.widget,
-      id: widget.id
+      id: widget.id,
+      filters: filters
     });
     
-    // Navigate to enhanced detail page with widget information
+    // Build query parameters from current filters
+    const queryParams = new URLSearchParams();
+    
+    // Add each filter to query params if it has a value
+    if (filters.branch && filters.branch !== 'all') {
+      queryParams.append('branch', filters.branch);
+    }
+    if (filters.productType && filters.productType !== 'all') {
+      queryParams.append('productType', filters.productType);
+    }
+    if (filters.customerSegment && filters.customerSegment !== 'all') {
+      queryParams.append('customerSegment', filters.customerSegment);
+    }
+    if (filters.dateRange && filters.dateRange !== 'all') {
+      queryParams.append('dateRange', filters.dateRange);
+    }
+    if (filters.riskCategory && filters.riskCategory !== 'all') {
+      queryParams.append('riskCategory', filters.riskCategory);
+    }
+    if (filters.collectionStatus && filters.collectionStatus !== 'all') {
+      queryParams.append('collectionStatus', filters.collectionStatus);
+    }
+    
+    // Navigate to enhanced detail page with widget information and filters
     const detailPath = `/dashboard/detail-new/${widget.section}/${widget.widget}`;
-    console.log('🔗 Navigating to:', detailPath);
-    navigate(detailPath);
+    const queryString = queryParams.toString();
+    const fullPath = queryString ? `${detailPath}?${queryString}` : detailPath;
+    
+    console.log('🔗 Navigating to:', fullPath);
+    navigate(fullPath);
   };
 
   // Export dashboard
