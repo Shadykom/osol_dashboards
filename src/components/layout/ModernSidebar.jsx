@@ -307,10 +307,11 @@ const ModernSidebar = ({ isMobile }) => {
     const itemContent = (
       <RTLFlex
         className={cn(
-          "items-center w-full px-3 py-2.5 rounded-lg transition-all duration-200",
-          "hover:bg-gray-100 dark:hover:bg-gray-700/50",
+          "group items-center w-full px-3 py-2.5 rounded-lg transition-all duration-200",
+          "hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20",
+          "hover:border-osoul-primary hover:border hover:shadow-md",
           isActive && "bg-primary/10 text-primary dark:bg-primary/20",
-          !isActive && "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white",
+          !isActive && "text-gray-700 dark:text-gray-300 hover:text-osoul-primary dark:hover:text-osoul-golden-400",
           level > 0 && paddingStart(level * 4),
           !isOpen && !isMobile && "justify-center"
         )}
@@ -322,7 +323,8 @@ const ModernSidebar = ({ isMobile }) => {
           <RTLIcon position="start">
             <ItemIcon className={cn(
               "w-5 h-5 transition-colors",
-              isActive ? "text-primary" : "text-gray-500 dark:text-gray-400"
+              isActive ? "text-primary" : "text-gray-500 dark:text-gray-400",
+              "group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400"
             )} />
           </RTLIcon>
         )}
@@ -340,7 +342,7 @@ const ModernSidebar = ({ isMobile }) => {
               <ChevronDown className={cn(
                 "w-4 h-4 transition-transform duration-200",
                 isExpanded && "rotate-180",
-                "text-gray-400"
+                "text-gray-400 group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400"
               )} />
             )}
           </>
@@ -424,10 +426,10 @@ const ModernSidebar = ({ isMobile }) => {
           {isMobile && (
             <button
               onClick={closeSidebar}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden"
+              className="p-2 rounded-lg hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20 lg:hidden group"
               aria-label={t('common.closeSidebar')}
             >
-              <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <X className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400" />
             </button>
           )}
         </div>
@@ -506,10 +508,11 @@ const ModernSidebar = ({ isMobile }) => {
                 <button className={cn(
                   "w-full flex items-center gap-2 px-3 py-2 rounded-lg",
                   "text-gray-700 dark:text-gray-300",
-                  "hover:bg-gray-100 dark:hover:bg-gray-700/50",
-                  "transition-colors"
+                  "hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20",
+                  "hover:text-osoul-primary dark:hover:text-osoul-golden-400",
+                  "transition-colors group"
                 )}>
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4 group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400" />
                   <span className="text-sm">{t('common.logout')}</span>
                 </button>
               </>
@@ -517,10 +520,10 @@ const ModernSidebar = ({ isMobile }) => {
               <button className={cn(
                 "w-full flex items-center justify-center p-2 rounded-lg",
                 "text-gray-700 dark:text-gray-300",
-                "hover:bg-gray-100 dark:hover:bg-gray-700/50",
-                "transition-colors"
+                "hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20",
+                "transition-colors group"
               )}>
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400" />
               </button>
             )}
           </div>
@@ -535,12 +538,14 @@ const ModernSidebar = ({ isMobile }) => {
               "w-6 h-6 bg-white dark:bg-gray-800",
               "border border-gray-200 dark:border-gray-700",
               "rounded-full flex items-center justify-center",
-              "hover:bg-gray-50 dark:hover:bg-gray-700",
-              "transition-colors"
+              "hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20",
+              "hover:border-osoul-primary dark:hover:border-osoul-golden-400",
+              "transition-all duration-200 group"
             )}
           >
             <ChevronRight className={cn(
               "w-3 h-3 text-gray-600 dark:text-gray-400",
+              "group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400",
               isOpen && "rotate-180"
             )} />
           </button>
