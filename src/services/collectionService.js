@@ -337,10 +337,10 @@ export class CollectionService {
 
       const { data: monthlyRecovery } = await supabaseBanking
         .from('daily_collection_summary')
-        .select('collection_amount')
+        .select('total_collected')
         .gte('summary_date', startOfMonth.toISOString().split('T')[0]);
 
-      const totalMonthlyRecovery = monthlyRecovery?.reduce((sum, d) => sum + (d.collection_amount || 0), 0) || 0;
+      const totalMonthlyRecovery = monthlyRecovery?.reduce((sum, d) => sum + (d.total_collected || 0), 0) || 0;
       const collectionRate = totalOutstanding > 0 ? (totalMonthlyRecovery / totalOutstanding) * 100 : 0;
 
       // Get bucket distribution
