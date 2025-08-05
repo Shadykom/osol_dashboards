@@ -53,6 +53,25 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Osoul brand colors
+        osoul: {
+          primary: '#00BFA5', // Teal/Turquoise
+          secondary: '#1E3A5F', // Dark Blue
+          accent: '#4ECDC4', // Light Teal
+          dark: '#0F2942', // Very Dark Blue
+          light: '#E0F7FA', // Light Cyan
+          gray: {
+            100: '#F5F7FA',
+            200: '#E9ECEF',
+            300: '#DEE2E6',
+            400: '#CED4DA',
+            500: '#ADB5BD',
+            600: '#6C757D',
+            700: '#495057',
+            800: '#343A40',
+            900: '#212529',
+          }
+        }
       },
       borderRadius: {
         lg: "var(--radius)",
