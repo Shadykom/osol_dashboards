@@ -2551,7 +2551,7 @@ export default function EnhancedDashboard() {
       {/* Header Section */}
       <div className="space-y-4">
         {/* Title and Actions */}
-                  <div className={cn("flex flex-col sm:items-center sm:justify-between gap-4", rtl.flexRowMobile)}
+                  <div className={cn("flex flex-col sm:items-center sm:justify-between gap-4", rtl.flexRowMobile)}>
           <div className="flex items-center gap-2 sm:gap-4">
             <h1 className={cn(
               "font-bold",
@@ -2591,7 +2591,7 @@ export default function EnhancedDashboard() {
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             
-                          <div className={cn("hidden sm:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}
+                          <div className={cn("hidden sm:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}>
               <Switch
                 checked={autoRefresh}
                 onCheckedChange={setAutoRefresh}
@@ -2602,7 +2602,7 @@ export default function EnhancedDashboard() {
               </Label>
             </div>
             
-                          <div className={cn("hidden md:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}
+                          <div className={cn("hidden md:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}>
               <Switch
                 checked={isEditMode}
                 onCheckedChange={setIsEditMode}
@@ -2754,7 +2754,7 @@ export default function EnhancedDashboard() {
                 </div>
               </div>
               
-              <div className={cn("flex mt-4 gap-2", rtl.isRTL ? "justify-start" : "justify-end")}
+              <div className={cn("flex mt-4 gap-2", rtl.isRTL ? "justify-start" : "justify-end")}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -2879,7 +2879,7 @@ export default function EnhancedDashboard() {
             </DialogDescription>
           </DialogHeader>
           
-                      <ScrollArea className={cn("h-[60vh] sm:h-[500px]", rtl.paddingEndMobile(4, 2))}
+                      <ScrollArea className={cn("h-[60vh] sm:h-[500px]", rtl.paddingEndMobile(4, 2))}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(WIDGET_CATALOG[selectedSection] || {}).map(([widgetKey, widget]) => (
                 <Card
@@ -2915,7 +2915,7 @@ export default function EnhancedDashboard() {
             </DialogDescription>
           </DialogHeader>
           
-                      <ScrollArea className={cn("h-[500px]", rtl.paddingEnd(4))}
+                      <ScrollArea className={cn("h-[500px]", rtl.paddingEnd(4))}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(DASHBOARD_TEMPLATES).map(([key, template]) => (
                 <Card 
