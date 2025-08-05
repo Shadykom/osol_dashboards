@@ -40,10 +40,9 @@ export const BranchReportService = {
       if (filters.dateRange && filters.dateRange !== 'all') {
         const dateFilter = this.getDateFilter(filters.dateRange, filters.customDateRange);
         if (dateFilter.startDate && dateFilter.endDate) {
-          // Handle both period_date and performance_date columns
           query = query
-            .or(`performance_date.gte.${dateFilter.startDate},period_date.gte.${dateFilter.startDate}`)
-            .or(`performance_date.lte.${dateFilter.endDate},period_date.lte.${dateFilter.endDate}`);
+            .gte('performance_date', dateFilter.startDate)
+            .lte('performance_date', dateFilter.endDate);
         }
       }
 
