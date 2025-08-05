@@ -68,6 +68,8 @@ import emailService from '@/services/emailService';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import VisualReportView from '@/components/reports/VisualReportView';
 import IncomeStatementReport from '@/components/reports/IncomeStatementReport';
+import BalanceSheetReport from '@/components/reports/BalanceSheetReport';
+import CashFlowStatementReport from '@/components/reports/CashFlowStatementReport';
 
 const REPORT_CATEGORIES = {
   financial: {
@@ -939,12 +941,34 @@ export function ReportsResponsive() {
         <TabsContent value="preview" className="space-y-4">
           {generatedReport && reportData ? (
             <div className="space-y-4">
-              {/* Enhanced Income Statement Report */}
+              {/* Enhanced Report Components */}
               {selectedReport === 'income_statement' ? (
                 <IncomeStatementReport 
                   reportData={reportData}
                   reportType={selectedReport}
                   dateRange={dateRange}
+                />
+              ) : selectedReport === 'balance_sheet' ? (
+                <BalanceSheetReport 
+                  dateRange={dateRange}
+                  branch={filters.branch}
+                  product={filters.product}
+                  customerSegment={filters.segment}
+                  onExport={() => handleDownload('excel')}
+                  onEmail={() => setEmailDialogOpen(true)}
+                  onPrint={handlePrint}
+                  onSchedule={() => setScheduleDialogOpen(true)}
+                />
+              ) : selectedReport === 'cash_flow' ? (
+                <CashFlowStatementReport 
+                  dateRange={dateRange}
+                  branch={filters.branch}
+                  product={filters.product}
+                  customerSegment={filters.segment}
+                  onExport={() => handleDownload('excel')}
+                  onEmail={() => setEmailDialogOpen(true)}
+                  onPrint={handlePrint}
+                  onSchedule={() => setScheduleDialogOpen(true)}
                 />
               ) : (
                 /* Fallback to original VisualReportView for other reports */
