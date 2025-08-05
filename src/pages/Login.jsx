@@ -131,14 +131,14 @@ const Login = () => {
   }, []);
 
   return (
-    <div className="min-h-screen w-full flex relative overflow-hidden bg-gradient-to-br from-osoul-golden-100 via-white to-osoul-golden-50">
+    <div className="min-h-screen w-full flex relative overflow-auto bg-gradient-to-br from-osoul-golden-100 via-white to-osoul-golden-50">
       {/* Language Switcher */}
-      <div className={`absolute top-2 sm:top-4 ${isRTL ? 'left-2 sm:left-4' : 'right-2 sm:right-4'} z-20`}>
+      <div className={`fixed top-2 sm:top-4 ${isRTL ? 'left-2 sm:left-4' : 'right-2 sm:right-4'} z-20`}>
         <LanguageSwitcher />
       </div>
 
       {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {floatingShapes.map((shape, index) => (
           <motion.div
             key={index}
@@ -165,12 +165,12 @@ const Login = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 w-full flex items-center justify-center p-4 sm:p-6 md:p-8" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="relative z-10 w-full flex items-center justify-center p-4 sm:p-6 md:p-8 min-h-screen" dir={isRTL ? 'rtl' : 'ltr'}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="w-full max-w-sm sm:max-w-md"
+          className="w-full max-w-sm sm:max-w-md my-auto"
         >
           {/* Logo and Welcome */}
           <motion.div 
