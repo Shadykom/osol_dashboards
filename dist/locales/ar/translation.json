@@ -248,7 +248,35 @@
       "dpdDistribution": "توزيع أيام التأخير",
       "customerSegments": "شرائح العملاء",
       "riskScore": "مؤشر المخاطر",
-      "complianceStatus": "حالة الامتثال"
+      "complianceStatus": "حالة الامتثال",
+      "total_assets": "إجمالي الأصول",
+      "performance_radar": "مؤشرات الأداء",
+      "monthly_revenue": "الإيرادات الشهرية",
+      "customer_growth": "نمو العملاء",
+      "transaction_volume": "حجم المعاملات",
+      "profit_margin": "هامش الربح",
+      "branch_performance": "أداء الفروع",
+      "product_distribution": "توزيع المنتجات",
+      "risk_metrics": "مؤشرات المخاطر",
+      "digital_adoption": "التحول الرقمي",
+      "total_accounts": "إجمالي الحسابات",
+      "total_deposits": "إجمالي الودائع",
+      "active_accounts": "الحسابات النشطة",
+      "daily_transactions": "المعاملات اليومية",
+      "account_types_distribution": "توزيع أنواع الحسابات",
+      "transaction_trends": "اتجاهات المعاملات",
+      "account_summary": "ملخص الحسابات",
+      "average_balance": "متوسط الرصيد",
+      "dormant_accounts": "الحسابات الخاملة",
+      "balance_trends": "اتجاهات الأرصدة",
+      "branch_deposits": "ودائع الفروع",
+      "account_growth": "نمو الحسابات",
+      "transaction_types": "أنواع المعاملات",
+      "loan_portfolio": "محفظة القروض",
+      "npl_ratio": "نسبة القروض المتعثرة",
+      "loan_by_product": "القروض حسب المنتج",
+      "total_customers": "إجمالي العملاء",
+      "customer_segments": "شرائح العملاء"
     },
     "filters": {
       "dateRange": "النطاق الزمني",
@@ -2522,6 +2550,130 @@
       "contactsToMake": "الاتصالات المطلوبة",
       "ofTarget": "من الهدف",
       "toAchieveTarget": "لتحقيق الهدف"
+    }
+  },
+  "digitalCollection": {
+    "title": "لوحة التحصيل الرقمي",
+    "subtitle": "مراقبة وتحسين قنوات التحصيل الرقمية",
+    "launchCampaign": "إطلاق حملة",
+    "selectChannel": "اختر القناة",
+    "allChannels": "جميع القنوات",
+    "channels": {
+      "ivr": "الرد الصوتي التفاعلي",
+      "sms": "الرسائل النصية",
+      "email": "البريد الإلكتروني",
+      "whatsapp": "واتساب",
+      "mobileApp": "التطبيق المحمول",
+      "webPortal": "البوابة الإلكترونية",
+      "chatbot": "روبوت المحادثة"
+    },
+    "periods": {
+      "daily": "يومي",
+      "weekly": "أسبوعي",
+      "monthly": "شهري",
+      "quarterly": "ربع سنوي"
+    },
+    "metrics": {
+      "digitalPayments": "المدفوعات الرقمية",
+      "transactions": "معاملات",
+      "adoptionRate": "معدل الاعتماد",
+      "ofTotalCollections": "من إجمالي التحصيلات",
+      "selfServiceRate": "معدل الخدمة الذاتية",
+      "fullyAutomated": "مؤتمت بالكامل",
+      "costSavings": "توفير التكاليف",
+      "vsTraditional": "مقارنة بالطرق التقليدية"
+    },
+    "channelPerformance": {
+      "title": "أداء القنوات",
+      "subtitle": "الفعالية والعائد على الاستثمار حسب قناة التحصيل",
+      "attempts": "المحاولات",
+      "successful": "ناجحة",
+      "amount": "المبلغ",
+      "cost": "التكلفة",
+      "roi": "العائد على الاستثمار",
+      "successRate": "معدل النجاح",
+      "viewDetails": "عرض التفاصيل"
+    },
+    "automationMetrics": {
+      "title": "الأتمتة وأداء الحملات",
+      "subtitle": "فعالية أدوات التحصيل الآلية",
+      "autoDialer": "الاتصال الآلي",
+      "smsCampaigns": "حملات الرسائل النصية",
+      "emailCampaigns": "حملات البريد الإلكتروني",
+      "chatbotInteractions": "روبوت المحادثة",
+      "ivrPayments": "مدفوعات الرد الصوتي",
+      "calls": "المكالمات",
+      "connected": "متصل",
+      "sent": "مرسل",
+      "delivered": "مستلم",
+      "clicked": "نقرات",
+      "payments": "المدفوعات",
+      "interactions": "التفاعلات",
+      "resolved": "تم حلها",
+      "escalated": "تم تصعيدها",
+      "attempts": "المحاولات",
+      "failureRate": "معدل الفشل"
+    },
+    "paymentMethods": {
+      "title": "توزيع طرق الدفع",
+      "subtitle": "تفضيلات العملاء للدفع",
+      "creditCard": "بطاقة ائتمان",
+      "debitCard": "بطاقة خصم",
+      "bankTransfer": "تحويل بنكي",
+      "digitalWallet": "محفظة رقمية",
+      "sadad": "سداد",
+      "count": "العدد",
+      "amount": "المبلغ"
+    },
+    "timeAnalysis": {
+      "title": "تحليل وقت الدفع",
+      "subtitle": "الأوقات المثلى للتحصيل الرقمي",
+      "hourlyDistribution": "التوزيع بالساعة",
+      "peakHours": "ساعات الذروة",
+      "payments": "المدفوعات",
+      "amount": "المبلغ",
+      "ofDailyTotal": "من الإجمالي اليومي"
+    },
+    "conversionFunnel": {
+      "title": "قمع التحصيل الرقمي",
+      "subtitle": "رحلة العميل من الاتصال إلى الدفع",
+      "messageSent": "رسالة مرسلة",
+      "messageOpened": "رسالة مفتوحة",
+      "linkClicked": "رابط منقور",
+      "paymentStarted": "بدء الدفع",
+      "paymentCompleted": "اكتمال الدفع",
+      "conversionRate": "معدل التحويل"
+    },
+    "campaignPerformance": {
+      "title": "أداء الحملات الأخيرة",
+      "subtitle": "أفضل الحملات الرقمية أداءً",
+      "channel": "القناة",
+      "sent": "مرسل",
+      "responseRate": "معدل الاستجابة",
+      "collected": "محصل"
+    },
+    "customerSegments": {
+      "title": "استجابة شرائح العملاء",
+      "subtitle": "فعالية التحصيل الرقمي حسب الشريحة",
+      "highRisk": "مخاطر عالية",
+      "mediumRisk": "مخاطر متوسطة",
+      "lowRisk": "مخاطر منخفضة",
+      "newCustomers": "عملاء جدد",
+      "attempts": "المحاولات",
+      "responseRate": "معدل الاستجابة",
+      "avgPayment": "متوسط الدفع"
+    },
+    "alerts": {
+      "highPerformance": "قنوات التحصيل الرقمي تؤدي فوق الهدف بمعدل اعتماد {{rate}}%",
+      "systemStatus": "جميع أنظمة التحصيل الرقمي تعمل"
+    },
+    "tabs": {
+      "channels": "القنوات",
+      "automation": "الأتمتة",
+      "payments": "المدفوعات",
+      "campaigns": "الحملات",
+      "analytics": "التحليلات",
+      "optimization": "التحسين"
     }
   }
 }
