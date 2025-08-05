@@ -1851,4 +1851,158 @@ export class CollectionService {
       return formatApiResponse(null, error);
     }
   }
+
+  /**
+   * Get case interactions history
+   */
+  static async getCaseInteractions(caseId) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from('collection_interactions')
+        .select(`
+          *,
+          collection_officers:officer_id (
+            officer_name,
+            email
+          )
+        `)
+        .eq('case_id', caseId)
+        .order('interaction_datetime', { ascending: false });
+
+      if (error) throw error;
+
+      // Format the data
+      const formattedData = (data || []).map(interaction => ({
+        ...interaction,
+        officer_name: interaction.collection_officers?.officer_name || 'Unknown'
+      }));
+
+      return formatApiResponse(formattedData);
+    } catch (error) {
+      console.error('Get case interactions error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Get case payments history
+   */
+  static async getCasePayments(caseId) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from('collection_payments')
+        .select('*')
+        .eq('case_id', caseId)
+        .order('payment_date', { ascending: false });
+
+      if (error) throw error;
+
+      return formatApiResponse(data || []);
+    } catch (error) {
+      console.error('Get case payments error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Get case field visits history
+   */
+  static async getCaseFieldVisits(caseId) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from('field_visits')
+        .select(`
+          *,
+          collection_officers:officer_id (
+            officer_name
+          )
+        `)
+        .eq('case_id', caseId)
+        .order('visit_date', { ascending: false });
+
+      if (error) throw error;
+
+      // Format the data
+      const formattedData = (data || []).map(visit => ({
+        ...visit,
+        officer_name: visit.collection_officers?.officer_name || 'Unknown'
+      }));
+
+      return formatApiResponse(formattedData);
+    } catch (error) {
+      console.error('Get case field visits error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Get case legal actions history
+   */
+  static async getCaseLegalActions(caseId) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from('legal_actions')
+        .select('*')
+        .eq('case_id', caseId)
+        .order('action_date', { ascending: false });
+
+      if (error) throw error;
+
+      return formatApiResponse(data || []);
+    } catch (error) {
+      console.error('Get case legal actions error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Get case status change history
+   */
+  static async getCaseStatusHistory(caseId) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from('case_status_history')
+        .select('*')
+        .eq('case_id', caseId)
+        .order('changed_at', { ascending: false });
+
+      if (error) throw error;
+
+      return formatApiResponse(data || []);
+    } catch (error) {
+      console.error('Get case status history error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
+
+  /**
+   * Get case assignment history
+   */
+  static async getCaseAssignmentHistory(caseId) {
+    try {
+      const { data, error } = await supabaseBanking
+        .from('case_assignment_history')
+        .select(`
+          *,
+          collection_officers:officer_id (
+            officer_name
+          )
+        `)
+        .eq('case_id', caseId)
+        .order('assigned_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Format the data
+      const formattedData = (data || []).map(assignment => ({
+        ...assignment,
+        officer_name: assignment.collection_officers?.officer_name || 'Unknown'
+      }));
+
+      return formatApiResponse(formattedData);
+    } catch (error) {
+      console.error('Get case assignment history error:', error);
+      return formatApiResponse(null, error);
+    }
+  }
 }

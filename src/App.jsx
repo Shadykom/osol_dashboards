@@ -24,6 +24,7 @@ import { Compliance } from './pages/Compliance';
 import CollectionOverview from './pages/CollectionOverview';
 import CollectionDetailView from './pages/CollectionDetailView';
 import CollectionCases from './pages/CollectionCases';
+import CollectionCaseDetails from './pages/CollectionCaseDetails';
 import CollectionReports from './pages/CollectionReports';
 import DailyCollectionDashboard from './pages/DailyCollectionDashboard';
 import DigitalCollectionDashboard from './pages/DigitalCollectionDashboard';
@@ -364,6 +365,7 @@ function AppContent() {
           <Route path="/collection/overview" element={<CollectionOverview />} />
           <Route path="/collection/detail/:cardType" element={<CollectionDetailView />} />
           <Route path="/collection/cases" element={<CollectionCases />} />
+          <Route path="/collection/cases/:caseId" element={<CollectionCaseDetails />} />
           <Route path="/collection/reports" element={<CollectionReports />} />
           <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
           <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
