@@ -15,7 +15,8 @@ import {
   FiActivity,
   FiTrendingUp,
   FiUsers,
-  FiArrowRight
+  FiArrowRight,
+  FiArrowLeft
 } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -395,8 +396,13 @@ const Login = () => {
                     />
                   ) : (
                     <>
+                      {isRTL && (
+                        <FiArrowLeft className="ml-2 group-hover:-translate-x-1 transition-transform" />
+                      )}
                       {t('login.signIn')}
-                      <FiArrowRight className={`${isRTL ? 'mr-2 group-hover:-translate-x-1' : 'ml-2 group-hover:translate-x-1'} transition-transform`} />
+                      {!isRTL && (
+                        <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                      )}
                     </>
                   )}
                 </span>
