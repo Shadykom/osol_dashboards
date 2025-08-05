@@ -2,24 +2,8 @@
 -- These tables will store all historical information related to collection cases
 -- Fixed version: Using INTEGER for case_id to match kastle_banking.collection_cases
 
--- First ensure the collection_officers table exists in kastle_banking schema
-CREATE TABLE IF NOT EXISTS kastle_banking.collection_officers (
-    officer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id VARCHAR(50),
-    officer_name VARCHAR(100) NOT NULL,
-    officer_type VARCHAR(50) CHECK (officer_type IN ('CALL_AGENT', 'FIELD_AGENT', 'LEGAL_OFFICER', 'SENIOR_COLLECTOR', 'TEAM_LEAD')),
-    team_id INTEGER,
-    contact_number VARCHAR(20),
-    email VARCHAR(100),
-    language_skills VARCHAR(100),
-    collection_limit DECIMAL(15,2),
-    commission_rate DECIMAL(5,2),
-    status VARCHAR(20) DEFAULT 'ACTIVE',
-    joining_date DATE,
-    last_active TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Note: collection_officers table should already exist in kastle_banking schema
+-- If not, it needs to be created with officer_id as VARCHAR(20) to match existing schema
 
 -- Table for storing collection payments history
 CREATE TABLE IF NOT EXISTS kastle_banking.collection_payments (
@@ -40,7 +24,7 @@ CREATE TABLE IF NOT EXISTS kastle_banking.collection_payments (
 CREATE TABLE IF NOT EXISTS kastle_banking.field_visits (
     visit_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id INTEGER NOT NULL REFERENCES kastle_banking.collection_cases(case_id),
-    officer_id UUID REFERENCES kastle_banking.collection_officers(officer_id),
+    officer_id VARCHAR(20) REFERENCES kastle_banking.collection_officers(officer_id),
     visit_date TIMESTAMP NOT NULL,
     visit_status VARCHAR(50),
     address TEXT,
@@ -80,7 +64,7 @@ CREATE TABLE IF NOT EXISTS kastle_banking.case_status_history (
 CREATE TABLE IF NOT EXISTS kastle_banking.case_assignment_history (
     assignment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id INTEGER NOT NULL REFERENCES kastle_banking.collection_cases(case_id),
-    officer_id UUID REFERENCES kastle_banking.collection_officers(officer_id),
+    officer_id VARCHAR(20) REFERENCES kastle_banking.collection_officers(officer_id),
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assigned_by VARCHAR(255),
     reason TEXT
