@@ -20,7 +20,7 @@
     --card-foreground: 210 29% 16%;
     --popover: 0 0% 100%;
     --popover-foreground: 210 29% 16%;
-    --primary: 168 100% 37%;
+    --primary: 47 100% 45%;          /* Osoul Golden */
     --primary-foreground: 0 0% 100%;
     --secondary: 210 44% 24%;
     --secondary-foreground: 0 0% 100%;
@@ -43,7 +43,7 @@
     --card-foreground: 0 0% 95%;
     --popover: 210 29% 13%;
     --popover-foreground: 0 0% 95%;
-    --primary: 168 100% 37%;
+    --primary: 47 100% 45%;          /* Osoul Golden */
     --primary-foreground: 0 0% 100%;
     --secondary: 210 44% 20%;
     --secondary-foreground: 0 0% 100%;
