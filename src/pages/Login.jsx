@@ -130,9 +130,9 @@ const Login = () => {
   }, []);
 
   return (
-    <div className="min-h-screen w-full flex relative overflow-hidden bg-gradient-to-br from-osoul-light via-white to-osoul-gray-100">
+    <div className="min-h-screen w-full flex relative overflow-hidden bg-gradient-to-br from-osoul-golden-100 via-white to-osoul-golden-50">
       {/* Language Switcher */}
-      <div className="absolute top-4 right-4 z-20">
+      <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} z-20`}>
         <LanguageSwitcher />
       </div>
 
@@ -141,7 +141,7 @@ const Login = () => {
         {floatingShapes.map((shape, index) => (
           <motion.div
             key={index}
-            className="absolute rounded-full bg-gradient-to-br from-osoul-primary/10 to-osoul-accent/10"
+            className="absolute rounded-full bg-gradient-to-br from-osoul-golden-200/20 to-osoul-golden-300/20"
             style={{
               width: shape.size,
               height: shape.size,
@@ -164,7 +164,7 @@ const Login = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 w-full flex items-center justify-center p-4">
+      <div className="relative z-10 w-full flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -190,13 +190,13 @@ const Login = () => {
               />
             </motion.div>
             <h1 className="text-4xl font-bold text-osoul-dark mb-2">
-              {isRTL ? t('login.title') : t('login.welcomeArabic')}
+              {isRTL ? 'مرحباً بعودتك' : 'Welcome Back'}
             </h1>
             <h2 className="text-3xl font-bold text-osoul-secondary mb-2">
-              {isRTL ? 'Welcome Back' : t('login.title')}
+              {isRTL ? 'Welcome Back' : 'مرحباً بعودتك'}
             </h2>
             <p className="text-osoul-gray-600">
-              {isRTL ? `${t('login.subtitle')} | Modern Finance` : `الحديثة للتمويل | ${t('login.subtitle')}`}
+              {isRTL ? 'الحديثة للتمويل | Modern Finance' : 'Modern Finance | الحديثة للتمويل'}
             </p>
           </motion.div>
 
@@ -215,9 +215,9 @@ const Login = () => {
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="bg-osoul-primary/10 border border-osoul-primary/30 text-osoul-dark px-4 py-3 rounded-xl flex items-center"
+                    className="bg-osoul-golden-100 border border-osoul-golden-300 text-osoul-golden-800 px-4 py-3 rounded-xl flex items-center"
                   >
-                    <FiCheck className={`${isRTL ? 'ml-2' : 'mr-2'} text-osoul-primary`} size={20} />
+                    <FiCheck className={`${isRTL ? 'ml-2' : 'mr-2'} text-osoul-golden-600`} size={20} />
                     {successMessage}
                   </motion.div>
                 )}
@@ -249,7 +249,7 @@ const Login = () => {
                 >
                   <div className={`absolute inset-y-0 ${isRTL ? 'right-0 pr-4' : 'left-0 pl-4'} flex items-center pointer-events-none`}>
                     <FiMail className={`h-5 w-5 transition-colors ${
-                      focusedField === 'email' ? 'text-osoul-primary' : 'text-osoul-gray-400'
+                      focusedField === 'email' ? 'text-osoul-golden-500' : 'text-osoul-gray-400'
                     }`} />
                   </div>
                   <input
@@ -265,9 +265,9 @@ const Login = () => {
                       errors.email 
                         ? 'border-red-300 focus:border-red-500' 
                         : focusedField === 'email'
-                        ? 'border-osoul-primary'
-                        : 'border-osoul-gray-200 focus:border-osoul-primary'
-                    } rounded-xl focus:outline-none focus:ring-4 focus:ring-osoul-primary/20 transition-all bg-white`}
+                        ? 'border-osoul-golden-500'
+                        : 'border-osoul-gray-200 focus:border-osoul-golden-500'
+                    } rounded-xl focus:outline-none focus:ring-4 focus:ring-osoul-golden-300/30 transition-all bg-white`}
                     placeholder={t('login.emailPlaceholder')}
                     dir="ltr"
                   />
@@ -294,7 +294,7 @@ const Login = () => {
                 >
                   <div className={`absolute inset-y-0 ${isRTL ? 'right-0 pr-4' : 'left-0 pl-4'} flex items-center pointer-events-none`}>
                     <FiLock className={`h-5 w-5 transition-colors ${
-                      focusedField === 'password' ? 'text-osoul-primary' : 'text-osoul-gray-400'
+                      focusedField === 'password' ? 'text-osoul-golden-500' : 'text-osoul-gray-400'
                     }`} />
                   </div>
                   <input
@@ -310,9 +310,9 @@ const Login = () => {
                       errors.password 
                         ? 'border-red-300 focus:border-red-500' 
                         : focusedField === 'password'
-                        ? 'border-osoul-primary'
-                        : 'border-osoul-gray-200 focus:border-osoul-primary'
-                    } rounded-xl focus:outline-none focus:ring-4 focus:ring-osoul-primary/20 transition-all bg-white`}
+                        ? 'border-osoul-golden-500'
+                        : 'border-osoul-gray-200 focus:border-osoul-golden-500'
+                    } rounded-xl focus:outline-none focus:ring-4 focus:ring-osoul-golden-300/30 transition-all bg-white`}
                     placeholder={t('login.passwordPlaceholder')}
                     dir="ltr"
                   />
@@ -326,9 +326,9 @@ const Login = () => {
                       whileTap={{ scale: 0.95 }}
                     >
                       {showPassword ? (
-                        <FiEyeOff className="h-5 w-5 text-osoul-gray-500 hover:text-osoul-primary transition-colors" />
+                        <FiEyeOff className="h-5 w-5 text-osoul-gray-500 hover:text-osoul-golden-500 transition-colors" />
                       ) : (
-                        <FiEye className="h-5 w-5 text-osoul-gray-500 hover:text-osoul-primary transition-colors" />
+                        <FiEye className="h-5 w-5 text-osoul-gray-500 hover:text-osoul-golden-500 transition-colors" />
                       )}
                     </motion.div>
                   </button>
@@ -356,7 +356,7 @@ const Login = () => {
                     type="checkbox"
                     checked={formData.rememberMe}
                     onChange={handleInputChange}
-                    className="h-4 w-4 text-osoul-primary focus:ring-osoul-primary/50 border-osoul-gray-300 rounded cursor-pointer"
+                    className="h-4 w-4 text-osoul-golden-500 focus:ring-osoul-golden-300 border-osoul-gray-300 rounded cursor-pointer"
                   />
                   <label htmlFor="rememberMe" className={`${isRTL ? 'mr-2' : 'ml-2'} block text-sm text-osoul-gray-700 cursor-pointer`}>
                     {t('login.rememberMe')}
@@ -365,7 +365,7 @@ const Login = () => {
                 <motion.div whileHover={{ scale: 1.05 }}>
                   <Link
                     to="/forgot-password"
-                    className="text-sm text-osoul-primary hover:text-osoul-accent font-semibold transition-colors"
+                    className="text-sm text-osoul-golden-500 hover:text-osoul-golden-600 font-semibold transition-colors"
                   >
                     {t('login.forgotPassword')}
                   </Link>
@@ -376,12 +376,12 @@ const Login = () => {
               <motion.button
                 type="submit"
                 disabled={loading || authLoading}
-                className="w-full relative overflow-hidden group bg-gradient-to-r from-osoul-primary to-osoul-accent text-white py-4 px-6 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full relative overflow-hidden group bg-gradient-to-r from-osoul-golden-500 to-osoul-golden-600 text-white py-4 px-6 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-osoul-accent to-osoul-primary"
+                  className="absolute inset-0 bg-gradient-to-r from-osoul-golden-600 to-osoul-golden-700"
                   initial={{ x: "100%" }}
                   whileHover={{ x: 0 }}
                   transition={{ duration: 0.3 }}
@@ -404,7 +404,7 @@ const Login = () => {
 
               {/* Demo Credentials */}
               <motion.div 
-                className="mt-6 p-4 bg-osoul-light rounded-xl border border-osoul-primary/20"
+                className="mt-6 p-4 bg-osoul-golden-50 rounded-xl border border-osoul-golden-300/30"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
@@ -426,10 +426,10 @@ const Login = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            {t('login.dontHaveAccount')}{' '}
-            <Link to="/signup" className="font-semibold text-osoul-primary hover:text-osoul-accent transition-colors">
-              {t('login.signUp')}
-            </Link>
+                          {t('login.dontHaveAccount')}{' '}
+              <Link to="/signup" className="font-semibold text-osoul-golden-500 hover:text-osoul-golden-600 transition-colors">
+                {t('login.signUp')}
+              </Link>
           </motion.p>
 
           {/* Bottom Decoration */}
@@ -467,7 +467,7 @@ const Login = () => {
             transition={{ delay: 0.9 + index * 0.1 }}
             whileHover={{ scale: 1.05 }}
           >
-            <feature.icon className="text-osoul-primary" size={16} />
+            <feature.icon className="text-osoul-golden-500" size={16} />
             <span className="text-sm font-medium text-osoul-dark">{feature.text}</span>
           </motion.div>
         ))}
