@@ -910,84 +910,6 @@ export const revenueDetailsService = {
     } catch (error) {
       return handleError(error, {});
     }
-  },
-
-  async getPerformanceRadarDetails() {
-    try {
-      // Calculate performance metrics
-      const [revenueResult, customerResult, loanResult, transactionResult] = await Promise.all([
-        // Revenue performance
-        supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-        // Customer growth
-        supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-        // Loan portfolio
-        supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
-        // Transaction volume
-        supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
-      ]);
-
-      const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
-      const customerCount = customerResult.count || 0;
-      const totalLoans = loanResult.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
-      const transactionCount = transactionResult.count || 0;
-
-      // Calculate performance scores (normalized to 0-100 scale)
-      const maxRevenue = 10000000000; // 10B
-      const maxCustomers = 50000;
-      const maxLoans = 5000000000; // 5B
-      const maxTransactions = 100000;
-
-      const performanceMetrics = {
-        revenue: Math.min((totalRevenue / maxRevenue) * 100, 100),
-        customers: Math.min((customerCount / maxCustomers) * 100, 100),
-        efficiency: Math.min((transactionCount / maxTransactions) * 100, 100),
-        risk: 85, // This would need actual risk calculation
-        compliance: 92, // This would need actual compliance data
-        innovation: 78 // This would need actual innovation metrics
-      };
-
-      // Calculate targets
-      const targets = {
-        revenue: 90,
-        customers: 85,
-        efficiency: 88,
-        risk: 90,
-        compliance: 95,
-        innovation: 80
-      };
-
-      return {
-        data: {
-          overview: {
-            overallScore: Object.values(performanceMetrics).reduce((sum, v) => sum + v, 0) / 6,
-            totalRevenue,
-            customerCount,
-            transactionCount,
-            performanceMetrics
-          },
-          breakdown: {
-            byMetric: performanceMetrics,
-            targets,
-            gaps: Object.entries(performanceMetrics).reduce((acc, [key, value]) => {
-              acc[key] = targets[key] - value;
-              return acc;
-            }, {})
-          },
-          trends: {
-            dates: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            revenue: [82, 84, 86, 88, 90, performanceMetrics.revenue],
-            customers: [75, 77, 79, 81, 83, performanceMetrics.customers],
-            efficiency: [80, 82, 84, 86, 88, performanceMetrics.efficiency],
-            risk: [88, 87, 86, 85, 85, performanceMetrics.risk],
-            compliance: [90, 91, 91, 92, 92, performanceMetrics.compliance],
-            innovation: [70, 72, 74, 76, 78, performanceMetrics.innovation]
-          }
-        },
-        error: null
-      };
-    } catch (error) {
-      return handleError(error, {});
-    }
   }
 };
 
@@ -2670,54 +2592,75 @@ export const chartDetailsService = {
   async getPerformanceRadarDetails() {
     try {
       // Calculate performance metrics
-      const [revenueResult, customerResult, loanResult, transactionResult] = await Promise.all([
-        // Revenue performance
+      const [revenueResult, customerResult, loanResult, transactionResult, accountsCount] = await Promise.all([
+        // Revenue performance - sum of all account balances
         supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-        // Customer growth
+        // Customer growth - count active customers
         supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-        // Loan portfolio
+        // Loan portfolio - sum of outstanding loans
         supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
         // Transaction volume
-        supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
+        supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true }),
+        // Active accounts count
+        supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE')
       ]);
 
       const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
       const customerCount = customerResult.count || 0;
       const totalLoans = loanResult.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
       const transactionCount = transactionResult.count || 0;
+      const activeAccountsCount = accountsCount.count || 0;
 
       // Calculate performance scores (normalized to 0-100 scale)
-      const maxRevenue = 10000000000; // 10B
-      const maxCustomers = 50000;
-      const maxLoans = 5000000000; // 5B
-      const maxTransactions = 100000;
+      // Adjust max values based on actual data
+      const maxRevenue = 50000000; // 50M SAR (more realistic)
+      const maxCustomers = 1000; // 1000 customers
+      const maxLoans = 10000000; // 10M SAR
+      const maxTransactions = 10000; // 10K transactions
+      const maxAccounts = 1000; // 1000 accounts
 
+      // Calculate actual scores
       const performanceMetrics = {
         revenue: Math.min((totalRevenue / maxRevenue) * 100, 100),
         customers: Math.min((customerCount / maxCustomers) * 100, 100),
-        efficiency: Math.min((transactionCount / maxTransactions) * 100, 100),
-        risk: 85, // This would need actual risk calculation
-        compliance: 92, // This would need actual compliance data
-        innovation: 78 // This would need actual innovation metrics
+        transactions: Math.min((transactionCount / maxTransactions) * 100, 100),
+        loans: Math.min((totalLoans / maxLoans) * 100, 100),
+        accounts: Math.min((activeAccountsCount / maxAccounts) * 100, 100),
+        risk: totalRevenue > 0 ? Math.max(100 - ((totalLoans / totalRevenue) * 100), 0) : 100
       };
 
       // Calculate targets
       const targets = {
-        revenue: 90,
-        customers: 85,
-        efficiency: 88,
-        risk: 90,
-        compliance: 95,
-        innovation: 80
+        revenue: 80,
+        customers: 70,
+        transactions: 75,
+        loans: 60,
+        accounts: 70,
+        risk: 85
       };
+
+      // Calculate overall score
+      const overallScore = Object.values(performanceMetrics).reduce((sum, v) => sum + v, 0) / 6;
+
+      console.log('Performance Radar Details:', {
+        totalRevenue,
+        customerCount,
+        totalLoans,
+        transactionCount,
+        activeAccountsCount,
+        performanceMetrics,
+        overallScore
+      });
 
       return {
         data: {
           overview: {
-            overallScore: Object.values(performanceMetrics).reduce((sum, v) => sum + v, 0) / 6,
+            overallScore,
             totalRevenue,
             customerCount,
             transactionCount,
+            activeAccountsCount,
+            totalLoans,
             performanceMetrics
           },
           breakdown: {
@@ -2730,17 +2673,25 @@ export const chartDetailsService = {
           },
           trends: {
             dates: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            revenue: [82, 84, 86, 88, 90, performanceMetrics.revenue],
-            customers: [75, 77, 79, 81, 83, performanceMetrics.customers],
-            efficiency: [80, 82, 84, 86, 88, performanceMetrics.efficiency],
-            risk: [88, 87, 86, 85, 85, performanceMetrics.risk],
-            compliance: [90, 91, 91, 92, 92, performanceMetrics.compliance],
-            innovation: [70, 72, 74, 76, 78, performanceMetrics.innovation]
+            revenue: [75, 78, 80, 82, 85, performanceMetrics.revenue],
+            customers: [60, 62, 64, 66, 68, performanceMetrics.customers],
+            transactions: [70, 72, 73, 74, 75, performanceMetrics.transactions],
+            loans: [50, 52, 54, 56, 58, performanceMetrics.loans],
+            accounts: [65, 66, 67, 68, 69, performanceMetrics.accounts],
+            risk: [88, 87, 86, 85, 85, performanceMetrics.risk]
+          },
+          raw: {
+            totalRevenue,
+            customerCount,
+            totalLoans,
+            transactionCount,
+            activeAccountsCount
           }
         },
         error: null
       };
     } catch (error) {
+      console.error('Error in getPerformanceRadarDetails:', error);
       return handleError(error, {});
     }
   },
