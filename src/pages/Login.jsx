@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { 
   FiUser, 
   FiLock, 
@@ -17,11 +18,14 @@ import {
   FiArrowRight
 } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import osolLogo from '../assets/osol-logo.png';
 
 const Login = () => {
   const navigate = useNavigate();
   const { signIn, loading: authLoading } = useAuth();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   
   const [formData, setFormData] = useState({
     email: '',
@@ -49,15 +53,15 @@ const Login = () => {
     const newErrors = {};
     
     if (!formData.email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('login.errors.emailRequired');
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
+      newErrors.email = t('login.errors.emailInvalid');
     }
     
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('login.errors.passwordRequired');
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = t('login.errors.passwordLength');
     }
     
     setErrors(newErrors);
@@ -95,9 +99,9 @@ const Login = () => {
       });
       
       if (error) {
-        setLoginError(error.message || 'Invalid email or password');
+        setLoginError(error.message || t('login.errors.invalidCredentials'));
       } else {
-        setSuccessMessage('Login successful! Redirecting...');
+        setSuccessMessage(t('login.success.loginSuccess'));
         
         // Store remember me preference
         if (formData.rememberMe) {
@@ -111,7 +115,7 @@ const Login = () => {
         }, 1500);
       }
     } catch (error) {
-      setLoginError('An unexpected error occurred. Please try again.');
+      setLoginError(t('login.errors.genericError'));
     } finally {
       setLoading(false);
     }
@@ -127,6 +131,11 @@ const Login = () => {
 
   return (
     <div className="min-h-screen w-full flex relative overflow-hidden bg-gradient-to-br from-osoul-light via-white to-osoul-gray-100">
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher />
+      </div>
+
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         {floatingShapes.map((shape, index) => (
@@ -180,9 +189,15 @@ const Login = () => {
                 className="h-16 w-auto"
               />
             </motion.div>
-            <h1 className="text-4xl font-bold text-osoul-dark mb-2">أهلاً بك</h1>
-            <h2 className="text-3xl font-bold text-osoul-secondary mb-2">Welcome Back</h2>
-            <p className="text-osoul-gray-600">الحديثة للتمويل | Modern Finance</p>
+            <h1 className="text-4xl font-bold text-osoul-dark mb-2">
+              {isRTL ? t('login.title') : t('login.welcomeArabic')}
+            </h1>
+            <h2 className="text-3xl font-bold text-osoul-secondary mb-2">
+              {isRTL ? 'Welcome Back' : t('login.title')}
+            </h2>
+            <p className="text-osoul-gray-600">
+              {isRTL ? `${t('login.subtitle')} | Modern Finance` : `الحديثة للتمويل | ${t('login.subtitle')}`}
+            </p>
           </motion.div>
 
           {/* Login Form Card */}
@@ -202,7 +217,7 @@ const Login = () => {
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     className="bg-osoul-primary/10 border border-osoul-primary/30 text-osoul-dark px-4 py-3 rounded-xl flex items-center"
                   >
-                    <FiCheck className="mr-2 text-osoul-primary" size={20} />
+                    <FiCheck className={`${isRTL ? 'ml-2' : 'mr-2'} text-osoul-primary`} size={20} />
                     {successMessage}
                   </motion.div>
                 )}
@@ -217,7 +232,7 @@ const Login = () => {
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl flex items-center"
                   >
-                    <FiAlertCircle className="mr-2" size={20} />
+                    <FiAlertCircle className={`${isRTL ? 'ml-2' : 'mr-2'}`} size={20} />
                     {loginError}
                   </motion.div>
                 )}
@@ -226,13 +241,13 @@ const Login = () => {
               {/* Email Input */}
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-osoul-dark mb-2">
-                  Email Address
+                  {t('login.email')}
                 </label>
                 <motion.div 
                   className={`relative ${focusedField === 'email' ? 'scale-[1.02]' : ''}`}
                   transition={{ type: "spring", stiffness: 300 }}
                 >
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <div className={`absolute inset-y-0 ${isRTL ? 'right-0 pr-4' : 'left-0 pl-4'} flex items-center pointer-events-none`}>
                     <FiMail className={`h-5 w-5 transition-colors ${
                       focusedField === 'email' ? 'text-osoul-primary' : 'text-osoul-gray-400'
                     }`} />
@@ -246,14 +261,15 @@ const Login = () => {
                     onChange={handleInputChange}
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField(null)}
-                    className={`block w-full pl-12 pr-4 py-4 border-2 ${
+                    className={`block w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 border-2 ${
                       errors.email 
                         ? 'border-red-300 focus:border-red-500' 
                         : focusedField === 'email'
                         ? 'border-osoul-primary'
                         : 'border-osoul-gray-200 focus:border-osoul-primary'
                     } rounded-xl focus:outline-none focus:ring-4 focus:ring-osoul-primary/20 transition-all bg-white`}
-                    placeholder="Enter your email"
+                    placeholder={t('login.emailPlaceholder')}
+                    dir="ltr"
                   />
                 </motion.div>
                 {errors.email && (
@@ -270,13 +286,13 @@ const Login = () => {
               {/* Password Input */}
               <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-osoul-dark mb-2">
-                  Password
+                  {t('login.password')}
                 </label>
                 <motion.div 
                   className={`relative ${focusedField === 'password' ? 'scale-[1.02]' : ''}`}
                   transition={{ type: "spring", stiffness: 300 }}
                 >
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <div className={`absolute inset-y-0 ${isRTL ? 'right-0 pr-4' : 'left-0 pl-4'} flex items-center pointer-events-none`}>
                     <FiLock className={`h-5 w-5 transition-colors ${
                       focusedField === 'password' ? 'text-osoul-primary' : 'text-osoul-gray-400'
                     }`} />
@@ -290,19 +306,20 @@ const Login = () => {
                     onChange={handleInputChange}
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
-                    className={`block w-full pl-12 pr-12 py-4 border-2 ${
+                    className={`block w-full ${isRTL ? 'pr-12 pl-12' : 'pl-12 pr-12'} py-4 border-2 ${
                       errors.password 
                         ? 'border-red-300 focus:border-red-500' 
                         : focusedField === 'password'
                         ? 'border-osoul-primary'
                         : 'border-osoul-gray-200 focus:border-osoul-primary'
                     } rounded-xl focus:outline-none focus:ring-4 focus:ring-osoul-primary/20 transition-all bg-white`}
-                    placeholder="Enter your password"
+                    placeholder={t('login.passwordPlaceholder')}
+                    dir="ltr"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    className={`absolute inset-y-0 ${isRTL ? 'left-0 pl-4' : 'right-0 pr-4'} flex items-center`}
                   >
                     <motion.div
                       whileHover={{ scale: 1.1 }}
@@ -341,8 +358,8 @@ const Login = () => {
                     onChange={handleInputChange}
                     className="h-4 w-4 text-osoul-primary focus:ring-osoul-primary/50 border-osoul-gray-300 rounded cursor-pointer"
                   />
-                  <label htmlFor="rememberMe" className="ml-2 block text-sm text-osoul-gray-700 cursor-pointer">
-                    Remember me
+                  <label htmlFor="rememberMe" className={`${isRTL ? 'mr-2' : 'ml-2'} block text-sm text-osoul-gray-700 cursor-pointer`}>
+                    {t('login.rememberMe')}
                   </label>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.05 }}>
@@ -350,7 +367,7 @@ const Login = () => {
                     to="/forgot-password"
                     className="text-sm text-osoul-primary hover:text-osoul-accent font-semibold transition-colors"
                   >
-                    Forgot password?
+                    {t('login.forgotPassword')}
                   </Link>
                 </motion.div>
               </div>
@@ -378,8 +395,8 @@ const Login = () => {
                     />
                   ) : (
                     <>
-                      Sign In
-                      <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                      {t('login.signIn')}
+                      <FiArrowRight className={`${isRTL ? 'mr-2 group-hover:-translate-x-1' : 'ml-2 group-hover:translate-x-1'} transition-transform`} />
                     </>
                   )}
                 </span>
@@ -392,11 +409,11 @@ const Login = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <p className="text-sm text-osoul-secondary font-semibold mb-2">Demo Credentials:</p>
+                <p className="text-sm text-osoul-secondary font-semibold mb-2">{t('login.demoCredentials')}</p>
                 <div className="space-y-1 text-sm text-osoul-gray-700">
-                  <p><span className="font-medium">Admin:</span> admin@osol.sa / Password123!</p>
-                  <p><span className="font-medium">Manager:</span> manager@osol.sa / Password123!</p>
-                  <p><span className="font-medium">Officer:</span> officer1@osol.sa / Password123!</p>
+                  <p><span className="font-medium">{t('login.admin')}:</span> admin@osol.sa / Password123!</p>
+                  <p><span className="font-medium">{t('login.manager')}:</span> manager@osol.sa / Password123!</p>
+                  <p><span className="font-medium">{t('login.officer')}:</span> officer1@osol.sa / Password123!</p>
                 </div>
               </motion.div>
             </form>
@@ -409,9 +426,9 @@ const Login = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            Don't have an account?{' '}
+            {t('login.dontHaveAccount')}{' '}
             <Link to="/signup" className="font-semibold text-osoul-primary hover:text-osoul-accent transition-colors">
-              Sign up
+              {t('login.signUp')}
             </Link>
           </motion.p>
 
@@ -423,7 +440,7 @@ const Login = () => {
             transition={{ delay: 0.6 }}
           >
             <p className="text-xs text-osoul-gray-500">
-              © 2024 OSOL Modern Finance. All rights reserved.
+              {t('login.copyright')}
             </p>
           </motion.div>
         </motion.div>
@@ -431,19 +448,20 @@ const Login = () => {
 
       {/* Feature Highlights - Hidden on mobile */}
       <motion.div 
-        className="hidden lg:flex fixed bottom-8 right-8 space-x-4"
-        initial={{ opacity: 0, x: 50 }}
+        className={`hidden lg:flex fixed bottom-8 ${isRTL ? 'left-8' : 'right-8'} ${isRTL ? 'space-x-reverse space-x-4' : 'space-x-4'}`}
+        initial={{ opacity: 0, x: isRTL ? -50 : 50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.8 }}
+        dir={isRTL ? 'rtl' : 'ltr'}
       >
         {[
-          { icon: FiShield, text: "Secure" },
-          { icon: FiActivity, text: "Real-time" },
-          { icon: FiTrendingUp, text: "Analytics" },
+          { icon: FiShield, text: t('login.secure') },
+          { icon: FiActivity, text: t('login.realtime') },
+          { icon: FiTrendingUp, text: t('login.analytics') },
         ].map((feature, index) => (
           <motion.div
             key={index}
-            className="flex items-center space-x-2 bg-white/80 backdrop-blur px-4 py-2 rounded-full shadow-md"
+            className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'} bg-white/80 backdrop-blur px-4 py-2 rounded-full shadow-md`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 + index * 0.1 }}
