@@ -30,14 +30,14 @@ ON CONFLICT (branch_id) DO NOTHING;
 INSERT INTO kastle_banking.collection_teams (
     team_id,
     team_name,
-    team_lead,
+    team_lead_id,
     branch_id,
     is_active
 ) VALUES
-    (1, 'Team A', 'TL001', 'RYD_MAIN', true),
-    (2, 'Team B', 'TL002', 'JEDDAH', true),
-    (3, 'Team C', 'TL003', 'DAMMAM', true),
-    (4, 'Team D', 'TL004', 'KHOBAR', true)
+    (1, 'Team A', 'TL001', 'RYD_MAIN', 'true'),
+    (2, 'Team B', 'TL002', 'JEDDAH', 'true'),
+    (3, 'Team C', 'TL003', 'DAMMAM', 'true'),
+    (4, 'Team D', 'TL004', 'KHOBAR', 'true')
 ON CONFLICT (team_id) DO NOTHING;
 
 -- Insert sample data for current month

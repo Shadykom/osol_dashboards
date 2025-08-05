@@ -245,7 +245,7 @@ export class CollectionService {
         .from('collection_interactions')
         .select('*')
         .eq('case_id', caseId)
-        .order('interaction_date', { ascending: false });
+        .order('interaction_datetime', { ascending: false });
 
       // Get promise to pay history
       const { data: ptpHistory } = await supabaseBanking
