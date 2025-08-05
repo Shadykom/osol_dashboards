@@ -251,7 +251,7 @@ const CollectionCasesList = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t('common.all', 'All')}</SelectItem>
-                  <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
+                  <SelectItem value="RYD_MAIN">Riyadh Main</SelectItem>
                   <SelectItem value="JEDDAH">Jeddah</SelectItem>
                   <SelectItem value="DAMMAM">Dammam</SelectItem>
                   <SelectItem value="KHOBAR">Khobar</SelectItem>

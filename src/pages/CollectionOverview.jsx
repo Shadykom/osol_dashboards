@@ -242,7 +242,7 @@ const CollectionOverview = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('collectionOverview.allBranches')}</SelectItem>
-                <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
+                <SelectItem value="RYD_MAIN">Riyadh Main</SelectItem>
                 <SelectItem value="JEDDAH">Jeddah</SelectItem>
                 <SelectItem value="DAMMAM">Dammam</SelectItem>
                 <SelectItem value="KHOBAR">Khobar</SelectItem>

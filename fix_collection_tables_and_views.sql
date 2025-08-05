@@ -56,7 +56,7 @@ INSERT INTO kastle_banking.daily_collection_summary (
 SELECT 
     date_series.date,
     CASE 
-        WHEN RANDOM() < 0.3 THEN 'RIYADH_MAIN'
+        WHEN RANDOM() < 0.3 THEN 'RYD_MAIN'
         WHEN RANDOM() < 0.6 THEN 'JEDDAH'
         WHEN RANDOM() < 0.8 THEN 'DAMMAM'
         ELSE 'KHOBAR'

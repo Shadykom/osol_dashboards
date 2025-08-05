@@ -18,7 +18,7 @@ INSERT INTO kastle_banking.branches (
     is_active,
     status
 ) VALUES 
-    ('RIYADH_MAIN', 'RYD001', 'Riyadh Main Branch', 'MAIN', 'King Fahd Road, Al Olaya', 'Riyadh', 'Riyadh Province', 'SAU', '11433', '+966-11-123-4567', 'riyadh.main@osoulbank.sa', '2010-01-15', true, 'ACTIVE'),
+    ('RYD_MAIN', 'RYD001', 'Riyadh Main Branch', 'MAIN', 'King Fahd Road, Al Olaya', 'Riyadh', 'Riyadh Province', 'SAU', '11433', '+966-11-123-4567', 'riyadh.main@osoulbank.sa', '2010-01-15', true, 'ACTIVE'),
     ('JEDDAH', 'JED001', 'Jeddah Branch', 'URBAN', 'Tahlia Street, Al Andalus', 'Jeddah', 'Makkah Province', 'SAU', '21491', '+966-12-234-5678', 'jeddah@osoulbank.sa', '2011-03-20', true, 'ACTIVE'),
     ('DAMMAM', 'DMM001', 'Dammam Branch', 'URBAN', 'King Saud Street, Al Shati', 'Dammam', 'Eastern Province', 'SAU', '31433', '+966-13-345-6789', 'dammam@osoulbank.sa', '2012-06-10', true, 'ACTIVE'),
     ('KHOBAR', 'KHB001', 'Khobar Branch', 'SUB', 'Prince Turki Street, Al Khobar North', 'Khobar', 'Eastern Province', 'SAU', '31952', '+966-13-456-7890', 'khobar@osoulbank.sa', '2013-09-05', true, 'ACTIVE'),
@@ -34,7 +34,7 @@ INSERT INTO kastle_banking.collection_teams (
     branch_id,
     is_active
 ) VALUES
-    (1, 'Team A', 'TL001', 'RIYADH_MAIN', true),
+    (1, 'Team A', 'TL001', 'RYD_MAIN', true),
     (2, 'Team B', 'TL002', 'JEDDAH', true),
     (3, 'Team C', 'TL003', 'DAMMAM', true),
     (4, 'Team D', 'TL004', 'KHOBAR', true)
