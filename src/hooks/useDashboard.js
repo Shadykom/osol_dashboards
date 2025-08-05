@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DashboardService } from '@/services/dashboardService';
 import { CustomerService } from '@/services/customerService';
 
-export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
+export function useDashboard(autoRefresh = false, refreshInterval = 30000, filters = {}) {
   const [data, setData] = useState({
     kpis: null,
     recentTransactions: [],
@@ -24,7 +24,7 @@ export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
     setError(null);
     
     try {
-      // Load all dashboard data in parallel
+      // Load all dashboard data in parallel with filters
       const [
         kpisResponse,
         transactionsResponse,
@@ -35,14 +35,14 @@ export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
         branchComparisonResponse,
         realTimeMetricsResponse
       ] = await Promise.all([
-        DashboardService.getExecutiveKPIs(),
-        DashboardService.getRecentTransactions(10),
-        DashboardService.getTransactionAnalytics(),
-        CustomerService.getCustomerAnalytics(),
-        DashboardService.getLoanAnalytics(),
-        DashboardService.getMonthlyComparison(),
-        DashboardService.getBranchComparison(),
-        DashboardService.getRealTimeMetrics()
+        DashboardService.getExecutiveKPIs(filters),
+        DashboardService.getRecentTransactions(10, filters),
+        DashboardService.getTransactionAnalytics(filters),
+        CustomerService.getCustomerAnalytics(filters),
+        DashboardService.getLoanAnalytics(filters),
+        DashboardService.getMonthlyComparison(filters),
+        DashboardService.getBranchComparison(filters),
+        DashboardService.getRealTimeMetrics(filters)
       ]);
 
       // Check for errors in responses
@@ -145,7 +145,7 @@ export function useDashboard(autoRefresh = false, refreshInterval = 30000) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   // Initial load
   useEffect(() => {

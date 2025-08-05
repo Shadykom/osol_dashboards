@@ -68,6 +68,25 @@ import emailService from '@/services/emailService';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import VisualReportView from '@/components/reports/VisualReportView';
 import IncomeStatementReport from '@/components/reports/IncomeStatementReport';
+import BalanceSheetReport from '@/components/reports/BalanceSheetReport';
+import CashFlowStatementReport from '@/components/reports/CashFlowStatementReport';
+
+// Safe translation wrapper to prevent object rendering errors
+const safeTranslate = (t, key, fallback = '') => {
+  try {
+    const result = t(key);
+    // Check if the result is a string
+    if (typeof result === 'string') {
+      return result;
+    }
+    // If it's an object or something else, return the key or fallback
+    console.warn(`Translation key "${key}" returned non-string value:`, result);
+    return fallback || key;
+  } catch (error) {
+    console.error(`Error translating key "${key}":`, error);
+    return fallback || key;
+  }
+};
 
 const REPORT_CATEGORIES = {
   financial: {
@@ -710,12 +729,12 @@ export function ReportsResponsive() {
                           <category.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${category.color}`} />
                         </div>
                         <div>
-                          <CardTitle className="text-base sm:text-lg">{t(category.title)}</CardTitle>
-                          <CardDescription className="text-xs sm:text-sm">{category.reports.length} {t('reports.reportsAvailable')}</CardDescription>
+                          <CardTitle className="text-base sm:text-lg">{safeTranslate(t, category.title)}</CardTitle>
+                          <CardDescription className="text-xs sm:text-sm">{category.reports.length} {safeTranslate(t, 'reports.reportsAvailable')}</CardDescription>
                         </div>
                       </div>
                       <Badge variant={selectedCategory === key ? 'default' : 'outline'} className="text-xs">
-                        {selectedCategory === key ? t('reports.selected') : t('reports.select')}
+                        {selectedCategory === key ? safeTranslate(t, 'reports.selected') : safeTranslate(t, 'reports.select')}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -734,11 +753,11 @@ export function ReportsResponsive() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
-                                <h4 className="font-medium text-sm sm:text-base">{t(report.name)}</h4>
-                                <p className="text-xs sm:text-sm text-muted-foreground">{t(report.description)}</p>
+                                <h4 className="font-medium text-sm sm:text-base">{safeTranslate(t, report.name)}</h4>
+                                <p className="text-xs sm:text-sm text-muted-foreground">{safeTranslate(t, report.description)}</p>
                               </div>
                               <div className="ml-2">
-                                <Badge variant="secondary" className="text-xs">{t(report.frequency)}</Badge>
+                                <Badge variant="secondary" className="text-xs">{safeTranslate(t, report.frequency)}</Badge>
                               </div>
                             </div>
                           </div>
@@ -939,19 +958,41 @@ export function ReportsResponsive() {
         <TabsContent value="preview" className="space-y-4">
           {generatedReport && reportData ? (
             <div className="space-y-4">
-              {/* Enhanced Income Statement Report */}
+              {/* Enhanced Report Components */}
               {selectedReport === 'income_statement' ? (
                 <IncomeStatementReport 
                   reportData={reportData}
                   reportType={selectedReport}
                   dateRange={dateRange}
                 />
+              ) : selectedReport === 'balance_sheet' ? (
+                <BalanceSheetReport 
+                  dateRange={dateRange}
+                  branch={filters.branch}
+                  product={filters.product}
+                  customerSegment={filters.segment}
+                  onExport={() => handleDownload('excel')}
+                  onEmail={() => setEmailDialogOpen(true)}
+                  onPrint={handlePrint}
+                  onSchedule={() => setScheduleDialogOpen(true)}
+                />
+              ) : selectedReport === 'cash_flow' ? (
+                <CashFlowStatementReport 
+                  dateRange={dateRange}
+                  branch={filters.branch}
+                  product={filters.product}
+                  customerSegment={filters.segment}
+                  onExport={() => handleDownload('excel')}
+                  onEmail={() => setEmailDialogOpen(true)}
+                  onPrint={handlePrint}
+                  onSchedule={() => setScheduleDialogOpen(true)}
+                />
               ) : (
                 /* Fallback to original VisualReportView for other reports */
                 <div className="bg-white rounded-lg border p-6">
                   <div className="mb-6">
                     <h2 className="text-2xl font-bold text-[#2D3748] mb-2">
-                      {t(generatedReport.reportInfo.name)}
+                      {safeTranslate(t, generatedReport.reportInfo.name)}
                     </h2>
                     <p className="text-[#718096]">
                       Generated on {format(new Date(), 'dd MMMM yyyy HH:mm')}

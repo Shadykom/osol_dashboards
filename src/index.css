@@ -95,7 +95,7 @@ html {
 /* Ensure proper height and scrolling */
 html, body, #root {
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Fix for main content area */

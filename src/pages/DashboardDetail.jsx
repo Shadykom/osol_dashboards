@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ import { ChartWidget } from '@/components/widgets/ChartWidget';
 import { cn } from '@/lib/utils';
 import { useIsMobile, responsiveClasses } from '@/utils/responsive';
 import { useRTLClasses } from '@/components/ui/rtl-wrapper';
+import { useFilters } from '@/contexts/FilterContext';
 
 // Stat Card Component
 const StatCard = ({ title, value, change, trend, description, icon: Icon }) => {
@@ -142,9 +143,11 @@ const BreakdownCard = ({ title, data, type = 'list' }) => {
 export default function DashboardDetail() {
   const { type, widgetId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t, i18n } = useTranslation();
   const isMobile = useIsMobile();
   const rtl = useRTLClasses();
+  const { filters } = useFilters();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -291,7 +294,7 @@ export default function DashboardDetail() {
     if (type && widgetId) {
       fetchData();
     }
-  }, [type, widgetId]);
+  }, [type, widgetId, filters]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -309,7 +312,7 @@ export default function DashboardDetail() {
 
       // Handle chart widgets differently
       if (config.isChart) {
-        const chartResult = await service.getDetailsByChartType(type, widgetId);
+        const chartResult = await service.getDetailsByChartType(type, widgetId, filters);
         if (chartResult.error) throw new Error(chartResult.error);
         setData(chartResult.data);
         setBreakdown(null);

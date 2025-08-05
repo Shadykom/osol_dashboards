@@ -9,6 +9,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Import test utility for debugging
 import './utils/testCustomerCount';
+import './utils/objectRenderingDiagnostic';
+import './utils/reactObjectRenderingFix';
 
 import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
@@ -24,6 +26,7 @@ import { Compliance } from './pages/Compliance';
 import CollectionOverview from './pages/CollectionOverview';
 import CollectionDetailView from './pages/CollectionDetailView';
 import CollectionCases from './pages/CollectionCases';
+import CollectionCaseDetails from './pages/CollectionCaseDetails';
 import CollectionReports from './pages/CollectionReports';
 import DailyCollectionDashboard from './pages/DailyCollectionDashboard';
 import DigitalCollectionDashboard from './pages/DigitalCollectionDashboard';
@@ -56,6 +59,8 @@ import ReportsHealthCheck from './pages/ReportsHealthCheck';
 import TestDashboardRouting from './pages/TestDashboardRouting';
 import TestDashboardDetailNew from './pages/TestDashboardDetailNew';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ObjectRenderingFixProvider } from './contexts/ObjectRenderingFixContext';
+import ReactErrorInterceptor from './components/ReactErrorInterceptor';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -152,13 +157,17 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <FilterProvider>
-        <Router>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
-        </Router>
-      </FilterProvider>
+      <ReactErrorInterceptor>
+        <ObjectRenderingFixProvider>
+          <FilterProvider>
+            <Router>
+              <AuthProvider>
+                <AppContent />
+              </AuthProvider>
+            </Router>
+          </FilterProvider>
+        </ObjectRenderingFixProvider>
+      </ReactErrorInterceptor>
     </ErrorBoundary>
   );
 }
@@ -364,6 +373,7 @@ function AppContent() {
           <Route path="/collection/overview" element={<CollectionOverview />} />
           <Route path="/collection/detail/:cardType" element={<CollectionDetailView />} />
           <Route path="/collection/cases" element={<CollectionCases />} />
+          <Route path="/collection/cases/:caseId" element={<CollectionCaseDetails />} />
           <Route path="/collection/reports" element={<CollectionReports />} />
           <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
           <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />

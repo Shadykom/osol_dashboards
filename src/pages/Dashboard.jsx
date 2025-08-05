@@ -104,6 +104,41 @@ import { useRTLClasses } from '@/components/ui/rtl-wrapper';
 
 const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181', '#F6AD55'];
 
+// Helper function to get date range from filter
+function getDateRangeFromFilter(dateRange) {
+  const now = new Date();
+  switch (dateRange) {
+    case 'today':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+      };
+    case 'week':
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - 7);
+      return { start: weekStart, end: now };
+    case 'month':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      };
+    case 'quarter':
+      const quarterStart = new Date(now);
+      quarterStart.setMonth(now.getMonth() - 3);
+      return { start: quarterStart, end: now };
+    case 'year':
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear(), 11, 31)
+      };
+    default:
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: now
+      };
+  }
+}
+
 // Mock data generators for fallback
 const getMockKPIData = () => ({
   value: Math.floor(Math.random() * 100000) + 50000,
@@ -281,20 +316,46 @@ export const WIDGET_CATALOG = {
       icon: Target,
       type: 'chart',
       chartType: 'radar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
+          // Build queries with filters
+          let revenueQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE');
+          let customerQuery = supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true);
+          let loanQuery = supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE');
+          let transactionQuery = supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true });
+          let accountsQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE');
+
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            revenueQuery = revenueQuery.eq('branch_id', filters.branch);
+            customerQuery = customerQuery.eq('branch_id', filters.branch);
+            loanQuery = loanQuery.eq('branch_id', filters.branch);
+            transactionQuery = transactionQuery.eq('branch_id', filters.branch);
+            accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+          }
+
+          if (filters.productType && filters.productType !== 'all') {
+            revenueQuery = revenueQuery.eq('product_type', filters.productType);
+            loanQuery = loanQuery.eq('product_type', filters.productType);
+            accountsQuery = accountsQuery.eq('product_type', filters.productType);
+          }
+
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            customerQuery = customerQuery.eq('customer_segment', filters.customerSegment);
+          }
+
+          if (filters.dateRange && filters.dateRange !== 'all') {
+            const { start, end } = getDateRangeFromFilter(filters.dateRange);
+            transactionQuery = transactionQuery.gte('transaction_date', start.toISOString()).lte('transaction_date', end.toISOString());
+          }
+
           // Fetch real performance metrics from database
           const [revenueResult, customerResult, loanResult, transactionResult, accountsCount] = await Promise.all([
-            // Revenue performance - sum of all account balances
-            supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-            // Customer growth - count active customers
-            supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-            // Loan portfolio - sum of outstanding loans
-            supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
-            // Transaction volume
-            supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true }),
-            // Active accounts count
-            supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE')
+            revenueQuery,
+            customerQuery,
+            loanQuery,
+            transactionQuery,
+            accountsQuery
           ]);
 
           const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
@@ -367,18 +428,35 @@ export const WIDGET_CATALOG = {
       icon: TrendingUp,
       type: 'chart',
       chartType: 'area',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get last 6 months of data
           const sixMonthsAgo = new Date();
           sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
           
-          // Fetch monthly transaction volumes
-          const { data: transactions, error } = await supabaseBanking
+          // Build query with filters
+          let query = supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_amount, transaction_date')
+            .select('transaction_amount, transaction_date, branch_id')
             .gte('transaction_date', sixMonthsAgo.toISOString())
             .order('transaction_date', { ascending: true });
+
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+
+          // Customer segment filter removed as transactions table doesn't have customer_id
+          // This would require joining with accounts table to get customer information
+
+          // Override date range if specified
+          if (filters.dateRange && filters.dateRange !== 'all') {
+            const { start, end } = getDateRangeFromFilter(filters.dateRange);
+            query = query.gte('transaction_date', start.toISOString())
+                       .lte('transaction_date', end.toISOString());
+          }
+
+          const { data: transactions, error } = await query;
 
           if (error) throw error;
 
@@ -530,7 +608,8 @@ export const WIDGET_CATALOG = {
       nameEn: 'Profit Margin',
       icon: Percent,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
+        // TODO: Implement actual profit margin calculation with filters
         return {
           value: 34.8,
           change: 2.3,
@@ -545,14 +624,69 @@ export const WIDGET_CATALOG = {
       icon: Building2,
       type: 'chart',
       chartType: 'bar',
-      query: async () => {
-        return [
-          { branch: 'Riyadh Main', revenue: 1850000, customers: 4250 },
-          { branch: 'Jeddah Central', revenue: 1620000, customers: 3800 },
-          { branch: 'Dammam Plaza', revenue: 1450000, customers: 3200 },
-          { branch: 'Makkah Branch', revenue: 980000, customers: 2100 },
-          { branch: 'Madinah Office', revenue: 620000, customers: 1497 }
-        ];
+      query: async (filters = {}) => {
+        try {
+          // Get branch performance data
+          const { data: branches } = await supabaseBanking
+            .from(TABLES.BRANCHES)
+            .select('branch_id, branch_name');
+          
+          const performanceData = [];
+          
+          for (const branch of branches || []) {
+            // Build queries with filters
+            let accountsQuery = supabaseBanking
+              .from(TABLES.ACCOUNTS)
+              .select('current_balance')
+              .eq('branch_id', branch.branch_id)
+              .eq('account_status', 'ACTIVE');
+            
+            let customersQuery = supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('branch_id', branch.branch_id)
+              .eq('is_active', true);
+            
+            // Apply filters
+            if (filters.productType && filters.productType !== 'all') {
+              accountsQuery = accountsQuery.eq('product_type', filters.productType);
+            }
+            
+            if (filters.customerSegment && filters.customerSegment !== 'all') {
+              customersQuery = customersQuery.eq('customer_segment', filters.customerSegment);
+            }
+            
+            const [accountsResult, customersResult] = await Promise.all([
+              accountsQuery,
+              customersQuery
+            ]);
+            
+            const revenue = accountsResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
+            const customers = customersResult.data?.length || 0;
+            
+            performanceData.push({
+              branch: branch.branch_name || `Branch ${branch.branch_id}`,
+              revenue,
+              customers
+            });
+          }
+          
+          // Sort by revenue and take top 5
+          return performanceData
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 5);
+            
+        } catch (error) {
+          console.error('Error fetching branch performance:', error);
+          // Return mock data on error
+          return [
+            { branch: 'Riyadh Main', revenue: 1850000, customers: 4250 },
+            { branch: 'Jeddah Central', revenue: 1620000, customers: 3800 },
+            { branch: 'Dammam Plaza', revenue: 1450000, customers: 3200 },
+            { branch: 'Makkah Branch', revenue: 980000, customers: 2100 },
+            { branch: 'Madinah Office', revenue: 620000, customers: 1497 }
+          ];
+        }
       }
     },
     product_distribution: {
@@ -561,14 +695,65 @@ export const WIDGET_CATALOG = {
       icon: Package,
       type: 'chart',
       chartType: 'pie',
-      query: async () => {
-        return [
-          { name: 'Personal Loans', value: 3500000, fill: '#E6B800' },
-          { name: 'Home Finance', value: 4200000, fill: '#4A5568' },
-          { name: 'Auto Finance', value: 2100000, fill: '#68D391' },
-          { name: 'Credit Cards', value: 1800000, fill: '#63B3ED' },
-          { name: 'Business Loans', value: 2900000, fill: '#F687B3' }
-        ];
+      query: async (filters = {}) => {
+        try {
+          // Get product distribution from loan accounts
+          let query = supabaseBanking
+            .from(TABLES.LOAN_ACCOUNTS)
+            .select('product_type, outstanding_balance, branch_id, customer_id')
+            .eq('loan_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            // Need to join with customers
+            const { data: customers } = await supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('customer_segment', filters.customerSegment);
+            
+            if (customers && customers.length > 0) {
+              const customerIds = customers.map(c => c.customer_id);
+              query = query.in('customer_id', customerIds);
+            }
+          }
+          
+          const { data: loans } = await query;
+          
+          // Group by product type
+          const productGroups = {};
+          loans?.forEach(loan => {
+            const product = loan.product_type || 'Other';
+            if (!productGroups[product]) {
+              productGroups[product] = 0;
+            }
+            productGroups[product] += loan.outstanding_balance || 0;
+          });
+          
+          // Convert to array format with colors
+          const colors = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181'];
+          return Object.entries(productGroups)
+            .map(([name, value], index) => ({
+              name,
+              value,
+              fill: colors[index % colors.length]
+            }))
+            .sort((a, b) => b.value - a.value);
+            
+        } catch (error) {
+          console.error('Error fetching product distribution:', error);
+          // Return mock data on error
+          return [
+            { name: 'Personal Loans', value: 3500000, fill: '#E6B800' },
+            { name: 'Home Finance', value: 4200000, fill: '#4A5568' },
+            { name: 'Auto Finance', value: 2100000, fill: '#68D391' },
+            { name: 'Credit Cards', value: 1800000, fill: '#63B3ED' },
+            { name: 'Business Loans', value: 2900000, fill: '#F687B3' }
+          ];
+        }
       }
     },
     risk_metrics: {
@@ -577,7 +762,8 @@ export const WIDGET_CATALOG = {
       icon: AlertTriangle,
       type: 'chart',
       chartType: 'radialbar',
-      query: async () => {
+      query: async (filters = {}) => {
+        // TODO: Implement actual risk metrics calculation with filters
         return [
           { name: 'Credit Risk', value: 15, fill: '#22c55e' },
           { name: 'Market Risk', value: 22, fill: '#3b82f6' },
@@ -591,7 +777,8 @@ export const WIDGET_CATALOG = {
       nameEn: 'Digital Adoption',
       icon: Zap,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
+        // TODO: Implement with filters
         return {
           value: 78.5,
           change: 15.2,
@@ -754,7 +941,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Daily Transactions',
       icon: Activity,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -762,11 +949,18 @@ export const WIDGET_CATALOG = {
           const tomorrow = new Date(today);
           tomorrow.setDate(tomorrow.getDate() + 1);
           
-          const { count, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.TRANSACTIONS)
             .select('*', { count: 'exact', head: true })
             .gte('transaction_date', today.toISOString())
             .lt('transaction_date', tomorrow.toISOString());
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { count, error } = await query;
           
           console.log('Daily transactions query result:', { count, error, date: today.toISOString() });
           
@@ -963,12 +1157,34 @@ export const WIDGET_CATALOG = {
       nameEn: 'Loan Portfolio',
       icon: Banknote,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
-          const { data, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
-            .select('outstanding_balance')
+            .select('outstanding_balance, branch_id, customer_id')
             .eq('loan_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          // Product type filter removed as loan_accounts table doesn't have product_type column
+          
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            // Need to join with customers
+            const { data: customers } = await supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('customer_segment', filters.customerSegment);
+            
+            if (customers && customers.length > 0) {
+              const customerIds = customers.map(c => c.customer_id);
+              query = query.in('customer_id', customerIds);
+            }
+          }
+          
+          const { data, error } = await query;
           
           if (error) throw error;
           
@@ -994,7 +1210,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'NPL Ratio',
       icon: AlertTriangle,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const { data: totalLoans, error: totalError } = await supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
@@ -1035,16 +1251,38 @@ export const WIDGET_CATALOG = {
       icon: Package,
       type: 'chart',
       chartType: 'bar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
-          const { data, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
             .select(`
               product_id,
               outstanding_balance,
+              branch_id,
+              customer_id,
               products!inner(product_name)
             `)
             .eq('loan_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            // Need to join with customers
+            const { data: customers } = await supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('customer_segment', filters.customerSegment);
+            
+            if (customers && customers.length > 0) {
+              const customerIds = customers.map(c => c.customer_id);
+              query = query.in('customer_id', customerIds);
+            }
+          }
+          
+          const { data, error } = await query;
           
           if (error) throw error;
           
@@ -1074,12 +1312,19 @@ export const WIDGET_CATALOG = {
       nameEn: 'Active Cases',
       icon: Scale,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
-          const { count, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.COLLECTION_CASES)
             .select('*', { count: 'exact', head: true })
             .eq('case_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.collectionStatus && filters.collectionStatus !== 'all') {
+            query = query.eq('case_status', filters.collectionStatus);
+          }
+          
+          const { count, error } = await query;
           
           if (error) throw error;
           
@@ -1103,7 +1348,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Collection Rate',
       icon: Percent,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const startOfMonth = new Date();
           startOfMonth.setDate(1);
@@ -1142,7 +1387,7 @@ export const WIDGET_CATALOG = {
       icon: Timer,
       type: 'chart',
       chartType: 'pie',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const { data, error } = await supabaseBanking
             .from(TABLES.COLLECTION_CASES)
@@ -1189,7 +1434,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Total Customers',
       icon: Users,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get total count of all customers
           const { data: allCustomers, error: totalError } = await supabaseBanking
@@ -1228,7 +1473,7 @@ export const WIDGET_CATALOG = {
       icon: UserCheck,
       type: 'chart',
       chartType: 'pie',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get all customers with their segments
           const { data: customers, error } = await supabaseBanking
@@ -1284,7 +1529,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Risk Score',
       icon: Shield,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const { data: nplLoans, error: nplError } = await supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
@@ -1325,7 +1570,7 @@ export const WIDGET_CATALOG = {
       icon: CheckCircle,
       type: 'chart',
       chartType: 'radialbar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // In a real implementation, this would fetch from compliance tables
           // For now, return static compliance metrics
@@ -1504,7 +1749,7 @@ export const WIDGET_CATALOG = {
       icon: Building2,
       type: 'chart',
       chartType: 'bar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get deposits grouped by branch
           const { data: accounts, error: accountsError } = await supabaseBanking
@@ -1548,7 +1793,7 @@ export const WIDGET_CATALOG = {
       icon: Users,
       type: 'chart',
       chartType: 'composed',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get account creation dates for the last 30 days
           const endDate = new Date();
@@ -2203,13 +2448,40 @@ export default function EnhancedDashboard() {
     console.log('🖱️ Widget clicked:', {
       section: widget.section,
       widget: widget.widget,
-      id: widget.id
+      id: widget.id,
+      filters: filters
     });
     
-    // Navigate to enhanced detail page with widget information
+    // Build query parameters from current filters
+    const queryParams = new URLSearchParams();
+    
+    // Add each filter to query params if it has a value
+    if (filters.branch && filters.branch !== 'all') {
+      queryParams.append('branch', filters.branch);
+    }
+    if (filters.productType && filters.productType !== 'all') {
+      queryParams.append('productType', filters.productType);
+    }
+    if (filters.customerSegment && filters.customerSegment !== 'all') {
+      queryParams.append('customerSegment', filters.customerSegment);
+    }
+    if (filters.dateRange && filters.dateRange !== 'all') {
+      queryParams.append('dateRange', filters.dateRange);
+    }
+    if (filters.riskCategory && filters.riskCategory !== 'all') {
+      queryParams.append('riskCategory', filters.riskCategory);
+    }
+    if (filters.collectionStatus && filters.collectionStatus !== 'all') {
+      queryParams.append('collectionStatus', filters.collectionStatus);
+    }
+    
+    // Navigate to enhanced detail page with widget information and filters
     const detailPath = `/dashboard/detail-new/${widget.section}/${widget.widget}`;
-    console.log('🔗 Navigating to:', detailPath);
-    navigate(detailPath);
+    const queryString = queryParams.toString();
+    const fullPath = queryString ? `${detailPath}?${queryString}` : detailPath;
+    
+    console.log('🔗 Navigating to:', fullPath);
+    navigate(fullPath);
   };
 
   // Export dashboard
