@@ -2823,6 +2823,12 @@
     "loans": "قرض",
     "delinquency": "المتأخرات",
     "activeCases": "الحالات النشطة",
+    "metrics": {
+      "delinquencyRate": "معدل التأخر",
+      "collectionRate": "معدل التحصيل",
+      "avgProductivity": "متوسط الإنتاجية",
+      "ranking": "الترتيب"
+    },
     "overview": "نظرة عامة",
     "officerPerformance": "أداء الأخصائيين",
     "productAnalysis": "تحليل المنتجات",
