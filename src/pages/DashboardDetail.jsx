@@ -1439,10 +1439,10 @@ export default function DashboardDetail() {
                       month: date,
                       revenue: data.trends.revenue[index],
                       customers: data.trends.customers[index],
-                      efficiency: data.trends.efficiency[index],
-                      risk: data.trends.risk[index],
-                      compliance: data.trends.compliance[index],
-                      innovation: data.trends.innovation[index]
+                      transactions: data.trends.transactions[index],
+                      loans: data.trends.loans[index],
+                      accounts: data.trends.accounts[index],
+                      risk: data.trends.risk[index]
                     }))}
                     chartType="line"
                     xAxisKey="month"
