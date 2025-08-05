@@ -7,6 +7,41 @@ const handleError = (error, defaultData = null) => {
   return { data: defaultData, error: error.message };
 };
 
+// Helper function to get date range from filter
+function getDateRangeFromFilter(dateRange) {
+  const now = new Date();
+  switch (dateRange) {
+    case 'today':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+      };
+    case 'week':
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - 7);
+      return { start: weekStart, end: now };
+    case 'month':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      };
+    case 'quarter':
+      const quarterStart = new Date(now);
+      quarterStart.setMonth(now.getMonth() - 3);
+      return { start: quarterStart, end: now };
+    case 'year':
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear(), 11, 31)
+      };
+    default:
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: now
+      };
+  }
+}
+
 // Mock data generators for when database is not available
 const generateMockCustomerData = () => ({
   totalCustomers: 12847,
@@ -668,7 +703,7 @@ export const revenueDetailsService = {
     }
   },
 
-  async getMonthlyRevenueDetails() {
+  async getMonthlyRevenueDetails(filters = {}) {
     try {
       // Get monthly revenue data
       const monthlyData = {};
@@ -682,11 +717,31 @@ export const revenueDetailsService = {
         const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
         const monthName = monthNames[date.getMonth()];
         
-        const { data: transactions } = await supabaseBanking
+        let query = supabaseBanking
           .from(TABLES.TRANSACTIONS)
-          .select('transaction_amount, transaction_type_id')
+          .select('transaction_amount, transaction_type_id, branch_id, customer_id')
           .gte('transaction_date', monthStart.toISOString())
           .lte('transaction_date', monthEnd.toISOString());
+        
+        // Apply filters
+        if (filters.branch) {
+          query = query.eq('branch_id', filters.branch);
+        }
+        
+        if (filters.customerSegment) {
+          // Need to join with customers table
+          const { data: customers } = await supabaseBanking
+            .from(TABLES.CUSTOMERS)
+            .select('customer_id')
+            .eq('customer_segment', filters.customerSegment);
+          
+          if (customers && customers.length > 0) {
+            const customerIds = customers.map(c => c.customer_id);
+            query = query.in('customer_id', customerIds);
+          }
+        }
+        
+        const { data: transactions } = await query;
         
         const revenue = transactions?.reduce((sum, tx) => sum + Math.abs(tx.transaction_amount || 0), 0) || 0;
         const profit = revenue * 0.3; // Estimate 30% profit margin
@@ -1789,7 +1844,7 @@ export const productDetailsService = {
 
 // Chart Widget Details Service
 export const chartDetailsService = {
-  async getDetailsByChartType(chartType, widgetId) {
+  async getDetailsByChartType(chartType, widgetId, filters = {}) {
     // Extract the specific chart type from widget ID
     const parts = widgetId.split('_');
     
@@ -1815,7 +1870,7 @@ export const chartDetailsService = {
         break;
       case 'monthly':
         if (subType === 'revenue') {
-          return this.getMonthlyRevenueDetails();
+          return this.getMonthlyRevenueDetails(filters);
         }
         break;
       case 'customer':
@@ -1832,7 +1887,7 @@ export const chartDetailsService = {
         break;
       case 'performance':
         if (subType === 'radar') {
-          return this.getPerformanceRadarDetails();
+          return this.getPerformanceRadarDetails(filters);
         }
         break;
       case 'transactions':
@@ -2589,20 +2644,49 @@ export const chartDetailsService = {
     }
   },
 
-  async getPerformanceRadarDetails() {
+  async getPerformanceRadarDetails(filters = {}) {
     try {
+      // Build query with filters
+      let revenueQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE');
+      let customerQuery = supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true);
+      let loanQuery = supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE');
+      let transactionQuery = supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true });
+      let accountsQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE');
+
+      // Apply filters
+      if (filters.branch) {
+        revenueQuery = revenueQuery.eq('branch_id', filters.branch);
+        customerQuery = customerQuery.eq('branch_id', filters.branch);
+        loanQuery = loanQuery.eq('branch_id', filters.branch);
+        transactionQuery = transactionQuery.eq('branch_id', filters.branch);
+        accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+      }
+
+      if (filters.productType) {
+        revenueQuery = revenueQuery.eq('product_type', filters.productType);
+        loanQuery = loanQuery.eq('product_type', filters.productType);
+        accountsQuery = accountsQuery.eq('product_type', filters.productType);
+      }
+
+      if (filters.customerSegment) {
+        // Join with customers table for segment filtering
+        revenueQuery = revenueQuery.eq('customer_segment', filters.customerSegment);
+        customerQuery = customerQuery.eq('customer_segment', filters.customerSegment);
+        loanQuery = loanQuery.eq('customer_segment', filters.customerSegment);
+      }
+
+      if (filters.dateRange && filters.dateRange !== 'all') {
+        const { start, end } = getDateRangeFromFilter(filters.dateRange);
+        transactionQuery = transactionQuery.gte('transaction_date', start.toISOString()).lte('transaction_date', end.toISOString());
+      }
+
       // Calculate performance metrics
       const [revenueResult, customerResult, loanResult, transactionResult, accountsCount] = await Promise.all([
-        // Revenue performance - sum of all account balances
-        supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-        // Customer growth - count active customers
-        supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-        // Loan portfolio - sum of outstanding loans
-        supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
-        // Transaction volume
-        supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true }),
-        // Active accounts count
-        supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE')
+        revenueQuery,
+        customerQuery,
+        loanQuery,
+        transactionQuery,
+        accountsQuery
       ]);
 
       const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
@@ -2649,7 +2733,8 @@ export const chartDetailsService = {
         transactionCount,
         activeAccountsCount,
         performanceMetrics,
-        overallScore
+        overallScore,
+        filters
       });
 
       return {
