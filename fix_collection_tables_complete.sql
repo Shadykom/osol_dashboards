@@ -243,6 +243,7 @@ CREATE INDEX IF NOT EXISTS idx_promise_to_pay_case ON kastle_banking.promise_to_
 CREATE INDEX IF NOT EXISTS idx_promise_to_pay_status ON kastle_banking.promise_to_pay(status);
 
 -- Now insert daily collection summary data
+-- Using ON CONFLICT to handle duplicates based on the unique constraint
 INSERT INTO kastle_banking.daily_collection_summary (
     summary_date,
     branch_id,
@@ -288,11 +289,7 @@ FROM generate_series(
 CROSS JOIN (
     SELECT branch_id FROM kastle_banking.branches WHERE is_active = true LIMIT 4
 ) AS branch
-WHERE NOT EXISTS (
-    SELECT 1 FROM kastle_banking.daily_collection_summary 
-    WHERE summary_date = date_series.date::DATE 
-    AND branch_id = branch.branch_id
-);
+ON CONFLICT (summary_date) DO NOTHING;
 
 -- Grant permissions
 GRANT ALL ON kastle_banking.collection_interactions TO authenticated;

@@ -86,11 +86,7 @@ FROM generate_series(
 CROSS JOIN (
     SELECT branch_id FROM kastle_banking.branches WHERE is_active = true LIMIT 4
 ) AS branch
-WHERE NOT EXISTS (
-    SELECT 1 FROM kastle_banking.daily_collection_summary 
-    WHERE summary_date = date_series.date::DATE 
-    AND branch_id = branch.branch_id
-);
+ON CONFLICT (summary_date) DO NOTHING;
 
 -- Also add some historical data for the previous month
 INSERT INTO kastle_banking.daily_collection_summary (
@@ -138,8 +134,4 @@ FROM generate_series(
 CROSS JOIN (
     SELECT branch_id FROM kastle_banking.branches WHERE is_active = true LIMIT 4
 ) AS branch
-WHERE NOT EXISTS (
-    SELECT 1 FROM kastle_banking.daily_collection_summary 
-    WHERE summary_date = date_series.date::DATE 
-    AND branch_id = branch.branch_id
-);
+ON CONFLICT (summary_date) DO NOTHING;
