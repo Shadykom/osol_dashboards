@@ -356,11 +356,11 @@ const BranchReport = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="central">{t('branchReport.regions.central')}</SelectItem>
-                      <SelectItem value="eastern">{t('branchReport.regions.eastern')}</SelectItem>
-                      <SelectItem value="western">{t('branchReport.regions.western')}</SelectItem>
-                      <SelectItem value="northern">{t('branchReport.regions.northern')}</SelectItem>
-                      <SelectItem value="southern">{t('branchReport.regions.southern')}</SelectItem>
+                      <SelectItem value="Central">{t('branchReport.regions.central')}</SelectItem>
+                      <SelectItem value="Eastern">{t('branchReport.regions.eastern')}</SelectItem>
+                      <SelectItem value="Western">{t('branchReport.regions.western')}</SelectItem>
+                      <SelectItem value="Northern">{t('branchReport.regions.northern')}</SelectItem>
+                      <SelectItem value="Southern">{t('branchReport.regions.southern')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -463,10 +463,11 @@ const BranchReport = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="main">{t('branchTypes.main')}</SelectItem>
-                      <SelectItem value="sub">{t('branchTypes.sub')}</SelectItem>
-                      <SelectItem value="digital">{t('branchTypes.digital')}</SelectItem>
-                      <SelectItem value="kiosk">{t('branchTypes.kiosk')}</SelectItem>
+                      <SelectItem value="HEAD_OFFICE">{t('branchTypes.headOffice')}</SelectItem>
+                      <SelectItem value="MAIN">{t('branchTypes.main')}</SelectItem>
+                      <SelectItem value="SUB">{t('branchTypes.sub')}</SelectItem>
+                      <SelectItem value="RURAL">{t('branchTypes.rural')}</SelectItem>
+                      <SelectItem value="URBAN">{t('branchTypes.urban')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

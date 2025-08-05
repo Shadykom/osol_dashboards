@@ -5,83 +5,83 @@ export const BranchReportService = {
   // Get branch summary with filters
   async getBranchSummary(filters = {}) {
     try {
+      // Use the branch_summary_view for better performance
       let query = supabase
-        .from('branches')
-        .select(`
-          *,
-          branch_performance (
-            performance_score,
-            total_collection,
-            collection_target,
-            resolved_cases,
-            total_cases,
-            active_officers
-          ),
-          officers (count)
-        `);
+        .from('branch_summary_view')
+        .select('*');
 
       // Apply filters
       if (filters.region && filters.region !== 'all') {
         query = query.eq('region', filters.region);
       }
+      
       if (filters.branchType && filters.branchType !== 'all') {
-        query = query.eq('type', filters.branchType);
+        query = query.eq('branch_type', filters.branchType.toUpperCase());
       }
+
       if (filters.performanceLevel && filters.performanceLevel !== 'all') {
-        // Apply performance level filter based on score ranges
         switch (filters.performanceLevel) {
           case 'excellent':
-            query = query.gte('branch_performance.performance_score', 90);
+            query = query.gte('performance_score', 90);
             break;
           case 'good':
-            query = query.gte('branch_performance.performance_score', 70)
-                         .lt('branch_performance.performance_score', 90);
+            query = query.gte('performance_score', 70).lt('performance_score', 90);
             break;
           case 'average':
-            query = query.gte('branch_performance.performance_score', 50)
-                         .lt('branch_performance.performance_score', 70);
+            query = query.gte('performance_score', 50).lt('performance_score', 70);
             break;
           case 'poor':
-            query = query.lt('branch_performance.performance_score', 50);
+            query = query.lt('performance_score', 50);
             break;
         }
       }
 
-      const { data, error } = await query;
+      // Apply date filter if needed
+      if (filters.dateRange && filters.dateRange !== 'all') {
+        const dateFilter = this.getDateFilter(filters.dateRange, filters.customDateRange);
+        if (dateFilter.startDate && dateFilter.endDate) {
+          query = query
+            .gte('performance_date', dateFilter.startDate)
+            .lte('performance_date', dateFilter.endDate);
+        }
+      }
 
+      const { data: branches, error } = await query;
       if (error) throw error;
 
       // Transform data to match expected format
-      const branches = data?.map(branch => ({
-        id: branch.id,
-        name: branch.name,
-        code: branch.code,
-        region: branch.region,
-        type: branch.type,
+      const transformedBranches = branches?.map(branch => ({
+        id: branch.branch_id,
+        name: branch.branch_name,
+        code: branch.branch_id,
+        region: branch.region || 'Unknown',
+        type: branch.branch_type,
         isActive: branch.is_active,
-        manager: branch.manager_name,
+        manager: branch.manager_id,
         phone: branch.phone,
         email: branch.email,
         address: branch.address,
-        totalCollection: branch.branch_performance?.[0]?.total_collection || 0,
-        collectionTarget: branch.branch_performance?.[0]?.collection_target || 0,
-        performanceScore: branch.branch_performance?.[0]?.performance_score || 0,
-        totalCases: branch.branch_performance?.[0]?.total_cases || 0,
-        resolvedCases: branch.branch_performance?.[0]?.resolved_cases || 0,
-        activeOfficers: branch.branch_performance?.[0]?.active_officers || 0,
-        totalOfficers: branch.officers?.[0]?.count || 0
+        totalCollection: branch.total_collected || 0,
+        collectionTarget: branch.total_outstanding || 0,
+        performanceScore: branch.performance_score || 0,
+        totalCases: branch.total_cases || 0,
+        resolvedCases: branch.resolved_cases || 0,
+        activeOfficers: branch.active_officers_count || 0,
+        totalOfficers: branch.total_officers || 0
       })) || [];
 
       // Calculate summary statistics
       const summary = {
-        totalBranches: branches.length,
-        totalCollection: branches.reduce((sum, b) => sum + b.totalCollection, 0),
-        avgPerformance: branches.reduce((sum, b) => sum + b.performanceScore, 0) / branches.length || 0,
-        totalOfficers: branches.reduce((sum, b) => sum + b.totalOfficers, 0),
-        activeBranches: branches.filter(b => b.isActive).length
+        totalBranches: transformedBranches.length,
+        totalCollection: transformedBranches.reduce((sum, b) => sum + b.totalCollection, 0),
+        avgPerformance: transformedBranches.length > 0 
+          ? transformedBranches.reduce((sum, b) => sum + b.performanceScore, 0) / transformedBranches.length 
+          : 0,
+        totalOfficers: transformedBranches.reduce((sum, b) => sum + b.totalOfficers, 0),
+        activeBranches: transformedBranches.filter(b => b.isActive).length
       };
 
-      return { branches, summary };
+      return { branches: transformedBranches, summary };
     } catch (error) {
       console.error('Error fetching branch summary:', error);
       // Return mock data for development
@@ -101,49 +101,48 @@ export const BranchReportService = {
   // Get detailed branch information
   async getBranchDetails(branchId) {
     try {
-      const { data, error } = await supabase
-        .from('branches')
-        .select(`
-          *,
-          branch_performance (
-            performance_score,
-            total_collection,
-            collection_target,
-            resolved_cases,
-            total_cases,
-            active_officers,
-            today_collection,
-            week_collection,
-            month_collection,
-            year_collection
-          )
-        `)
-        .eq('id', branchId)
+      // Get branch details from summary view
+      const { data: branch, error: branchError } = await supabase
+        .from('branch_summary_view')
+        .select('*')
+        .eq('branch_id', branchId)
         .single();
 
-      if (error) throw error;
+      if (branchError) throw branchError;
+
+      // Get collection trends for different periods
+      const { data: trends, error: trendsError } = await supabase
+        .from('branch_collection_trends')
+        .select('*')
+        .eq('branch_id', branchId)
+        .order('performance_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (trendsError && trendsError.code !== 'PGRST116') throw trendsError;
 
       return {
-        id: data.id,
-        name: data.name,
-        code: data.code,
-        region: data.region,
-        type: data.type,
-        isActive: data.is_active,
-        manager: data.manager_name,
-        phone: data.phone,
-        email: data.email,
-        address: data.address,
-        totalCollection: data.branch_performance?.[0]?.total_collection || 0,
-        collectionTarget: data.branch_performance?.[0]?.collection_target || 0,
-        performanceScore: data.branch_performance?.[0]?.performance_score || 0,
-        totalCases: data.branch_performance?.[0]?.total_cases || 0,
-        resolvedCases: data.branch_performance?.[0]?.resolved_cases || 0,
-        activeOfficers: data.branch_performance?.[0]?.active_officers || 0,
-        todayCollection: data.branch_performance?.[0]?.today_collection || 0,
-        weekCollection: data.branch_performance?.[0]?.week_collection || 0,
-        monthCollection: data.branch_performance?.[0]?.month_collection || 0,
-        yearCollection: data.branch_performance?.[0]?.year_collection || 0
+        id: branch.branch_id,
+        name: branch.branch_name,
+        code: branch.branch_id,
+        region: branch.region || 'Unknown',
+        type: branch.branch_type,
+        isActive: branch.is_active,
+        manager: branch.manager_id,
+        phone: branch.phone,
+        email: branch.email,
+        address: branch.address,
+        totalCollection: branch.total_collected || 0,
+        collectionTarget: branch.total_outstanding || 0,
+        performanceScore: branch.performance_score || 0,
+        totalCases: branch.total_cases || 0,
+        resolvedCases: branch.resolved_cases || 0,
+        activeOfficers: branch.active_officers_count || 0,
+        totalOfficers: branch.total_officers || 0,
+        todayCollection: trends?.daily_collection || 0,
+        weekCollection: trends?.week_collection || 0,
+        monthCollection: trends?.month_collection || 0,
+        yearCollection: trends?.year_collection || 0
       };
     } catch (error) {
       console.error('Error fetching branch details:', error);
@@ -155,58 +154,24 @@ export const BranchReportService = {
   // Get branch performance data
   async getBranchPerformance(branchId, dateRange) {
     try {
-      let startDate, endDate;
-      const now = new Date();
-
-      // Calculate date range
-      switch (dateRange) {
-        case 'today':
-          startDate = new Date(now.setHours(0, 0, 0, 0));
-          endDate = new Date(now.setHours(23, 59, 59, 999));
-          break;
-        case 'yesterday':
-          startDate = new Date(now.setDate(now.getDate() - 1));
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(startDate);
-          endDate.setHours(23, 59, 59, 999);
-          break;
-        case 'last_7_days':
-          startDate = new Date(now.setDate(now.getDate() - 7));
-          endDate = new Date();
-          break;
-        case 'current_month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-          break;
-        case 'last_month':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          endDate = new Date(now.getFullYear(), now.getMonth(), 0);
-          break;
-        case 'last_3_months':
-          startDate = new Date(now.setMonth(now.getMonth() - 3));
-          endDate = new Date();
-          break;
-        default:
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          endDate = new Date();
-      }
-
+      const dateFilter = this.getDateFilter(dateRange);
+      
       const { data, error } = await supabase
-        .from('branch_performance_history')
+        .from('branch_collection_performance')
         .select('*')
         .eq('branch_id', branchId)
-        .gte('date', startDate.toISOString())
-        .lte('date', endDate.toISOString())
-        .order('date', { ascending: true });
+        .gte('performance_date', dateFilter.startDate)
+        .lte('performance_date', dateFilter.endDate)
+        .order('performance_date', { ascending: true });
 
       if (error) throw error;
 
       return data?.map(record => ({
-        date: record.date,
-        value: record.collection_amount,
-        target: record.collection_target,
-        cases: record.cases_handled,
-        performance: record.performance_score
+        date: record.performance_date,
+        value: record.total_collected || 0,
+        target: record.total_outstanding || 0,
+        cases: record.total_cases || 0,
+        performance: record.collection_rate || 0
       })) || [];
     } catch (error) {
       console.error('Error fetching branch performance:', error);
@@ -218,42 +183,43 @@ export const BranchReportService = {
   // Get branch officers
   async getBranchOfficers(branchId) {
     try {
-      const { data, error } = await supabase
-        .from('officers')
-        .select(`
-          *,
-          officer_performance (
-            total_collection,
-            total_cases,
-            active_cases,
-            performance_score,
-            efficiency,
-            avg_response_time,
-            customer_satisfaction
-          )
-        `)
+      // Get officers with performance data from view
+      const { data: officers, error } = await supabase
+        .from('branch_officer_performance')
+        .select('*')
         .eq('branch_id', branchId)
-        .order('officer_performance.performance_score', { ascending: false });
+        .order('performance_score', { ascending: false });
 
       if (error) throw error;
 
-      return data?.map(officer => ({
-        id: officer.id,
-        name: officer.name,
-        employeeId: officer.employee_id,
-        role: officer.role,
+      // Group by officer to get latest performance
+      const officerMap = new Map();
+      officers?.forEach(record => {
+        const existingOfficer = officerMap.get(record.officer_id);
+        if (!existingOfficer || (record.summary_date && (!existingOfficer.summary_date || record.summary_date > existingOfficer.summary_date))) {
+          officerMap.set(record.officer_id, record);
+        }
+      });
+
+      const uniqueOfficers = Array.from(officerMap.values());
+
+      return uniqueOfficers.map(officer => ({
+        id: officer.officer_id,
+        name: officer.officer_name,
+        employeeId: officer.officer_id,
+        role: officer.role || 'Collection Officer',
         email: officer.email,
         phone: officer.phone,
-        avatar: officer.avatar_url,
-        status: officer.status,
-        totalCollection: officer.officer_performance?.[0]?.total_collection || 0,
-        totalCases: officer.officer_performance?.[0]?.total_cases || 0,
-        activeCases: officer.officer_performance?.[0]?.active_cases || 0,
-        performanceScore: officer.officer_performance?.[0]?.performance_score || 0,
-        efficiency: officer.officer_performance?.[0]?.efficiency || 0,
-        avgResponseTime: officer.officer_performance?.[0]?.avg_response_time || 0,
-        customerSatisfaction: officer.officer_performance?.[0]?.customer_satisfaction || 0
-      })) || [];
+        avatar: null,
+        status: officer.is_active ? 'active' : 'inactive',
+        totalCollection: officer.total_collected || 0,
+        totalCases: officer.total_cases || 0,
+        activeCases: officer.active_cases || 0,
+        performanceScore: officer.performance_score || 0,
+        efficiency: officer.success_rate || 0,
+        avgResponseTime: 24, // Mock data
+        customerSatisfaction: 85 // Mock data
+      }));
     } catch (error) {
       console.error('Error fetching branch officers:', error);
       // Return mock data for development
@@ -264,21 +230,79 @@ export const BranchReportService = {
   // Get branch collection data
   async getBranchCollectionData(branchId, dateRange) {
     try {
-      // Similar date range calculation as getBranchPerformance
+      const dateFilter = this.getDateFilter(dateRange);
+      
       const { data, error } = await supabase
-        .from('collection_data')
+        .from('branch_collection_performance')
         .select('*')
         .eq('branch_id', branchId)
-        .order('collection_date', { ascending: false });
+        .gte('performance_date', dateFilter.startDate)
+        .lte('performance_date', dateFilter.endDate)
+        .order('performance_date', { ascending: false });
 
       if (error) throw error;
 
-      return data || [];
+      return data?.map(record => ({
+        date: record.performance_date,
+        amount: record.total_collected || 0,
+        cases: record.total_cases || 0,
+        calls: record.total_calls || 0,
+        visits: 0 // Not available in current schema
+      })) || [];
     } catch (error) {
       console.error('Error fetching collection data:', error);
       // Return mock data for development
       return generateMockCollectionData();
     }
+  },
+
+  // Helper function to get date filter
+  getDateFilter(dateRange, customDateRange) {
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (dateRange) {
+      case 'today':
+        startDate = new Date(now.setHours(0, 0, 0, 0)).toISOString().split('T')[0];
+        endDate = new Date(now.setHours(23, 59, 59, 999)).toISOString().split('T')[0];
+        break;
+      case 'yesterday':
+        const yesterday = new Date(now.setDate(now.getDate() - 1));
+        startDate = yesterday.toISOString().split('T')[0];
+        endDate = startDate;
+        break;
+      case 'last_7_days':
+        startDate = new Date(now.setDate(now.getDate() - 7)).toISOString().split('T')[0];
+        endDate = new Date().toISOString().split('T')[0];
+        break;
+      case 'current_month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        break;
+      case 'last_month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+        break;
+      case 'last_3_months':
+        startDate = new Date(now.setMonth(now.getMonth() - 3)).toISOString().split('T')[0];
+        endDate = new Date().toISOString().split('T')[0];
+        break;
+      case 'custom':
+        if (customDateRange?.from && customDateRange?.to) {
+          startDate = customDateRange.from;
+          endDate = customDateRange.to;
+        } else {
+          // Default to current month
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+          endDate = new Date().toISOString().split('T')[0];
+        }
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        endDate = new Date().toISOString().split('T')[0];
+    }
+
+    return { startDate, endDate };
   },
 
   // Export branch report
