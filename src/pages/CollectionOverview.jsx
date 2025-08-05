@@ -118,14 +118,25 @@ const CollectionOverview = () => {
   };
 
   const handleCardClick = (cardType, data) => {
-    // Navigate to detail page with card data
-    navigate(`/collection/detail/${cardType}`, { 
-      state: { 
-        cardData: data,
-        filters,
-        period: selectedPeriod 
-      } 
-    });
+    // Navigate to appropriate page based on card type
+    if (cardType === 'total-cases') {
+      // Navigate to cases list page
+      navigate('/collection/cases', { 
+        state: { 
+          filters,
+          period: selectedPeriod 
+        } 
+      });
+    } else {
+      // Navigate to detail page with card data
+      navigate(`/collection/detail/${cardType}`, { 
+        state: { 
+          cardData: data,
+          filters,
+          period: selectedPeriod 
+        } 
+      });
+    }
   };
 
   const formatCurrency = (amount) => {
