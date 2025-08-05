@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +59,7 @@ const TableCell = ({ children, className = "" }) => (
 const CollectionCases = () => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
+  const navigate = useNavigate();
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDetails, setCaseDetails] = useState(null);
@@ -430,12 +432,21 @@ const CollectionCases = () => {
                     </TableCell>
                     <TableCell>
                       <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => navigate(`/collection/cases/${caseItem.caseId}`)}
+                          title={t('collectionCases.viewFullDetails')}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => handleViewCase(caseItem)}
+                              title={t('collectionCases.quickView')}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
