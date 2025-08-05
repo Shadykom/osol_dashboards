@@ -719,26 +719,13 @@ export const revenueDetailsService = {
         
         let query = supabaseBanking
           .from(TABLES.TRANSACTIONS)
-          .select('transaction_amount, transaction_type_id, branch_id, customer_id')
+          .select('transaction_amount, transaction_type_id, branch_id')
           .gte('transaction_date', monthStart.toISOString())
           .lte('transaction_date', monthEnd.toISOString());
         
         // Apply filters
         if (filters.branch) {
           query = query.eq('branch_id', filters.branch);
-        }
-        
-        if (filters.customerSegment) {
-          // Need to join with customers table
-          const { data: customers } = await supabaseBanking
-            .from(TABLES.CUSTOMERS)
-            .select('customer_id')
-            .eq('customer_segment', filters.customerSegment);
-          
-          if (customers && customers.length > 0) {
-            const customerIds = customers.map(c => c.customer_id);
-            query = query.in('customer_id', customerIds);
-          }
         }
         
         const { data: transactions } = await query;
