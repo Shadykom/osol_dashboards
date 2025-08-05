@@ -1054,7 +1054,7 @@ const BranchLevelReport = () => {
                     <Alert className="mb-4">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        <strong>{t('branchReport.warning')}:</strong> {reportData.summary?.overdueLoans} {t('branchReport.loansInDelay'},
+                        <strong>{t('branchReport.warning')}:</strong> {reportData.summary?.overdueLoans} {t('branchReport.loansInDelay')},
                         {reportData.delinquencyDistribution?.find(d => d.bucket === '61-90')?.count || 0} {t('branchReport.loansInCriticalPhase')}(61-90 {t('common.days')}) {t('branchReport.requireImmediateIntervention')}
                       </AlertDescription>
                     </Alert>
@@ -1340,7 +1340,7 @@ const BranchLevelReport = () => {
                 </Card>
               </TabsContent>
             </Tabs>
-          </div>
+          </>
         )}
 
         {/* Officer Details Dialog */}
