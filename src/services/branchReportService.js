@@ -25,6 +25,41 @@ function formatApiResponse(data, error = null, pagination = null) {
   };
 }
 
+// Helper to determine the date column name used in branch_collection_performance
+let dateColumnName = null;
+async function getDateColumnName() {
+  if (dateColumnName) return dateColumnName;
+  
+  try {
+    // Try to query with different column names to see which one works
+    const possibleColumns = ['performance_date', 'report_date', 'date'];
+    
+    for (const colName of possibleColumns) {
+      try {
+        const { data, error } = await supabaseBanking
+          .from(TABLES.BRANCH_COLLECTION_PERFORMANCE || 'branch_collection_performance')
+          .select(colName)
+          .limit(1);
+        
+        if (!error) {
+          dateColumnName = colName;
+          console.log(`Branch performance table uses date column: ${colName}`);
+          return colName;
+        }
+      } catch (e) {
+        // Continue to next column
+      }
+    }
+    
+    // Default to performance_date if none work
+    dateColumnName = 'performance_date';
+    return dateColumnName;
+  } catch (error) {
+    console.error('Error determining date column:', error);
+    return 'performance_date';
+  }
+}
+
 export class BranchReportService {
   /**
    * Get all branches
