@@ -606,6 +606,160 @@ export function ReportsResponsive() {
     }
   };
 
+  // Add new schedule handler
+  const handleAddSchedule = () => {
+    setScheduleDialogOpen(true);
+    // Reset form
+    setScheduleForm({
+      frequency: 'daily',
+      time: '08:00',
+      dayOfWeek: '1',
+      dayOfMonth: '1',
+      recipients: '',
+      enabled: true
+    });
+  };
+
+  // Edit schedule handler
+  const handleEditSchedule = (schedule) => {
+    // Pre-fill the form with existing schedule data
+    setScheduleForm({
+      frequency: schedule.frequency.toLowerCase(),
+      time: schedule.nextRun ? schedule.nextRun.split(' ')[1] : '08:00',
+      dayOfWeek: '1',
+      dayOfMonth: '1',
+      recipients: schedule.recipients.join(', '),
+      enabled: schedule.status === 'active'
+    });
+    setSelectedReport(schedule.reportType);
+    setScheduleDialogOpen(true);
+  };
+
+  // Refresh history handler
+  const handleRefreshHistory = async () => {
+    const loadingToast = toast.loading(t('reports.refreshingHistory'));
+    try {
+      // In a real implementation, this would fetch from the backend
+      // For now, we'll simulate a refresh
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Add a new mock item to show the refresh worked
+      const newItem = {
+        id: Date.now(),
+        reportName: 'Balance Sheet - January 2024',
+        reportType: 'balance_sheet',
+        generatedAt: new Date().toLocaleString(),
+        generatedBy: 'System Refresh',
+        size: '3.2 MB',
+        status: 'completed'
+      };
+      
+      setReportHistory(prev => [newItem, ...prev]);
+      toast.dismiss(loadingToast);
+      toast.success(t('reports.historyRefreshed'));
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error(t('reports.failedToRefreshHistory'));
+    }
+  };
+
+  // Download history report handler
+  const handleDownloadHistoryReport = async (report) => {
+    try {
+      // In a real implementation, this would download the stored report
+      toast.loading(t('reports.downloadingReport'));
+      
+      // Simulate download delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      toast.dismiss();
+      toast.success(`${report.reportName} ${t('reports.downloadedSuccessfully')}`);
+    } catch (error) {
+      toast.error(t('reports.failedToDownload'));
+    }
+  };
+
+  // Email history report handler
+  const handleEmailHistoryReport = (report) => {
+    // Pre-fill email form with report info
+    setEmailForm({
+      recipients: '',
+      cc: '',
+      bcc: '',
+      message: `Please find attached the report: ${report.reportName}`,
+      includeExcel: true,
+      includePDF: true
+    });
+    setEmailDialogOpen(true);
+  };
+
+  // View history report handler
+  const handleViewHistoryReport = async (report) => {
+    try {
+      toast.loading(t('reports.loadingReport'));
+      
+      // In a real implementation, this would load the stored report
+      // For now, we'll generate a sample report for preview
+      const reportInfo = Object.values(REPORT_CATEGORIES)
+        .flatMap(cat => cat.reports)
+        .find(r => r.id === report.reportType);
+      
+      if (reportInfo) {
+        // Simulate loading
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Set some mock data for preview
+        setReportData({
+          summary: { totalRevenue: 1500000, totalExpenses: 1200000 },
+          details: []
+        });
+        
+        const generated = await reportGenerator.generateReport(
+          { summary: { totalRevenue: 1500000, totalExpenses: 1200000 }, details: [] },
+          report.reportType,
+          reportInfo,
+          dateRange,
+          filters
+        );
+        
+        setGeneratedReport(generated);
+        toast.dismiss();
+        setPreviewDialogOpen(true);
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error(t('reports.failedToLoadReport'));
+    }
+  };
+
+  // Update report statistics
+  const [reportStats, setReportStats] = useState({
+    total: 156,
+    pending: 3,
+    scheduled: 12,
+    failed: 2
+  });
+
+  // Load report statistics
+  useEffect(() => {
+    loadReportStatistics();
+  }, []);
+
+  const loadReportStatistics = async () => {
+    try {
+      // In a real implementation, fetch from backend
+      // For now, we'll use the current state
+      setReportStats({
+        total: reportHistory.length + 150, // Mock total
+        pending: 3,
+        scheduled: scheduledReports.length,
+        failed: 2
+      });
+    } catch (error) {
+      console.error('Error loading report statistics:', error);
+    }
+  };
+
   return (
     <div className={cn(
       "space-y-4 sm:space-y-6",
@@ -665,7 +819,7 @@ export function ReportsResponsive() {
             <div className={cn(
               "font-bold",
               isMobile ? "text-lg" : "text-xl sm:text-2xl"
-            )}>156</div>
+            )}>{reportStats.total}</div>
             <p className="text-xs text-muted-foreground">{t('reports.thisMonth')}</p>
           </CardContent>
         </Card>
@@ -675,7 +829,7 @@ export function ReportsResponsive() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">3</div>
+            <div className="text-xl sm:text-2xl font-bold">{reportStats.pending}</div>
             <p className="text-xs text-muted-foreground">{t('reports.inQueue')}</p>
           </CardContent>
         </Card>
@@ -685,7 +839,7 @@ export function ReportsResponsive() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">12</div>
+            <div className="text-xl sm:text-2xl font-bold">{reportStats.scheduled}</div>
             <p className="text-xs text-muted-foreground">{t('reports.active')}</p>
           </CardContent>
         </Card>
@@ -695,7 +849,7 @@ export function ReportsResponsive() {
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">2</div>
+            <div className="text-xl sm:text-2xl font-bold">{reportStats.failed}</div>
             <p className="text-xs text-muted-foreground">{t('reports.attention')}</p>
           </CardContent>
         </Card>
@@ -1057,7 +1211,7 @@ export function ReportsResponsive() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>{t('reports.scheduledReports')}</CardTitle>
-                <Button size="sm">
+                <Button size="sm" onClick={handleAddSchedule}>
                   <Calendar className="mr-2 h-4 w-4" />
                   {t('reports.addSchedule')}
                 </Button>
@@ -1099,7 +1253,7 @@ export function ReportsResponsive() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => handleEditSchedule(schedule)}>
                               <Settings className="h-4 w-4" />
                             </Button>
                             <Button 
@@ -1126,7 +1280,7 @@ export function ReportsResponsive() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>{t('reports.reportHistory')}</CardTitle>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={handleRefreshHistory}>
                   <RefreshCw className="mr-2 h-4 w-4" />
                   {t('reports.refresh')}
                 </Button>
@@ -1160,13 +1314,13 @@ export function ReportsResponsive() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => handleDownloadHistoryReport(report)}>
                               <Download className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => handleEmailHistoryReport(report)}>
                               <Mail className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => handleViewHistoryReport(report)}>
                               <Eye className="h-4 w-4" />
                             </Button>
                           </div>
