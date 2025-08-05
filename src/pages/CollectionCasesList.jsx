@@ -255,6 +255,8 @@ const CollectionCasesList = () => {
                   <SelectItem value="JEDDAH">Jeddah</SelectItem>
                   <SelectItem value="DAMMAM">Dammam</SelectItem>
                   <SelectItem value="KHOBAR">Khobar</SelectItem>
+                  <SelectItem value="MAKKAH">Makkah</SelectItem>
+                  <SelectItem value="MADINAH">Madinah</SelectItem>
                 </SelectContent>
               </Select>
 
