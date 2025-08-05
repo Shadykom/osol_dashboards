@@ -973,6 +973,8 @@
       "allBranches": "All Branches",
       "allCategories": "All Categories",
       "current": "Current",
+      "days": "days",
+      "moreThan90": "90+ days",
       "days1_30": "1-30 Days",
       "days31_60": "31-60 Days",
       "days61_90": "61-90 Days",
