@@ -41,6 +41,7 @@ import DatabaseTest from './pages/DatabaseTest';
 import DiagnosticPage from './pages/DiagnosticPage';
 import DatabaseDiagnostic from './pages/DatabaseDiagnostic';
 import BranchReportPage from '@/pages/collection/BranchReport';
+import BranchReportDetail from '@/pages/collection/BranchReportDetail';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
 import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
@@ -379,6 +380,7 @@ function AppContent() {
           <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
           <Route path="/collection/specialist" element={<SpecialistCollectionDashboard />} />
           <Route path="/collection/branch-report" element={<BranchReportPage />} />
+          <Route path="/collection/branch-report/:branchId" element={<BranchReportDetail />} />
           <Route path="/collection/product-report" element={<ProductReportPage />} />
             {/* Legacy URL Redirects (backwards compatibility) */}
           <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
