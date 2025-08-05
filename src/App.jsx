@@ -9,6 +9,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Import test utility for debugging
 import './utils/testCustomerCount';
+import './utils/objectRenderingDiagnostic';
 
 import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
@@ -57,6 +58,7 @@ import ReportsHealthCheck from './pages/ReportsHealthCheck';
 import TestDashboardRouting from './pages/TestDashboardRouting';
 import TestDashboardDetailNew from './pages/TestDashboardDetailNew';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ObjectRenderingFixProvider } from './contexts/ObjectRenderingFixContext';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -153,13 +155,15 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <FilterProvider>
-        <Router>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
-        </Router>
-      </FilterProvider>
+      <ObjectRenderingFixProvider>
+        <FilterProvider>
+          <Router>
+            <AuthProvider>
+              <AppContent />
+            </AuthProvider>
+          </Router>
+        </FilterProvider>
+      </ObjectRenderingFixProvider>
     </ErrorBoundary>
   );
 }
