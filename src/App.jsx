@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import ModernLayout from './components/layout/ModernLayout';
 import { FilterProvider } from './contexts/FilterContext';
 import { RTLWrapper } from './components/ui/rtl-wrapper';
+import { AuthProvider } from './contexts/AuthContext';
+import Login from './pages/Login';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Import test utility for debugging
 import './utils/testCustomerCount';
@@ -151,7 +154,9 @@ function App() {
     <ErrorBoundary>
       <FilterProvider>
         <Router>
-          <AppContent />
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
         </Router>
       </FilterProvider>
     </ErrorBoundary>
@@ -271,7 +276,15 @@ function AppContent() {
     <RTLWrapper className="app min-h-screen">
       <RouteRedirect />
       <Routes>
-        <Route element={<ModernLayout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} isMobile={isMobile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />}>
+        {/* Login Route - Not Protected */}
+        <Route path="/login" element={<Login />} />
+        
+        {/* Protected Routes */}
+        <Route element={
+          <ProtectedRoute>
+            <ModernLayout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} isMobile={isMobile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
+          </ProtectedRoute>
+        }>
           {/* Main Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />

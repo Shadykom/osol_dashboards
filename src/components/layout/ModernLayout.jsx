@@ -1,12 +1,13 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SidebarProvider, useSidebar } from '../../contexts/SidebarContext';
 import ModernSidebar from './ModernSidebar';
 import ErrorBoundaryWrapper from './ErrorBoundaryWrapper';
-import { Menu, Bell, Search, User, Globe, Moon, Sun } from 'lucide-react';
+import { Menu, Bell, Search, User, Globe, Moon, Sun, LogOut } from 'lucide-react';
 import { RTLWrapper, RTLFlex, useRTLClasses } from '../ui/rtl-wrapper';
 import { cn } from '@/lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Language Switcher Component
 const LanguageSwitcher = () => {
@@ -37,6 +38,22 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
   const { i18n, t, ready } = useTranslation('translation');
   const { toggleSidebar } = useSidebar();
   const { isRTL, marginStart, marginEnd } = useRTLClasses();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [showUserMenu, setShowUserMenu] = React.useState(false);
+  const userMenuRef = React.useRef(null);
+
+  // Close user menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!ready) {
     return null;
@@ -110,14 +127,42 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
           </button>
 
           {/* User menu */}
-          <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            </div>
-            <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t('common.adminUser')}
-            </span>
-          </button>
+          <div className="relative" ref={userMenuRef}>
+            <button 
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </div>
+              <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {user?.full_name || user?.email || t('common.adminUser')}
+              </span>
+            </button>
+            
+            {/* User dropdown menu */}
+            {showUserMenu && (
+              <div className={cn(
+                "absolute top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1",
+                isRTL ? "left-0" : "right-0"
+              )}>
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user?.full_name || 'User'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    await signOut();
+                    navigate('/login');
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  {t('common.logout', 'Logout')}
+                </button>
+              </div>
+            )}
+          </div>
         </RTLFlex>
       </div>
     </header>
