@@ -12,6 +12,104 @@ export const useAuth = () => {
   return context;
 };
 
+// Mock users data (in production, this would come from the database)
+const MOCK_USERS = [
+  {
+    id: '1',
+    email: 'admin@osol.sa',
+    password: 'Password123!',
+    full_name: 'Admin User',
+    department: 'IT',
+    position: 'System Administrator',
+    roles: ['admin'],
+    is_active: true,
+    is_verified: true
+  },
+  {
+    id: '2',
+    email: 'manager@osol.sa',
+    password: 'Password123!',
+    full_name: 'Manager User',
+    department: 'Operations',
+    position: 'Operations Manager',
+    roles: ['manager'],
+    is_active: true,
+    is_verified: true
+  },
+  {
+    id: '3',
+    email: 'supervisor1@osol.sa',
+    password: 'Password123!',
+    full_name: 'Supervisor One',
+    department: 'Collections',
+    position: 'Collection Supervisor',
+    roles: ['supervisor'],
+    is_active: true,
+    is_verified: true
+  },
+  {
+    id: '4',
+    email: 'officer1@osol.sa',
+    password: 'Password123!',
+    full_name: 'Field Officer 1',
+    department: 'Collections',
+    position: 'Collection Officer',
+    roles: ['officer'],
+    is_active: true,
+    is_verified: true
+  },
+  {
+    id: '5',
+    email: 'analyst@osol.sa',
+    password: 'Password123!',
+    full_name: 'Data Analyst',
+    department: 'Analytics',
+    position: 'Senior Analyst',
+    roles: ['analyst'],
+    is_active: true,
+    is_verified: true
+  }
+];
+
+// Mock permissions by role
+const ROLE_PERMISSIONS = {
+  admin: ['*:*'], // Full access
+  manager: [
+    'dashboard:view',
+    'dashboard:edit',
+    'reports:view',
+    'reports:export',
+    'collection:view',
+    'collection:manage',
+    'users:view',
+    'analytics:view'
+  ],
+  supervisor: [
+    'dashboard:view',
+    'reports:view',
+    'collection:view',
+    'collection:manage',
+    'analytics:view'
+  ],
+  officer: [
+    'dashboard:view',
+    'collection:view',
+    'collection:update',
+    'reports:view'
+  ],
+  analyst: [
+    'dashboard:view',
+    'reports:view',
+    'reports:export',
+    'analytics:view',
+    'analytics:export'
+  ],
+  viewer: [
+    'dashboard:view',
+    'reports:view'
+  ]
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,14 +119,17 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user has a specific permission
   const hasPermission = (resource, action) => {
-    return userPermissions.some(
-      perm => perm.resource === resource && perm.action === action && perm.is_granted
-    );
+    // Check for wildcard permission
+    if (userPermissions.includes('*:*')) return true;
+    
+    // Check specific permission
+    return userPermissions.includes(`${resource}:${action}`) || 
+           userPermissions.includes(`${resource}:*`);
   };
 
   // Check if user has a specific role
   const hasRole = (roleName) => {
-    return userRoles.some(role => role.name === roleName);
+    return userRoles.includes(roleName);
   };
 
   // Check if user has any of the specified roles
@@ -36,85 +137,14 @@ export const AuthProvider = ({ children }) => {
     return roleNames.some(roleName => hasRole(roleName));
   };
 
-  // Fetch user roles and permissions
-  const fetchUserRolesAndPermissions = async (userId) => {
-    try {
-      // Fetch user roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select(`
-          role_id,
-          roles (
-            id,
-            name,
-            display_name,
-            description
-          )
-        `)
-        .eq('user_id', userId)
-        .eq('is_active', true);
-
-      if (rolesError) throw rolesError;
-
-      const roles = rolesData?.map(item => item.roles) || [];
-      setUserRoles(roles);
-
-      // Fetch user permissions from the view
-      const { data: permissionsData, error: permissionsError } = await supabase
-        .from('user_permissions_view')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_granted', true);
-
-      if (permissionsError) throw permissionsError;
-
-      setUserPermissions(permissionsData || []);
-    } catch (error) {
-      console.error('Error fetching user roles and permissions:', error);
-    }
-  };
-
-  // Update user last login
-  const updateLastLogin = async (userId) => {
-    try {
-      await supabase
-        .from('users')
-        .update({ 
-          last_login: new Date().toISOString(),
-          failed_login_attempts: 0
-        })
-        .eq('id', userId);
-    } catch (error) {
-      console.error('Error updating last login:', error);
-    }
-  };
-
-  // Handle failed login attempt
-  const handleFailedLogin = async (email) => {
-    try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id, failed_login_attempts')
-        .eq('email', email)
-        .single();
-
-      if (userData) {
-        const attempts = (userData.failed_login_attempts || 0) + 1;
-        const updates = { failed_login_attempts: attempts };
-        
-        // Lock account after 5 failed attempts for 30 minutes
-        if (attempts >= 5) {
-          updates.locked_until = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-        }
-
-        await supabase
-          .from('users')
-          .update(updates)
-          .eq('id', userData.id);
-      }
-    } catch (error) {
-      console.error('Error handling failed login:', error);
-    }
+  // Set user permissions based on roles
+  const setUserPermissionsFromRoles = (roles) => {
+    const permissions = new Set();
+    roles.forEach(role => {
+      const rolePerms = ROLE_PERMISSIONS[role] || [];
+      rolePerms.forEach(perm => permissions.add(perm));
+    });
+    setUserPermissions(Array.from(permissions));
   };
 
   useEffect(() => {
@@ -125,17 +155,14 @@ export const AuthProvider = ({ children }) => {
         if (storedSession) {
           const sessionData = JSON.parse(storedSession);
           
-          // Verify session is still valid
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', sessionData.user.id)
-            .single();
-
-          if (!error && userData && userData.is_active) {
+          // Find user in mock data
+          const userData = MOCK_USERS.find(u => u.id === sessionData.user.id);
+          
+          if (userData && userData.is_active) {
             setUser(userData);
             setSession(sessionData);
-            await fetchUserRolesAndPermissions(userData.id);
+            setUserRoles(userData.roles || []);
+            setUserPermissionsFromRoles(userData.roles || []);
           } else {
             localStorage.removeItem('osol_session');
           }
@@ -152,98 +179,17 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signUp = async ({ email, password, metadata }) => {
-    try {
-      // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
-
-      if (existingUser) {
-        return { data: null, error: { message: 'User already exists' } };
-      }
-
-      // Hash password
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      // Create user
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert({
-          email,
-          password_hash: passwordHash,
-          full_name: metadata?.full_name || email.split('@')[0],
-          phone_number: metadata?.phone_number,
-          department: metadata?.department,
-          position: metadata?.position,
-          is_active: true,
-          is_verified: false
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        return { data: null, error: createError };
-      }
-
-      // Assign default role (viewer)
-      const { data: viewerRole } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('name', 'viewer')
-        .single();
-
-      if (viewerRole) {
-        await supabase
-          .from('user_roles')
-          .insert({
-            user_id: newUser.id,
-            role_id: viewerRole.id
-          });
-      }
-
-      // Create session
-      const sessionData = {
-        access_token: btoa(`${newUser.id}:${Date.now()}`),
-        token_type: 'bearer',
-        expires_in: 3600,
-        user: newUser
-      };
-
-      setUser(newUser);
-      setSession(sessionData);
-      localStorage.setItem('osol_session', JSON.stringify(sessionData));
-      await fetchUserRolesAndPermissions(newUser.id);
-
-      return { data: { user: newUser, session: sessionData }, error: null };
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return { data: null, error: { message: 'Failed to create account' } };
-    }
+    // Mock signup - in production, this would create a new user in the database
+    return { data: null, error: { message: 'Sign up is not available in demo mode' } };
   };
 
   const signIn = async ({ email, password }) => {
     try {
-      // Get user by email
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
+      // Find user in mock data
+      const userData = MOCK_USERS.find(u => u.email === email);
 
-      if (userError || !userData) {
-        await handleFailedLogin(email);
+      if (!userData) {
         return { data: null, error: { message: 'Invalid email or password' } };
-      }
-
-      // Check if account is locked
-      if (userData.locked_until && new Date(userData.locked_until) > new Date()) {
-        const minutesLeft = Math.ceil((new Date(userData.locked_until) - new Date()) / 60000);
-        return { 
-          data: null, 
-          error: { message: `Account is locked. Please try again in ${minutesLeft} minutes.` } 
-        };
       }
 
       // Check if account is active
@@ -251,15 +197,10 @@ export const AuthProvider = ({ children }) => {
         return { data: null, error: { message: 'Account is deactivated. Please contact support.' } };
       }
 
-      // Verify password
-      const passwordValid = await bcrypt.compare(password, userData.password_hash);
-      if (!passwordValid) {
-        await handleFailedLogin(email);
+      // Verify password (in mock mode, just compare directly)
+      if (password !== userData.password) {
         return { data: null, error: { message: 'Invalid email or password' } };
       }
-
-      // Update last login
-      await updateLastLogin(userData.id);
 
       // Create session
       const sessionData = {
@@ -271,8 +212,9 @@ export const AuthProvider = ({ children }) => {
 
       setUser(userData);
       setSession(sessionData);
+      setUserRoles(userData.roles || []);
+      setUserPermissionsFromRoles(userData.roles || []);
       localStorage.setItem('osol_session', JSON.stringify(sessionData));
-      await fetchUserRolesAndPermissions(userData.id);
 
       return { data: { user: userData, session: sessionData }, error: null };
     } catch (error) {
@@ -303,20 +245,8 @@ export const AuthProvider = ({ children }) => {
         return { data: null, error: { message: 'No user logged in' } };
       }
 
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('users')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        return { data: null, error: updateError };
-      }
-
+      // Update user data
+      const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       
       // Update session
@@ -334,7 +264,6 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email) => {
     try {
       // In a real application, this would send a password reset email
-      // For now, we'll just return success
       console.log('Password reset requested for:', email);
       return { data: {}, error: null };
     } catch (error) {
@@ -349,29 +278,8 @@ export const AuthProvider = ({ children }) => {
         return { data: null, error: { message: 'No user logged in' } };
       }
 
-      // Verify current password
-      const passwordValid = await bcrypt.compare(currentPassword, user.password_hash);
-      if (!passwordValid) {
-        return { data: null, error: { message: 'Current password is incorrect' } };
-      }
-
-      // Hash new password
-      const newPasswordHash = await bcrypt.hash(newPassword, 10);
-
-      // Update password
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          password_hash: newPasswordHash,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (updateError) {
-        return { data: null, error: updateError };
-      }
-
-      return { data: {}, error: null };
+      // In mock mode, we can't actually change the password
+      return { data: {}, error: { message: 'Password change is not available in demo mode' } };
     } catch (error) {
       console.error('Change password error:', error);
       return { data: null, error: { message: 'Failed to change password' } };
