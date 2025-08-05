@@ -153,27 +153,40 @@ const BranchLevelReport = () => {
     }
   };
 
-  // Load branch report
+  // Load report data
   const loadBranchReport = async () => {
+    if (!selectedBranch) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
       const filters = {
         dateRange,
-        customDateRange: dateRange === 'custom' ? customDateRange : null, // NEW: Include custom date range
-        viewType, // NEW: Include viewType in filters
+        viewType,
         productType,
         delinquencyBucket,
         customerType,
-        comparison: showComparison
+        comparison: showComparison,
+        customDateRange: dateRange === 'custom' ? customDateRange : null
       };
       
       const result = await BranchReportService.getBranchReport(selectedBranch, filters);
+      
       if (result.success && result.data) {
         setReportData(result.data);
-        setLastRefreshTime(new Date()); // NEW: Update refresh time
+        setLastRefreshTime(new Date());
+      } else {
+        console.error('Failed to load branch report:', result.error);
+        // Show error notification if available
+        if (window.showNotification) {
+          window.showNotification('error', t('common.error'), result.error?.message || t('errors.loadingFailed'));
+        }
       }
     } catch (error) {
       console.error('Error loading branch report:', error);
+      // Show error notification if available
+      if (window.showNotification) {
+        window.showNotification('error', t('common.error'), t('errors.unexpectedError'));
+      }
     } finally {
       setLoading(false);
     }

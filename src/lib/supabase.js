@@ -300,6 +300,7 @@ export const TABLES = {
   COLLECTION_BUCKETS: 'collection_buckets',
   COLLECTION_RATES: 'collection_rates',
   DELINQUENCIES: 'delinquencies',
+  BRANCH_COLLECTION_PERFORMANCE: 'branch_collection_performance',
   
   // All collection tables are now in kastle_banking schema
   COLLECTION_AUDIT_TRAIL: 'audit_trail',
