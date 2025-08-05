@@ -284,46 +284,78 @@ export const WIDGET_CATALOG = {
       query: async () => {
         try {
           // Fetch real performance metrics from database
-          const [revenueResult, customerResult, loanResult, transactionResult] = await Promise.all([
-            // Revenue performance
+          const [revenueResult, customerResult, loanResult, transactionResult, accountsCount] = await Promise.all([
+            // Revenue performance - sum of all account balances
             supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-            // Customer growth
-            supabaseBanking.from(TABLES.CUSTOMERS).select('customer_id, is_active').eq('is_active', true),
-            // Loan portfolio
+            // Customer growth - count active customers
+            supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
+            // Loan portfolio - sum of outstanding loans
             supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
             // Transaction volume
-            supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
+            supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true }),
+            // Active accounts count
+            supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE')
           ]);
 
           const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
-          const customerCount = customerResult.data?.length || 0;
+          const customerCount = customerResult.count || 0;
           const totalLoans = loanResult.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
           const transactionCount = transactionResult.count || 0;
+          const activeAccountsCount = accountsCount.count || 0;
 
           // Calculate performance scores (normalized to 0-150 scale)
-          const maxRevenue = 10000000000; // 10B
-          const maxCustomers = 50000;
-          const maxLoans = 5000000000; // 5B
-          const maxTransactions = 100000;
+          // Adjust max values based on actual data
+          const maxRevenue = 50000000; // 50M SAR (more realistic)
+          const maxCustomers = 1000; // 1000 customers
+          const maxLoans = 10000000; // 10M SAR
+          const maxTransactions = 10000; // 10K transactions
+          const maxAccounts = 1000; // 1000 accounts
+
+          // Calculate actual scores
+          const revenueScore = Math.min((totalRevenue / maxRevenue) * 150, 150);
+          const customerScore = Math.min((customerCount / maxCustomers) * 150, 150);
+          const transactionScore = Math.min((transactionCount / maxTransactions) * 150, 150);
+          const loanScore = Math.min((totalLoans / maxLoans) * 150, 150);
+          const accountScore = Math.min((activeAccountsCount / maxAccounts) * 150, 150);
+          
+          // Risk score based on loan to deposit ratio (inverse - lower is better)
+          const loanToDepositRatio = totalRevenue > 0 ? (totalLoans / totalRevenue) : 0;
+          const riskScore = Math.max(150 - (loanToDepositRatio * 150), 0);
+
+          console.log('Performance Radar Metrics:', {
+            totalRevenue,
+            customerCount,
+            totalLoans,
+            transactionCount,
+            activeAccountsCount,
+            scores: {
+              revenue: revenueScore,
+              customers: customerScore,
+              transactions: transactionScore,
+              loans: loanScore,
+              accounts: accountScore,
+              risk: riskScore
+            }
+          });
 
           return [
-            { metric: 'Revenue', A: Math.min((totalRevenue / maxRevenue) * 150, 150), B: 110, fullMark: 150 },
-            { metric: 'Customers', A: Math.min((customerCount / maxCustomers) * 150, 150), B: 130, fullMark: 150 },
-            { metric: 'Efficiency', A: Math.min((transactionCount / maxTransactions) * 150, 150), B: 130, fullMark: 150 },
-            { metric: 'Risk', A: 99, B: 100, fullMark: 150 }, // This would need risk calculation
-            { metric: 'Compliance', A: 95, B: 90, fullMark: 150 }, // This would need compliance data
-            { metric: 'Innovation', A: 85, B: 85, fullMark: 150 } // This would need innovation metrics
+            { metric: 'Revenue', A: revenueScore, B: 120, fullMark: 150 },
+            { metric: 'Customers', A: customerScore, B: 100, fullMark: 150 },
+            { metric: 'Transactions', A: transactionScore, B: 110, fullMark: 150 },
+            { metric: 'Loans', A: loanScore, B: 90, fullMark: 150 },
+            { metric: 'Accounts', A: accountScore, B: 100, fullMark: 150 },
+            { metric: 'Risk Mgmt', A: riskScore, B: 130, fullMark: 150 }
           ];
         } catch (error) {
           console.error('Error fetching performance radar data:', error);
-          // Return empty data instead of mock
+          // Return empty data on error
           return [
-            { metric: 'Revenue', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Customers', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Efficiency', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Risk', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Compliance', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Innovation', A: 0, B: 0, fullMark: 150 }
+            { metric: 'Revenue', A: 0, B: 120, fullMark: 150 },
+            { metric: 'Customers', A: 0, B: 100, fullMark: 150 },
+            { metric: 'Transactions', A: 0, B: 110, fullMark: 150 },
+            { metric: 'Loans', A: 0, B: 90, fullMark: 150 },
+            { metric: 'Accounts', A: 0, B: 100, fullMark: 150 },
+            { metric: 'Risk Mgmt', A: 0, B: 130, fullMark: 150 }
           ];
         }
       }
