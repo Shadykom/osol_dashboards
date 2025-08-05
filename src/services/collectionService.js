@@ -51,6 +51,7 @@ export class CollectionService {
       } = params;
 
       // Build query - Using direct table from kastle_banking schema
+      // Note: Temporarily removing collection_officers join due to missing foreign key
       let query = supabaseBanking
         .from('collection_cases')
         .select(`
@@ -61,9 +62,6 @@ export class CollectionService {
               contact_type,
               contact_value
             )
-          ),
-          collection_officers:assigned_to (
-            officer_name
           ),
           collection_buckets:bucket_id (
             bucket_name
@@ -126,6 +124,18 @@ export class CollectionService {
 
       if (error) throw error;
 
+      // Fetch all collection officers to create a lookup map
+      const { data: officers } = await supabaseBanking
+        .from('collection_officers')
+        .select('officer_id, officer_name');
+      
+      const officerMap = {};
+      if (officers) {
+        officers.forEach(officer => {
+          officerMap[officer.officer_id] = officer.officer_name;
+        });
+      }
+
       // Get additional statistics for each case
       const enrichedData = await Promise.all((data || []).map(async (caseItem) => {
         // Get interaction count for this case
@@ -157,7 +167,7 @@ export class CollectionService {
           daysPastDue: caseItem.days_past_due || 0,
           priority: caseItem.priority,
           status: caseItem.case_status,
-          assignedTo: caseItem.collection_officers?.officer_name || 'Unassigned',
+          assignedTo: officerMap[caseItem.assigned_to] || 'Unassigned',
           assignedOfficerId: caseItem.assigned_to,
           delinquencyBucket: caseItem.collection_buckets?.bucket_name || 'Unknown',
           lastContactDate: caseItem.last_contact_date,
