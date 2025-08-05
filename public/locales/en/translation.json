@@ -2665,6 +2665,12 @@
     "loans": "loans",
     "delinquency": "Delinquency",
     "activeCases": "Active Cases",
+    "metrics": {
+      "delinquencyRate": "Delinquency Rate",
+      "collectionRate": "Collection Rate",
+      "avgProductivity": "Avg Productivity",
+      "ranking": "Ranking"
+    },
     "overview": "Overview",
     "officerPerformance": "Officer Performance",
     "productAnalysis": "Product Analysis",
