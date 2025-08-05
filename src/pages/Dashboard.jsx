@@ -437,7 +437,7 @@ export const WIDGET_CATALOG = {
           // Build query with filters
           let query = supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_amount, transaction_date, branch_id, customer_id')
+            .select('transaction_amount, transaction_date, branch_id')
             .gte('transaction_date', sixMonthsAgo.toISOString())
             .order('transaction_date', { ascending: true });
 
@@ -446,18 +446,8 @@ export const WIDGET_CATALOG = {
             query = query.eq('branch_id', filters.branch);
           }
 
-          if (filters.customerSegment && filters.customerSegment !== 'all') {
-            // Need to join with customers table
-            const { data: customers } = await supabaseBanking
-              .from(TABLES.CUSTOMERS)
-              .select('customer_id')
-              .eq('customer_segment', filters.customerSegment);
-            
-            if (customers && customers.length > 0) {
-              const customerIds = customers.map(c => c.customer_id);
-              query = query.in('customer_id', customerIds);
-            }
-          }
+          // Customer segment filter removed as transactions table doesn't have customer_id
+          // This would require joining with accounts table to get customer information
 
           // Override date range if specified
           if (filters.dateRange && filters.dateRange !== 'all') {
@@ -1171,7 +1161,7 @@ export const WIDGET_CATALOG = {
         try {
           let query = supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
-            .select('outstanding_balance, branch_id, customer_id, product_type')
+            .select('outstanding_balance, branch_id, customer_id')
             .eq('loan_status', 'ACTIVE');
           
           // Apply filters
@@ -1179,9 +1169,7 @@ export const WIDGET_CATALOG = {
             query = query.eq('branch_id', filters.branch);
           }
           
-          if (filters.productType && filters.productType !== 'all') {
-            query = query.eq('product_type', filters.productType);
-          }
+          // Product type filter removed as loan_accounts table doesn't have product_type column
           
           if (filters.customerSegment && filters.customerSegment !== 'all') {
             // Need to join with customers
