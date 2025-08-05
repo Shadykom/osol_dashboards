@@ -2472,7 +2472,7 @@ export default function EnhancedDashboard() {
                       )}
                       
                       {widgetDef.chartType === 'radar' && (
-                        <RadarChart data={widgetData}>
+                        <RadarChart data={currentWidgetData}>
                           <PolarGrid />
                           <PolarAngleAxis dataKey="metric" />
                           <PolarRadiusAxis />
@@ -2529,19 +2529,19 @@ export default function EnhancedDashboard() {
               variant="outline"
               onClick={handleFixData}
               disabled={isFixingData}
-              className="ml-4"
+                                          className={rtl.marginStart(4)}
             >
               {isFixingData ? (
                 <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  <RefreshCw className={cn("h-4 w-4 animate-spin", rtl.marginEnd(2))} />
                   Fixing...
                 </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Fix Data
-                </>
-              )}
+                              ) : (
+                  <>
+                    <Database className={cn("h-4 w-4", rtl.marginEnd(2))} />
+                    Fix Data
+                  </>
+                )}
             </Button>
           </AlertDescription>
         </Alert>
@@ -2551,7 +2551,7 @@ export default function EnhancedDashboard() {
       {/* Header Section */}
       <div className="space-y-4">
         {/* Title and Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className={cn("flex flex-col sm:items-center sm:justify-between gap-4", rtl.flexRowMobile)}
           <div className="flex items-center gap-2 sm:gap-4">
             <h1 className={cn(
               "font-bold",
@@ -2561,7 +2561,7 @@ export default function EnhancedDashboard() {
             </h1>
             {selectedTemplate && !isMobile && (
               <Badge variant="outline" className="hidden sm:inline-flex">
-                <Layers className="w-3 h-3 mr-1" />
+                <Layers className={cn("w-3 h-3", rtl.marginEnd(1))} />
                 {t(`dashboard.templates.${selectedTemplate}`, DASHBOARD_TEMPLATES[selectedTemplate].nameEn)}
               </Badge>
             )}
@@ -2574,7 +2574,7 @@ export default function EnhancedDashboard() {
               onClick={() => setShowFilters(!showFilters)}
               className="text-xs sm:text-sm"
             >
-              <Filter className="h-4 w-4 mr-1 sm:mr-2" />
+                              <Filter className={cn("h-4 w-4", rtl.marginEndMobile(2, 1))} />
               <span className="hidden sm:inline">Filters</span>
             </Button>
             
@@ -2587,11 +2587,11 @@ export default function EnhancedDashboard() {
               disabled={refreshing}
               className="text-xs sm:text-sm"
             >
-              <RefreshCw className={cn("h-4 w-4 mr-1 sm:mr-2", refreshing && "animate-spin")} />
+                              <RefreshCw className={cn("h-4 w-4", rtl.marginEndMobile(2, 1), refreshing && "animate-spin")} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             
-            <div className="hidden sm:flex items-center gap-2 border-l pl-2 ml-2">
+                          <div className={cn("hidden sm:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}
               <Switch
                 checked={autoRefresh}
                 onCheckedChange={setAutoRefresh}
@@ -2602,7 +2602,7 @@ export default function EnhancedDashboard() {
               </Label>
             </div>
             
-            <div className="hidden md:flex items-center gap-2 border-l pl-2 ml-2">
+                          <div className={cn("hidden md:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}
               <Switch
                 checked={isEditMode}
                 onCheckedChange={setIsEditMode}
@@ -2620,7 +2620,7 @@ export default function EnhancedDashboard() {
                   size="sm"
                   onClick={() => setShowTemplates(true)}
                 >
-                  <Layers className="h-4 w-4 mr-2" />
+                                      <Layers className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Templates
                 </Button>
                 
@@ -2628,7 +2628,7 @@ export default function EnhancedDashboard() {
                   size="sm"
                   onClick={saveDashboardConfig}
                 >
-                  <Save className="h-4 w-4 mr-2" />
+                                      <Save className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Save
                 </Button>
               </>
@@ -2643,26 +2643,26 @@ export default function EnhancedDashboard() {
               <DropdownMenuContent align="end" className="w-48">
                 <div className="md:hidden">
                   <DropdownMenuItem onClick={() => setAutoRefresh(!autoRefresh)}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
+                    <RotateCcw className={cn("h-4 w-4", rtl.marginEnd(2))} />
                     {autoRefresh ? 'Disable' : 'Enable'} Auto-refresh
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setIsEditMode(!isEditMode)}>
-                    {isEditMode ? <Lock className="h-4 w-4 mr-2" /> : <Unlock className="h-4 w-4 mr-2" />}
+                    {isEditMode ? <Lock className={cn("h-4 w-4", rtl.marginEnd(2))} /> : <Unlock className={cn("h-4 w-4", rtl.marginEnd(2))} />}
                     {isEditMode ? 'Lock' : 'Edit'} Dashboard
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </div>
                 <DropdownMenuItem onClick={() => exportDashboard('pdf')}>
-                  <FileText className="h-4 w-4 mr-2" />
+                  <FileText className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Export as PDF
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => exportDashboard('excel')}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  <FileSpreadsheet className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Export as Excel
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowDataSeeder(true)}>
-                  <Database className="h-4 w-4 mr-2" />
+                  <Database className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Seed Sample Data
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -2754,7 +2754,7 @@ export default function EnhancedDashboard() {
                 </div>
               </div>
               
-              <div className="flex justify-end mt-4 gap-2">
+              <div className={cn("flex mt-4 gap-2", rtl.isRTL ? "justify-start" : "justify-end")}
                 <Button
                   variant="outline"
                   size="sm"
@@ -2799,7 +2799,7 @@ export default function EnhancedDashboard() {
                 )}
               >
                 <section.icon className={cn(
-                  "mr-1",
+                  rtl.marginEnd(1),
                   isMobile ? "h-3 w-3" : "h-4 w-4"
                 )} />
                 <span className={isMobile && key !== selectedSection ? "hidden" : ""}>
@@ -2831,7 +2831,7 @@ export default function EnhancedDashboard() {
               size="sm"
               onClick={() => setShowAddWidget(true)}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className={cn("h-4 w-4", rtl.marginEnd(2))} />
               Add Widget
             </Button>
           )}
@@ -2858,7 +2858,7 @@ export default function EnhancedDashboard() {
               </p>
               {isEditMode && (
                 <Button onClick={() => setShowAddWidget(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Add Widget
                 </Button>
               )}
@@ -2879,7 +2879,7 @@ export default function EnhancedDashboard() {
             </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="h-[60vh] sm:h-[500px] pr-2 sm:pr-4">
+                      <ScrollArea className={cn("h-[60vh] sm:h-[500px]", rtl.paddingEndMobile(4, 2))}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(WIDGET_CATALOG[selectedSection] || {}).map(([widgetKey, widget]) => (
                 <Card
@@ -2915,7 +2915,7 @@ export default function EnhancedDashboard() {
             </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="h-[500px] pr-4">
+                      <ScrollArea className={cn("h-[500px]", rtl.paddingEnd(4))}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(DASHBOARD_TEMPLATES).map(([key, template]) => (
                 <Card 
