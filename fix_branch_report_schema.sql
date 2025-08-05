@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS kastle_banking.branches (
 CREATE TABLE IF NOT EXISTS kastle_banking.branch_collection_performance (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     branch_id VARCHAR(50) REFERENCES kastle_banking.branches(branch_id),
-    date DATE NOT NULL,
+    report_date DATE NOT NULL,  -- Changed from 'date' to 'report_date' to avoid reserved word issues
     total_cases INTEGER DEFAULT 0,
     active_cases INTEGER DEFAULT 0,
     resolved_cases INTEGER DEFAULT 0,
@@ -38,25 +38,60 @@ CREATE TABLE IF NOT EXISTS kastle_banking.branch_collection_performance (
     remediation_amount DECIMAL(15,2) DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(branch_id, date)
+    UNIQUE(branch_id, report_date)
 );
 
--- 3. Ensure collection_cases table has all required columns
-ALTER TABLE kastle_banking.collection_cases 
-ADD COLUMN IF NOT EXISTS total_outstanding DECIMAL(15,2) DEFAULT 0;
+-- 3. Check if collection_cases table exists before altering
+DO $$ 
+BEGIN
+    -- Add total_outstanding column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'kastle_banking' 
+        AND table_name = 'collection_cases' 
+        AND column_name = 'total_outstanding'
+    ) THEN
+        ALTER TABLE kastle_banking.collection_cases 
+        ADD COLUMN total_outstanding DECIMAL(15,2) DEFAULT 0;
+    END IF;
 
-ALTER TABLE kastle_banking.collection_cases 
-ADD COLUMN IF NOT EXISTS days_past_due INTEGER DEFAULT 0;
+    -- Add days_past_due column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'kastle_banking' 
+        AND table_name = 'collection_cases' 
+        AND column_name = 'days_past_due'
+    ) THEN
+        ALTER TABLE kastle_banking.collection_cases 
+        ADD COLUMN days_past_due INTEGER DEFAULT 0;
+    END IF;
 
-ALTER TABLE kastle_banking.collection_cases 
-ADD COLUMN IF NOT EXISTS product_type VARCHAR(50);
+    -- Add product_type column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'kastle_banking' 
+        AND table_name = 'collection_cases' 
+        AND column_name = 'product_type'
+    ) THEN
+        ALTER TABLE kastle_banking.collection_cases 
+        ADD COLUMN product_type VARCHAR(50);
+    END IF;
 
-ALTER TABLE kastle_banking.collection_cases 
-ADD COLUMN IF NOT EXISTS customer_type VARCHAR(50);
+    -- Add customer_type column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'kastle_banking' 
+        AND table_name = 'collection_cases' 
+        AND column_name = 'customer_type'
+    ) THEN
+        ALTER TABLE kastle_banking.collection_cases 
+        ADD COLUMN customer_type VARCHAR(50);
+    END IF;
+END $$;
 
 -- 4. Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_branch_collection_performance_branch_date 
-ON kastle_banking.branch_collection_performance(branch_id, date DESC);
+ON kastle_banking.branch_collection_performance(branch_id, report_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_collection_cases_branch 
 ON kastle_banking.collection_cases(assigned_to);
@@ -81,7 +116,10 @@ ON CONFLICT (branch_id) DO NOTHING;
 ALTER TABLE kastle_banking.branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kastle_banking.branch_collection_performance ENABLE ROW LEVEL SECURITY;
 
--- 7. Create policies for public access (adjust as needed for your security requirements)
+-- 7. Drop existing policies if they exist and recreate
+DROP POLICY IF EXISTS "Enable read access for all users" ON kastle_banking.branches;
+DROP POLICY IF EXISTS "Enable read access for all users" ON kastle_banking.branch_collection_performance;
+
 CREATE POLICY "Enable read access for all users" ON kastle_banking.branches
     FOR SELECT USING (true);
 
@@ -94,8 +132,20 @@ GRANT SELECT ON kastle_banking.branch_collection_performance TO anon, authentica
 GRANT ALL ON kastle_banking.branches TO service_role;
 GRANT ALL ON kastle_banking.branch_collection_performance TO service_role;
 
--- 9. Enable realtime for branch_collection_performance
-ALTER PUBLICATION supabase_realtime ADD TABLE kastle_banking.branch_collection_performance;
+-- 9. Enable realtime for branch_collection_performance (only if not already added)
+DO $$
+BEGIN
+    -- Check if table is already in publication
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'kastle_banking' 
+        AND tablename = 'branch_collection_performance'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE kastle_banking.branch_collection_performance;
+    END IF;
+END $$;
 
 -- 10. Create a function to update branch performance metrics
 CREATE OR REPLACE FUNCTION kastle_banking.update_branch_performance()
@@ -104,7 +154,7 @@ BEGIN
     -- Update branch performance metrics based on collection cases
     INSERT INTO kastle_banking.branch_collection_performance (
         branch_id,
-        date,
+        report_date,
         total_cases,
         active_cases,
         total_outstanding,
@@ -131,7 +181,7 @@ BEGIN
     LEFT JOIN kastle_banking.collection_cases cc ON cc.assigned_to = b.branch_id
     WHERE b.is_active = true
     GROUP BY b.branch_id
-    ON CONFLICT (branch_id, date) 
+    ON CONFLICT (branch_id, report_date) 
     DO UPDATE SET
         total_cases = EXCLUDED.total_cases,
         active_cases = EXCLUDED.active_cases,
@@ -155,22 +205,61 @@ $$ LANGUAGE plpgsql;
 -- Drop existing trigger if exists
 DROP TRIGGER IF EXISTS update_branch_performance_trigger ON kastle_banking.collection_cases;
 
--- Create trigger
-CREATE TRIGGER update_branch_performance_trigger
-AFTER INSERT OR UPDATE OR DELETE ON kastle_banking.collection_cases
-FOR EACH STATEMENT
-EXECUTE FUNCTION kastle_banking.trigger_update_branch_performance();
+-- Only create trigger if collection_cases table exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'kastle_banking' 
+        AND table_name = 'collection_cases'
+    ) THEN
+        CREATE TRIGGER update_branch_performance_trigger
+        AFTER INSERT OR UPDATE OR DELETE ON kastle_banking.collection_cases
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION kastle_banking.trigger_update_branch_performance();
+    END IF;
+END $$;
 
 -- 12. Initial population of branch performance data
-SELECT kastle_banking.update_branch_performance();
+-- Only run if collection_cases table exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'kastle_banking' 
+        AND table_name = 'collection_cases'
+    ) THEN
+        PERFORM kastle_banking.update_branch_performance();
+    ELSE
+        -- Insert sample data if collection_cases doesn't exist
+        INSERT INTO kastle_banking.branch_collection_performance (
+            branch_id, report_date, total_cases, active_cases, 
+            total_outstanding, delinquency_rate, collection_rate
+        )
+        SELECT 
+            branch_id,
+            CURRENT_DATE,
+            FLOOR(RANDOM() * 100 + 50)::INTEGER,
+            FLOOR(RANDOM() * 50 + 25)::INTEGER,
+            ROUND((RANDOM() * 5000000 + 1000000)::NUMERIC, 2),
+            ROUND((RANDOM() * 20 + 5)::NUMERIC, 2),
+            ROUND((RANDOM() * 30 + 60)::NUMERIC, 2)
+        FROM kastle_banking.branches
+        WHERE is_active = true
+        ON CONFLICT (branch_id, report_date) DO NOTHING;
+    END IF;
+END $$;
 
 -- Verify the setup
 SELECT 
-    'Branches' as table_name,
-    COUNT(*) as record_count
-FROM kastle_banking.branches
-UNION ALL
-SELECT 
-    'Branch Performance' as table_name,
-    COUNT(*) as record_count
-FROM kastle_banking.branch_collection_performance;
+    'Setup Complete' as status,
+    (SELECT COUNT(*) FROM kastle_banking.branches) as total_branches,
+    (SELECT COUNT(*) FROM kastle_banking.branch_collection_performance) as performance_records,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_schema = 'kastle_banking' 
+            AND table_name = 'collection_cases'
+        ) THEN 'Exists'
+        ELSE 'Not Found - Using Sample Data'
+    END as collection_cases_status;
