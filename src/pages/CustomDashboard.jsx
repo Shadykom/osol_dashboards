@@ -1021,7 +1021,7 @@ export function CustomDashboard() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-lg">Dashboard Controls</CardTitle>
+              <CardTitle className="text-lg">{t('dashboard.dashboardControls')}</CardTitle>
               <CardDescription>Choose a template or build your own custom dashboard</CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -1032,7 +1032,7 @@ export function CustomDashboard() {
               />
               <Label htmlFor="edit-mode" className="cursor-pointer">
                 {isEditMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                {isEditMode ? ' Edit Mode' : ' View Mode'}
+                {isEditMode ? t('dashboard.editMode') : t('dashboard.viewMode')}
               </Label>
             </div>
           </div>

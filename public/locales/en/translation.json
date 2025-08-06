@@ -227,6 +227,9 @@
     "recentActivity": "Recent Activity",
     "viewDetails": "View Details",
     "goTo": "Go to",
+    "dashboardControls": "Dashboard Controls",
+    "editMode": "Edit Mode",
+    "viewMode": "View Mode",
     "sections": {
       "overview": "Overview",
       "banking": "Banking Services",

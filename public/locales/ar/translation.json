@@ -232,6 +232,9 @@
     "recentActivity": "النشاط الأخير",
     "viewDetails": "عرض التفاصيل",
     "goTo": "انتقل إلى",
+    "dashboardControls": "عناصر التحكم في لوحة المعلومات",
+    "editMode": "وضع التحرير",
+    "viewMode": "وضع العرض",
     "sections": {
       "overview": "نظرة عامة",
       "banking": "الخدمات المصرفية",

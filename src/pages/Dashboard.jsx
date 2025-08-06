@@ -2882,7 +2882,7 @@ export default function EnhancedDashboard() {
               />
               <Label htmlFor="edit-mode" className="text-sm cursor-pointer flex items-center gap-1">
                 {isEditMode ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                Edit Mode
+                {t('dashboard.editMode')}
               </Label>
             </div>
             
