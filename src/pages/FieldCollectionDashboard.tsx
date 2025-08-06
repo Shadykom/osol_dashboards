@@ -42,15 +42,7 @@ const FieldCollectionDashboard = () => {
 
       const { data: visits, error } = await supabaseBanking
         .from('field_visits')
-        .select(`
-          *,
-          collection_officers(officer_name, officer_id),
-          collection_cases(
-            customer_id,
-            total_amount_due,
-            customers(customer_name, customer_type)
-          )
-        `)
+        .select('*')
         .gte('visit_date', startOfDay.toISOString())
         .lte('visit_date', endOfDay.toISOString());
 
@@ -178,16 +170,7 @@ const FieldCollectionDashboard = () => {
 
       const { data: visits, error } = await supabaseBanking
         .from('field_visits')
-        .select(`
-          *,
-          collection_officers(officer_name),
-          collection_cases(
-            customer_id,
-            total_amount_due,
-            dpd,
-            customers(customer_name, customer_addresses(address_line1, city))
-          )
-        `)
+        .select('*')
         .eq('visit_status', 'SCHEDULED')
         .gte('scheduled_time', new Date().toISOString())
         .lte('scheduled_time', endOfDay.toISOString())
@@ -197,13 +180,13 @@ const FieldCollectionDashboard = () => {
       if (error) throw error;
 
       return visits?.map(visit => ({
-        time: new Date(visit.scheduled_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        agent: visit.collection_officers?.officer_name || 'Unknown',
-        customer: visit.collection_cases?.customers?.customer_name || 'Unknown',
-        address: visit.collection_cases?.customers?.customer_addresses?.[0]?.address_line1 || visit.visit_address || 'No address',
-        amount: visit.collection_cases?.total_amount_due || 0,
-        priority: visit.collection_cases?.dpd > 90 ? 'HIGH' : visit.collection_cases?.dpd > 60 ? 'MEDIUM' : 'LOW',
-        dpd: visit.collection_cases?.dpd || 0
+        time: visit.scheduled_time ? new Date(visit.scheduled_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+        agent: visit.officer_id || 'Unknown',
+        customer: visit.customer_id || 'Unknown',
+        address: visit.visit_address || 'No address',
+        amount: visit.amount_collected || 0,
+        priority: 'MEDIUM',
+        dpd: 0
       })) || [];
     } catch (error) {
       console.error('Error fetching upcoming visits:', error);
