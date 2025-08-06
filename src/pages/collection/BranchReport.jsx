@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -33,7 +34,8 @@ import {
   Calendar, Filter, Download, RefreshCw, ChevronRight, Eye,
   AlertCircle, CheckCircle, Clock, Target, Award, ArrowUpRight,
   ArrowDownRight, Loader2, MapPin, BarChart3, Trophy, Search,
-  FileDown, Zap, Globe, Smartphone, Monitor, X
+  FileDown, Zap, Globe, Smartphone, Monitor, X, AlertTriangle,
+  CheckCircle2, Info
 } from 'lucide-react';
 import { BranchReportService } from '@/services/branchReportService';
 import { useRealtimeBranchPerformance } from '@/hooks/useRealtimeData';
@@ -41,6 +43,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import PrintService from '@/services/printService';
 import { RTLWrapper, useRTLClasses } from '@/components/ui/rtl-wrapper';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const BranchReport = () => {
   const { t, i18n } = useTranslation();
@@ -50,6 +53,7 @@ const BranchReport = () => {
   // State Management
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [branches, setBranches] = useState([]);
   const [branchSummary, setBranchSummary] = useState([]);
   const [selectedBranches, setSelectedBranches] = useState([]);
@@ -88,20 +92,28 @@ const BranchReport = () => {
   // Load branch data
   const loadBranchData = async () => {
     try {
-      setLoading(true);
+      setError(null);
       const data = await BranchReportService.getBranchSummary(filters);
       setBranches(data.branches || []);
       setBranchSummary(data.summary || []);
     } catch (error) {
       console.error('Error loading branch data:', error);
+      setError(t('branchReport.errorLoadingData'));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     loadBranchData();
   }, [filters]);
+
+  // Refresh data
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadBranchData();
+  };
 
   // Filter branches based on search
   const filteredBranches = useMemo(() => {
@@ -167,6 +179,7 @@ const BranchReport = () => {
       }
     } catch (error) {
       console.error('Export error:', error);
+      setError(t('branchReport.exportError'));
     }
   };
 
@@ -190,7 +203,8 @@ const BranchReport = () => {
       value: branches.length,
       icon: Building2,
       change: '+5%',
-      trend: 'up'
+      trend: 'up',
+      color: 'blue'
     },
     {
       title: t('branchReport.totalCollection'),
@@ -198,7 +212,8 @@ const BranchReport = () => {
       icon: DollarSign,
       change: '+12%',
       trend: 'up',
-      format: 'currency'
+      format: 'currency',
+      color: 'green'
     },
     {
       title: t('branchReport.avgPerformance'),
@@ -206,14 +221,16 @@ const BranchReport = () => {
       icon: TrendingUp,
       change: '+8%',
       trend: 'up',
-      format: 'percentage'
+      format: 'percentage',
+      color: 'purple'
     },
     {
       title: t('branchReport.activeOfficers'),
       value: branches.reduce((sum, b) => sum + (b.activeOfficers || 0), 0),
       icon: Users,
       change: '+3%',
-      trend: 'up'
+      trend: 'up',
+      color: 'orange'
     }
   ];
 
@@ -231,11 +248,38 @@ const BranchReport = () => {
     return value.toLocaleString();
   };
 
+  // Loading skeleton
+  const LoadingSkeleton = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <Card key={i}>
+            <CardContent className="p-6">
+              <Skeleton className="h-4 w-24 mb-2" />
+              <Skeleton className="h-8 w-32 mb-2" />
+              <Skeleton className="h-4 w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   if (loading && !refreshing) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <RTLWrapper>
+        <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+          <LoadingSkeleton />
+        </div>
+      </RTLWrapper>
     );
   }
 
@@ -243,7 +287,11 @@ const BranchReport = () => {
     <RTLWrapper>
       <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className={cn("flex flex-col md:flex-row justify-between items-start md:items-center gap-4", flexRow)}>
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn("flex flex-col md:flex-row justify-between items-start md:items-center gap-4", flexRow)}
+        >
           <div>
             <h1 className={cn("text-2xl md:text-3xl font-bold", textAlign)}>
               {t('branchReport.title')}
@@ -272,7 +320,7 @@ const BranchReport = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadBranchData()}
+              onClick={handleRefresh}
               disabled={refreshing}
               className={cn("gap-2", flexRow)}
             >
@@ -291,241 +339,283 @@ const BranchReport = () => {
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </motion.div>
+
+        {/* Error Alert */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>{t('common.error')}</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Real-time connection status */}
-        {isConnected && (
-          <Alert className="bg-green-50 border-green-200">
-            <Zap className="h-4 w-4 text-green-600" />
-            <AlertDescription className={cn("text-green-800", textAlign)}>
-              {t('branchReport.realtimeActive')}
-              {lastUpdate && ` • ${t('common.lastUpdate')}: ${new Date(lastUpdate).toLocaleTimeString()}`}
-            </AlertDescription>
-          </Alert>
-        )}
+        <AnimatePresence>
+          {isConnected && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+            >
+              <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+                <Zap className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertDescription className={cn("text-green-800 dark:text-green-200", textAlign)}>
+                  {t('branchReport.realtimeActive')}
+                  {lastUpdate && ` • ${t('common.lastUpdate')}: ${new Date(lastUpdate).toLocaleTimeString()}`}
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Filters Panel */}
-        {showFilters && (
-          <Card>
-            <CardHeader>
-              <div className={cn("flex justify-between items-center", flexRow)}>
-                <CardTitle>{t('branchReport.filterOptions')}</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowFilters(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <label className={cn("text-sm font-medium", textAlign)}>
-                    {t('branchReport.dateRange')}
-                  </label>
-                  <Select
-                    value={filters.dateRange}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="today">{t('common.today')}</SelectItem>
-                      <SelectItem value="yesterday">{t('common.yesterday')}</SelectItem>
-                      <SelectItem value="last_7_days">{t('common.last7Days')}</SelectItem>
-                      <SelectItem value="current_month">{t('common.currentMonth')}</SelectItem>
-                      <SelectItem value="last_month">{t('common.lastMonth')}</SelectItem>
-                      <SelectItem value="custom">{t('common.custom')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="overflow-hidden">
+                <CardHeader className="bg-muted/50">
+                  <div className={cn("flex justify-between items-center", flexRow)}>
+                    <CardTitle className="text-lg">{t('branchReport.filterOptions')}</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowFilters(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <label className={cn("text-sm font-medium", textAlign)}>
+                        {t('branchReport.dateRange')}
+                      </label>
+                      <Select
+                        value={filters.dateRange}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="today">{t('common.today')}</SelectItem>
+                          <SelectItem value="yesterday">{t('common.yesterday')}</SelectItem>
+                          <SelectItem value="last_7_days">{t('common.last7Days')}</SelectItem>
+                          <SelectItem value="current_month">{t('common.currentMonth')}</SelectItem>
+                          <SelectItem value="last_month">{t('common.lastMonth')}</SelectItem>
+                          <SelectItem value="custom">{t('common.custom')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className={cn("text-sm font-medium", textAlign)}>
-                    {t('branchReport.region')}
-                  </label>
-                  <Select
-                    value={filters.region}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, region: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="Central">{t('branchReport.regions.central')}</SelectItem>
-                      <SelectItem value="Eastern">{t('branchReport.regions.eastern')}</SelectItem>
-                      <SelectItem value="Western">{t('branchReport.regions.western')}</SelectItem>
-                      <SelectItem value="Northern">{t('branchReport.regions.northern')}</SelectItem>
-                      <SelectItem value="Southern">{t('branchReport.regions.southern')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <label className={cn("text-sm font-medium", textAlign)}>
+                        {t('branchReport.region')}
+                      </label>
+                      <Select
+                        value={filters.region}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, region: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.all')}</SelectItem>
+                          <SelectItem value="Central">{t('branchReport.regions.central')}</SelectItem>
+                          <SelectItem value="Eastern">{t('branchReport.regions.eastern')}</SelectItem>
+                          <SelectItem value="Western">{t('branchReport.regions.western')}</SelectItem>
+                          <SelectItem value="Northern">{t('branchReport.regions.northern')}</SelectItem>
+                          <SelectItem value="Southern">{t('branchReport.regions.southern')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className={cn("text-sm font-medium", textAlign)}>
-                    {t('branchReport.performanceLevel')}
-                  </label>
-                  <Select
-                    value={filters.performanceLevel}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, performanceLevel: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="excellent">{t('branchReport.excellent')}</SelectItem>
-                      <SelectItem value="good">{t('branchReport.good')}</SelectItem>
-                      <SelectItem value="average">{t('branchReport.average')}</SelectItem>
-                      <SelectItem value="poor">{t('branchReport.poor')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <label className={cn("text-sm font-medium", textAlign)}>
+                        {t('branchReport.performanceLevel')}
+                      </label>
+                      <Select
+                        value={filters.performanceLevel}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, performanceLevel: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.all')}</SelectItem>
+                          <SelectItem value="excellent">{t('branchReport.excellent')}</SelectItem>
+                          <SelectItem value="good">{t('branchReport.good')}</SelectItem>
+                          <SelectItem value="average">{t('branchReport.average')}</SelectItem>
+                          <SelectItem value="poor">{t('branchReport.poor')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className={cn("text-sm font-medium", textAlign)}>
-                    {t('branchReport.productType')}
-                  </label>
-                  <Select
-                    value={filters.productType}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, productType: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="personal">{t('products.personal')}</SelectItem>
-                      <SelectItem value="auto">{t('products.auto')}</SelectItem>
-                      <SelectItem value="mortgage">{t('products.mortgage')}</SelectItem>
-                      <SelectItem value="credit_card">{t('products.creditCard')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <label className={cn("text-sm font-medium", textAlign)}>
+                        {t('branchReport.productType')}
+                      </label>
+                      <Select
+                        value={filters.productType}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, productType: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.all')}</SelectItem>
+                          <SelectItem value="personal">{t('products.personal')}</SelectItem>
+                          <SelectItem value="auto">{t('products.auto')}</SelectItem>
+                          <SelectItem value="mortgage">{t('products.mortgage')}</SelectItem>
+                          <SelectItem value="credit_card">{t('products.creditCard')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className={cn("text-sm font-medium", textAlign)}>
-                    {t('branchReport.delinquencyBucket')}
-                  </label>
-                  <Select
-                    value={filters.delinquencyBucket}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, delinquencyBucket: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="current">{t('delinquency.current')}</SelectItem>
-                      <SelectItem value="1-30">{t('delinquency.bucket1to30')}</SelectItem>
-                      <SelectItem value="31-60">{t('delinquency.bucket31to60')}</SelectItem>
-                      <SelectItem value="61-90">{t('delinquency.bucket61to90')}</SelectItem>
-                      <SelectItem value="90+">{t('delinquency.bucket90Plus')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <label className={cn("text-sm font-medium", textAlign)}>
+                        {t('branchReport.delinquencyBucket')}
+                      </label>
+                      <Select
+                        value={filters.delinquencyBucket}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, delinquencyBucket: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.all')}</SelectItem>
+                          <SelectItem value="current">{t('delinquency.current')}</SelectItem>
+                          <SelectItem value="1-30">{t('delinquency.bucket1to30')}</SelectItem>
+                          <SelectItem value="31-60">{t('delinquency.bucket31to60')}</SelectItem>
+                          <SelectItem value="61-90">{t('delinquency.bucket61to90')}</SelectItem>
+                          <SelectItem value="90+">{t('delinquency.bucket90Plus')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className={cn("text-sm font-medium", textAlign)}>
-                    {t('branchReport.customerSegment')}
-                  </label>
-                  <Select
-                    value={filters.customerSegment}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, customerSegment: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="retail">{t('customerSegments.retail')}</SelectItem>
-                      <SelectItem value="sme">{t('customerSegments.sme')}</SelectItem>
-                      <SelectItem value="corporate">{t('customerSegments.corporate')}</SelectItem>
-                      <SelectItem value="vip">{t('customerSegments.vip')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <label className={cn("text-sm font-medium", textAlign)}>
+                        {t('branchReport.customerSegment')}
+                      </label>
+                      <Select
+                        value={filters.customerSegment}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, customerSegment: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.all')}</SelectItem>
+                          <SelectItem value="retail">{t('customerSegments.retail')}</SelectItem>
+                          <SelectItem value="sme">{t('customerSegments.sme')}</SelectItem>
+                          <SelectItem value="corporate">{t('customerSegments.corporate')}</SelectItem>
+                          <SelectItem value="vip">{t('customerSegments.vip')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className={cn("text-sm font-medium", textAlign)}>
-                    {t('branchReport.branchType')}
-                  </label>
-                  <Select
-                    value={filters.branchType}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, branchType: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('common.all')}</SelectItem>
-                      <SelectItem value="HEAD_OFFICE">{t('branchTypes.headOffice')}</SelectItem>
-                      <SelectItem value="MAIN">{t('branchTypes.main')}</SelectItem>
-                      <SelectItem value="SUB">{t('branchTypes.sub')}</SelectItem>
-                      <SelectItem value="RURAL">{t('branchTypes.rural')}</SelectItem>
-                      <SelectItem value="URBAN">{t('branchTypes.urban')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-2">
+                      <label className={cn("text-sm font-medium", textAlign)}>
+                        {t('branchReport.branchType')}
+                      </label>
+                      <Select
+                        value={filters.branchType}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, branchType: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.all')}</SelectItem>
+                          <SelectItem value="HEAD_OFFICE">{t('branchTypes.headOffice')}</SelectItem>
+                          <SelectItem value="MAIN">{t('branchTypes.main')}</SelectItem>
+                          <SelectItem value="SUB">{t('branchTypes.sub')}</SelectItem>
+                          <SelectItem value="RURAL">{t('branchTypes.rural')}</SelectItem>
+                          <SelectItem value="URBAN">{t('branchTypes.urban')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="flex items-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => setFilters({
-                      dateRange: 'current_month',
-                      customDateRange: { from: null, to: null },
-                      region: 'all',
-                      branchType: 'all',
-                      performanceLevel: 'all',
-                      collectionTarget: 'all',
-                      customerSegment: 'all',
-                      productType: 'all',
-                      delinquencyBucket: 'all'
-                    })}
-                    className="w-full"
-                  >
-                    {t('common.resetFilters')}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                    <div className="flex items-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => setFilters({
+                          dateRange: 'current_month',
+                          customDateRange: { from: null, to: null },
+                          region: 'all',
+                          branchType: 'all',
+                          performanceLevel: 'all',
+                          collectionTarget: 'all',
+                          customerSegment: 'all',
+                          productType: 'all',
+                          delinquencyBucket: 'all'
+                        })}
+                        className="w-full"
+                      >
+                        {t('common.resetFilters')}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {summaryCards.map((card, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="p-6">
-                <div className={cn("flex items-center justify-between", flexRow)}>
-                  <div className="space-y-1">
-                    <p className={cn("text-sm text-muted-foreground", textAlign)}>
-                      {card.title}
-                    </p>
-                    <p className={cn("text-2xl font-bold", textAlign)}>
-                      {formatValue(card.value, card.format)}
-                    </p>
-                    <div className={cn("flex items-center gap-1 text-sm", flexRow)}>
-                      {card.trend === 'up' ? (
-                        <ArrowUpRight className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <ArrowDownRight className="h-4 w-4 text-red-500" />
-                      )}
-                      <span className={card.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                        {card.change}
-                      </span>
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer border-l-4"
+                style={{ borderLeftColor: `var(--${card.color}-500)` }}>
+                <CardContent className="p-6">
+                  <div className={cn("flex items-center justify-between", flexRow)}>
+                    <div className="space-y-1">
+                      <p className={cn("text-sm text-muted-foreground", textAlign)}>
+                        {card.title}
+                      </p>
+                      <p className={cn("text-2xl font-bold", textAlign)}>
+                        {formatValue(card.value, card.format)}
+                      </p>
+                      <div className={cn("flex items-center gap-1 text-sm", flexRow)}>
+                        {card.trend === 'up' ? (
+                          <ArrowUpRight className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <ArrowDownRight className="h-4 w-4 text-red-500" />
+                        )}
+                        <span className={card.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+                          {card.change}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded-full bg-${card.color}-100 dark:bg-${card.color}-900/20`}>
+                      <card.icon className={`h-6 w-6 text-${card.color}-600 dark:text-${card.color}-400`} />
                     </div>
                   </div>
-                  <div className="p-3 bg-primary/10 rounded-full">
-                    <card.icon className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
 
@@ -595,143 +685,222 @@ const BranchReport = () => {
                     </CardDescription>
                   </div>
                   {selectedBranches.length > 0 && (
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="animate-pulse">
                       {t('branchReport.selectedForComparison', { count: selectedBranches.length })}
                     </Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[600px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[50px]">
-                          {t('common.select')}
-                        </TableHead>
-                        <TableHead 
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleSort('name')}
-                        >
-                          <div className={cn("flex items-center gap-1", flexRow)}>
-                            {t('branchReport.branchName')}
-                            <BarChart3 className="h-4 w-4" />
-                          </div>
-                        </TableHead>
-                        <TableHead>{t('branchReport.region')}</TableHead>
-                        <TableHead 
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleSort('totalCollection')}
-                        >
-                          <div className={cn("flex items-center gap-1", flexRow)}>
-                            {t('branchReport.totalCollection')}
-                            <BarChart3 className="h-4 w-4" />
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleSort('performanceScore')}
-                        >
-                          <div className={cn("flex items-center gap-1", flexRow)}>
-                            {t('branchReport.performance')}
-                            <BarChart3 className="h-4 w-4" />
-                          </div>
-                        </TableHead>
-                        <TableHead>{t('branchReport.activeOfficers')}</TableHead>
-                        <TableHead>{t('branchReport.totalCases')}</TableHead>
-                        <TableHead>{t('branchReport.status')}</TableHead>
-                        <TableHead>{t('common.actions')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedBranches.map((branch) => (
-                        <TableRow key={branch.id} className="hover:bg-muted/50">
-                          <TableCell>
+                {sortedBranches.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">{t('branchReport.noBranchesFound')}</h3>
+                    <p className="text-muted-foreground mb-4">{t('branchReport.tryAdjustingFilters')}</p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setFilters({
+                        dateRange: 'current_month',
+                        customDateRange: { from: null, to: null },
+                        region: 'all',
+                        branchType: 'all',
+                        performanceLevel: 'all',
+                        collectionTarget: 'all',
+                        customerSegment: 'all',
+                        productType: 'all',
+                        delinquencyBucket: 'all'
+                      })}
+                    >
+                      {t('common.resetFilters')}
+                    </Button>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[600px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="w-[50px] sticky top-0 bg-background">
                             <input
                               type="checkbox"
-                              checked={selectedBranches.includes(branch.id)}
-                              onChange={() => handleBranchSelect(branch.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedBranches(sortedBranches.slice(0, 5).map(b => b.id));
+                                } else {
+                                  setSelectedBranches([]);
+                                }
+                              }}
+                              checked={selectedBranches.length > 0}
                               className="rounded border-gray-300"
                             />
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <div>
-                              <p>{branch.name}</p>
-                              <p className="text-sm text-muted-foreground">{branch.code}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 sticky top-0 bg-background"
+                            onClick={() => handleSort('name')}
+                          >
                             <div className={cn("flex items-center gap-1", flexRow)}>
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              {t(`branchReport.regions.${branch.region?.toLowerCase() || 'unknown'}`)}
+                              {t('branchReport.branchName')}
+                              <BarChart3 className={cn("h-4 w-4 transition-transform", 
+                                sortConfig.key === 'name' && sortConfig.direction === 'asc' && "rotate-180"
+                              )} />
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">
-                                {formatValue(branch.totalCollection || 0, 'currency')}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {t('branchReport.target')}: {formatValue(branch.collectionTarget || 0, 'currency')}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className={cn("flex items-center gap-2", flexRow)}>
-                                <Progress 
-                                  value={branch.performanceScore || 0} 
-                                  className="h-2 w-20"
-                                />
-                                <span className={cn("text-sm font-medium", getPerformanceColor(branch.performanceScore || 0))}>
-                                  {branch.performanceScore?.toFixed(1)}%
-                                </span>
-                              </div>
-                              <Badge 
-                                variant={getPerformanceBadge(branch.performanceScore || 0).variant}
-                                className="text-xs"
-                              >
-                                {getPerformanceBadge(branch.performanceScore || 0).text}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell>
+                          </TableHead>
+                          <TableHead className="sticky top-0 bg-background">{t('branchReport.region')}</TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 sticky top-0 bg-background"
+                            onClick={() => handleSort('totalCollection')}
+                          >
                             <div className={cn("flex items-center gap-1", flexRow)}>
-                              <Users className="h-4 w-4 text-muted-foreground" />
-                              {branch.activeOfficers || 0}
+                              {t('branchReport.totalCollection')}
+                              <BarChart3 className={cn("h-4 w-4 transition-transform", 
+                                sortConfig.key === 'totalCollection' && sortConfig.direction === 'asc' && "rotate-180"
+                              )} />
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p>{branch.totalCases || 0}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {t('branchReport.resolved')}: {branch.resolvedCases || 0}
-                              </p>
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50 sticky top-0 bg-background"
+                            onClick={() => handleSort('performanceScore')}
+                          >
+                            <div className={cn("flex items-center gap-1", flexRow)}>
+                              {t('branchReport.performance')}
+                              <BarChart3 className={cn("h-4 w-4 transition-transform", 
+                                sortConfig.key === 'performanceScore' && sortConfig.direction === 'asc' && "rotate-180"
+                              )} />
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={branch.isActive ? 'success' : 'secondary'}
-                            >
-                              {branch.isActive ? t('common.active') : t('common.inactive')}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigateToBranchDetail(branch.id)}
-                              className={cn("gap-1", flexRow)}
-                            >
-                              <Eye className="h-4 w-4" />
-                              {t('common.viewDetails')}
-                            </Button>
-                          </TableCell>
+                          </TableHead>
+                          <TableHead className="sticky top-0 bg-background">{t('branchReport.activeOfficers')}</TableHead>
+                          <TableHead className="sticky top-0 bg-background">{t('branchReport.totalCases')}</TableHead>
+                          <TableHead className="sticky top-0 bg-background">{t('branchReport.status')}</TableHead>
+                          <TableHead className="sticky top-0 bg-background">{t('common.actions')}</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
+                      </TableHeader>
+                      <TableBody>
+                        <AnimatePresence>
+                          {sortedBranches.map((branch, index) => (
+                            <motion.tr
+                              key={branch.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              transition={{ delay: index * 0.05 }}
+                              className="hover:bg-muted/50 transition-colors"
+                            >
+                              <TableCell>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedBranches.includes(branch.id)}
+                                  onChange={() => handleBranchSelect(branch.id)}
+                                  className="rounded border-gray-300 transition-all hover:scale-110"
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                <div>
+                                  <p className="font-semibold">{branch.name || t('branchReport.unnamed')}</p>
+                                  <p className="text-sm text-muted-foreground">{branch.code}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className={cn("flex items-center gap-1", flexRow)}>
+                                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                                  <span className="capitalize">
+                                    {branch.region || t('branchReport.regions.unknown')}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">
+                                    {formatValue(branch.totalCollection || 0, 'currency')}
+                                  </p>
+                                  {branch.collectionTarget > 0 && (
+                                    <div className="mt-1">
+                                      <Progress 
+                                        value={(branch.totalCollection / branch.collectionTarget) * 100} 
+                                        className="h-1 w-24"
+                                      />
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {t('branchReport.target')}: {formatValue(branch.collectionTarget || 0, 'currency')}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className={cn("flex items-center gap-2", flexRow)}>
+                                    <Progress 
+                                      value={branch.performanceScore || 0} 
+                                      className="h-2 w-20"
+                                    />
+                                    <span className={cn("text-sm font-medium", getPerformanceColor(branch.performanceScore || 0))}>
+                                      {branch.performanceScore?.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <Badge 
+                                    variant={getPerformanceBadge(branch.performanceScore || 0).variant}
+                                    className="text-xs"
+                                  >
+                                    {getPerformanceBadge(branch.performanceScore || 0).text}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className={cn("flex items-center gap-1", flexRow)}>
+                                  <Users className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{branch.activeOfficers || 0}</span>
+                                  {branch.totalOfficers > 0 && (
+                                    <span className="text-sm text-muted-foreground">
+                                      / {branch.totalOfficers}
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{branch.totalCases || 0}</p>
+                                  {branch.resolvedCases > 0 && (
+                                    <p className="text-sm text-muted-foreground">
+                                      <CheckCircle2 className="inline h-3 w-3 mr-1" />
+                                      {t('branchReport.resolved')}: {branch.resolvedCases || 0}
+                                    </p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={branch.isActive ? 'success' : 'secondary'}
+                                  className="font-medium"
+                                >
+                                  {branch.isActive ? (
+                                    <>
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      {t('common.active')}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <X className="h-3 w-3 mr-1" />
+                                      {t('common.inactive')}
+                                    </>
+                                  )}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigateToBranchDetail(branch.id)}
+                                  className={cn("gap-1 hover:bg-primary hover:text-primary-foreground transition-colors", flexRow)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  {t('common.viewDetails')}
+                                </Button>
+                              </TableCell>
+                            </motion.tr>
+                          ))}
+                        </AnimatePresence>
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
