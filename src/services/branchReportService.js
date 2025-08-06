@@ -5,83 +5,190 @@ export const BranchReportService = {
   // Get branch summary with filters
   async getBranchSummary(filters = {}) {
     try {
-      // Use the branch_summary_view for better performance
+      // First, try to get data from the branches table directly
       let query = supabase
-        .from('branch_summary_view')
-        .select('*');
+        .from('branches')
+        .select(`
+          branch_id,
+          branch_name,
+          branch_type,
+          state,
+          is_active,
+          manager_id,
+          phone,
+          email,
+          address
+        `);
 
       // Apply filters
       if (filters.region && filters.region !== 'all') {
-        query = query.eq('region', filters.region);
+        query = query.eq('state', filters.region);
       }
       
       if (filters.branchType && filters.branchType !== 'all') {
         query = query.eq('branch_type', filters.branchType.toUpperCase());
       }
 
-      if (filters.performanceLevel && filters.performanceLevel !== 'all') {
-        switch (filters.performanceLevel) {
-          case 'excellent':
-            query = query.gte('performance_score', 90);
-            break;
-          case 'good':
-            query = query.gte('performance_score', 70).lt('performance_score', 90);
-            break;
-          case 'average':
-            query = query.gte('performance_score', 50).lt('performance_score', 70);
-            break;
-          case 'poor':
-            query = query.lt('performance_score', 50);
-            break;
+      const { data: branches, error: branchError } = await query;
+      
+      if (branchError) {
+        console.error('Error fetching branches:', branchError);
+        throw branchError;
+      }
+
+      // Get performance data separately
+      const branchIds = branches?.map(b => b.branch_id) || [];
+      let performanceData = [];
+      
+      if (branchIds.length > 0) {
+        // Try to get performance data from branch_collection_performance
+        let perfQuery = supabase
+          .from('branch_collection_performance')
+          .select(`
+            branch_id,
+            performance_date,
+            total_collected_amount,
+            total_outstanding,
+            collection_rate,
+            number_of_accounts,
+            total_calls,
+            total_sms,
+            total_emails
+          `)
+          .in('branch_id', branchIds)
+          .order('performance_date', { ascending: false });
+
+        // Apply date filter
+        if (filters.dateRange && filters.dateRange !== 'all') {
+          const dateFilter = this.getDateFilter(filters.dateRange, filters.customDateRange);
+          if (dateFilter.startDate && dateFilter.endDate) {
+            perfQuery = perfQuery
+              .gte('performance_date', dateFilter.startDate)
+              .lte('performance_date', dateFilter.endDate);
+          }
+        }
+
+        const { data: perfData, error: perfError } = await perfQuery;
+
+        if (!perfError) {
+          performanceData = perfData || [];
         }
       }
 
-      // Apply date filter if needed
-      if (filters.dateRange && filters.dateRange !== 'all') {
-        const dateFilter = this.getDateFilter(filters.dateRange, filters.customDateRange);
-        if (dateFilter.startDate && dateFilter.endDate) {
-          query = query
-            .gte('performance_date', dateFilter.startDate)
-            .lte('performance_date', dateFilter.endDate);
-        }
-      }
+      // Get officer counts
+      const { data: officerCounts, error: officerError } = await supabase
+        .from('collection_officers')
+        .select('branch_id, is_active')
+        .in('branch_id', branchIds);
 
-      const { data: branches, error } = await query;
-      if (error) throw error;
+      // Aggregate officer counts by branch
+      const officerCountMap = new Map();
+      officerCounts?.forEach(officer => {
+        if (!officerCountMap.has(officer.branch_id)) {
+          officerCountMap.set(officer.branch_id, { total: 0, active: 0 });
+        }
+        const counts = officerCountMap.get(officer.branch_id);
+        counts.total++;
+        if (officer.is_active) counts.active++;
+      });
+
+      // Get latest performance data for each branch
+      const latestPerformanceMap = new Map();
+      performanceData.forEach(perf => {
+        if (!latestPerformanceMap.has(perf.branch_id) || 
+            perf.performance_date > latestPerformanceMap.get(perf.branch_id).performance_date) {
+          latestPerformanceMap.set(perf.branch_id, perf);
+        }
+      });
 
       // Transform data to match expected format
-      const transformedBranches = branches?.map(branch => ({
-        id: branch.branch_id,
-        name: branch.branch_name,
-        code: branch.branch_id,
-        region: branch.region || 'Unknown',
-        type: branch.branch_type,
-        isActive: branch.is_active,
-        manager: branch.manager_id,
-        phone: branch.phone,
-        email: branch.email,
-        address: branch.address,
-        totalCollection: branch.total_collected || 0,
-        collectionTarget: branch.total_outstanding || 0,
-        performanceScore: branch.performance_score || 0,
-        totalCases: branch.total_cases || 0,
-        resolvedCases: branch.resolved_cases || 0,
-        activeOfficers: branch.active_officers_count || 0,
-        totalOfficers: branch.total_officers || 0
-      })) || [];
+      const transformedBranches = branches?.map(branch => {
+        const performance = latestPerformanceMap.get(branch.branch_id) || {};
+        const officers = officerCountMap.get(branch.branch_id) || { total: 0, active: 0 };
+        
+        // Calculate performance score based on collection rate
+        let performanceScore = 0;
+        if (performance.collection_rate) {
+          if (performance.collection_rate >= 90) performanceScore = 95;
+          else if (performance.collection_rate >= 80) performanceScore = 85;
+          else if (performance.collection_rate >= 70) performanceScore = 75;
+          else if (performance.collection_rate >= 60) performanceScore = 65;
+          else if (performance.collection_rate >= 50) performanceScore = 55;
+          else performanceScore = 45;
+        }
+
+        return {
+          id: branch.branch_id,
+          name: branch.branch_name || `Branch ${branch.branch_id}`,
+          code: branch.branch_id,
+          region: branch.state || 'Unknown',
+          type: branch.branch_type,
+          isActive: branch.is_active !== false,
+          manager: branch.manager_id,
+          phone: branch.phone,
+          email: branch.email,
+          address: branch.address,
+          totalCollection: performance.total_collected_amount || 0,
+          collectionTarget: performance.total_outstanding || 0,
+          performanceScore: performanceScore,
+          totalCases: performance.number_of_accounts || 0,
+          resolvedCases: Math.floor((performance.number_of_accounts || 0) * 0.3), // Estimate
+          activeOfficers: officers.active,
+          totalOfficers: officers.total
+        };
+      }) || [];
+
+      // Apply performance level filter
+      let filteredBranches = transformedBranches;
+      if (filters.performanceLevel && filters.performanceLevel !== 'all') {
+        filteredBranches = filteredBranches.filter(branch => {
+          switch (filters.performanceLevel) {
+            case 'excellent':
+              return branch.performanceScore >= 90;
+            case 'good':
+              return branch.performanceScore >= 70 && branch.performanceScore < 90;
+            case 'average':
+              return branch.performanceScore >= 50 && branch.performanceScore < 70;
+            case 'poor':
+              return branch.performanceScore < 50;
+            default:
+              return true;
+          }
+        });
+      }
+
+      // Apply collection target filter
+      if (filters.collectionTarget && filters.collectionTarget !== 'all') {
+        const targetRanges = {
+          'below_1m': [0, 1000000],
+          '1m_5m': [1000000, 5000000],
+          '5m_10m': [5000000, 10000000],
+          'above_10m': [10000000, Infinity]
+        };
+        const range = targetRanges[filters.collectionTarget];
+        if (range) {
+          filteredBranches = filteredBranches.filter(branch => 
+            branch.collectionTarget >= range[0] && branch.collectionTarget < range[1]
+          );
+        }
+      }
+
+      // Note: Product type, customer segment, and delinquency bucket filters
+      // would require additional data from collection_cases or other tables
+      // These are placeholders for now until we have the proper data structure
 
       // Calculate summary statistics
       const summary = {
-        totalBranches: transformedBranches.length,
-        totalCollection: transformedBranches.reduce((sum, b) => sum + b.totalCollection, 0),
-        avgPerformance: transformedBranches.length > 0 
-          ? transformedBranches.reduce((sum, b) => sum + b.performanceScore, 0) / transformedBranches.length 
+        totalBranches: filteredBranches.length,
+        totalCollection: filteredBranches.reduce((sum, b) => sum + b.totalCollection, 0),
+        avgPerformance: filteredBranches.length > 0 
+          ? filteredBranches.reduce((sum, b) => sum + b.performanceScore, 0) / filteredBranches.length 
           : 0,
-        totalOfficers: transformedBranches.reduce((sum, b) => sum + b.totalOfficers, 0),
-        activeBranches: transformedBranches.filter(b => b.isActive).length
+        totalOfficers: filteredBranches.reduce((sum, b) => sum + b.totalOfficers, 0),
+        activeBranches: filteredBranches.filter(b => b.isActive).length
       };
 
-      return { branches: transformedBranches, summary };
+      return { branches: filteredBranches, summary };
     } catch (error) {
       console.error('Error fetching branch summary:', error);
       // Return mock data for development
@@ -101,48 +208,102 @@ export const BranchReportService = {
   // Get detailed branch information
   async getBranchDetails(branchId) {
     try {
-      // Get branch details from summary view
+      // Get branch details
       const { data: branch, error: branchError } = await supabase
-        .from('branch_summary_view')
+        .from('branches')
         .select('*')
         .eq('branch_id', branchId)
         .single();
 
       if (branchError) throw branchError;
 
-      // Get collection trends for different periods
-      const { data: trends, error: trendsError } = await supabase
-        .from('branch_collection_trends')
+      // Get performance data
+      const { data: performanceData, error: perfError } = await supabase
+        .from('branch_collection_performance')
         .select('*')
         .eq('branch_id', branchId)
-        .order('performance_date', { ascending: false })
-        .limit(1)
-        .single();
+        .order('performance_date', { ascending: false });
 
-      if (trendsError && trendsError.code !== 'PGRST116') throw trendsError;
+      if (perfError && perfError.code !== 'PGRST116') {
+        console.error('Error fetching performance data:', perfError);
+      }
+
+      // Get officer counts
+      const { data: officers, error: officerError } = await supabase
+        .from('collection_officers')
+        .select('is_active')
+        .eq('branch_id', branchId);
+
+      const officerCounts = {
+        total: officers?.length || 0,
+        active: officers?.filter(o => o.is_active).length || 0
+      };
+
+      // Calculate trends from performance data
+      const today = new Date();
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+      let todayCollection = 0;
+      let weekCollection = 0;
+      let monthCollection = 0;
+      let yearCollection = 0;
+
+      performanceData?.forEach(perf => {
+        const perfDate = new Date(perf.performance_date);
+        const amount = perf.total_collected_amount || 0;
+        
+        if (perfDate.toDateString() === today.toDateString()) {
+          todayCollection += amount;
+        }
+        if (perfDate >= weekAgo) {
+          weekCollection += amount;
+        }
+        if (perfDate >= monthAgo) {
+          monthCollection += amount;
+        }
+        if (perfDate >= yearAgo) {
+          yearCollection += amount;
+        }
+      });
+
+      // Get latest performance
+      const latestPerformance = performanceData?.[0] || {};
+      
+      // Calculate performance score
+      let performanceScore = 0;
+      if (latestPerformance.collection_rate) {
+        if (latestPerformance.collection_rate >= 90) performanceScore = 95;
+        else if (latestPerformance.collection_rate >= 80) performanceScore = 85;
+        else if (latestPerformance.collection_rate >= 70) performanceScore = 75;
+        else if (latestPerformance.collection_rate >= 60) performanceScore = 65;
+        else if (latestPerformance.collection_rate >= 50) performanceScore = 55;
+        else performanceScore = 45;
+      }
 
       return {
         id: branch.branch_id,
-        name: branch.branch_name,
+        name: branch.branch_name || `Branch ${branch.branch_id}`,
         code: branch.branch_id,
-        region: branch.region || 'Unknown',
+        region: branch.state || 'Unknown',
         type: branch.branch_type,
-        isActive: branch.is_active,
+        isActive: branch.is_active !== false,
         manager: branch.manager_id,
         phone: branch.phone,
         email: branch.email,
         address: branch.address,
-        totalCollection: branch.total_collected || 0,
-        collectionTarget: branch.total_outstanding || 0,
-        performanceScore: branch.performance_score || 0,
-        totalCases: branch.total_cases || 0,
-        resolvedCases: branch.resolved_cases || 0,
-        activeOfficers: branch.active_officers_count || 0,
-        totalOfficers: branch.total_officers || 0,
-        todayCollection: trends?.daily_collection || 0,
-        weekCollection: trends?.week_collection || 0,
-        monthCollection: trends?.month_collection || 0,
-        yearCollection: trends?.year_collection || 0
+        totalCollection: latestPerformance.total_collected_amount || 0,
+        collectionTarget: latestPerformance.total_outstanding || 0,
+        performanceScore: performanceScore,
+        totalCases: latestPerformance.number_of_accounts || 0,
+        resolvedCases: Math.floor((latestPerformance.number_of_accounts || 0) * 0.3),
+        activeOfficers: officerCounts.active,
+        totalOfficers: officerCounts.total,
+        todayCollection: todayCollection,
+        weekCollection: weekCollection,
+        monthCollection: monthCollection,
+        yearCollection: yearCollection
       };
     } catch (error) {
       console.error('Error fetching branch details:', error);
@@ -183,43 +344,71 @@ export const BranchReportService = {
   // Get branch officers
   async getBranchOfficers(branchId) {
     try {
-      // Get officers with performance data from view
-      const { data: officers, error } = await supabase
-        .from('branch_officer_performance')
+      // Get officers
+      const { data: officers, error: officerError } = await supabase
+        .from('collection_officers')
         .select('*')
-        .eq('branch_id', branchId)
-        .order('performance_score', { ascending: false });
+        .eq('branch_id', branchId);
 
-      if (error) throw error;
+      if (officerError) throw officerError;
 
-      // Group by officer to get latest performance
-      const officerMap = new Map();
-      officers?.forEach(record => {
-        const existingOfficer = officerMap.get(record.officer_id);
-        if (!existingOfficer || (record.summary_date && (!existingOfficer.summary_date || record.summary_date > existingOfficer.summary_date))) {
-          officerMap.set(record.officer_id, record);
+      // Get performance summaries for officers
+      const officerIds = officers?.map(o => o.officer_id) || [];
+      let performanceSummaries = [];
+
+      if (officerIds.length > 0) {
+        const { data: perfData, error: perfError } = await supabase
+          .from('officer_performance_summary')
+          .select('*')
+          .in('officer_id', officerIds)
+          .order('summary_date', { ascending: false });
+
+        if (!perfError) {
+          performanceSummaries = perfData || [];
+        }
+      }
+
+      // Get latest performance for each officer
+      const latestPerformanceMap = new Map();
+      performanceSummaries.forEach(perf => {
+        if (!latestPerformanceMap.has(perf.officer_id) || 
+            perf.summary_date > latestPerformanceMap.get(perf.officer_id).summary_date) {
+          latestPerformanceMap.set(perf.officer_id, perf);
         }
       });
 
-      const uniqueOfficers = Array.from(officerMap.values());
+      return officers?.map(officer => {
+        const performance = latestPerformanceMap.get(officer.officer_id) || {};
+        
+        // Calculate performance score
+        let performanceScore = 0;
+        if (performance.collection_rate) {
+          if (performance.collection_rate >= 90) performanceScore = 95;
+          else if (performance.collection_rate >= 80) performanceScore = 85;
+          else if (performance.collection_rate >= 70) performanceScore = 75;
+          else if (performance.collection_rate >= 60) performanceScore = 65;
+          else if (performance.collection_rate >= 50) performanceScore = 55;
+          else performanceScore = 45;
+        }
 
-      return uniqueOfficers.map(officer => ({
-        id: officer.officer_id,
-        name: officer.officer_name,
-        employeeId: officer.officer_id,
-        role: officer.role || 'Collection Officer',
-        email: officer.email,
-        phone: officer.phone,
-        avatar: null,
-        status: officer.is_active ? 'active' : 'inactive',
-        totalCollection: officer.total_collected || 0,
-        totalCases: officer.total_cases || 0,
-        activeCases: officer.active_cases || 0,
-        performanceScore: officer.performance_score || 0,
-        efficiency: officer.success_rate || 0,
-        avgResponseTime: 24, // Mock data
-        customerSatisfaction: 85 // Mock data
-      }));
+        return {
+          id: officer.officer_id,
+          name: officer.officer_name || `Officer ${officer.officer_id}`,
+          employeeId: officer.officer_id,
+          role: officer.role || 'Collection Officer',
+          email: officer.email,
+          phone: officer.phone,
+          avatar: null,
+          status: officer.is_active ? 'active' : 'inactive',
+          totalCollection: performance.total_collected || 0,
+          totalCases: performance.total_cases || 0,
+          activeCases: performance.active_cases || 0,
+          performanceScore: performanceScore,
+          efficiency: performance.success_rate || 0,
+          avgResponseTime: 24, // Mock data
+          customerSatisfaction: 85 // Mock data
+        };
+      }) || [];
     } catch (error) {
       console.error('Error fetching branch officers:', error);
       // Return mock data for development
