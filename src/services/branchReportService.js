@@ -78,7 +78,7 @@ export const BranchReportService = {
       // Get officer counts
       const { data: officerCounts, error: officerError } = await supabase
         .from('collection_officers')
-        .select('branch_id, is_active')
+        .select('branch_id,is_active')
         .in('branch_id', branchIds);
 
       // Aggregate officer counts by branch
@@ -688,28 +688,33 @@ function generateMockOfficers() {
   }));
 }
 
-function generateMockCollectionData(dateRange) {
-  const dateFilter = BranchReportService.getDateFilter(dateRange);
-  const startDate = new Date(dateFilter.startDate);
-  const endDate = new Date(dateFilter.endDate);
-  const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-  
-  const data = [];
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-    
-    if (date <= endDate) {
-      data.push({
-        date: date.toISOString().split('T')[0],
-        amount: Math.floor(Math.random() * 100000 + 50000),
-        cases: Math.floor(Math.random() * 50 + 20),
-        calls: Math.floor(Math.random() * 200 + 100),
-        visits: Math.floor(Math.random() * 20 + 5)
-      });
-    }
-  }
-  
-  return data;
+function generateMockCollectionData() {
+  return Array.from({ length: 30 }, (_, i) => ({
+    date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    amount: Math.floor(Math.random() * 100000 + 50000),
+    cases: Math.floor(Math.random() * 50 + 20),
+    calls: Math.floor(Math.random() * 200 + 100),
+    visits: Math.floor(Math.random() * 20 + 5)
+  }));
 }
+
+// Add getBranches method
+BranchReportService.getBranches = async function() {
+  try {
+    const { data, error } = await supabase
+      .from('branches')
+      .select('*')
+      .eq('is_active', true)
+      .order('branch_name');
+
+    if (error) {
+      console.error('Error fetching branches:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in getBranches:', error);
+    return { data: null, error };
+  }
+};

@@ -597,6 +597,7 @@
     "privateBanking": "Private Banking",
     "generating": "Generating...",
     "generatingReport": "Generating report...",
+    "fetchingReportData": "Fetching report data...",
     "failedToFetchData": "Failed to fetch data",
     "preview": "Preview",
     "print": "Print",
@@ -1010,7 +1011,9 @@
       "allCustomers": "All Customers",
       "individual": "Individual",
       "corporate": "Corporate",
-      "sme": "SME"
+      "sme": "SME",
+      "days": "days",
+      "moreThan90": "90+ Days"
     },
     "metrics": {
       "totalPortfolio": "Total Portfolio",
@@ -1197,6 +1200,10 @@
     "good": "Good",
     "average": "Average",
     "poor": "Poor",
+    "tabs": {
+      "performance": "Performance",
+      "analytics": "Analytics"
+    },
     "needsImprovement": "Needs Improvement",
     "views": {
       "summary": "Summary",
@@ -2889,7 +2896,8 @@
     "main": "Main Branch",
     "sub": "Sub Branch",
     "digital": "Digital Branch",
-    "kiosk": "Kiosk"
+    "kiosk": "Kiosk",
+    "undefined": "Unknown"
   },
   "delinquency": {
     "current": "Current",
