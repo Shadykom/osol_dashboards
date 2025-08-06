@@ -1300,23 +1300,23 @@ class ComprehensiveReportService {
   /**
    * Get Regulatory Report Data
    */
-  async getRegulatorReportData(reportType, dateRange, filters = {}) {
+  async getRegulatoryReportData(reportType, dateRange, filters = {}) {
     try {
       // Format dates to ensure PostgreSQL compatibility
       const formattedDateRange = formatDateRangeForDB(dateRange);
       const { startDate, endDate } = formattedDateRange;
       
       switch (reportType) {
+        case 'sama_monthly':
+          return await regulatoryReportService.getSAMAMonthlyReport(startDate, endDate);
+        case 'quarterly_regulatory':
+          return await regulatoryReportService.getQuarterlyRegulatoryReport(startDate, endDate);
+        case 'annual_compliance':
+          return await regulatoryReportService.getAnnualComplianceReport(startDate, endDate);
         case 'basel_iii':
-          return await regulatoryReportService.getBaselIIIReport(endDate, filters);
-        case 'cbuae_monthly':
-          return await regulatoryReportService.getCBUAEMonthlyReport(startDate, endDate, filters);
+          return await regulatoryReportService.getBaselIIIReport(endDate);
         case 'aml_report':
-          return await regulatoryReportService.getAMLReport(startDate, endDate, filters);
-        case 'liquidity_coverage':
-          return await regulatoryReportService.getLiquidityCoverageReport(endDate, filters);
-        case 'stress_testing':
-          return await regulatoryReportService.getStressTestingReport(endDate, filters);
+          return await regulatoryReportService.getAMLReport(startDate, endDate);
         default:
           throw new Error(`Unknown regulatory report type: ${reportType}`);
       }

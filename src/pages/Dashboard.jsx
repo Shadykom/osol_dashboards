@@ -700,7 +700,7 @@ export const WIDGET_CATALOG = {
           // Get product distribution from loan accounts
           let query = supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
-            .select('product_type, outstanding_balance, branch_id, customer_id')
+            .select('product_type,outstanding_balance,branch_id,customer_id')
             .eq('loan_status', 'ACTIVE');
           
           // Apply filters

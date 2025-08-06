@@ -78,7 +78,7 @@ export const BranchReportService = {
       // Get officer counts
       const { data: officerCounts, error: officerError } = await supabase
         .from('collection_officers')
-        .select('branch_id, is_active')
+        .select('branch_id,is_active')
         .in('branch_id', branchIds);
 
       // Aggregate officer counts by branch
@@ -684,3 +684,24 @@ function generateMockCollectionData() {
     visits: Math.floor(Math.random() * 20 + 5)
   }));
 }
+
+// Add getBranches method
+BranchReportService.getBranches = async function() {
+  try {
+    const { data, error } = await supabase
+      .from('branches')
+      .select('*')
+      .eq('is_active', true)
+      .order('branch_name');
+
+    if (error) {
+      console.error('Error fetching branches:', error);
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in getBranches:', error);
+    return { data: null, error };
+  }
+};
