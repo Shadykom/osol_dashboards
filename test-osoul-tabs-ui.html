@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osoul Dashboard Tabs UI Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans Arabic', sans-serif;
+            background-color: #f9fafb;
+        }
+        
+        /* Import key styles from osoul-dashboard.css */
+        .osoul-tabs-list {
+            background: rgba(243, 244, 246, 0.8);
+            backdrop-filter: blur(8px);
+            display: inline-flex;
+            height: 48px;
+            width: fit-content;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(229, 231, 235, 1);
+        }
+        
+        .osoul-tab-trigger {
+            display: inline-flex;
+            height: 40px;
+            flex: 1;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 8px;
+            padding: 0 16px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 200ms;
+            border: 1px solid transparent;
+            color: #6b7280;
+            cursor: pointer;
+        }
+        
+        .osoul-tab-trigger:hover {
+            color: #1f2937;
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .osoul-tab-trigger.active {
+            background-color: white;
+            color: #E6B800;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-color: rgba(230, 184, 0, 0.2);
+        }
+        
+        .osoul-tab-header {
+            background: linear-gradient(135deg, #FFF8E1 0%, #FFFEF7 100%);
+            border-right: 4px solid #E6B800;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 4px rgba(230, 184, 0, 0.1);
+        }
+        
+        [dir="ltr"] .osoul-tab-header {
+            border-right: none;
+            border-left: 4px solid #E6B800;
+        }
+        
+        .osoul-badge {
+            background: #FFF8E1;
+            color: #E6B800;
+            border: 1px solid #E6B800;
+            border-radius: 9999px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .osoul-stat-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .osoul-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #E6B800 0%, transparent 70%);
+            opacity: 0.1;
+            transform: translate(-30%, -30%);
+        }
+        
+        [dir="ltr"] .osoul-stat-card::before {
+            left: auto;
+            right: 0;
+            transform: translate(30%, -30%);
+        }
+        
+        .osoul-stat-card:hover {
+            border-color: #E6B800;
+            box-shadow: 0 4px 12px rgba(230, 184, 0, 0.15);
+        }
+        
+        .icon {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-8">
+        <div class="mb-8 text-center">
+            <h1 class="text-3xl font-bold mb-4">اختبار واجهة التبويبات - أصول</h1>
+            <button onclick="toggleLanguage()" class="px-4 py-2 bg-[#E6B800] text-white rounded-lg hover:bg-[#d4a800] transition">
+                تبديل اللغة / Toggle Language
+            </button>
+        </div>
+        
+        <!-- Tabs Component -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+            <!-- Tabs List -->
+            <div class="osoul-tabs-list mb-6">
+                <button class="osoul-tab-trigger active" onclick="setActiveTab(this, 'overview')">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                    <span class="tab-text">نظرة عامة</span>
+                </button>
+                <button class="osoul-tab-trigger" onclick="setActiveTab(this, 'breakdown')">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z"/>
+                    </svg>
+                    <span class="tab-text">التحليل التفصيلي</span>
+                </button>
+                <button class="osoul-tab-trigger" onclick="setActiveTab(this, 'trends')">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                    </svg>
+                    <span class="tab-text">الاتجاهات التاريخية</span>
+                </button>
+                <button class="osoul-tab-trigger" onclick="setActiveTab(this, 'data')">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M9 3v18h6V3H9zM3 13v8h4v-8H3zm14 0v8h4v-8h-4z"/>
+                    </svg>
+                    <span class="tab-text">البيانات الخام</span>
+                </button>
+            </div>
+            
+            <!-- Tab Content -->
+            <div id="tab-content">
+                <!-- Overview Tab -->
+                <div id="overview" class="tab-panel">
+                    <div class="osoul-tab-header">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h2 class="text-2xl font-bold mb-2">نظرة عامة</h2>
+                                <p class="text-gray-600">ملخص شامل لمؤشرات الأداء الرئيسية</p>
+                            </div>
+                            <span class="osoul-badge">
+                                <svg class="icon w-3 h-3" viewBox="0 0 24 24">
+                                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                                </svg>
+                                اليوم
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="osoul-stat-card">
+                            <p class="text-sm text-gray-600 mb-2">إجمالي العملاء</p>
+                            <p class="text-3xl font-bold text-[#E6B800]">١٢,٥٤٣</p>
+                            <p class="text-sm text-green-600 mt-2">↑ ٥.٢٪ من الشهر الماضي</p>
+                        </div>
+                        <div class="osoul-stat-card">
+                            <p class="text-sm text-gray-600 mb-2">الحسابات النشطة</p>
+                            <p class="text-3xl font-bold text-[#E6B800]">٨,٧٦٥</p>
+                            <p class="text-sm text-green-600 mt-2">↑ ٣.٨٪ من الشهر الماضي</p>
+                        </div>
+                        <div class="osoul-stat-card">
+                            <p class="text-sm text-gray-600 mb-2">إجمالي الأصول</p>
+                            <p class="text-3xl font-bold text-[#E6B800]">٢.٣M ريال</p>
+                            <p class="text-sm text-red-600 mt-2">↓ ١.٢٪ من الشهر الماضي</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Other tabs content (hidden by default) -->
+                <div id="breakdown" class="tab-panel hidden">
+                    <div class="osoul-tab-header">
+                        <h2 class="text-2xl font-bold mb-2">التحليل التفصيلي</h2>
+                        <p class="text-gray-600">تفصيل شامل للبيانات عبر أبعاد مختلفة</p>
+                    </div>
+                    <p class="text-gray-600 p-8 text-center">محتوى التحليل التفصيلي...</p>
+                </div>
+                
+                <div id="trends" class="tab-panel hidden">
+                    <div class="osoul-tab-header">
+                        <h2 class="text-2xl font-bold mb-2">الاتجاهات التاريخية</h2>
+                        <p class="text-gray-600">تحليل الأداء والنمو عبر الزمن</p>
+                    </div>
+                    <p class="text-gray-600 p-8 text-center">محتوى الاتجاهات التاريخية...</p>
+                </div>
+                
+                <div id="data" class="tab-panel hidden">
+                    <div class="osoul-tab-header">
+                        <h2 class="text-2xl font-bold mb-2">البيانات الخام</h2>
+                        <p class="text-gray-600">البيانات التفصيلية والسجلات الكاملة</p>
+                    </div>
+                    <p class="text-gray-600 p-8 text-center">جدول البيانات الخام...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const translations = {
+            ar: {
+                overview: 'نظرة عامة',
+                breakdown: 'التحليل التفصيلي',
+                trends: 'الاتجاهات التاريخية',
+                data: 'البيانات الخام',
+                overviewTitle: 'نظرة عامة',
+                overviewDesc: 'ملخص شامل لمؤشرات الأداء الرئيسية',
+                breakdownTitle: 'التحليل التفصيلي',
+                breakdownDesc: 'تفصيل شامل للبيانات عبر أبعاد مختلفة',
+                trendsTitle: 'الاتجاهات التاريخية',
+                trendsDesc: 'تحليل الأداء والنمو عبر الزمن',
+                dataTitle: 'البيانات الخام',
+                dataDesc: 'البيانات التفصيلية والسجلات الكاملة',
+                totalCustomers: 'إجمالي العملاء',
+                activeAccounts: 'الحسابات النشطة',
+                totalAssets: 'إجمالي الأصول',
+                today: 'اليوم',
+                fromLastMonth: 'من الشهر الماضي'
+            },
+            en: {
+                overview: 'Overview',
+                breakdown: 'Breakdown Analysis',
+                trends: 'Historical Trends',
+                data: 'Raw Data',
+                overviewTitle: 'Overview',
+                overviewDesc: 'Comprehensive summary of key performance indicators',
+                breakdownTitle: 'Breakdown Analysis',
+                breakdownDesc: 'Detailed breakdown of data across different dimensions',
+                trendsTitle: 'Historical Trends',
+                trendsDesc: 'Performance and growth analysis over time',
+                dataTitle: 'Raw Data',
+                dataDesc: 'Detailed data and complete records',
+                totalCustomers: 'Total Customers',
+                activeAccounts: 'Active Accounts',
+                totalAssets: 'Total Assets',
+                today: 'Today',
+                fromLastMonth: 'from last month'
+            }
+        };
+        
+        let currentLang = 'ar';
+        
+        function setActiveTab(button, tabId) {
+            // Update button states
+            document.querySelectorAll('.osoul-tab-trigger').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+            
+            // Update content
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.add('hidden');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+        }
+        
+        function toggleLanguage() {
+            currentLang = currentLang === 'ar' ? 'en' : 'ar';
+            const html = document.documentElement;
+            
+            html.setAttribute('lang', currentLang);
+            html.setAttribute('dir', currentLang === 'ar' ? 'rtl' : 'ltr');
+            
+            // Update tab labels
+            const tabTexts = document.querySelectorAll('.tab-text');
+            tabTexts[0].textContent = translations[currentLang].overview;
+            tabTexts[1].textContent = translations[currentLang].breakdown;
+            tabTexts[2].textContent = translations[currentLang].trends;
+            tabTexts[3].textContent = translations[currentLang].data;
+            
+            // Update content based on active tab
+            const activeTab = document.querySelector('.osoul-tab-trigger.active');
+            const tabId = activeTab.getAttribute('onclick').match(/'([^']+)'/)[1];
+            
+            updateTabContent(tabId);
+        }
+        
+        function updateTabContent(tabId) {
+            const t = translations[currentLang];
+            
+            // Update headers
+            document.querySelectorAll('.osoul-tab-header h2')[0].textContent = t.overviewTitle;
+            document.querySelectorAll('.osoul-tab-header p')[0].textContent = t.overviewDesc;
+            
+            // Update stat cards
+            if (tabId === 'overview') {
+                document.querySelectorAll('.osoul-stat-card p')[0].textContent = t.totalCustomers;
+                document.querySelectorAll('.osoul-stat-card p')[3].textContent = t.activeAccounts;
+                document.querySelectorAll('.osoul-stat-card p')[6].textContent = t.totalAssets;
+                
+                // Update badge
+                document.querySelector('.osoul-badge').innerHTML = `
+                    <svg class="icon w-3 h-3" viewBox="0 0 24 24">
+                        <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                    </svg>
+                    ${t.today}
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

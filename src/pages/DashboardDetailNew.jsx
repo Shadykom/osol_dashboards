@@ -121,11 +121,11 @@ const BreakdownCard = ({ title, data, type = 'pie', className, t }) => {
   ];
 
   return (
-    <Card className={cn("relative overflow-hidden", className)}>
+    <Card className={cn("osoul-breakdown-card", className)}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-          <Badge variant="secondary" className="text-xs">
+          <h4 className="text-lg font-semibold">{title}</h4>
+          <Badge className="osoul-badge text-xs">
             {chartData.length} items
           </Badge>
         </div>
@@ -955,21 +955,23 @@ const DashboardDetailNew = () => {
             </div>
           ) : detailData.breakdown ? (
             <>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Breakdown Analysis</h2>
-                  <p className="text-muted-foreground">
-                    {section === 'customers' && widgetId === 'total_customers'
-                      ? 'Detailed breakdown of customers across different dimensions'
-                      : section === 'banking'
-                      ? 'Detailed breakdown of accounts by type, status, and branch'
-                      : 'Detailed breakdown of assets across different dimensions'}
-                  </p>
+              <div className="osoul-tab-header">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.details.breakdownAnalysis')}</h2>
+                    <p className="text-muted-foreground">
+                      {section === 'customers' && widgetId === 'total_customers'
+                        ? t('dashboard.details.breakdownDescCustomers')
+                        : section === 'banking'
+                        ? t('dashboard.details.breakdownDescBanking')
+                        : t('dashboard.details.breakdownDescAssets')}
+                    </p>
+                  </div>
+                  <Badge className="osoul-badge">
+                    <Calendar className="mr-1 h-3 w-3" />
+                    {new Date().toLocaleDateString()}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="text-sm">
-                  <Calendar className="mr-1 h-3 w-3" />
-                  {new Date().toLocaleDateString()}
-                </Badge>
               </div>
               
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -977,7 +979,7 @@ const DashboardDetailNew = () => {
                   <>
                     {detailData.breakdown.byCategory && (
                       <BreakdownCard 
-                        title="Customer Segments" 
+                        title={t('dashboard.details.customerSegments')} 
                         data={detailData.breakdown.byCategory} 
                         type="pie"
                         className="lg:col-span-1"
@@ -986,7 +988,7 @@ const DashboardDetailNew = () => {
                     )}
                     {detailData.breakdown.byType && (
                       <BreakdownCard 
-                        title="Customer Types" 
+                        title={t('dashboard.details.customerTypes')} 
                         data={detailData.breakdown.byType} 
                         type="bar"
                         t={t}
@@ -994,7 +996,7 @@ const DashboardDetailNew = () => {
                     )}
                     {detailData.breakdown.byRisk && (
                       <BreakdownCard t={t} 
-                        title="Risk Categories" 
+                        title={t('dashboard.details.riskCategories')} 
                         data={detailData.breakdown.byRisk} 
                         type="pie"
                       />
@@ -1091,15 +1093,15 @@ const DashboardDetailNew = () => {
             </div>
           ) : detailData.trends ? (
             <>
-              <div className="flex items-center justify-between">
+              <div className="osoul-tab-header">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Historical Trends</h2>
+                  <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.details.historicalTrends')}</h2>
                   <p className="text-muted-foreground">
                     {section === 'customers' && widgetId === 'total_customers' 
-                      ? 'Customer growth and activity over time'
+                      ? t('dashboard.details.trendsDescCustomers')
                       : section === 'banking'
-                      ? 'Account growth and balance trends over time'
-                      : 'Asset growth and performance over time'}
+                      ? t('dashboard.details.trendsDescBanking')
+                      : t('dashboard.details.trendsDescAssets')}
                   </p>
                 </div>
               </div>
@@ -1198,7 +1200,7 @@ const DashboardDetailNew = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Activity className="h-5 w-5" />
-                      Growth Rate Analysis
+                      {t('dashboard.details.growthRateAnalysis')}
                     </CardTitle>
                     <CardDescription>Day-over-day growth percentages</CardDescription>
                   </CardHeader>
@@ -1237,15 +1239,15 @@ const DashboardDetailNew = () => {
             </div>
           ) : detailData.raw ? (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="osoul-tab-header">
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Raw Data</h2>
+                  <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.details.rawData')}</h2>
                   <p className="text-muted-foreground">
                     {section === 'customers' && widgetId === 'total_customers'
-                      ? 'Detailed customer records and information'
+                      ? t('dashboard.details.rawDataDescCustomers')
                       : section === 'banking'
-                      ? 'Detailed account records and banking information'
-                      : 'Detailed transactional data and records'}
+                      ? t('dashboard.details.rawDataDescBanking')
+                      : t('dashboard.details.rawDataDescTransactions')}
                   </p>
                 </div>
               </div>
