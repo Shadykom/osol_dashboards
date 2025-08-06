@@ -1,0 +1,304 @@
+/* Osoul Dashboard Branding Styles */
+
+/* Tab Content Headers */
+.osoul-tab-header {
+  background: linear-gradient(135deg, #FFF8E1 0%, #FFFEF7 100%);
+  border-left: 4px solid #E6B800;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(230, 184, 0, 0.1);
+}
+
+[dir="rtl"] .osoul-tab-header {
+  border-left: none;
+  border-right: 4px solid #E6B800;
+}
+
+.osoul-tab-header h2 {
+  color: #1a1a1a;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.osoul-tab-header p {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+/* Enhanced Card Styling */
+.osoul-card {
+  border: 1px solid #E6B800;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.osoul-card:hover {
+  box-shadow: 0 8px 16px rgba(230, 184, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.osoul-card-header {
+  background: linear-gradient(135deg, #E6B800 0%, #F4C430 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-bottom: none;
+}
+
+.osoul-card-header h3 {
+  color: white;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+[dir="rtl"] .osoul-card-header h3 {
+  flex-direction: row-reverse;
+}
+
+.osoul-card-header svg {
+  color: white;
+  opacity: 0.9;
+}
+
+/* Stat Cards */
+.osoul-stat-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.osoul-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, #E6B800 0%, transparent 70%);
+  opacity: 0.1;
+  transform: translate(30%, -30%);
+}
+
+[dir="rtl"] .osoul-stat-card::before {
+  right: auto;
+  left: 0;
+  transform: translate(-30%, -30%);
+}
+
+.osoul-stat-card:hover {
+  border-color: #E6B800;
+  box-shadow: 0 4px 12px rgba(230, 184, 0, 0.15);
+}
+
+.osoul-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #E6B800;
+  margin: 0.5rem 0;
+}
+
+.osoul-stat-label {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Breakdown Cards */
+.osoul-breakdown-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.osoul-breakdown-card h4 {
+  color: #1a1a1a;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #E6B800;
+}
+
+/* Data Table Styling */
+.osoul-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.osoul-data-table thead {
+  background: linear-gradient(135deg, #E6B800 0%, #F4C430 100%);
+}
+
+.osoul-data-table thead th {
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+  border-bottom: none;
+}
+
+[dir="rtl"] .osoul-data-table thead th {
+  text-align: right;
+}
+
+.osoul-data-table tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.osoul-data-table tbody tr:hover {
+  background-color: #FFF8E1;
+}
+
+.osoul-data-table tbody td {
+  padding: 1rem;
+  color: #374151;
+}
+
+/* Action Buttons */
+.osoul-action-button {
+  background: linear-gradient(135deg, #E6B800 0%, #F4C430 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.osoul-action-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 184, 0, 0.3);
+}
+
+.osoul-action-button-secondary {
+  background: white;
+  color: #E6B800;
+  border: 2px solid #E6B800;
+}
+
+.osoul-action-button-secondary:hover {
+  background: #FFF8E1;
+}
+
+/* Badge Styling */
+.osoul-badge {
+  background: #FFF8E1;
+  color: #E6B800;
+  border: 1px solid #E6B800;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.osoul-badge-success {
+  background: #D1FAE5;
+  color: #065F46;
+  border-color: #10B981;
+}
+
+.osoul-badge-danger {
+  background: #FEE2E2;
+  color: #991B1B;
+  border-color: #EF4444;
+}
+
+/* Chart Container */
+.osoul-chart-container {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.osoul-chart-container h4 {
+  color: #1a1a1a;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+[dir="rtl"] .osoul-chart-container h4 {
+  flex-direction: row-reverse;
+}
+
+/* Loading State */
+.osoul-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #E6B800;
+}
+
+.osoul-loading svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Empty State */
+.osoul-empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+}
+
+.osoul-empty-state svg {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: #E6B800;
+  opacity: 0.5;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .osoul-tab-header {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .osoul-stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .osoul-data-table {
+    font-size: 0.875rem;
+  }
+  
+  .osoul-data-table thead th,
+  .osoul-data-table tbody td {
+    padding: 0.75rem;
+  }
+}

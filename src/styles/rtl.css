@@ -309,3 +309,217 @@
     direction: rtl;
   }
 }
+
+/* ===== NEW RTL FIXES FOR CARDS AND LABELS ===== */
+
+/* Card component RTL fixes */
+[dir="rtl"] [data-slot="card"] {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] [data-slot="card-header"] {
+  text-align: right;
+}
+
+[dir="rtl"] [data-slot="card-header"].has-data-[slot=card-action]:grid-cols-[1fr_auto] {
+  grid-template-columns: auto 1fr;
+}
+
+[dir="rtl"] [data-slot="card-title"] {
+  text-align: right;
+}
+
+[dir="rtl"] [data-slot="card-description"] {
+  text-align: right;
+}
+
+[dir="rtl"] [data-slot="card-content"] {
+  text-align: right;
+}
+
+[dir="rtl"] [data-slot="card-footer"] {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* Fix flex items inside cards */
+[dir="rtl"] [data-slot="card"] .flex:not(.flex-col) {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] [data-slot="card"] .flex.items-center > svg:first-child,
+[dir="rtl"] [data-slot="card"] .flex.items-center > .lucide:first-child {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Fix grid layouts in RTL */
+[dir="rtl"] .grid {
+  direction: rtl;
+}
+
+/* Fix icon positioning in buttons and labels */
+[dir="rtl"] button > .flex,
+[dir="rtl"] label > .flex {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] button svg:first-child,
+[dir="rtl"] label svg:first-child {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Fix spacing utilities */
+[dir="rtl"] .space-x-1 > *:not(:first-child) {
+  margin-right: 0.25rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-2 > *:not(:first-child) {
+  margin-right: 0.5rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-3 > *:not(:first-child) {
+  margin-right: 0.75rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .space-x-4 > *:not(:first-child) {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+
+/* Fix margin utilities */
+[dir="rtl"] .ml-auto {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+[dir="rtl"] .mr-auto {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+/* Fix padding utilities */
+[dir="rtl"] .pl-2 {
+  padding-left: 0;
+  padding-right: 0.5rem;
+}
+
+[dir="rtl"] .pr-2 {
+  padding-right: 0;
+  padding-left: 0.5rem;
+}
+
+[dir="rtl"] .pl-4 {
+  padding-left: 0;
+  padding-right: 1rem;
+}
+
+[dir="rtl"] .pr-4 {
+  padding-right: 0;
+  padding-left: 1rem;
+}
+
+/* Fix position utilities */
+[dir="rtl"] .left-0 {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .right-0 {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .left-4 {
+  left: auto;
+  right: 1rem;
+}
+
+[dir="rtl"] .right-4 {
+  right: auto;
+  left: 1rem;
+}
+
+/* Fix text alignment in specific components */
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+/* Ensure all flex containers in cards respect RTL */
+[dir="rtl"] .flex-row:not(.flex-row-reverse) {
+  flex-direction: row-reverse;
+}
+
+/* Fix rounded corners for RTL */
+[dir="rtl"] .rounded-l-lg {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+[dir="rtl"] .rounded-r-lg {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+}
+
+/* Fix border utilities for RTL */
+[dir="rtl"] .border-l {
+  border-left: 0;
+  border-right-width: 1px;
+}
+
+[dir="rtl"] .border-r {
+  border-right: 0;
+  border-left-width: 1px;
+}
+
+/* Ensure icons in cards are properly aligned */
+[dir="rtl"] .card-icon,
+[dir="rtl"] [class*="icon"] {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Fix specific dashboard card layouts */
+[dir="rtl"] .dashboard-card .flex-row,
+[dir="rtl"] .kpi-card .flex-row {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .dashboard-card .icon-wrapper,
+[dir="rtl"] .kpi-card .icon-wrapper {
+  margin-left: 1rem;
+  margin-right: 0;
+}
+
+/* Ensure all labels are right-aligned in RTL */
+[dir="rtl"] label,
+[dir="rtl"] .label {
+  text-align: right;
+  display: block;
+}
+
+/* Fix stat cards and metric displays */
+[dir="rtl"] .stat-card,
+[dir="rtl"] .metric-card {
+  text-align: right;
+}
+
+[dir="rtl"] .stat-value,
+[dir="rtl"] .metric-value {
+  direction: ltr;
+  unicode-bidi: embed;
+  display: inline-block;
+}

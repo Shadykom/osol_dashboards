@@ -7,6 +7,7 @@
 @import './styles/mobile-reports.css';
 @import './styles/rtl.css';
 @import './styles/rtl-mobile.css';
+@import './styles/osoul-dashboard.css';
 
 @tailwind base;
 @tailwind components;
