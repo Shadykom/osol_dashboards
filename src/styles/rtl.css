@@ -523,3 +523,304 @@
   unicode-bidi: embed;
   display: inline-block;
 }
+
+/* ===== ENHANCED RTL FIXES FOR DASHBOARD COMPONENTS ===== */
+
+/* Fix for Total Assets Dashboard cards */
+[dir="rtl"] .osoul-dashboard-card,
+[dir="rtl"] .osoul-breakdown-card {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Fix badge positioning in cards */
+[dir="rtl"] .osoul-badge {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Fix icon and text alignment in flex containers */
+[dir="rtl"] .flex.items-center:not(.flex-col) {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .flex.items-start:not(.flex-col) {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .flex.justify-between:not(.flex-col) {
+  flex-direction: row-reverse;
+}
+
+/* Fix gap utilities for RTL */
+[dir="rtl"] .gap-1 > * {
+  margin-left: 0.25rem;
+  margin-right: 0;
+}
+
+[dir="rtl"] .gap-2 > * {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+[dir="rtl"] .gap-3 > * {
+  margin-left: 0.75rem;
+  margin-right: 0;
+}
+
+[dir="rtl"] .gap-4 > * {
+  margin-left: 1rem;
+  margin-right: 0;
+}
+
+/* Fix card header alignment */
+[dir="rtl"] .card-header h3,
+[dir="rtl"] .card-header h4,
+[dir="rtl"] .card-header .card-title {
+  text-align: right;
+}
+
+/* Fix list items in breakdown cards */
+[dir="rtl"] .breakdown-list-item {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* Fix progress bars in RTL */
+[dir="rtl"] .progress,
+[dir="rtl"] [role="progressbar"] {
+  direction: ltr;
+}
+
+/* Fix chart containers */
+[dir="rtl"] .recharts-wrapper,
+[dir="rtl"] .recharts-responsive-container {
+  direction: ltr;
+}
+
+/* Fix tooltips in charts */
+[dir="rtl"] .recharts-tooltip-wrapper {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .recharts-default-tooltip {
+  text-align: right;
+}
+
+/* Fix legend alignment */
+[dir="rtl"] .recharts-legend-wrapper {
+  direction: rtl;
+}
+
+[dir="rtl"] .recharts-legend-item {
+  margin-left: 20px !important;
+  margin-right: 0 !important;
+}
+
+/* Fix number formatting in RTL */
+[dir="rtl"] .text-2xl,
+[dir="rtl"] .text-3xl,
+[dir="rtl"] .text-4xl,
+[dir="rtl"] .font-bold {
+  unicode-bidi: embed;
+}
+
+/* Ensure numbers stay LTR */
+[dir="rtl"] [data-number],
+[dir="rtl"] .currency-value,
+[dir="rtl"] .percentage-value {
+  direction: ltr;
+  unicode-bidi: embed;
+  display: inline-block;
+}
+
+/* Fix spacing between icon and text */
+[dir="rtl"] svg + span,
+[dir="rtl"] svg + div,
+[dir="rtl"] .lucide + span,
+[dir="rtl"] .lucide + div {
+  margin-right: 0.5rem;
+  margin-left: 0;
+}
+
+/* Fix dropdown menus in RTL */
+[dir="rtl"] [role="menu"],
+[dir="rtl"] [data-radix-popper-content-wrapper] {
+  text-align: right;
+}
+
+/* Fix select components */
+[dir="rtl"] [data-slot="select-trigger"] {
+  text-align: right;
+  flex-direction: row-reverse;
+}
+
+/* Fix tabs alignment */
+[dir="rtl"] [role="tablist"] {
+  direction: rtl;
+}
+
+[dir="rtl"] [role="tab"] {
+  text-align: right;
+}
+
+/* Fix dialog and sheet positioning */
+[dir="rtl"] [data-state="open"][data-side="right"] {
+  right: auto;
+  left: 0;
+}
+
+/* Fix alert components */
+[dir="rtl"] [role="alert"] {
+  text-align: right;
+  flex-direction: row-reverse;
+}
+
+/* Fix button groups */
+[dir="rtl"] .btn-group,
+[dir="rtl"] [role="group"] {
+  flex-direction: row-reverse;
+}
+
+/* Fix pagination */
+[dir="rtl"] nav[aria-label="pagination"] {
+  flex-direction: row-reverse;
+}
+
+/* Fix breadcrumbs */
+[dir="rtl"] nav[aria-label="breadcrumb"] ol {
+  flex-direction: row-reverse;
+}
+
+/* Fix table alignment */
+[dir="rtl"] table {
+  text-align: right;
+}
+
+[dir="rtl"] th,
+[dir="rtl"] td {
+  text-align: right;
+}
+
+/* Fix form elements */
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+[dir="rtl"] label {
+  text-align: right;
+}
+
+/* Fix checkbox and radio alignment */
+[dir="rtl"] input[type="checkbox"] + label,
+[dir="rtl"] input[type="radio"] + label {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+/* Mobile-specific RTL fixes */
+@media (max-width: 768px) {
+  [dir="rtl"] .mobile-flex-row {
+    flex-direction: row-reverse;
+  }
+  
+  [dir="rtl"] .mobile-text-right {
+    text-align: right;
+  }
+  
+  [dir="rtl"] .mobile-grid {
+    direction: rtl;
+  }
+}
+
+/* Ensure all Osoul-specific components respect RTL */
+[dir="rtl"] [class*="osoul-"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Fix specific dashboard metric cards */
+[dir="rtl"] .metric-card .flex {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .metric-icon {
+  margin-left: 1rem;
+  margin-right: 0;
+}
+
+/* Fix badge positioning in headers */
+[dir="rtl"] h3 .badge,
+[dir="rtl"] h4 .badge {
+  margin-left: 0.5rem;
+  margin-right: 0;
+}
+
+/* Ensure proper spacing in RTL mode */
+[dir="rtl"] .space-y-2 > * + * {
+  margin-top: 0.5rem;
+}
+
+[dir="rtl"] .space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+/* Fix icon rotation for RTL */
+[dir="rtl"] .rotate-icon,
+[dir="rtl"] [data-icon-rotate] {
+  transform: scaleX(-1);
+}
+
+/* Ensure tooltips appear correctly */
+[dir="rtl"] [role="tooltip"] {
+  text-align: right;
+}
+
+/* Fix avatar positioning */
+[dir="rtl"] .avatar-group {
+  flex-direction: row-reverse;
+}
+
+/* Fix notification positioning */
+[dir="rtl"] .notification-badge {
+  right: auto;
+  left: -0.5rem;
+}
+
+/* Additional fixes for dashboard detail pages */
+[dir="rtl"] .dashboard-detail-header {
+  text-align: right;
+}
+
+[dir="rtl"] .dashboard-detail-content {
+  direction: rtl;
+}
+
+/* Fix chart axis labels */
+[dir="rtl"] .recharts-xAxis .recharts-text,
+[dir="rtl"] .recharts-yAxis .recharts-text {
+  text-anchor: end;
+}
+
+/* Ensure all flex utilities work correctly */
+[dir="rtl"] .flex-1 {
+  flex: 1 1 0%;
+}
+
+[dir="rtl"] .flex-auto {
+  flex: 1 1 auto;
+}
+
+/* Fix overflow scrolling direction */
+[dir="rtl"] .overflow-x-auto {
+  direction: ltr;
+}
+
+[dir="rtl"] .overflow-x-auto > * {
+  direction: rtl;
+}
+
+/* END OF ENHANCED RTL FIXES */
