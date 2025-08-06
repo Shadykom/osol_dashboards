@@ -78,12 +78,17 @@ const BranchReportDetail = () => {
   const loadBranchDetails = async () => {
     try {
       setLoading(true);
+      console.log('Loading branch details with dateRange:', dateRange); // Debug log
+      
       const [branch, performance, officersList, collection] = await Promise.all([
         BranchReportService.getBranchDetails(branchId),
         BranchReportService.getBranchPerformance(branchId, dateRange),
         BranchReportService.getBranchOfficers(branchId),
         BranchReportService.getBranchCollectionData(branchId, dateRange)
       ]);
+      
+      console.log('Performance data received:', performance); // Debug log
+      console.log('Collection data received:', collection); // Debug log
       
       setBranchData(branch);
       setPerformanceData(performance);
@@ -529,19 +534,21 @@ const BranchReportDetail = () => {
                       <Legend />
                       <Line 
                         type="monotone" 
-                        dataKey="value" 
+                        dataKey={metricType === 'collection' ? 'value' : metricType === 'cases' ? 'cases' : 'performance'} 
                         stroke="#3b82f6" 
                         strokeWidth={2}
                         name={t(`branchReport.${metricType}`)}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="target" 
-                        stroke="#10b981" 
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        name={t('branchReport.target')}
-                      />
+                      {metricType === 'collection' && (
+                        <Line 
+                          type="monotone" 
+                          dataKey="target" 
+                          stroke="#10b981" 
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          name={t('branchReport.target')}
+                        />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>

@@ -316,6 +316,7 @@ export const BranchReportService = {
   async getBranchPerformance(branchId, dateRange) {
     try {
       const dateFilter = this.getDateFilter(dateRange);
+      console.log('getBranchPerformance - dateRange:', dateRange, 'dateFilter:', dateFilter); // Debug log
       
       const { data, error } = await supabase
         .from('branch_collection_performance')
@@ -326,6 +327,8 @@ export const BranchReportService = {
         .order('performance_date', { ascending: true });
 
       if (error) throw error;
+      
+      console.log('getBranchPerformance - data from DB:', data); // Debug log
 
       return data?.map(record => ({
         date: record.performance_date,
@@ -336,8 +339,9 @@ export const BranchReportService = {
       })) || [];
     } catch (error) {
       console.error('Error fetching branch performance:', error);
+      console.log('getBranchPerformance - using mock data due to error'); // Debug log
       // Return mock data for development
-      return generateMockPerformanceData();
+      return generateMockPerformanceData(dateRange);
     }
   },
 
@@ -441,7 +445,7 @@ export const BranchReportService = {
     } catch (error) {
       console.error('Error fetching collection data:', error);
       // Return mock data for development
-      return generateMockCollectionData();
+      return generateMockCollectionData(dateRange);
     }
   },
 
@@ -449,6 +453,8 @@ export const BranchReportService = {
   getDateFilter(dateRange, customDateRange) {
     const now = new Date();
     let startDate, endDate;
+
+    console.log('getDateFilter - input dateRange:', dateRange); // Debug log
 
     switch (dateRange) {
       case 'today':
@@ -491,6 +497,7 @@ export const BranchReportService = {
         endDate = new Date().toISOString().split('T')[0];
     }
 
+    console.log('getDateFilter - output:', { startDate, endDate }); // Debug log
     return { startDate, endDate };
   },
 
@@ -630,23 +637,29 @@ function generateMockBranchDetails(branchId) {
   };
 }
 
-function generateMockPerformanceData() {
-  const days = 30;
+function generateMockPerformanceData(dateRange) {
+  const dateFilter = BranchReportService.getDateFilter(dateRange);
+  const startDate = new Date(dateFilter.startDate);
+  const endDate = new Date(dateFilter.endDate);
+  const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+  
   const data = [];
   const baseCollection = 50000;
   const baseTarget = 60000;
   
   for (let i = 0; i < days; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() - (days - i));
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + i);
     
-    data.push({
-      date: date.toISOString().split('T')[0],
-      value: baseCollection + Math.floor(Math.random() * 20000 - 10000),
-      target: baseTarget,
-      cases: Math.floor(Math.random() * 50 + 20),
-      performance: Math.floor(Math.random() * 20 + 75)
-    });
+    if (date <= endDate) {
+      data.push({
+        date: date.toISOString().split('T')[0],
+        value: baseCollection + Math.floor(Math.random() * 20000 - 10000),
+        target: baseTarget,
+        cases: Math.floor(Math.random() * 50 + 20),
+        performance: Math.floor(Math.random() * 20 + 75)
+      });
+    }
   }
   
   return data;
