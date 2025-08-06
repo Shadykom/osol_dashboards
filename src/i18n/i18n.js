@@ -3,6 +3,10 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
 
+// Import translations directly to ensure they're available immediately
+import enTranslation from '../../public/locales/en/translation.json';
+import arTranslation from '../../public/locales/ar/translation.json';
+
 // Custom number formatter to keep numbers in English format
 const formatNumber = (value, lng, options = {}) => {
   // Always use English number formatting regardless of language
@@ -28,14 +32,25 @@ const formatCurrency = (value, lng, options = {}) => {
 };
 
 i18n
-  .use(HttpBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     fallbackLng: 'en', // Default to English
     lng: 'en', // Force English as default
-    debug: false,
+    debug: false, // Enable debug mode to see what's happening
     supportedLngs: ['en', 'ar'],
+    defaultNS: 'translation',
+    ns: ['translation'],
+    fallbackNS: 'translation',
+    
+    resources: {
+      en: {
+        translation: enTranslation
+      },
+      ar: {
+        translation: arTranslation
+      }
+    },
     
     interpolation: {
       escapeValue: false,
@@ -71,10 +86,6 @@ i18n
       }
     },
     
-    backend: {
-      loadPath: '/locales/{{lng}}/{{ns}}.json',
-    },
-    
     detection: {
       order: ['localStorage', 'cookie', 'htmlTag', 'path', 'subdomain'],
       caches: ['localStorage', 'cookie'],
@@ -84,6 +95,31 @@ i18n
     
     react: {
       useSuspense: false,
+      bindI18n: 'languageChanged loaded',
+      bindI18nStore: 'added removed',
+      transEmptyNodeValue: '',
+      transSupportBasicHtmlNodes: true,
+      transKeepBasicHtmlNodesFor: ['br', 'strong', 'i'],
+    },
+    
+    // Return the key if translation is missing (for debugging)
+    returnEmptyString: false,
+    returnNull: false,
+    returnObjects: true, // Allow returning objects for nested keys
+    
+    // Load translation bundles synchronously in development
+    initImmediate: false,
+    
+    // Ensure keys are returned when translation is missing
+    missingKeyHandler: (lng, ns, key, fallbackValue) => {
+      console.warn(`Missing translation: ${lng}/${ns}/${key}`);
+      return fallbackValue || key;
+    },
+    
+    // Add parseMissingKeyHandler to handle missing keys better
+    parseMissingKeyHandler: (key) => {
+      console.warn(`Parse missing key: ${key}`);
+      return key;
     },
   });
 

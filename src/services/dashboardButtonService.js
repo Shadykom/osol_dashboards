@@ -2,7 +2,7 @@
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
 export class DashboardButtonService {
@@ -10,6 +10,21 @@ export class DashboardButtonService {
    * Export dashboard data in various formats
    */
   static async exportDashboard(data, format = 'excel', options = {}) {
+    console.log('DashboardButtonService.exportDashboard called');
+    console.log('Format:', format);
+    console.log('Data:', data);
+    console.log('Options:', options);
+    
+    // Check if required dependencies are available
+    if (!saveAs || !XLSX || !jsPDF || !html2canvas) {
+      const missingDeps = [];
+      if (!saveAs) missingDeps.push('file-saver');
+      if (!XLSX) missingDeps.push('xlsx');
+      if (!jsPDF) missingDeps.push('jspdf');
+      if (!html2canvas) missingDeps.push('html2canvas');
+      throw new Error(`Missing dependencies: ${missingDeps.join(', ')}`);
+    }
+    
     try {
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `executive-dashboard-${timestamp}`;
@@ -38,156 +53,134 @@ export class DashboardButtonService {
    * Export to Excel format
    */
   static async exportToExcel(data, filename, options = {}) {
-    const workbook = XLSX.utils.book_new();
+    try {
+      console.log('Starting Excel export...');
+      const workbook = XLSX.utils.book_new();
 
-    // Summary sheet
-    const summaryData = [
-      ['Executive Dashboard Report'],
-      ['Generated on:', new Date().toLocaleDateString()],
-      [''],
-      ['Key Performance Indicators'],
-      ['Metric', 'Current', 'Previous', 'Change'],
-      ['Total Revenue', data.revenue?.current || 0, data.revenue?.previous || 0, data.revenue?.change || '0%'],
-      ['Active Loans', data.loans?.active || 0, data.loans?.previousActive || 0, data.loans?.change || '0%'],
-      ['Total Deposits', data.deposits?.total || 0, data.deposits?.previousTotal || 0, data.deposits?.change || '0%'],
-      ['NPL Ratio', `${data.npl?.ratio || 0}%`, `${data.npl?.previousRatio || 0}%`, data.npl?.change || '0%'],
-      [''],
-      ['Risk Scores'],
-      ['Risk Type', 'Score'],
-      ['Credit Risk', `${data.riskScores?.credit || 0}%`],
-      ['Market Risk', `${data.riskScores?.market || 0}%`],
-      ['Operational Risk', `${data.riskScores?.operational || 0}%`],
-      ['Compliance Risk', `${data.riskScores?.compliance || 0}%`]
-    ];
-
-    const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summaryWS, 'Executive Summary');
-
-    // Revenue trend sheet
-    if (data.revenueTrend && data.revenueTrend.length > 0) {
-      const revenueData = [
-        ['Revenue Trend Analysis'],
-        ['Month', 'Current Period', 'Previous Period'],
-        ...data.revenueTrend.map(item => [item.month, item.current, item.previous])
+      // Summary sheet
+      const summaryData = [
+        ['Executive Dashboard Report'],
+        ['Generated on:', new Date().toLocaleDateString()],
+        [''],
+        ['Key Performance Indicators'],
+        ['Metric', 'Current', 'Previous', 'Change'],
+        ['Total Revenue', data.revenue?.current || 0, data.revenue?.previous || 0, data.revenue?.change || '0%'],
+        ['Active Loans', data.loans?.active || 0, data.loans?.previousActive || 0, data.loans?.change || '0%'],
+        ['Total Deposits', data.deposits?.total || 0, data.deposits?.previousTotal || 0, data.deposits?.change || '0%'],
+        ['NPL Ratio', `${data.npl?.ratio || 0}%`, `${data.npl?.previousRatio || 0}%`, data.npl?.change || '0%'],
+        [''],
+        ['Risk Scores'],
+        ['Risk Type', 'Score'],
+        ['Credit Risk', `${data.riskScores?.credit || 0}%`],
+        ['Market Risk', `${data.riskScores?.market || 0}%`],
+        ['Operational Risk', `${data.riskScores?.operational || 0}%`],
+        ['Compliance Risk', `${data.riskScores?.compliance || 0}%`]
       ];
-      const revenueWS = XLSX.utils.aoa_to_sheet(revenueData);
-      XLSX.utils.book_append_sheet(workbook, revenueWS, 'Revenue Trend');
+
+      const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summaryWS, 'Executive Summary');
+
+      // Revenue trend sheet
+      if (data.revenueTrend && data.revenueTrend.length > 0) {
+        const revenueData = [
+          ['Revenue Trend Analysis'],
+          ['Month', 'Current Period', 'Previous Period'],
+          ...data.revenueTrend.map(item => [item.month, item.current, item.previous])
+        ];
+        const revenueWS = XLSX.utils.aoa_to_sheet(revenueData);
+        XLSX.utils.book_append_sheet(workbook, revenueWS, 'Revenue Trend');
+      }
+
+      // Portfolio distribution sheet
+      if (data.portfolio && data.portfolio.length > 0) {
+        const portfolioData = [
+          ['Portfolio Distribution'],
+          ['Product Category', 'Percentage', 'Amount', 'Count', 'Growth'],
+          ...data.portfolio.map(item => [item.name, `${item.value}%`, item.amount, item.count, item.growth])
+        ];
+        const portfolioWS = XLSX.utils.aoa_to_sheet(portfolioData);
+        XLSX.utils.book_append_sheet(workbook, portfolioWS, 'Portfolio');
+      }
+
+      // Recent transactions sheet
+      if (data.recentTransactions && data.recentTransactions.length > 0) {
+        const transactionData = [
+          ['Recent Transactions'],
+          ['Customer', 'Type', 'Amount', 'Status', 'Date', 'Description'],
+          ...data.recentTransactions.map(tx => [
+            tx.customer_name,
+            tx.type,
+            tx.amount,
+            tx.status,
+            new Date(tx.date).toLocaleDateString(),
+            tx.description
+          ])
+        ];
+        const transactionWS = XLSX.utils.aoa_to_sheet(transactionData);
+        XLSX.utils.book_append_sheet(workbook, transactionWS, 'Transactions');
+      }
+
+      // Write file
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `${filename}.xlsx`);
+
+      console.log('Excel export completed successfully.');
+      return { success: true, message: 'Excel report exported successfully' };
+    } catch (error) {
+      console.error('Excel export error:', error);
+      throw new Error(`Failed to export to Excel: ${error.message}`);
     }
-
-    // Portfolio distribution sheet
-    if (data.portfolio && data.portfolio.length > 0) {
-      const portfolioData = [
-        ['Portfolio Distribution'],
-        ['Product Category', 'Percentage', 'Amount', 'Count', 'Growth'],
-        ...data.portfolio.map(item => [item.name, `${item.value}%`, item.amount, item.count, item.growth])
-      ];
-      const portfolioWS = XLSX.utils.aoa_to_sheet(portfolioData);
-      XLSX.utils.book_append_sheet(workbook, portfolioWS, 'Portfolio');
-    }
-
-    // Recent transactions sheet
-    if (data.recentTransactions && data.recentTransactions.length > 0) {
-      const transactionData = [
-        ['Recent Transactions'],
-        ['Customer', 'Type', 'Amount', 'Status', 'Date', 'Description'],
-        ...data.recentTransactions.map(tx => [
-          tx.customer_name,
-          tx.type,
-          tx.amount,
-          tx.status,
-          new Date(tx.date).toLocaleDateString(),
-          tx.description
-        ])
-      ];
-      const transactionWS = XLSX.utils.aoa_to_sheet(transactionData);
-      XLSX.utils.book_append_sheet(workbook, transactionWS, 'Transactions');
-    }
-
-    // Write file
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `${filename}.xlsx`);
-
-    return { success: true, message: 'Excel report exported successfully' };
   }
 
   /**
    * Export to PDF format
    */
   static async exportToPDF(data, filename, options = {}) {
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    let yPosition = 20;
+    try {
+      console.log('Starting PDF export...');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 20;
 
-    // Header
-    pdf.setFontSize(20);
-    pdf.setFont(undefined, 'bold');
-    pdf.text('Executive Dashboard Report', 20, yPosition);
-    yPosition += 10;
+      // Header
+      pdf.setFontSize(20);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Executive Dashboard Report', 20, yPosition);
+      yPosition += 10;
 
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
-    pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, yPosition);
-    yPosition += 15;
+      pdf.setFontSize(12);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, yPosition);
+      yPosition += 15;
 
-    // KPIs Section
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
-    pdf.text('Key Performance Indicators', 20, yPosition);
-    yPosition += 10;
+      // KPIs Section
+      pdf.setFontSize(16);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Key Performance Indicators', 20, yPosition);
+      yPosition += 10;
 
-    const kpiData = [
-      ['Metric', 'Current', 'Previous', 'Change'],
-      ['Revenue', this.formatCurrency(data.revenue?.current), this.formatCurrency(data.revenue?.previous), data.revenue?.change || '0%'],
-      ['Active Loans', (data.loans?.active || 0).toLocaleString(), (data.loans?.previousActive || 0).toLocaleString(), data.loans?.change || '0%'],
-      ['Deposits', this.formatCurrency(data.deposits?.total), this.formatCurrency(data.deposits?.previousTotal), data.deposits?.change || '0%'],
-      ['NPL Ratio', `${data.npl?.ratio || 0}%`, `${data.npl?.previousRatio || 0}%`, data.npl?.change || '0%']
-    ];
+      const kpiData = [
+        ['Metric', 'Current', 'Previous', 'Change'],
+        ['Revenue', this.formatCurrency(data.revenue?.current), this.formatCurrency(data.revenue?.previous), data.revenue?.change || '0%'],
+        ['Active Loans', (data.loans?.active || 0).toLocaleString(), (data.loans?.previousActive || 0).toLocaleString(), data.loans?.change || '0%'],
+        ['Deposits', this.formatCurrency(data.deposits?.total), this.formatCurrency(data.deposits?.previousTotal), data.deposits?.change || '0%'],
+        ['NPL Ratio', `${data.npl?.ratio || 0}%`, `${data.npl?.previousRatio || 0}%`, data.npl?.change || '0%']
+      ];
 
-    pdf.autoTable({
-      startY: yPosition,
-      head: [kpiData[0]],
-      body: kpiData.slice(1),
-      theme: 'grid',
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: [67, 56, 202] }
-    });
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [kpiData[0]],
+        body: kpiData.slice(1),
+        theme: 'grid',
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [67, 56, 202] }
+      });
 
-    yPosition = pdf.lastAutoTable.finalY + 15;
-
-    // Risk Assessment Section
-    if (yPosition > pageHeight - 60) {
-      pdf.addPage();
-      yPosition = 20;
-    }
-
-    pdf.setFontSize(16);
-    pdf.setFont(undefined, 'bold');
-    pdf.text('Risk Assessment', 20, yPosition);
-    yPosition += 10;
-
-    const riskData = [
-      ['Risk Type', 'Score', 'Status'],
-      ['Credit Risk', `${data.riskScores?.credit || 0}%`, this.getRiskStatus(data.riskScores?.credit)],
-      ['Market Risk', `${data.riskScores?.market || 0}%`, this.getRiskStatus(data.riskScores?.market)],
-      ['Operational Risk', `${data.riskScores?.operational || 0}%`, this.getRiskStatus(data.riskScores?.operational)],
-      ['Compliance Risk', `${data.riskScores?.compliance || 0}%`, this.getRiskStatus(data.riskScores?.compliance)]
-    ];
-
-    pdf.autoTable({
-      startY: yPosition,
-      head: [riskData[0]],
-      body: riskData.slice(1),
-      theme: 'grid',
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: [239, 68, 68] }
-    });
-
-    // Portfolio Section
-    if (data.portfolio && data.portfolio.length > 0) {
       yPosition = pdf.lastAutoTable.finalY + 15;
-      
+
+      // Risk Assessment Section
       if (yPosition > pageHeight - 60) {
         pdf.addPage();
         yPosition = 20;
@@ -195,95 +188,143 @@ export class DashboardButtonService {
 
       pdf.setFontSize(16);
       pdf.setFont(undefined, 'bold');
-      pdf.text('Portfolio Distribution', 20, yPosition);
+      pdf.text('Risk Assessment', 20, yPosition);
       yPosition += 10;
 
-      const portfolioTableData = [
-        ['Product Category', 'Percentage', 'Amount', 'Growth'],
-        ...data.portfolio.map(item => [
-          item.name,
-          `${item.value}%`,
-          this.formatCurrency(item.amount),
-          item.growth
-        ])
+      const riskData = [
+        ['Risk Type', 'Score', 'Status'],
+        ['Credit Risk', `${data.riskScores?.credit || 0}%`, this.getRiskStatus(data.riskScores?.credit)],
+        ['Market Risk', `${data.riskScores?.market || 0}%`, this.getRiskStatus(data.riskScores?.market)],
+        ['Operational Risk', `${data.riskScores?.operational || 0}%`, this.getRiskStatus(data.riskScores?.operational)],
+        ['Compliance Risk', `${data.riskScores?.compliance || 0}%`, this.getRiskStatus(data.riskScores?.compliance)]
       ];
 
-      pdf.autoTable({
+      autoTable(pdf, {
         startY: yPosition,
-        head: [portfolioTableData[0]],
-        body: portfolioTableData.slice(1),
+        head: [riskData[0]],
+        body: riskData.slice(1),
         theme: 'grid',
         styles: { fontSize: 10 },
-        headStyles: { fillColor: [16, 185, 129] }
+        headStyles: { fillColor: [239, 68, 68] }
       });
-    }
 
-    // Footer
-    const totalPages = pdf.internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(8);
-      pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
-      pdf.text('Confidential - Executive Dashboard Report', 20, pageHeight - 10);
-    }
+      // Portfolio Section
+      if (data.portfolio && data.portfolio.length > 0) {
+        yPosition = pdf.lastAutoTable.finalY + 15;
+        
+        if (yPosition > pageHeight - 60) {
+          pdf.addPage();
+          yPosition = 20;
+        }
 
-    pdf.save(`${filename}.pdf`);
-    return { success: true, message: 'PDF report exported successfully' };
+        pdf.setFontSize(16);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Portfolio Distribution', 20, yPosition);
+        yPosition += 10;
+
+        const portfolioTableData = [
+          ['Product Category', 'Percentage', 'Amount', 'Growth'],
+          ...data.portfolio.map(item => [
+            item.name,
+            `${item.value}%`,
+            this.formatCurrency(item.amount),
+            item.growth
+          ])
+        ];
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [portfolioTableData[0]],
+          body: portfolioTableData.slice(1),
+          theme: 'grid',
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [16, 185, 129] }
+        });
+      }
+
+      // Footer
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
+        pdf.text('Confidential - Executive Dashboard Report', 20, pageHeight - 10);
+      }
+
+      pdf.save(`${filename}.pdf`);
+      console.log('PDF export completed successfully.');
+      return { success: true, message: 'PDF report exported successfully' };
+    } catch (error) {
+      console.error('PDF export error:', error);
+      throw new Error(`Failed to export to PDF: ${error.message}`);
+    }
   }
 
   /**
    * Export to CSV format
    */
   static async exportToCSV(data, filename, options = {}) {
-    const csvContent = [];
-    
-    // Header
-    csvContent.push('Executive Dashboard Report');
-    csvContent.push(`Generated on: ${new Date().toLocaleDateString()}`);
-    csvContent.push('');
+    try {
+      console.log('Starting CSV export...');
+      const csvContent = [];
+      
+      // Header
+      csvContent.push('Executive Dashboard Report');
+      csvContent.push(`Generated on: ${new Date().toLocaleDateString()}`);
+      csvContent.push('');
 
-    // KPIs
-    csvContent.push('Key Performance Indicators');
-    csvContent.push('Metric,Current,Previous,Change');
-    csvContent.push(`Revenue,${data.revenue?.current || 0},${data.revenue?.previous || 0},${data.revenue?.change || '0%'}`);
-    csvContent.push(`Active Loans,${data.loans?.active || 0},${data.loans?.previousActive || 0},${data.loans?.change || '0%'}`);
-    csvContent.push(`Deposits,${data.deposits?.total || 0},${data.deposits?.previousTotal || 0},${data.deposits?.change || '0%'}`);
-    csvContent.push(`NPL Ratio,${data.npl?.ratio || 0}%,${data.npl?.previousRatio || 0}%,${data.npl?.change || '0%'}`);
-    csvContent.push('');
+      // KPIs
+      csvContent.push('Key Performance Indicators');
+      csvContent.push('Metric,Current,Previous,Change');
+      csvContent.push(`Revenue,${data.revenue?.current || 0},${data.revenue?.previous || 0},${data.revenue?.change || '0%'}`);
+      csvContent.push(`Active Loans,${data.loans?.active || 0},${data.loans?.previousActive || 0},${data.loans?.change || '0%'}`);
+      csvContent.push(`Deposits,${data.deposits?.total || 0},${data.deposits?.previousTotal || 0},${data.deposits?.change || '0%'}`);
+      csvContent.push(`NPL Ratio,${data.npl?.ratio || 0}%,${data.npl?.previousRatio || 0}%,${data.npl?.change || '0%'}`);
+      csvContent.push('');
 
-    // Risk Scores
-    csvContent.push('Risk Assessment');
-    csvContent.push('Risk Type,Score');
-    csvContent.push(`Credit Risk,${data.riskScores?.credit || 0}%`);
-    csvContent.push(`Market Risk,${data.riskScores?.market || 0}%`);
-    csvContent.push(`Operational Risk,${data.riskScores?.operational || 0}%`);
-    csvContent.push(`Compliance Risk,${data.riskScores?.compliance || 0}%`);
+      // Risk Scores
+      csvContent.push('Risk Assessment');
+      csvContent.push('Risk Type,Score');
+      csvContent.push(`Credit Risk,${data.riskScores?.credit || 0}%`);
+      csvContent.push(`Market Risk,${data.riskScores?.market || 0}%`);
+      csvContent.push(`Operational Risk,${data.riskScores?.operational || 0}%`);
+      csvContent.push(`Compliance Risk,${data.riskScores?.compliance || 0}%`);
 
-    const csvString = csvContent.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `${filename}.csv`);
-
-    return { success: true, message: 'CSV report exported successfully' };
+      const csvString = csvContent.join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      saveAs(blob, `${filename}.csv`);
+      console.log('CSV export completed successfully.');
+      return { success: true, message: 'CSV report exported successfully' };
+    } catch (error) {
+      console.error('CSV export error:', error);
+      throw new Error(`Failed to export to CSV: ${error.message}`);
+    }
   }
 
   /**
    * Export to JSON format
    */
   static async exportToJSON(data, filename, options = {}) {
-    const exportData = {
-      metadata: {
-        title: 'Executive Dashboard Report',
-        generatedOn: new Date().toISOString(),
-        version: '1.0'
-      },
-      data: data
-    };
+    try {
+      console.log('Starting JSON export...');
+      const exportData = {
+        metadata: {
+          title: 'Executive Dashboard Report',
+          generatedOn: new Date().toISOString(),
+          version: '1.0'
+        },
+        data: data
+      };
 
-    const jsonString = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    saveAs(blob, `${filename}.json`);
-
-    return { success: true, message: 'JSON data exported successfully' };
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      saveAs(blob, `${filename}.json`);
+      console.log('JSON export completed successfully.');
+      return { success: true, message: 'JSON data exported successfully' };
+    } catch (error) {
+      console.error('JSON export error:', error);
+      throw new Error(`Failed to export to JSON: ${error.message}`);
+    }
   }
 
   /**
@@ -291,6 +332,7 @@ export class DashboardButtonService {
    */
   static async exportToImage(elementId, filename) {
     try {
+      console.log('Starting image export...');
       const element = document.getElementById(elementId) || document.querySelector('.dashboard-container');
       
       if (!element) {
@@ -307,7 +349,7 @@ export class DashboardButtonService {
       canvas.toBlob((blob) => {
         saveAs(blob, `${filename}.png`);
       });
-
+      console.log('Image export completed successfully.');
       return { success: true, message: 'Dashboard image exported successfully' };
     } catch (error) {
       console.error('Image export error:', error);
@@ -340,20 +382,28 @@ export class DashboardButtonService {
    * Share via link
    */
   static async shareViaLink(data, options = {}) {
-    const shareableLink = window.location.href;
-    
-    if (navigator.share) {
-      // Use native sharing if available
-      await navigator.share({
-        title: 'Executive Dashboard',
-        text: 'Check out this executive dashboard report',
-        url: shareableLink
-      });
-      return { success: true, message: 'Dashboard shared successfully' };
-    } else {
-      // Fallback to copying link
-      await navigator.clipboard.writeText(shareableLink);
-      return { success: true, message: 'Dashboard link copied to clipboard' };
+    try {
+      console.log('Starting link sharing...');
+      const shareableLink = window.location.href;
+      
+      if (navigator.share) {
+        // Use native sharing if available
+        await navigator.share({
+          title: 'Executive Dashboard',
+          text: 'Check out this executive dashboard report',
+          url: shareableLink
+        });
+        console.log('Dashboard shared successfully via native share.');
+        return { success: true, message: 'Dashboard shared successfully' };
+      } else {
+        // Fallback to copying link
+        await navigator.clipboard.writeText(shareableLink);
+        console.log('Dashboard link copied to clipboard via fallback.');
+        return { success: true, message: 'Dashboard link copied to clipboard' };
+      }
+    } catch (error) {
+      console.error('Link sharing error:', error);
+      throw new Error(`Failed to share dashboard via link: ${error.message}`);
     }
   }
 
@@ -361,8 +411,10 @@ export class DashboardButtonService {
    * Share via email
    */
   static async shareViaEmail(data, options = {}) {
-    const subject = encodeURIComponent('Executive Dashboard Report');
-    const body = encodeURIComponent(`
+    try {
+      console.log('Starting email sharing...');
+      const subject = encodeURIComponent('Executive Dashboard Report');
+      const body = encodeURIComponent(`
 Please find the executive dashboard report with the following key metrics:
 
 Revenue: ${this.formatCurrency(data.revenue?.current)} (${data.revenue?.change || '0%'} change)
@@ -377,15 +429,21 @@ Generated on: ${new Date().toLocaleDateString()}
 
     const mailtoLink = `mailto:${options.recipient || ''}?subject=${subject}&body=${body}`;
     window.open(mailtoLink);
-
+    console.log('Email client opened with dashboard data.');
     return { success: true, message: 'Email client opened with dashboard data' };
+    } catch (error) {
+      console.error('Email sharing error:', error);
+      throw new Error(`Failed to share dashboard via email: ${error.message}`);
+    }
   }
 
   /**
    * Copy data to clipboard
    */
   static async copyToClipboard(data, options = {}) {
-    const summary = `Executive Dashboard Summary
+    try {
+      console.log('Starting clipboard copy...');
+      const summary = `Executive Dashboard Summary
 Generated: ${new Date().toLocaleDateString()}
 
 Key Metrics:
@@ -401,7 +459,12 @@ Risk Scores:
 • Compliance: ${data.riskScores?.compliance || 0}%`;
 
     await navigator.clipboard.writeText(summary);
+    console.log('Dashboard summary copied to clipboard.');
     return { success: true, message: 'Dashboard summary copied to clipboard' };
+    } catch (error) {
+      console.error('Clipboard copy error:', error);
+      throw new Error(`Failed to copy dashboard summary to clipboard: ${error.message}`);
+    }
   }
 
   /**
@@ -448,6 +511,7 @@ Risk Scores:
   static saveCustomizationSettings(settings) {
     try {
       localStorage.setItem('osol-dashboard-settings', JSON.stringify(settings));
+      console.log('Dashboard settings saved successfully.');
       return { success: true, message: 'Dashboard settings saved successfully' };
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -461,6 +525,7 @@ Risk Scores:
   static loadCustomizationSettings() {
     try {
       const settings = localStorage.getItem('osol-dashboard-settings');
+      console.log('Dashboard settings loaded.');
       return settings ? JSON.parse(settings) : this.getDefaultSettings();
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -487,6 +552,19 @@ Risk Scores:
    * Generate detailed report
    */
   static async generateDetailedReport(data, options = {}) {
+    console.log('DashboardButtonService.generateDetailedReport called');
+    console.log('Data:', data);
+    console.log('Options:', options);
+    
+    // Validate required dependencies
+    if (!jsPDF || !XLSX) {
+      throw new Error('Required dependencies for report generation are not available');
+    }
+    
+    if (!data) {
+      throw new Error('No data provided for report generation');
+    }
+    
     try {
       const reportData = {
         ...data,
@@ -498,11 +576,13 @@ Risk Scores:
       // Create comprehensive report based on format
       switch (options.format || 'pdf') {
         case 'pdf':
+          console.log('Generating detailed PDF report...');
           return await this.exportToPDF(reportData, `executive-detailed-report-${new Date().toISOString().split('T')[0]}`, options);
         case 'excel':
+          console.log('Generating detailed Excel report...');
           return await this.exportToExcel(reportData, `executive-detailed-report-${new Date().toISOString().split('T')[0]}`, options);
         default:
-          throw new Error('Unsupported report format');
+          throw new Error(`Unsupported report format: ${options.format}`);
       }
     } catch (error) {
       console.error('Report generation error:', error);

@@ -14,6 +14,8 @@ import BaselIIIComplianceReport from './BaselIIIComplianceReport';
 import AMLCFTReport from './AMLCFTReport';
 import LiquidityCoverageRatioReport from './LiquidityCoverageRatioReport';
 import CapitalAdequacyReport from './CapitalAdequacyReport';
+import BalanceSheetReport from './BalanceSheetReport';
+import CashFlowStatementReport from './CashFlowStatementReport';
 
 const COLORS = {
   primary: '#E6B800',    // OSOL Golden

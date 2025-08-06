@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import ModernLayout from './components/layout/ModernLayout';
 import { FilterProvider } from './contexts/FilterContext';
 import { RTLWrapper } from './components/ui/rtl-wrapper';
+import { AuthProvider } from './contexts/AuthContext';
+import Login from './pages/Login';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Import test utility for debugging
 import './utils/testCustomerCount';
@@ -21,6 +24,7 @@ import { Compliance } from './pages/Compliance';
 import CollectionOverview from './pages/CollectionOverview';
 import CollectionDetailView from './pages/CollectionDetailView';
 import CollectionCases from './pages/CollectionCases';
+import CollectionCaseDetails from './pages/CollectionCaseDetails';
 import CollectionReports from './pages/CollectionReports';
 import DailyCollectionDashboard from './pages/DailyCollectionDashboard';
 import DigitalCollectionDashboard from './pages/DigitalCollectionDashboard';
@@ -32,16 +36,19 @@ import ShariaComplianceDashboard from './pages/ShariaComplianceDashboard';
 import VintageAnalysisDashboard from './pages/VintageAnalysisDashboard';
 import DelinquencyExecutiveDashboard from './pages/DelinquencyExecutiveDashboard';
 import SpecialistLevelReport from './pages/SpecialistLevelReport';
+import SpecialistCollectionDashboard from './pages/SpecialistCollectionDashboard';
 import DatabaseTest from './pages/DatabaseTest';
 import DiagnosticPage from './pages/DiagnosticPage';
 import DatabaseDiagnostic from './pages/DatabaseDiagnostic';
 import BranchReportPage from '@/pages/collection/BranchReport';
+import BranchReportDetail from '@/pages/collection/BranchReportDetail';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
 import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
 import { BasicSidebarTest } from './pages/BasicSidebarTest';
 import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
+import TestMobileSidebar from './pages/TestMobileSidebar';
 import DashboardDetail from './pages/DashboardDetail';
 import DashboardDetailNew from './pages/DashboardDetailNew';
 import ModernDashboardDetail from './pages/ModernDashboardDetail';
@@ -149,7 +156,9 @@ function App() {
     <ErrorBoundary>
       <FilterProvider>
         <Router>
-          <AppContent />
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
         </Router>
       </FilterProvider>
     </ErrorBoundary>
@@ -269,7 +278,15 @@ function AppContent() {
     <RTLWrapper className="app min-h-screen">
       <RouteRedirect />
       <Routes>
-        <Route element={<ModernLayout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} isMobile={isMobile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />}>
+        {/* Login Route - Not Protected */}
+        <Route path="/login" element={<Login />} />
+        
+        {/* Protected Routes */}
+        <Route element={
+          <ProtectedRoute>
+            <ModernLayout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} isMobile={isMobile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
+          </ProtectedRoute>
+        }>
           {/* Main Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -341,6 +358,7 @@ function AppContent() {
           <Route path="/basic-sidebar-test" element={<BasicSidebarTest />} />
           <Route path="/test-modern-layout" element={<TestModernLayout />} />
           <Route path="/simple-test" element={<SimpleTest />} />
+          <Route path="/test-mobile-sidebar" element={<TestMobileSidebar />} />
           
           
           {/* Collection Routes */}
@@ -348,6 +366,7 @@ function AppContent() {
           <Route path="/collection/overview" element={<CollectionOverview />} />
           <Route path="/collection/detail/:cardType" element={<CollectionDetailView />} />
           <Route path="/collection/cases" element={<CollectionCases />} />
+          <Route path="/collection/cases/:caseId" element={<CollectionCaseDetails />} />
           <Route path="/collection/reports" element={<CollectionReports />} />
           <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
           <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
@@ -357,10 +376,12 @@ function AppContent() {
           <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
           <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
           <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
-                      <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
-            <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
-            <Route path="/collection/branch-report" element={<BranchReportPage />} />
-            <Route path="/collection/product-report" element={<ProductReportPage />} />
+          <Route path="/collection/delinquency-executive" element={<DelinquencyExecutiveDashboard />} />
+          <Route path="/collection/specialist-report" element={<SpecialistLevelReport />} />
+          <Route path="/collection/specialist" element={<SpecialistCollectionDashboard />} />
+          <Route path="/collection/branch-report" element={<BranchReportPage />} />
+          <Route path="/collection/branch-report/:branchId" element={<BranchReportDetail />} />
+          <Route path="/collection/product-report" element={<ProductReportPage />} />
             {/* Legacy URL Redirects (backwards compatibility) */}
           <Route path="/collection-daily" element={<Navigate to="/collection/daily" replace />} />
           <Route path="/collection-overview" element={<Navigate to="/collection/overview" replace />} />

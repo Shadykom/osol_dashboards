@@ -3,7 +3,7 @@
 // Displays a breakdown, trends and raw data view for an individual widget.
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
@@ -97,7 +97,7 @@ const StatCard = ({ title, value, change, trend, description, icon: Icon, classN
 };
 
 // Enhanced Breakdown Card Component
-const BreakdownCard = ({ title, data, type = 'pie', className }) => {
+const BreakdownCard = ({ title, data, type = 'pie', className, t }) => {
   const total = Object.values(data).reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
   
   // Transform data for charts
@@ -205,7 +205,7 @@ const BreakdownCard = ({ title, data, type = 'pie', className }) => {
 };
 
 // Enhanced Data Table Component for Raw Data
-const DataTable = ({ data, columns, title }) => {
+const DataTable = ({ data, columns, title, t }) => {
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -260,7 +260,8 @@ const DataTable = ({ data, columns, title }) => {
 const DashboardDetailNew = () => {
   const { section, widgetId } = useParams();
   const navigate = useNavigate();
-  const { filters } = useFilters();
+  const location = useLocation();
+  const { filters, updateFilters } = useFilters();
   const [activeTab, setActiveTab] = useState('overview');
   const [detailData, setDetailData] = useState({
     overview: null,
@@ -272,6 +273,23 @@ const DashboardDetailNew = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { t } = useTranslation();
+  
+  // Parse filters from URL on mount
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const urlFilters = {};
+    
+    // Extract filters from URL
+    for (const [key, value] of searchParams.entries()) {
+      urlFilters[key] = value;
+    }
+    
+    // Update filter context if URL has filters
+    if (Object.keys(urlFilters).length > 0) {
+      console.log('Applying filters from URL:', urlFilters);
+      updateFilters(urlFilters);
+    }
+  }, [location.search]);
 
   // Fetch data on mount or when filters change
   useEffect(() => {
@@ -963,6 +981,7 @@ const DashboardDetailNew = () => {
                         data={detailData.breakdown.byCategory} 
                         type="pie"
                         className="lg:col-span-1"
+                        t={t}
                       />
                     )}
                     {detailData.breakdown.byType && (
@@ -970,17 +989,18 @@ const DashboardDetailNew = () => {
                         title="Customer Types" 
                         data={detailData.breakdown.byType} 
                         type="bar"
+                        t={t}
                       />
                     )}
                     {detailData.breakdown.byRisk && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Risk Categories" 
                         data={detailData.breakdown.byRisk} 
                         type="pie"
                       />
                     )}
                     {detailData.breakdown.byBranch && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Top Branches" 
                         data={detailData.breakdown.byBranch} 
                         type="list"
@@ -988,14 +1008,14 @@ const DashboardDetailNew = () => {
                       />
                     )}
                     {detailData.breakdown.byKYC && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="KYC Status" 
                         data={detailData.breakdown.byKYC} 
                         type="pie"
                       />
                     )}
                     {detailData.breakdown.byStatus && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Verification Status" 
                         data={detailData.breakdown.byStatus} 
                         type="bar"
@@ -1005,7 +1025,7 @@ const DashboardDetailNew = () => {
                 ) : (
                   <>
                     {detailData.breakdown.byCategory && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Asset Categories" 
                         data={detailData.breakdown.byCategory} 
                         type="pie"
@@ -1013,21 +1033,21 @@ const DashboardDetailNew = () => {
                       />
                     )}
                     {detailData.breakdown.byAccountType && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Account Types" 
                         data={detailData.breakdown.byAccountType} 
                         type="bar"
                       />
                     )}
                     {detailData.breakdown.byProductType && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Product Types" 
                         data={detailData.breakdown.byProductType} 
                         type="pie"
                       />
                     )}
                     {detailData.breakdown.byBranch && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Top Branches" 
                         data={detailData.breakdown.byBranch} 
                         type="list"
@@ -1035,14 +1055,14 @@ const DashboardDetailNew = () => {
                       />
                     )}
                     {detailData.breakdown.byCurrency && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Currency Distribution" 
                         data={detailData.breakdown.byCurrency} 
                         type="pie"
                       />
                     )}
                     {detailData.breakdown.byStatus && (
-                      <BreakdownCard 
+                      <BreakdownCard t={t} 
                         title="Status Breakdown" 
                         data={detailData.breakdown.byStatus} 
                         type="bar"
@@ -1233,7 +1253,7 @@ const DashboardDetailNew = () => {
               {section === 'customers' && widgetId === 'total_customers' ? (
                 <>
                   {detailData.raw.customers && detailData.raw.customers.length > 0 && (
-                    <DataTable
+                    <DataTable t={t}
                       title="Customer Records"
                       data={detailData.raw.customers.slice(0, 20)}
                       columns={[
@@ -1285,7 +1305,7 @@ const DashboardDetailNew = () => {
               ) : section === 'banking' ? (
                 <>
                   {detailData.raw.accounts && detailData.raw.accounts.length > 0 && (
-                    <DataTable
+                    <DataTable t={t}
                       title="Account Records"
                       data={detailData.raw.accounts.slice(0, 20)}
                       columns={[
@@ -1339,7 +1359,7 @@ const DashboardDetailNew = () => {
               ) : (
                 <>
                   {detailData.raw.accounts && detailData.raw.accounts.length > 0 && (
-                    <DataTable
+                    <DataTable t={t}
                       title="Top Accounts"
                       data={detailData.raw.accounts.slice(0, 10)}
                       columns={[
@@ -1353,7 +1373,7 @@ const DashboardDetailNew = () => {
                   )}
 
                   {detailData.raw.loans && detailData.raw.loans.length > 0 && (
-                    <DataTable
+                    <DataTable t={t}
                       title="Top Loans"
                       data={detailData.raw.loans.slice(0, 10)}
                       columns={[

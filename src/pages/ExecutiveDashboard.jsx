@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +32,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   LineChart,
   Line,
@@ -99,7 +105,8 @@ import {
   Link,
   Copy,
   Image,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Upload
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -137,8 +144,7 @@ function formatCurrency(amount, currency = 'SAR') {
 }
 
 // Enhanced KPI Card with comparison features
-function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon, description, format = 'number', comparisonPeriod, color = 'primary' }) {
-  const { t } = useTranslation();
+function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon, description, format = 'number', comparisonPeriod, color = 'primary', t }) {
   
   const formattedValue = format === 'currency' ? formatCurrency(value) : 
                         format === 'percentage' ? `${value}%` : 
@@ -256,8 +262,7 @@ function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon,
 }
 
 // Modern Risk Score Card with visual indicators
-function ModernRiskScoreCard({ category, score, status, trend, details }) {
-  const { t } = useTranslation();
+function ModernRiskScoreCard({ category, score, status, trend, details, t }) {
   
   const getStatusConfig = (status) => {
     switch(status) {
@@ -361,20 +366,101 @@ function ModernRiskScoreCard({ category, score, status, trend, details }) {
 
 export function ExecutiveDashboard() {
   const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [comparisonSettings, setComparisonSettings] = useState({
-    type: 'month-to-month',
-    customRange: null,
-    metrics: ['all']
+    type: 'year-over-year',
+    period: 'current'
   });
   const [activeView, setActiveView] = useState('overview');
+
+  // Handle date range change
+  const handleDateChange = (newDateRange) => {
+    setDateRange(newDateRange);
+  };
   const [isExporting, setIsExporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [customizationOpen, setCustomizationOpen] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [loadComparisonDialogOpen, setLoadComparisonDialogOpen] = useState(false);
+  const [savedComparisons, setSavedComparisons] = useState([]);
+  const [scheduleSettings, setScheduleSettings] = useState({
+    name: 'Executive Dashboard Report',
+    frequency: 'DAILY',
+    time: '08:00',
+    recipients: '',
+    format: 'PDF'
+  });
   const { shouldRefresh, refreshComplete } = useDataRefresh();
+
+  // Memoize the fallback portfolio data to avoid inline t() calls
+  const fallbackPortfolioData = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return [
+        { name: 'Personal Loans', value: 35, growth: '+5%' },
+        { name: 'Mortgages', value: 28, growth: '+3%' },
+        { name: 'Auto Loans', value: 20, growth: '+8%' },
+        { name: 'Business Loans', value: 12, growth: '+12%' },
+        { name: 'Others', value: 5, growth: '-2%' }
+      ];
+    }
+    return [
+      { name: t('executiveDashboard.personalLoans'), value: 35, growth: '+5%' },
+      { name: t('executiveDashboard.mortgages'), value: 28, growth: '+3%' },
+      { name: t('executiveDashboard.autoLoans'), value: 20, growth: '+8%' },
+      { name: t('executiveDashboard.businessLoans'), value: 12, growth: '+12%' },
+      { name: t('executiveDashboard.others'), value: 5, growth: '-2%' }
+    ];
+  }, [t]);
+
+  // Memoize other data that uses translations
+  const loanPortfolioPerformanceData = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return [
+        { period: 'Personal Loans', current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
+        { period: 'Mortgages', current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
+        { period: 'Auto Loans', current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
+        { period: 'Business Loans', current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
+        { period: 'Credit Cards', current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
+      ];
+    }
+    return [
+      { period: t('executiveDashboard.personalLoans'), current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
+      { period: t('executiveDashboard.mortgages'), current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
+      { period: t('executiveDashboard.autoLoans'), current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
+      { period: t('executiveDashboard.businessLoans'), current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
+      { period: t('executiveDashboard.creditCards'), current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
+    ];
+  }, [t]);
+
+  const customerGrowthMetrics = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return ['New Customers', 'Active Customers', 'Churned Customers'];
+    }
+    return [
+      t('executiveDashboard.newCustomers'), 
+      t('executiveDashboard.activeCustomers'), 
+      t('executiveDashboard.churnedCustomers')
+    ];
+  }, [t]);
+
+  const loanPortfolioMetrics = useMemo(() => {
+    // Guard against t not being available
+    if (!t || typeof t !== 'function') {
+      return ['Disbursed Amount', 'Outstanding Balance', 'NPL Amount'];
+    }
+    return [
+      t('executiveDashboard.disbursedAmount'), 
+      t('executiveDashboard.outstandingBalance'), 
+      t('executiveDashboard.nplAmount')
+    ];
+  }, [t]);
 
   // Fetch real dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -425,69 +511,124 @@ export function ExecutiveDashboard() {
 
   // Export functionality
   const handleExport = async (format = 'excel') => {
+    console.log('🚀 handleExport called with format:', format);
+    console.log('📊 dashboardData availability:', !!dashboardData);
+    console.log('📊 dashboardData:', dashboardData);
+    
     if (!dashboardData) {
+      console.warn('⚠️ No data available to export');
       toast.error('No data available to export');
       return;
     }
 
     try {
       setIsExporting(true);
+      console.log('📤 Setting export state to true');
+      console.log('🔧 Calling DashboardButtonService.exportDashboard...');
+      
+      // Test if the service is available
+      if (!DashboardButtonService) {
+        throw new Error('DashboardButtonService is not available');
+      }
+      
       const result = await DashboardButtonService.exportDashboard(dashboardData, format, {
         elementId: 'executive-dashboard-container'
       });
       
+      console.log('✅ Export result:', result);
+      
       if (result.success) {
         toast.success(result.message);
+      } else {
+        throw new Error(result.message || 'Export failed');
       }
     } catch (error) {
-      console.error('Export error:', error);
+      console.error('❌ Export error:', error);
+      console.error('❌ Error stack:', error.stack);
       toast.error(error.message || 'Failed to export dashboard');
     } finally {
       setIsExporting(false);
+      console.log('📤 Setting export state to false');
     }
   };
 
   // Share functionality
   const handleShare = async (method = 'link') => {
+    console.log('🚀 handleShare called with method:', method);
+    console.log('📊 dashboardData availability:', !!dashboardData);
+    
     if (!dashboardData) {
+      console.warn('⚠️ No data available to share');
       toast.error('No data available to share');
       return;
     }
 
     try {
       setIsSharing(true);
+      console.log('🔗 Setting share state to true');
+      
+      // Test if the service is available
+      if (!DashboardButtonService) {
+        throw new Error('DashboardButtonService is not available');
+      }
+      
       const result = await DashboardButtonService.shareDashboard(dashboardData, method);
+      
+      console.log('✅ Share result:', result);
       
       if (result.success) {
         toast.success(result.message);
+      } else {
+        throw new Error(result.message || 'Share failed');
       }
     } catch (error) {
-      console.error('Share error:', error);
+      console.error('❌ Share error:', error);
+      console.error('❌ Error stack:', error.stack);
       toast.error(error.message || 'Failed to share dashboard');
     } finally {
       setIsSharing(false);
+      console.log('🔗 Setting share state to false');
     }
   };
 
   // Generate detailed report
   const handleGenerateReport = async (format = 'pdf') => {
+    console.log('🚀 handleGenerateReport called with format:', format);
+    console.log('📊 dashboardData availability:', !!dashboardData);
+    console.log('📊 dashboardData:', dashboardData);
+    
     if (!dashboardData) {
+      console.warn('⚠️ No data available for report generation');
       toast.error('No data available for report generation');
       return;
     }
 
     try {
       setIsExporting(true);
+      console.log('📝 Setting export state to true for report generation');
+      console.log('🔧 Calling DashboardButtonService.generateDetailedReport...');
+      
+      // Test if the service is available
+      if (!DashboardButtonService) {
+        throw new Error('DashboardButtonService is not available');
+      }
+      
       const result = await DashboardButtonService.generateDetailedReport(dashboardData, { format });
+      
+      console.log('✅ Report generation result:', result);
       
       if (result.success) {
         toast.success(result.message);
+      } else {
+        throw new Error(result.message || 'Report generation failed');
       }
     } catch (error) {
-      console.error('Report generation error:', error);
+      console.error('❌ Report generation error:', error);
+      console.error('❌ Error stack:', error.stack);
       toast.error(error.message || 'Failed to generate report');
     } finally {
       setIsExporting(false);
+      console.log('📝 Setting export state to false');
     }
   };
 
@@ -495,6 +636,73 @@ export function ExecutiveDashboard() {
   const handleCustomization = () => {
     setCustomizationOpen(true);
   };
+
+  // Save current comparison
+  const handleSaveComparison = async () => {
+    try {
+      const comparisonName = prompt(t('executiveDashboard.enterComparisonName'));
+      if (!comparisonName) return;
+
+      const result = await DashboardService.saveComparison({
+        name: comparisonName,
+        settings: comparisonSettings,
+        data: dashboardData,
+        filters: { dateRange, selectedBranch }
+      });
+
+      if (result.success) {
+        toast.success(t('executiveDashboard.comparisonSaved'));
+      }
+    } catch (error) {
+      console.error('Save comparison error:', error);
+      toast.error(t('executiveDashboard.failedToSaveComparison'));
+    }
+  };
+
+  // Load saved comparisons
+  const handleLoadComparison = async () => {
+    try {
+      const result = await DashboardService.loadSavedComparisons();
+      if (result.success && result.data) {
+        setSavedComparisons(result.data);
+        setLoadComparisonDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Load comparison error:', error);
+      toast.error(t('executiveDashboard.failedToLoadComparisons'));
+    }
+  };
+
+  // Apply loaded comparison
+  const applyComparison = (comparison) => {
+    setComparisonSettings(comparison.settings);
+    setDateRange(comparison.filters.dateRange);
+    setSelectedBranch(comparison.filters.selectedBranch);
+    setLoadComparisonDialogOpen(false);
+    toast.success(t('executiveDashboard.comparisonLoaded'));
+    fetchDashboardData();
+  };
+
+  // Schedule report
+  const handleScheduleReport = async () => {
+    try {
+      const result = await DashboardService.scheduleReport({
+        ...scheduleSettings,
+        recipients: scheduleSettings.recipients.split(',').map(email => email.trim()),
+        filters: { dateRange, selectedBranch, comparison: comparisonSettings }
+      });
+
+      if (result.success) {
+        toast.success(t('executiveDashboard.reportScheduled'));
+        setScheduleDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('Schedule report error:', error);
+      toast.error(t('executiveDashboard.failedToScheduleReport'));
+    }
+  };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -607,6 +815,39 @@ export function ExecutiveDashboard() {
               </DropdownMenuContent>
             </DropdownMenu>
             
+            {/* More Options Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                >
+                  <MoreVertical className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">{t('executiveDashboard.moreOptions')}</span>
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSaveComparison}>
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.saveComparison')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLoadComparison}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.loadPrevious')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setScheduleDialogOpen(true)}>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.scheduleReport')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCustomization}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {t('executiveDashboard.customize')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <Button 
               variant="default" 
               size="sm"
@@ -633,10 +874,15 @@ export function ExecutiveDashboard() {
               <span className="text-xs sm:text-sm font-medium">{t('executiveDashboard.quickFilters')}:</span>
             </div>
             
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
+            {/* Date Range and Branch Filter */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-start sm:items-center">
+              <DatePickerWithRange
+                date={dateRange}
+                onDateChange={handleDateChange}
+                className="w-full sm:w-auto"
+              />
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <Building2 className="h-4 w-4 mr-2" />
                   <SelectValue placeholder={t('executiveDashboard.selectBranch')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -646,12 +892,7 @@ export function ExecutiveDashboard() {
                   <SelectItem value="dammam">{t('executiveDashboard.dammam')}</SelectItem>
                 </SelectContent>
               </Select>
-              
-              <DatePickerWithRange
-                date={dateRange}
-                onDateChange={setDateRange}
-                className="w-full sm:w-[300px]"
-              />
+
             </div>
             
             <div className="flex items-center gap-2 flex-wrap">
@@ -713,6 +954,7 @@ export function ExecutiveDashboard() {
                   format="currency"
                   comparisonPeriod={comparisonSettings.type}
                   color="success"
+                  t={t}
                 />
                 
                 <ModernKPICard
@@ -725,6 +967,7 @@ export function ExecutiveDashboard() {
                   description={t('executiveDashboard.currentlyActiveLoans')}
                   comparisonPeriod={comparisonSettings.type}
                   color="primary"
+                  t={t}
                 />
                 
                 <ModernKPICard
@@ -738,6 +981,7 @@ export function ExecutiveDashboard() {
                   format="currency"
                   comparisonPeriod={comparisonSettings.type}
                   color="info"
+                  t={t}
                 />
                 
                 <ModernKPICard
@@ -751,6 +995,7 @@ export function ExecutiveDashboard() {
                   format="percentage"
                   comparisonPeriod={comparisonSettings.type}
                   color="warning"
+                  t={t}
                 />
               </div>
 
@@ -771,10 +1016,16 @@ export function ExecutiveDashboard() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleExport('excel')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Export Data clicked');
+                            handleExport('excel');
+                          }}>
                             {t('executiveDashboard.exportData')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleGenerateReport('pdf')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Generate Report clicked');
+                            handleGenerateReport('pdf');
+                          }}>
                             {t('executiveDashboard.generateReport')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -853,10 +1104,16 @@ export function ExecutiveDashboard() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleExport('excel')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Export Data clicked (second menu)');
+                            handleExport('excel');
+                          }}>
                             {t('executiveDashboard.exportData')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleGenerateReport('pdf')}>
+                          <DropdownMenuItem onClick={() => {
+                            console.log('Generate Report clicked (second menu)');
+                            handleGenerateReport('pdf');
+                          }}>
                             {t('executiveDashboard.generateReport')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -867,13 +1124,7 @@ export function ExecutiveDashboard() {
                     <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                       <PieChart>
                         <Pie
-                          data={dashboardData?.portfolio || [
-                            { name: t('executiveDashboard.personalLoans'), value: 35, growth: '+5%' },
-                            { name: t('executiveDashboard.mortgages'), value: 28, growth: '+3%' },
-                            { name: t('executiveDashboard.autoLoans'), value: 20, growth: '+8%' },
-                            { name: t('executiveDashboard.businessLoans'), value: 12, growth: '+12%' },
-                            { name: t('executiveDashboard.others'), value: 5, growth: '-2%' }
-                          ]}
+                          data={dashboardData?.portfolio || fallbackPortfolioData}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -924,6 +1175,7 @@ export function ExecutiveDashboard() {
                     status="low"
                     trend={-2}
                     details={t('executiveDashboard.creditRiskDetails')}
+                    t={t}
                   />
                   
                   <ModernRiskScoreCard
@@ -932,6 +1184,7 @@ export function ExecutiveDashboard() {
                     status="medium"
                     trend={5}
                     details={t('executiveDashboard.marketRiskDetails')}
+                    t={t}
                   />
                   
                   <ModernRiskScoreCard
@@ -940,6 +1193,7 @@ export function ExecutiveDashboard() {
                     status="low"
                     trend={-1}
                     details={t('executiveDashboard.operationalRiskDetails')}
+                    t={t}
                   />
                   
                   <ModernRiskScoreCard
@@ -948,6 +1202,7 @@ export function ExecutiveDashboard() {
                     status="low"
                     trend={0}
                     details={t('executiveDashboard.complianceRiskDetails')}
+                    t={t}
                   />
                 </div>
               </div>
@@ -984,7 +1239,7 @@ export function ExecutiveDashboard() {
                     { period: 'Jun', current: 2100, previous: 1850, target: 2200, growth: 13.51 }
                   ]}
                   comparisonType={comparisonSettings.type}
-                  metrics={[t('executiveDashboard.newCustomers'), t('executiveDashboard.activeCustomers'), t('executiveDashboard.churnedCustomers')]}
+                  metrics={customerGrowthMetrics}
                   onExport={() => handleExport('excel')}
                 />
               </div>
@@ -1035,15 +1290,9 @@ export function ExecutiveDashboard() {
               <ComparisonChart
                 title={t('executiveDashboard.loanPortfolioPerformance')}
                 description={t('executiveDashboard.portfolioComparisonByProductType')}
-                data={[
-                  { period: t('executiveDashboard.personalLoans'), current: 450000000, previous: 420000000, target: 480000000, growth: 7.14 },
-                  { period: t('executiveDashboard.mortgages'), current: 380000000, previous: 350000000, target: 400000000, growth: 8.57 },
-                  { period: t('executiveDashboard.autoLoans'), current: 280000000, previous: 250000000, target: 300000000, growth: 12.00 },
-                  { period: t('executiveDashboard.businessLoans'), current: 220000000, previous: 180000000, target: 250000000, growth: 22.22 },
-                  { period: t('executiveDashboard.creditCards'), current: 150000000, previous: 130000000, target: 170000000, growth: 15.38 }
-                ]}
+                data={loanPortfolioPerformanceData}
                 comparisonType={comparisonSettings.type}
-                metrics={[t('executiveDashboard.disbursedAmount'), t('executiveDashboard.outstandingBalance'), t('executiveDashboard.nplAmount')]}
+                metrics={loanPortfolioMetrics}
                 onExport={() => handleExport('excel')}
               />
             </TabsContent>
@@ -1090,6 +1339,140 @@ export function ExecutiveDashboard() {
                 <p className="text-sm">{t('executiveDashboard.configureThemes')}</p>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Report Dialog */}
+        <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t('executiveDashboard.scheduleReport')}</DialogTitle>
+              <DialogDescription>
+                {t('executiveDashboard.configureReportSchedule')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="report-name">{t('executiveDashboard.reportName')}</Label>
+                <Input
+                  id="report-name"
+                  value={scheduleSettings.name}
+                  onChange={(e) => setScheduleSettings({...scheduleSettings, name: e.target.value})}
+                  placeholder={t('executiveDashboard.enterReportName')}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>{t('executiveDashboard.frequency')}</Label>
+                <RadioGroup
+                  value={scheduleSettings.frequency}
+                  onValueChange={(value) => setScheduleSettings({...scheduleSettings, frequency: value})}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="DAILY" id="daily" />
+                    <Label htmlFor="daily">{t('executiveDashboard.daily')}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="WEEKLY" id="weekly" />
+                    <Label htmlFor="weekly">{t('executiveDashboard.weekly')}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="MONTHLY" id="monthly" />
+                    <Label htmlFor="monthly">{t('executiveDashboard.monthly')}</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="schedule-time">{t('executiveDashboard.scheduleTime')}</Label>
+                <Input
+                  id="schedule-time"
+                  type="time"
+                  value={scheduleSettings.time}
+                  onChange={(e) => setScheduleSettings({...scheduleSettings, time: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="recipients">{t('executiveDashboard.emailRecipients')}</Label>
+                <Textarea
+                  id="recipients"
+                  value={scheduleSettings.recipients}
+                  onChange={(e) => setScheduleSettings({...scheduleSettings, recipients: e.target.value})}
+                  placeholder={t('executiveDashboard.enterEmailsSeparatedByComma')}
+                  rows={3}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>{t('executiveDashboard.reportFormat')}</Label>
+                <RadioGroup
+                  value={scheduleSettings.format}
+                  onValueChange={(value) => setScheduleSettings({...scheduleSettings, format: value})}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="PDF" id="pdf" />
+                    <Label htmlFor="pdf">PDF</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="EXCEL" id="excel" />
+                    <Label htmlFor="excel">Excel</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
+                {t('executiveDashboard.cancel')}
+              </Button>
+              <Button onClick={handleScheduleReport}>
+                {t('executiveDashboard.scheduleReport')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Load Comparison Dialog */}
+        <Dialog open={loadComparisonDialogOpen} onOpenChange={setLoadComparisonDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{t('executiveDashboard.loadPrevious')}</DialogTitle>
+              <DialogDescription>
+                {t('executiveDashboard.selectPreviousComparison')}
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+              <div className="space-y-2">
+                {savedComparisons.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    {t('executiveDashboard.noSavedComparisons')}
+                  </p>
+                ) : (
+                  savedComparisons.map((comparison) => (
+                    <Card
+                      key={comparison.id}
+                      className="p-4 cursor-pointer hover:bg-accent"
+                      onClick={() => applyComparison(comparison)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-medium">{comparison.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(comparison.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4" />
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLoadComparisonDialogOpen(false)}>
+                {t('executiveDashboard.close')}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </motion.div>

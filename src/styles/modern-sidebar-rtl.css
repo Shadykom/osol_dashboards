@@ -6,13 +6,22 @@
   right: 0 !important;
 }
 
-/* Fix the transform for RTL when sidebar is closed on mobile */
-[dir="rtl"] aside.fixed.translate-x-full {
-  transform: translateX(100%) !important;
-}
-
-[dir="rtl"] aside.fixed.-translate-x-full {
-  transform: translateX(-100%) !important;
+/* Fix mobile sidebar transforms for RTL */
+@media (max-width: 1023px) {
+  /* When sidebar is closed in RTL, it should slide to the right */
+  [dir="rtl"] aside.fixed.translate-x-full {
+    transform: translateX(100%) !important;
+  }
+  
+  /* When sidebar is open in RTL */
+  [dir="rtl"] aside.fixed.translate-x-0 {
+    transform: translateX(0) !important;
+  }
+  
+  /* Remove incorrect transform classes in RTL */
+  [dir="rtl"] aside.fixed.-translate-x-full {
+    transform: translateX(100%) !important;
+  }
 }
 
 /* Ensure proper border positioning in RTL */
@@ -110,15 +119,6 @@
   [dir="rtl"] .flex-row-reverse > div:last-child {
     order: 1;
   }
-}
-
-/* Fix mobile sidebar slide direction */
-[dir="rtl"] aside.w-0:not(.lg\:w-20) {
-  transform: translateX(100%);
-}
-
-[dir="rtl"] aside.w-64 {
-  transform: translateX(0);
 }
 
 /* Override any conflicting transforms on desktop */

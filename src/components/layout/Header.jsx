@@ -19,8 +19,11 @@ import osoulLogo from '@/assets/osol-logo.png';
 
 export function Header({ onMenuClick }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const { t, i18n } = useTranslation();
+  const { t, i18n, ready } = useTranslation('translation');
 
+  if (!ready) {
+    return null;
+  }
 
   return (
     <header className="flex h-20 items-center justify-between border-b bg-white dark:bg-gray-900 px-4 md:px-6 shadow-sm">
@@ -32,7 +35,8 @@ export function Header({ onMenuClick }) {
             variant="ghost"
             size="icon"
             onClick={onMenuClick}
-            className="h-10 w-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="h-10 w-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all"
+            aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -55,7 +59,8 @@ export function Header({ onMenuClick }) {
           variant="ghost"
           size="icon"
           onClick={onMenuClick}
-          className="h-10 w-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 hidden md:flex"
+          className="h-10 w-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all hidden md:flex"
+          aria-label="Toggle sidebar"
         >
           <Menu className="h-5 w-5" />
         </Button>

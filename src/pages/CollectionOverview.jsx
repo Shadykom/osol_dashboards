@@ -118,14 +118,25 @@ const CollectionOverview = () => {
   };
 
   const handleCardClick = (cardType, data) => {
-    // Navigate to detail page with card data
-    navigate(`/collection/detail/${cardType}`, { 
-      state: { 
-        cardData: data,
-        filters,
-        period: selectedPeriod 
-      } 
-    });
+    // Navigate to appropriate page based on card type
+    if (cardType === 'total-cases') {
+      // Navigate to cases list page
+      navigate('/collection/cases', { 
+        state: { 
+          filters,
+          period: selectedPeriod 
+        } 
+      });
+    } else {
+      // Navigate to detail page with card data
+      navigate(`/collection/detail/${cardType}`, { 
+        state: { 
+          cardData: data,
+          filters,
+          period: selectedPeriod 
+        } 
+      });
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -231,10 +242,12 @@ const CollectionOverview = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('collectionOverview.allBranches')}</SelectItem>
-                <SelectItem value="RIYADH_MAIN">Riyadh Main</SelectItem>
+                <SelectItem value="RYD_MAIN">Riyadh Main</SelectItem>
                 <SelectItem value="JEDDAH">Jeddah</SelectItem>
                 <SelectItem value="DAMMAM">Dammam</SelectItem>
                 <SelectItem value="KHOBAR">Khobar</SelectItem>
+                <SelectItem value="MAKKAH">Makkah</SelectItem>
+                <SelectItem value="MADINAH">Madinah</SelectItem>
               </SelectContent>
             </Select>
             

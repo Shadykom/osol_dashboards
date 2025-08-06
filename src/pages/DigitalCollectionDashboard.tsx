@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 
 const DigitalCollectionDashboard = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [selectedChannel, setSelectedChannel] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [loading, setLoading] = useState(false);
@@ -128,6 +129,11 @@ const DigitalCollectionDashboard = () => {
     return new Intl.NumberFormat('en-US').format(num);
   };
 
+  const getChannelName = (channel) => {
+    const channelKey = channel.toLowerCase().replace(' ', '');
+    return t(`digitalCollection.channels.${channelKey}`, channel);
+  };
+
   const getChannelColor = (channel) => {
     const colors = {
       'IVR': '#8b5cf6',
@@ -150,24 +156,24 @@ const DigitalCollectionDashboard = () => {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Digital Collection Dashboard</h1>
-          <p className="text-gray-600 mt-1">Monitor and optimize digital collection channels</p>
+      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right' : ''}>
+          <h1 className="text-3xl font-bold text-gray-900">{t('digitalCollection.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('digitalCollection.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <Select value={selectedChannel} onValueChange={setSelectedChannel}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select Channel" />
+              <SelectValue placeholder={t('digitalCollection.selectChannel')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Channels</SelectItem>
-              <SelectItem value="ivr">IVR</SelectItem>
-              <SelectItem value="sms">SMS</SelectItem>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="whatsapp">WhatsApp</SelectItem>
-              <SelectItem value="mobile">Mobile App</SelectItem>
-              <SelectItem value="web">Web Portal</SelectItem>
+              <SelectItem value="all">{t('digitalCollection.allChannels')}</SelectItem>
+              <SelectItem value="ivr">{t('digitalCollection.channels.ivr')}</SelectItem>
+              <SelectItem value="sms">{t('digitalCollection.channels.sms')}</SelectItem>
+              <SelectItem value="email">{t('digitalCollection.channels.email')}</SelectItem>
+              <SelectItem value="whatsapp">{t('digitalCollection.channels.whatsapp')}</SelectItem>
+              <SelectItem value="mobile">{t('digitalCollection.channels.mobileApp')}</SelectItem>
+              <SelectItem value="web">{t('digitalCollection.channels.webPortal')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -175,63 +181,66 @@ const DigitalCollectionDashboard = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
+              <SelectItem value="daily">{t('digitalCollection.periods.daily')}</SelectItem>
+              <SelectItem value="weekly">{t('digitalCollection.periods.weekly')}</SelectItem>
+              <SelectItem value="monthly">{t('digitalCollection.periods.monthly')}</SelectItem>
+              <SelectItem value="quarterly">{t('digitalCollection.periods.quarterly')}</SelectItem>
             </SelectContent>
           </Select>
           <Button>
-            <Zap className="h-4 w-4 mr-2" />
-            Launch Campaign
+            <Zap className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+            {t('digitalCollection.launchCampaign')}
           </Button>
         </div>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className={`${isRTL ? 'border-r-4 border-r-purple-500' : 'border-l-4 border-l-purple-500'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Digital Payments</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('digitalCollection.metrics.digitalPayments')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(digitalMetrics.overview.totalDigitalPayments)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {formatNumber(digitalMetrics.overview.digitalPaymentCount)} transactions
+              {formatNumber(digitalMetrics.overview.digitalPaymentCount)} {t('digitalCollection.metrics.transactions')}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
+        <Card className={`${isRTL ? 'border-r-4 border-r-blue-500' : 'border-l-4 border-l-blue-500'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Digital Adoption</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('digitalCollection.metrics.adoptionRate')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{digitalMetrics.overview.digitalAdoptionRate}%</div>
             <Progress value={digitalMetrics.overview.digitalAdoptionRate} className="mt-2 h-1" />
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Self-Service Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{digitalMetrics.overview.selfServiceRate}%</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Avg response: {digitalMetrics.overview.avgResponseTime} min
+              {t('digitalCollection.metrics.ofTotalCollections')}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-yellow-500">
+        <Card className={`${isRTL ? 'border-r-4 border-r-green-500' : 'border-l-4 border-l-green-500'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Cost Savings</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('digitalCollection.metrics.selfServiceRate')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{digitalMetrics.overview.selfServiceRate}%</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t('digitalCollection.metrics.fullyAutomated')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className={`${isRTL ? 'border-r-4 border-r-yellow-500' : 'border-l-4 border-l-yellow-500'}`}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">{t('digitalCollection.metrics.costSavings')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{formatCurrency(digitalMetrics.overview.costSavings)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              vs traditional channels
+              {t('digitalCollection.metrics.vsTraditional')}
             </p>
           </CardContent>
         </Card>
@@ -240,12 +249,12 @@ const DigitalCollectionDashboard = () => {
       {/* Main Content */}
       <Tabs defaultValue="channels" className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="channels">Channels</TabsTrigger>
-          <TabsTrigger value="automation">Automation</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="optimization">Optimization</TabsTrigger>
+          <TabsTrigger value="channels">{t('digitalCollection.tabs.channels')}</TabsTrigger>
+          <TabsTrigger value="automation">{t('digitalCollection.tabs.automation')}</TabsTrigger>
+          <TabsTrigger value="payments">{t('digitalCollection.tabs.payments')}</TabsTrigger>
+          <TabsTrigger value="campaigns">{t('digitalCollection.tabs.campaigns')}</TabsTrigger>
+          <TabsTrigger value="analytics">{t('digitalCollection.tabs.analytics')}</TabsTrigger>
+          <TabsTrigger value="optimization">{t('digitalCollection.tabs.optimization')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="channels" className="space-y-4">
@@ -256,33 +265,33 @@ const DigitalCollectionDashboard = () => {
               return (
                 <Card key={index} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <CardTitle className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                         <Icon className="h-5 w-5" style={{ color: getChannelColor(channel.channel) }} />
-                        <span>{channel.channel}</span>
+                        <span>{getChannelName(channel.channel)}</span>
                       </div>
-                      <Badge variant="outline">ROI: {channel.roi}%</Badge>
+                      <Badge variant="outline">{t('digitalCollection.channelPerformance.roi')}: {channel.roi}%</Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Attempts</span>
+                      <div className={`flex justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <span className="text-sm text-gray-600">{t('digitalCollection.channelPerformance.attempts')}</span>
                         <span className="font-medium">{formatNumber(channel.attempts)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Successful</span>
+                      <div className={`flex justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <span className="text-sm text-gray-600">{t('digitalCollection.channelPerformance.successful')}</span>
                         <span className="font-medium">{formatNumber(channel.successful)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Success Rate</span>
+                      <div className={`flex justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <span className="text-sm text-gray-600">{t('digitalCollection.channelPerformance.successRate')}</span>
                         <span className="font-medium">
                           {((channel.successful / channel.attempts) * 100).toFixed(1)}%
                         </span>
                       </div>
                       <div className="pt-2 border-t">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Collected</span>
+                        <div className={`flex justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          <span className="text-sm text-gray-600">{t('digitalCollection.channelPerformance.amount')}</span>
                           <span className="font-bold text-green-600">{formatCurrency(channel.amount)}</span>
                         </div>
                       </div>
@@ -296,16 +305,16 @@ const DigitalCollectionDashboard = () => {
           {/* Channel Comparison Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Channel Performance Comparison</CardTitle>
-              <CardDescription>Success rate and amount collected by channel</CardDescription>
+              <CardTitle>{t('digitalCollection.channelPerformance.title')}</CardTitle>
+              <CardDescription>{t('digitalCollection.channelPerformance.subtitle')}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={digitalMetrics.channelPerformance}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="channel" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <XAxis dataKey="channel" reversed={isRTL} />
+                  <YAxis yAxisId="left" orientation={isRTL ? "right" : "left"} />
+                  <YAxis yAxisId="right" orientation={isRTL ? "left" : "right"} />
                   <Tooltip />
                   <Legend />
                   <Bar yAxisId="left" dataKey="amount" fill="#8b5cf6" name="Amount Collected (SAR)" />
@@ -330,21 +339,21 @@ const DigitalCollectionDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Phone className="h-5 w-5" />
-                  Auto-Dialer Performance
+                  {t('digitalCollection.automationMetrics.autoDialer')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Calls Made</span>
+                    <span className="text-sm text-gray-600">{t('digitalCollection.automationMetrics.calls')}</span>
                     <span className="text-xl font-bold">{formatNumber(digitalMetrics.automationMetrics.autoDialer.calls)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Connected</span>
+                    <span className="text-sm text-gray-600">{t('digitalCollection.automationMetrics.connected')}</span>
                     <span className="text-xl font-bold">{formatNumber(digitalMetrics.automationMetrics.autoDialer.connected)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Success Rate</span>
+                    <span className="text-sm text-gray-600">{t('digitalCollection.channelPerformance.successRate')}</span>
                     <div className="flex items-center gap-2">
                       <Progress value={digitalMetrics.automationMetrics.autoDialer.successRate} className="w-24" />
                       <span className="text-xl font-bold">{digitalMetrics.automationMetrics.autoDialer.successRate}%</span>

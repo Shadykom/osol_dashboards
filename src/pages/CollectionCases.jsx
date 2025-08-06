@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
 
-// Table components
+// Table components with RTL support
 const Table = ({ children, className = "" }) => (
   <table className={`w-full caption-bottom text-sm ${className}`}>
     {children}
@@ -39,11 +40,15 @@ const TableRow = ({ children, className = "" }) => (
   </tr>
 );
 
-const TableHead = ({ children, className = "" }) => (
-  <th className={`h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 ${className}`}>
-    {children}
-  </th>
-);
+const TableHead = ({ children, className = "" }) => {
+  const { i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
+  return (
+    <th className={`h-12 px-4 ${isRTL ? 'text-right' : 'text-left'} align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 ${className}`}>
+      {children}
+    </th>
+  );
+};
 
 const TableCell = ({ children, className = "" }) => (
   <td className={`p-4 align-middle [&:has([role=checkbox])]:pr-0 ${className}`}>
@@ -52,7 +57,9 @@ const TableCell = ({ children, className = "" }) => (
 );
 
 const CollectionCases = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
+  const navigate = useNavigate();
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDetails, setCaseDetails] = useState(null);
@@ -154,7 +161,7 @@ const CollectionCases = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(isRTL ? 'ar-SA' : 'en-US', {
       style: 'currency',
       currency: 'SAR',
       minimumFractionDigits: 0,
@@ -163,18 +170,18 @@ const CollectionCases = () => {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US');
+    if (!dateString) return t('common.na', 'N/A');
+    return new Date(dateString).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US');
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'ACTIVE': { color: 'bg-blue-500', text: 'Active' },
-      'RESOLVED': { color: 'bg-green-500', text: 'Resolved' },
-      'LEGAL': { color: 'bg-purple-500', text: 'Legal' },
-      'WRITTEN_OFF': { color: 'bg-gray-500', text: 'Written Off' },
-      'SETTLED': { color: 'bg-yellow-500', text: 'Settled' },
-      'CLOSED': { color: 'bg-gray-400', text: 'Closed' }
+      'ACTIVE': { color: 'bg-blue-500', text: t('collectionCases.statusTypes.active') },
+      'RESOLVED': { color: 'bg-green-500', text: t('collectionCases.statusTypes.resolved') },
+      'LEGAL': { color: 'bg-purple-500', text: t('collectionCases.statusTypes.legal') },
+      'WRITTEN_OFF': { color: 'bg-gray-500', text: t('collectionCases.statusTypes.writtenOff') },
+      'SETTLED': { color: 'bg-yellow-500', text: t('collectionCases.statusTypes.settled') },
+      'CLOSED': { color: 'bg-gray-400', text: t('collectionCases.statusTypes.closed') }
     };
     const config = statusConfig[status] || { color: 'bg-gray-500', text: status };
     return (
@@ -186,10 +193,10 @@ const CollectionCases = () => {
 
   const getPriorityBadge = (priority) => {
     const priorityConfig = {
-      'CRITICAL': { color: 'bg-red-500', text: 'Critical' },
-      'HIGH': { color: 'bg-orange-500', text: 'High' },
-      'MEDIUM': { color: 'bg-yellow-500', text: 'Medium' },
-      'LOW': { color: 'bg-green-500', text: 'Low' }
+      'CRITICAL': { color: 'bg-red-500', text: t('collectionCases.priorityTypes.critical') },
+      'HIGH': { color: 'bg-orange-500', text: t('collectionCases.priorityTypes.high') },
+      'MEDIUM': { color: 'bg-yellow-500', text: t('collectionCases.priorityTypes.medium') },
+      'LOW': { color: 'bg-green-500', text: t('collectionCases.priorityTypes.low') }
     };
     const config = priorityConfig[priority] || { color: 'bg-gray-500', text: priority };
     return (
@@ -208,9 +215,19 @@ const CollectionCases = () => {
       '90+ Days': { color: 'bg-red-200 text-red-900' }
     };
     const config = bucketConfig[bucket] || { color: 'bg-gray-100 text-gray-800' };
+    
+    // Translate bucket names
+    const bucketTranslations = {
+      'Current': t('collectionCases.bucketTypes.current'),
+      '1-30 Days': t('collectionCases.bucketTypes.1-30Days'),
+      '31-60 Days': t('collectionCases.bucketTypes.31-60Days'),
+      '61-90 Days': t('collectionCases.bucketTypes.61-90Days'),
+      '90+ Days': t('collectionCases.bucketTypes.90+Days')
+    };
+    
     return (
       <Badge className={config.color}>
-        {bucket}
+        {bucketTranslations[bucket] || bucket}
       </Badge>
     );
   };
@@ -233,21 +250,21 @@ const CollectionCases = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Collection Cases</h1>
-          <p className="text-gray-600 mt-1">Manage and track collection cases</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('collectionCases.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('collectionCases.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" />
-            Export
+            <FileText className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+            {t('collectionCases.export')}
           </Button>
           <Button>
-            <User className="h-4 w-4 mr-2" />
-            Assign Cases
+            <User className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+            {t('collectionCases.assignCases')}
           </Button>
         </div>
       </div>
@@ -257,91 +274,91 @@ const CollectionCases = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Filters
+            {t('collectionCases.filters')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-3 h-4 w-4 text-gray-400`} />
               <Input
-                placeholder="Search cases..."
+                placeholder={t('collectionCases.searchCases')}
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="pl-10"
+                className={isRTL ? 'pr-10' : 'pl-10'}
               />
             </div>
             
             <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t('collectionCases.status')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="RESOLVED">Resolved</SelectItem>
-                <SelectItem value="LEGAL">Legal</SelectItem>
-                <SelectItem value="WRITTEN_OFF">Written Off</SelectItem>
-                <SelectItem value="SETTLED">Settled</SelectItem>
-                <SelectItem value="CLOSED">Closed</SelectItem>
+                <SelectItem value="all">{t('collectionCases.allStatuses')}</SelectItem>
+                <SelectItem value="ACTIVE">{t('collectionCases.statusTypes.active')}</SelectItem>
+                <SelectItem value="RESOLVED">{t('collectionCases.statusTypes.resolved')}</SelectItem>
+                <SelectItem value="LEGAL">{t('collectionCases.statusTypes.legal')}</SelectItem>
+                <SelectItem value="WRITTEN_OFF">{t('collectionCases.statusTypes.writtenOff')}</SelectItem>
+                <SelectItem value="SETTLED">{t('collectionCases.statusTypes.settled')}</SelectItem>
+                <SelectItem value="CLOSED">{t('collectionCases.statusTypes.closed')}</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={filters.priority} onValueChange={(value) => handleFilterChange('priority', value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Priority" />
+                <SelectValue placeholder={t('collectionCases.priority')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="CRITICAL">Critical</SelectItem>
-                <SelectItem value="HIGH">High</SelectItem>
-                <SelectItem value="MEDIUM">Medium</SelectItem>
-                <SelectItem value="LOW">Low</SelectItem>
+                <SelectItem value="all">{t('collectionCases.allPriorities')}</SelectItem>
+                <SelectItem value="CRITICAL">{t('collectionCases.priorityTypes.critical')}</SelectItem>
+                <SelectItem value="HIGH">{t('collectionCases.priorityTypes.high')}</SelectItem>
+                <SelectItem value="MEDIUM">{t('collectionCases.priorityTypes.medium')}</SelectItem>
+                <SelectItem value="LOW">{t('collectionCases.priorityTypes.low')}</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={filters.bucket} onValueChange={(value) => handleFilterChange('bucket', value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Delinquency Bucket" />
+                <SelectValue placeholder={t('collectionCases.delinquencyBucket')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Buckets</SelectItem>
-                <SelectItem value="Current">Current</SelectItem>
-                <SelectItem value="1-30 Days">1-30 Days</SelectItem>
-                <SelectItem value="31-60 Days">31-60 Days</SelectItem>
-                <SelectItem value="61-90 Days">61-90 Days</SelectItem>
-                <SelectItem value="90+ Days">90+ Days</SelectItem>
+                <SelectItem value="all">{t('collectionCases.allBuckets')}</SelectItem>
+                <SelectItem value="Current">{t('collectionCases.bucketTypes.current')}</SelectItem>
+                <SelectItem value="1-30 Days">{t('collectionCases.bucketTypes.1-30Days')}</SelectItem>
+                <SelectItem value="31-60 Days">{t('collectionCases.bucketTypes.31-60Days')}</SelectItem>
+                <SelectItem value="61-90 Days">{t('collectionCases.bucketTypes.61-90Days')}</SelectItem>
+                <SelectItem value="90+ Days">{t('collectionCases.bucketTypes.90+Days')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
             <Input
-              placeholder="Min Amount"
+              placeholder={t('collectionCases.minAmount')}
               type="number"
               value={filters.minAmount}
               onChange={(e) => handleFilterChange('minAmount', e.target.value)}
             />
             <Input
-              placeholder="Max Amount"
+              placeholder={t('collectionCases.maxAmount')}
               type="number"
               value={filters.maxAmount}
               onChange={(e) => handleFilterChange('maxAmount', e.target.value)}
             />
             <Input
-              placeholder="Min DPD"
+              placeholder={t('collectionCases.minDpd')}
               type="number"
               value={filters.minDpd}
               onChange={(e) => handleFilterChange('minDpd', e.target.value)}
             />
             <Input
-              placeholder="Max DPD"
+              placeholder={t('collectionCases.maxDpd')}
               type="number"
               value={filters.maxDpd}
               onChange={(e) => handleFilterChange('maxDpd', e.target.value)}
             />
             <Button variant="outline" onClick={clearFilters}>
-              Clear Filters
+              {t('collectionCases.clearFilters')}
             </Button>
           </div>
         </CardContent>
@@ -350,9 +367,9 @@ const CollectionCases = () => {
       {/* Cases Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Collection Cases ({pagination.total})</CardTitle>
+          <CardTitle>{t('collectionCases.title')} ({pagination.total})</CardTitle>
           <CardDescription>
-            Showing {cases.length} of {pagination.total} total cases
+            {t('collectionCases.showing')} {cases.length} {t('collectionCases.of')} {pagination.total} {t('collectionCases.totalCases')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -360,18 +377,18 @@ const CollectionCases = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Case Number</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Outstanding</TableHead>
-                  <TableHead>DPD</TableHead>
-                  <TableHead>Bucket</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Last Contact</TableHead>
-                  <TableHead>Communication</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t('collectionCases.caseNumber')}</TableHead>
+                  <TableHead>{t('collectionCases.customer')}</TableHead>
+                  <TableHead>{t('collectionCases.account')}</TableHead>
+                  <TableHead>{t('collectionCases.outstanding')}</TableHead>
+                  <TableHead>{t('collectionCases.dpd')}</TableHead>
+                  <TableHead>{t('collectionCases.bucket')}</TableHead>
+                  <TableHead>{t('collectionCases.priority')}</TableHead>
+                  <TableHead>{t('collectionCases.status')}</TableHead>
+                  <TableHead>{t('collectionCases.assignedTo')}</TableHead>
+                  <TableHead>{t('collectionCases.lastContact')}</TableHead>
+                  <TableHead>{t('collectionCases.communication')}</TableHead>
+                  <TableHead>{t('collectionCases.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -390,13 +407,13 @@ const CollectionCases = () => {
                     </TableCell>
                     <TableCell>
                       <Badge variant={caseItem.daysPastDue > 90 ? 'destructive' : 'secondary'}>
-                        {caseItem.daysPastDue} days
+                        {caseItem.daysPastDue} {t('collectionCases.days', 'days')}
                       </Badge>
                     </TableCell>
                     <TableCell>{getDelinquencyBadge(caseItem.delinquencyBucket)}</TableCell>
                     <TableCell>{getPriorityBadge(caseItem.priority)}</TableCell>
                     <TableCell>{getStatusBadge(caseItem.status)}</TableCell>
-                    <TableCell>{caseItem.assignedTo || 'Unassigned'}</TableCell>
+                    <TableCell>{caseItem.assignedTo || t('collectionCases.unassigned')}</TableCell>
                     <TableCell>{formatDate(caseItem.lastContactDate)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm">
@@ -409,27 +426,36 @@ const CollectionCases = () => {
                           <span>{caseItem.messagesThisMonth}</span>
                         </div>
                         {caseItem.hasPromiseToPay && (
-                          <Badge variant="outline" className="text-xs">PTP</Badge>
+                          <Badge variant="outline" className="text-xs">{t('collectionCases.ptp')}</Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => navigate(`/collection/cases/${caseItem.caseId}`)}
+                          title={t('collectionCases.viewFullDetails')}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => handleViewCase(caseItem)}
+                              title={t('collectionCases.quickView')}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle>Case Details - {selectedCase?.caseNumber}</DialogTitle>
+                              <DialogTitle>{t('collectionCases.caseDetails')} - {selectedCase?.caseNumber}</DialogTitle>
                               <DialogDescription>
-                                Complete case information and interaction history
+                                {t('collectionCases.completeInformation')}
                               </DialogDescription>
                             </DialogHeader>
                             
@@ -438,13 +464,13 @@ const CollectionCases = () => {
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                               </div>
                             ) : caseDetails ? (
-                              <Tabs defaultValue="overview" className="w-full">
+                              <Tabs defaultValue="overview" className="w-full" dir={isRTL ? 'rtl' : 'ltr'}>
                                 <TabsList className="grid w-full grid-cols-5">
-                                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                                  <TabsTrigger value="interactions">Interactions</TabsTrigger>
-                                  <TabsTrigger value="promises">Promises</TabsTrigger>
-                                  <TabsTrigger value="visits">Field Visits</TabsTrigger>
-                                  <TabsTrigger value="legal">Legal</TabsTrigger>
+                                  <TabsTrigger value="overview">{t('collectionCases.tabs.overview')}</TabsTrigger>
+                                  <TabsTrigger value="interactions">{t('collectionCases.tabs.interactions')}</TabsTrigger>
+                                  <TabsTrigger value="promises">{t('collectionCases.tabs.promises')}</TabsTrigger>
+                                  <TabsTrigger value="visits">{t('collectionCases.tabs.visits')}</TabsTrigger>
+                                  <TabsTrigger value="legal">{t('collectionCases.tabs.legal')}</TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="overview" className="space-y-4">
@@ -453,20 +479,20 @@ const CollectionCases = () => {
                                       <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
                                           <User className="h-5 w-5" />
-                                          Customer Information
+                                          {t('collectionCases.customerInformation')}
                                         </CardTitle>
                                       </CardHeader>
                                       <CardContent className="space-y-2">
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Name:</span>
+                                          <span className="text-gray-600">{t('collectionCases.name')}:</span>
                                           <span className="font-medium">{caseDetails.caseInfo?.kastle_banking?.full_name}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Phone:</span>
+                                          <span className="text-gray-600">{t('collectionCases.phone')}:</span>
                                           <span className="font-medium">{caseDetails.caseInfo?.kastle_banking?.phone_number}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Email:</span>
+                                          <span className="text-gray-600">{t('collectionCases.email')}:</span>
                                           <span className="font-medium">{caseDetails.caseInfo?.kastle_banking?.email}</span>
                                         </div>
                                       </CardContent>
@@ -476,30 +502,30 @@ const CollectionCases = () => {
                                       <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
                                           <DollarSign className="h-5 w-5" />
-                                          Financial Details
+                                          {t('collectionCases.financialDetails')}
                                         </CardTitle>
                                       </CardHeader>
                                       <CardContent className="space-y-2">
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Total Outstanding:</span>
+                                          <span className="text-gray-600">{t('collectionCases.totalOutstanding')}:</span>
                                           <span className="font-bold text-red-600">
                                             {formatCurrency(caseDetails.caseInfo?.total_outstanding)}
                                           </span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Principal:</span>
+                                          <span className="text-gray-600">{t('collectionCases.principal')}:</span>
                                           <span className="font-medium">
                                             {formatCurrency(caseDetails.caseInfo?.principal_outstanding)}
                                           </span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Interest:</span>
+                                          <span className="text-gray-600">{t('collectionCases.interest')}:</span>
                                           <span className="font-medium">
                                             {formatCurrency(caseDetails.caseInfo?.interest_outstanding)}
                                           </span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-gray-600">Penalty:</span>
+                                          <span className="text-gray-600">{t('collectionCases.penalty')}:</span>
                                           <span className="font-medium">
                                             {formatCurrency(caseDetails.caseInfo?.penalty_outstanding)}
                                           </span>
@@ -521,13 +547,13 @@ const CollectionCases = () => {
                                               {interaction.interaction_type === 'VISIT' && <Home className="h-5 w-5 text-purple-500" />}
                                               {interaction.interaction_type === 'SMS' && <MessageSquare className="h-5 w-5 text-yellow-500" />}
                                               <div>
-                                                <p className="font-medium">{interaction.interaction_type}</p>
+                                                <p className="font-medium">{t(`collectionCases.interactionType.${interaction.interaction_type.toLowerCase()}`)}</p>
                                                 <p className="text-sm text-gray-600">
-                                                  by {interaction.kastle_collection?.officer_name}
+                                                  {t('collectionCases.by')} {interaction.kastle_collection?.officer_name}
                                                 </p>
                                               </div>
                                             </div>
-                                            <div className="text-right">
+                                            <div className={isRTL ? 'text-left' : 'text-right'}>
                                               <p className="text-sm font-medium">{interaction.outcome}</p>
                                               <p className="text-xs text-gray-600">
                                                 {formatDate(interaction.interaction_datetime)}
@@ -556,16 +582,16 @@ const CollectionCases = () => {
                                                 {formatCurrency(ptp.ptp_amount)} - {ptp.ptp_type}
                                               </p>
                                               <p className="text-sm text-gray-600">
-                                                Promise Date: {formatDate(ptp.ptp_date)}
+                                                {t('collectionCases.promiseDate')}: {formatDate(ptp.ptp_date)}
                                               </p>
                                               <p className="text-sm text-gray-600">
-                                                Officer: {ptp.kastle_collection?.officer_name}
+                                                {t('collectionCases.officer')}: {ptp.kastle_collection?.officer_name}
                                               </p>
                                             </div>
-                                            <div className="text-right">
+                                            <div className={isRTL ? 'text-left' : 'text-right'}>
                                               {getStatusBadge(ptp.status)}
                                               <p className="text-sm text-gray-600 mt-1">
-                                                Received: {formatCurrency(ptp.amount_received)}
+                                                {t('collectionCases.received')}: {formatCurrency(ptp.amount_received)}
                                               </p>
                                             </div>
                                           </div>
@@ -590,11 +616,11 @@ const CollectionCases = () => {
                                                 </p>
                                               </div>
                                             </div>
-                                            <div className="text-right">
+                                            <div className={isRTL ? 'text-left' : 'text-right'}>
                                               <p className="font-medium text-green-600">
                                                 {formatCurrency(visit.amount_collected)}
                                               </p>
-                                              <p className="text-sm text-gray-600">Collected</p>
+                                              <p className="text-sm text-gray-600">{t('collectionCases.collected')}</p>
                                             </div>
                                           </div>
                                           {visit.notes && (
@@ -614,25 +640,25 @@ const CollectionCases = () => {
                                       <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
                                           <Gavel className="h-5 w-5" />
-                                          Legal Case Information
+                                          {t('collectionCases.legalCaseInformation')}
                                         </CardTitle>
                                       </CardHeader>
                                       <CardContent className="space-y-3">
                                         <div className="grid grid-cols-2 gap-4">
                                           <div>
-                                            <span className="text-gray-600">Case Number:</span>
+                                            <span className="text-gray-600">{t('collectionCases.caseNumber')}:</span>
                                             <p className="font-medium">{caseDetails.legalCase.case_number}</p>
                                           </div>
                                           <div>
-                                            <span className="text-gray-600">Court:</span>
+                                            <span className="text-gray-600">{t('collectionCases.court')}:</span>
                                             <p className="font-medium">{caseDetails.legalCase.court_name}</p>
                                           </div>
                                           <div>
-                                            <span className="text-gray-600">Filing Date:</span>
+                                            <span className="text-gray-600">{t('collectionCases.filingDate')}:</span>
                                             <p className="font-medium">{formatDate(caseDetails.legalCase.filing_date)}</p>
                                           </div>
                                           <div>
-                                            <span className="text-gray-600">Current Stage:</span>
+                                            <span className="text-gray-600">{t('collectionCases.currentStage')}:</span>
                                             <p className="font-medium">{caseDetails.legalCase.current_stage}</p>
                                           </div>
                                         </div>
@@ -643,7 +669,7 @@ const CollectionCases = () => {
                                       <CardContent className="pt-6">
                                         <div className="text-center text-gray-500">
                                           <Gavel className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                          <p>No legal case associated with this collection case</p>
+                                          <p>{t('collectionCases.noLegalCase')}</p>
                                         </div>
                                       </CardContent>
                                     </Card>
@@ -672,16 +698,16 @@ const CollectionCases = () => {
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-gray-700">
-                Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} cases
+                {t('collectionCases.showing')} {((pagination.page - 1) * pagination.limit) + 1} {t('collectionCases.of')} {Math.min(pagination.page * pagination.limit, pagination.total)} {t('collectionCases.of')} {pagination.total} {t('collectionCases.totalCases')}
               </div>
-              <div className="flex gap-2">
+              <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
                 >
-                  Previous
+                  {t('collectionCases.previous')}
                 </Button>
                 {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
                   const pageNum = i + 1;
@@ -703,7 +729,7 @@ const CollectionCases = () => {
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
                 >
-                  Next
+                  {t('collectionCases.next')}
                 </Button>
               </div>
             </div>

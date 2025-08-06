@@ -6,34 +6,34 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-// Mobile Overlay Component
-function MobileOverlay({ isOpen, onClose }) {
-  if (!isOpen) return null;
-
-  return (
-    <div 
-      className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
-      onClick={onClose}
-      aria-hidden="true"
-    />
-  );
-}
-
 // Mobile Sidebar Container
 function MobileSidebarContainer({ isOpen, onClose, children }) {
   const { i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
 
   return (
-    <div
-      className={cn(
-        "fixed inset-y-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:hidden",
-        isRTL ? "right-0" : "left-0",
-        isOpen ? "translate-x-0" : (isRTL ? "translate-x-full" : "-translate-x-full")
+    <>
+      {/* Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity duration-300"
+          onClick={onClose}
+          onTouchEnd={onClose}
+          aria-hidden="true"
+        />
       )}
-    >
-      {children}
-    </div>
+      
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "fixed inset-y-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:hidden bg-white dark:bg-gray-950",
+          isRTL ? "right-0" : "left-0",
+          isOpen ? "translate-x-0" : (isRTL ? "translate-x-full" : "-translate-x-full")
+        )}
+      >
+        {children}
+      </div>
+    </>
   );
 }
 
@@ -71,7 +71,9 @@ export function NewLayout({ children }) {
 
   // Handle menu button click
   const handleMenuClick = () => {
+    console.log('Menu clicked, isMobile:', isMobile);
     if (isMobile) {
+      console.log('Opening mobile sidebar');
       setIsMobileSidebarOpen(true);
     } else {
       setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -111,11 +113,6 @@ export function NewLayout({ children }) {
       </DesktopSidebarContainer>
 
       {/* Mobile Sidebar */}
-      <MobileOverlay 
-        isOpen={isMobileSidebarOpen} 
-        onClose={handleMobileSidebarClose} 
-      />
-      
       <MobileSidebarContainer 
         isOpen={isMobileSidebarOpen}
         onClose={handleMobileSidebarClose}

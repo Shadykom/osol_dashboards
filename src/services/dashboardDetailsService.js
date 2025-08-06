@@ -7,6 +7,41 @@ const handleError = (error, defaultData = null) => {
   return { data: defaultData, error: error.message };
 };
 
+// Helper function to get date range from filter
+function getDateRangeFromFilter(dateRange) {
+  const now = new Date();
+  switch (dateRange) {
+    case 'today':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+      };
+    case 'week':
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - 7);
+      return { start: weekStart, end: now };
+    case 'month':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      };
+    case 'quarter':
+      const quarterStart = new Date(now);
+      quarterStart.setMonth(now.getMonth() - 3);
+      return { start: quarterStart, end: now };
+    case 'year':
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear(), 11, 31)
+      };
+    default:
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: now
+      };
+  }
+}
+
 // Mock data generators for when database is not available
 const generateMockCustomerData = () => ({
   totalCustomers: 12847,
@@ -668,7 +703,7 @@ export const revenueDetailsService = {
     }
   },
 
-  async getMonthlyRevenueDetails() {
+  async getMonthlyRevenueDetails(filters = {}) {
     try {
       // Get monthly revenue data
       const monthlyData = {};
@@ -682,11 +717,18 @@ export const revenueDetailsService = {
         const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
         const monthName = monthNames[date.getMonth()];
         
-        const { data: transactions } = await supabaseBanking
+        let query = supabaseBanking
           .from(TABLES.TRANSACTIONS)
-          .select('transaction_amount, transaction_type_id')
+          .select('transaction_amount, transaction_type_id, branch_id')
           .gte('transaction_date', monthStart.toISOString())
           .lte('transaction_date', monthEnd.toISOString());
+        
+        // Apply filters
+        if (filters.branch) {
+          query = query.eq('branch_id', filters.branch);
+        }
+        
+        const { data: transactions } = await query;
         
         const revenue = transactions?.reduce((sum, tx) => sum + Math.abs(tx.transaction_amount || 0), 0) || 0;
         const profit = revenue * 0.3; // Estimate 30% profit margin
@@ -903,84 +945,6 @@ export const revenueDetailsService = {
             dates: dailyTrend.map(d => d.date),
             volume: dailyTrend.map(d => d.volume),
             count: dailyTrend.map(d => d.count)
-          }
-        },
-        error: null
-      };
-    } catch (error) {
-      return handleError(error, {});
-    }
-  },
-
-  async getPerformanceRadarDetails() {
-    try {
-      // Calculate performance metrics
-      const [revenueResult, customerResult, loanResult, transactionResult] = await Promise.all([
-        // Revenue performance
-        supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-        // Customer growth
-        supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-        // Loan portfolio
-        supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
-        // Transaction volume
-        supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
-      ]);
-
-      const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
-      const customerCount = customerResult.count || 0;
-      const totalLoans = loanResult.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
-      const transactionCount = transactionResult.count || 0;
-
-      // Calculate performance scores (normalized to 0-100 scale)
-      const maxRevenue = 10000000000; // 10B
-      const maxCustomers = 50000;
-      const maxLoans = 5000000000; // 5B
-      const maxTransactions = 100000;
-
-      const performanceMetrics = {
-        revenue: Math.min((totalRevenue / maxRevenue) * 100, 100),
-        customers: Math.min((customerCount / maxCustomers) * 100, 100),
-        efficiency: Math.min((transactionCount / maxTransactions) * 100, 100),
-        risk: 85, // This would need actual risk calculation
-        compliance: 92, // This would need actual compliance data
-        innovation: 78 // This would need actual innovation metrics
-      };
-
-      // Calculate targets
-      const targets = {
-        revenue: 90,
-        customers: 85,
-        efficiency: 88,
-        risk: 90,
-        compliance: 95,
-        innovation: 80
-      };
-
-      return {
-        data: {
-          overview: {
-            overallScore: Object.values(performanceMetrics).reduce((sum, v) => sum + v, 0) / 6,
-            totalRevenue,
-            customerCount,
-            transactionCount,
-            performanceMetrics
-          },
-          breakdown: {
-            byMetric: performanceMetrics,
-            targets,
-            gaps: Object.entries(performanceMetrics).reduce((acc, [key, value]) => {
-              acc[key] = targets[key] - value;
-              return acc;
-            }, {})
-          },
-          trends: {
-            dates: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            revenue: [82, 84, 86, 88, 90, performanceMetrics.revenue],
-            customers: [75, 77, 79, 81, 83, performanceMetrics.customers],
-            efficiency: [80, 82, 84, 86, 88, performanceMetrics.efficiency],
-            risk: [88, 87, 86, 85, 85, performanceMetrics.risk],
-            compliance: [90, 91, 91, 92, 92, performanceMetrics.compliance],
-            innovation: [70, 72, 74, 76, 78, performanceMetrics.innovation]
           }
         },
         error: null
@@ -1867,7 +1831,7 @@ export const productDetailsService = {
 
 // Chart Widget Details Service
 export const chartDetailsService = {
-  async getDetailsByChartType(chartType, widgetId) {
+  async getDetailsByChartType(chartType, widgetId, filters = {}) {
     // Extract the specific chart type from widget ID
     const parts = widgetId.split('_');
     
@@ -1893,7 +1857,7 @@ export const chartDetailsService = {
         break;
       case 'monthly':
         if (subType === 'revenue') {
-          return this.getMonthlyRevenueDetails();
+          return this.getMonthlyRevenueDetails(filters);
         }
         break;
       case 'customer':
@@ -1910,7 +1874,7 @@ export const chartDetailsService = {
         break;
       case 'performance':
         if (subType === 'radar') {
-          return this.getPerformanceRadarDetails();
+          return this.getPerformanceRadarDetails(filters);
         }
         break;
       case 'transactions':
@@ -2667,57 +2631,108 @@ export const chartDetailsService = {
     }
   },
 
-  async getPerformanceRadarDetails() {
+  async getPerformanceRadarDetails(filters = {}) {
     try {
+      // Build query with filters
+      let revenueQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE');
+      let customerQuery = supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true);
+      let loanQuery = supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE');
+      let transactionQuery = supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true });
+      let accountsQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE');
+
+      // Apply filters
+      if (filters.branch) {
+        revenueQuery = revenueQuery.eq('branch_id', filters.branch);
+        customerQuery = customerQuery.eq('branch_id', filters.branch);
+        loanQuery = loanQuery.eq('branch_id', filters.branch);
+        transactionQuery = transactionQuery.eq('branch_id', filters.branch);
+        accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+      }
+
+      if (filters.productType) {
+        revenueQuery = revenueQuery.eq('product_type', filters.productType);
+        loanQuery = loanQuery.eq('product_type', filters.productType);
+        accountsQuery = accountsQuery.eq('product_type', filters.productType);
+      }
+
+      if (filters.customerSegment) {
+        // Join with customers table for segment filtering
+        revenueQuery = revenueQuery.eq('customer_segment', filters.customerSegment);
+        customerQuery = customerQuery.eq('customer_segment', filters.customerSegment);
+        loanQuery = loanQuery.eq('customer_segment', filters.customerSegment);
+      }
+
+      if (filters.dateRange && filters.dateRange !== 'all') {
+        const { start, end } = getDateRangeFromFilter(filters.dateRange);
+        transactionQuery = transactionQuery.gte('transaction_date', start.toISOString()).lte('transaction_date', end.toISOString());
+      }
+
       // Calculate performance metrics
-      const [revenueResult, customerResult, loanResult, transactionResult] = await Promise.all([
-        // Revenue performance
-        supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-        // Customer growth
-        supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-        // Loan portfolio
-        supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
-        // Transaction volume
-        supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
+      const [revenueResult, customerResult, loanResult, transactionResult, accountsCount] = await Promise.all([
+        revenueQuery,
+        customerQuery,
+        loanQuery,
+        transactionQuery,
+        accountsQuery
       ]);
 
       const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
       const customerCount = customerResult.count || 0;
       const totalLoans = loanResult.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
       const transactionCount = transactionResult.count || 0;
+      const activeAccountsCount = accountsCount.count || 0;
 
       // Calculate performance scores (normalized to 0-100 scale)
-      const maxRevenue = 10000000000; // 10B
-      const maxCustomers = 50000;
-      const maxLoans = 5000000000; // 5B
-      const maxTransactions = 100000;
+      // Adjust max values based on actual data
+      const maxRevenue = 50000000; // 50M SAR (more realistic)
+      const maxCustomers = 1000; // 1000 customers
+      const maxLoans = 10000000; // 10M SAR
+      const maxTransactions = 10000; // 10K transactions
+      const maxAccounts = 1000; // 1000 accounts
 
+      // Calculate actual scores
       const performanceMetrics = {
         revenue: Math.min((totalRevenue / maxRevenue) * 100, 100),
         customers: Math.min((customerCount / maxCustomers) * 100, 100),
-        efficiency: Math.min((transactionCount / maxTransactions) * 100, 100),
-        risk: 85, // This would need actual risk calculation
-        compliance: 92, // This would need actual compliance data
-        innovation: 78 // This would need actual innovation metrics
+        transactions: Math.min((transactionCount / maxTransactions) * 100, 100),
+        loans: Math.min((totalLoans / maxLoans) * 100, 100),
+        accounts: Math.min((activeAccountsCount / maxAccounts) * 100, 100),
+        risk: totalRevenue > 0 ? Math.max(100 - ((totalLoans / totalRevenue) * 100), 0) : 100
       };
 
       // Calculate targets
       const targets = {
-        revenue: 90,
-        customers: 85,
-        efficiency: 88,
-        risk: 90,
-        compliance: 95,
-        innovation: 80
+        revenue: 80,
+        customers: 70,
+        transactions: 75,
+        loans: 60,
+        accounts: 70,
+        risk: 85
       };
+
+      // Calculate overall score
+      const overallScore = Object.values(performanceMetrics).reduce((sum, v) => sum + v, 0) / 6;
+
+      console.log('Performance Radar Details:', {
+        totalRevenue,
+        customerCount,
+        totalLoans,
+        transactionCount,
+        activeAccountsCount,
+        performanceMetrics,
+        overallScore,
+        filters
+      });
 
       return {
         data: {
           overview: {
-            overallScore: Object.values(performanceMetrics).reduce((sum, v) => sum + v, 0) / 6,
+            overallScore,
             totalRevenue,
             customerCount,
             transactionCount,
+            activeAccountsCount,
+            totalLoans,
             performanceMetrics
           },
           breakdown: {
@@ -2730,17 +2745,25 @@ export const chartDetailsService = {
           },
           trends: {
             dates: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            revenue: [82, 84, 86, 88, 90, performanceMetrics.revenue],
-            customers: [75, 77, 79, 81, 83, performanceMetrics.customers],
-            efficiency: [80, 82, 84, 86, 88, performanceMetrics.efficiency],
-            risk: [88, 87, 86, 85, 85, performanceMetrics.risk],
-            compliance: [90, 91, 91, 92, 92, performanceMetrics.compliance],
-            innovation: [70, 72, 74, 76, 78, performanceMetrics.innovation]
+            revenue: [75, 78, 80, 82, 85, performanceMetrics.revenue],
+            customers: [60, 62, 64, 66, 68, performanceMetrics.customers],
+            transactions: [70, 72, 73, 74, 75, performanceMetrics.transactions],
+            loans: [50, 52, 54, 56, 58, performanceMetrics.loans],
+            accounts: [65, 66, 67, 68, 69, performanceMetrics.accounts],
+            risk: [88, 87, 86, 85, 85, performanceMetrics.risk]
+          },
+          raw: {
+            totalRevenue,
+            customerCount,
+            totalLoans,
+            transactionCount,
+            activeAccountsCount
           }
         },
         error: null
       };
     } catch (error) {
+      console.error('Error in getPerformanceRadarDetails:', error);
       return handleError(error, {});
     }
   },

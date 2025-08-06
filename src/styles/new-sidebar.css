@@ -82,3 +82,45 @@
     display: none !important;
   }
 }
+
+/* Mobile-specific sidebar styles */
+@media (max-width: 1023px) {
+  /* Ensure sidebar is full height on mobile */
+  .mobile-sidebar,
+  [class*="MobileSidebarContainer"] > div {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile browsers */
+  }
+  
+  /* Prevent body scroll when sidebar is open */
+  body:has(.translate-x-0) {
+    overflow: hidden;
+  }
+  
+  /* Ensure proper touch scrolling in sidebar */
+  .mobile-sidebar .overflow-y-auto,
+  [class*="MobileSidebarContainer"] .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Improve touch targets on mobile */
+  .mobile-sidebar button,
+  .mobile-sidebar a,
+  [class*="MobileSidebarContainer"] button,
+  [class*="MobileSidebarContainer"] a {
+    min-height: 44px; /* iOS touch target recommendation */
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Ensure backdrop covers entire screen including notches */
+@supports (padding: max(0px)) {
+  .fixed.inset-0 {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}

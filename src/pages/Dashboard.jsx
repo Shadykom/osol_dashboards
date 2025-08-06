@@ -93,6 +93,7 @@ import { ProductReportService } from '@/services/productReportService';
 import { CustomerSegmentService } from '@/services/customerSegmentService';
 import { fixDashboardData, checkDatabaseStatus } from '@/utils/fixDashboardData';
 
+
 // Removed mock Supabase clients - using real database connections only
 
 // Import with fallback - using regular imports
@@ -102,6 +103,41 @@ import { useIsMobile, responsiveClasses } from '@/utils/responsive';
 import { useRTLClasses } from '@/components/ui/rtl-wrapper';
 
 const COLORS = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181', '#F6AD55'];
+
+// Helper function to get date range from filter
+function getDateRangeFromFilter(dateRange) {
+  const now = new Date();
+  switch (dateRange) {
+    case 'today':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+      };
+    case 'week':
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - 7);
+      return { start: weekStart, end: now };
+    case 'month':
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      };
+    case 'quarter':
+      const quarterStart = new Date(now);
+      quarterStart.setMonth(now.getMonth() - 3);
+      return { start: quarterStart, end: now };
+    case 'year':
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear(), 11, 31)
+      };
+    default:
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: now
+      };
+  }
+}
 
 // Mock data generators for fallback
 const getMockKPIData = () => ({
@@ -280,49 +316,107 @@ export const WIDGET_CATALOG = {
       icon: Target,
       type: 'chart',
       chartType: 'radar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
+          // Build queries with filters
+          let revenueQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE');
+          let customerQuery = supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true);
+          let loanQuery = supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE');
+          let transactionQuery = supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true });
+          let accountsQuery = supabaseBanking.from(TABLES.ACCOUNTS).select('*', { count: 'exact', head: true }).eq('account_status', 'ACTIVE');
+
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            revenueQuery = revenueQuery.eq('branch_id', filters.branch);
+            customerQuery = customerQuery.eq('branch_id', filters.branch);
+            loanQuery = loanQuery.eq('branch_id', filters.branch);
+            transactionQuery = transactionQuery.eq('branch_id', filters.branch);
+            accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+          }
+
+          if (filters.productType && filters.productType !== 'all') {
+            revenueQuery = revenueQuery.eq('product_type', filters.productType);
+            loanQuery = loanQuery.eq('product_type', filters.productType);
+            accountsQuery = accountsQuery.eq('product_type', filters.productType);
+          }
+
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            customerQuery = customerQuery.eq('customer_segment', filters.customerSegment);
+          }
+
+          if (filters.dateRange && filters.dateRange !== 'all') {
+            const { start, end } = getDateRangeFromFilter(filters.dateRange);
+            transactionQuery = transactionQuery.gte('transaction_date', start.toISOString()).lte('transaction_date', end.toISOString());
+          }
+
           // Fetch real performance metrics from database
-          const [revenueResult, customerResult, loanResult, transactionResult] = await Promise.all([
-            // Revenue performance
-            supabaseBanking.from(TABLES.ACCOUNTS).select('current_balance').eq('account_status', 'ACTIVE'),
-            // Customer growth
-            supabaseBanking.from(TABLES.CUSTOMERS).select('*', { count: 'exact', head: true }).eq('is_active', true),
-            // Loan portfolio
-            supabaseBanking.from(TABLES.LOAN_ACCOUNTS).select('outstanding_balance').eq('loan_status', 'ACTIVE'),
-            // Transaction volume
-            supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
+          const [revenueResult, customerResult, loanResult, transactionResult, accountsCount] = await Promise.all([
+            revenueQuery,
+            customerQuery,
+            loanQuery,
+            transactionQuery,
+            accountsQuery
           ]);
 
           const totalRevenue = revenueResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
           const customerCount = customerResult.count || 0;
           const totalLoans = loanResult.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
           const transactionCount = transactionResult.count || 0;
+          const activeAccountsCount = accountsCount.count || 0;
 
           // Calculate performance scores (normalized to 0-150 scale)
-          const maxRevenue = 10000000000; // 10B
-          const maxCustomers = 50000;
-          const maxLoans = 5000000000; // 5B
-          const maxTransactions = 100000;
+          // Adjust max values based on actual data
+          const maxRevenue = 50000000; // 50M SAR (more realistic)
+          const maxCustomers = 1000; // 1000 customers
+          const maxLoans = 10000000; // 10M SAR
+          const maxTransactions = 10000; // 10K transactions
+          const maxAccounts = 1000; // 1000 accounts
+
+          // Calculate actual scores
+          const revenueScore = Math.min((totalRevenue / maxRevenue) * 150, 150);
+          const customerScore = Math.min((customerCount / maxCustomers) * 150, 150);
+          const transactionScore = Math.min((transactionCount / maxTransactions) * 150, 150);
+          const loanScore = Math.min((totalLoans / maxLoans) * 150, 150);
+          const accountScore = Math.min((activeAccountsCount / maxAccounts) * 150, 150);
+          
+          // Risk score based on loan to deposit ratio (inverse - lower is better)
+          const loanToDepositRatio = totalRevenue > 0 ? (totalLoans / totalRevenue) : 0;
+          const riskScore = Math.max(150 - (loanToDepositRatio * 150), 0);
+
+          console.log('Performance Radar Metrics:', {
+            totalRevenue,
+            customerCount,
+            totalLoans,
+            transactionCount,
+            activeAccountsCount,
+            scores: {
+              revenue: revenueScore,
+              customers: customerScore,
+              transactions: transactionScore,
+              loans: loanScore,
+              accounts: accountScore,
+              risk: riskScore
+            }
+          });
 
           return [
-            { metric: 'Revenue', A: Math.min((totalRevenue / maxRevenue) * 150, 150), B: 110, fullMark: 150 },
-            { metric: 'Customers', A: Math.min((customerCount / maxCustomers) * 150, 150), B: 130, fullMark: 150 },
-            { metric: 'Efficiency', A: Math.min((transactionCount / maxTransactions) * 150, 150), B: 130, fullMark: 150 },
-            { metric: 'Risk', A: 99, B: 100, fullMark: 150 }, // This would need risk calculation
-            { metric: 'Compliance', A: 95, B: 90, fullMark: 150 }, // This would need compliance data
-            { metric: 'Innovation', A: 85, B: 85, fullMark: 150 } // This would need innovation metrics
+            { metric: 'Revenue', A: revenueScore, B: 120, fullMark: 150 },
+            { metric: 'Customers', A: customerScore, B: 100, fullMark: 150 },
+            { metric: 'Transactions', A: transactionScore, B: 110, fullMark: 150 },
+            { metric: 'Loans', A: loanScore, B: 90, fullMark: 150 },
+            { metric: 'Accounts', A: accountScore, B: 100, fullMark: 150 },
+            { metric: 'Risk Mgmt', A: riskScore, B: 130, fullMark: 150 }
           ];
         } catch (error) {
           console.error('Error fetching performance radar data:', error);
-          // Return empty data instead of mock
+          // Return empty data on error
           return [
-            { metric: 'Revenue', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Customers', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Efficiency', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Risk', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Compliance', A: 0, B: 0, fullMark: 150 },
-            { metric: 'Innovation', A: 0, B: 0, fullMark: 150 }
+            { metric: 'Revenue', A: 0, B: 120, fullMark: 150 },
+            { metric: 'Customers', A: 0, B: 100, fullMark: 150 },
+            { metric: 'Transactions', A: 0, B: 110, fullMark: 150 },
+            { metric: 'Loans', A: 0, B: 90, fullMark: 150 },
+            { metric: 'Accounts', A: 0, B: 100, fullMark: 150 },
+            { metric: 'Risk Mgmt', A: 0, B: 130, fullMark: 150 }
           ];
         }
       }
@@ -334,18 +428,35 @@ export const WIDGET_CATALOG = {
       icon: TrendingUp,
       type: 'chart',
       chartType: 'area',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get last 6 months of data
           const sixMonthsAgo = new Date();
           sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
           
-          // Fetch monthly transaction volumes
-          const { data: transactions, error } = await supabaseBanking
+          // Build query with filters
+          let query = supabaseBanking
             .from(TABLES.TRANSACTIONS)
-            .select('transaction_amount, transaction_date')
+            .select('transaction_amount, transaction_date, branch_id')
             .gte('transaction_date', sixMonthsAgo.toISOString())
             .order('transaction_date', { ascending: true });
+
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+
+          // Customer segment filter removed as transactions table doesn't have customer_id
+          // This would require joining with accounts table to get customer information
+
+          // Override date range if specified
+          if (filters.dateRange && filters.dateRange !== 'all') {
+            const { start, end } = getDateRangeFromFilter(filters.dateRange);
+            query = query.gte('transaction_date', start.toISOString())
+                       .lte('transaction_date', end.toISOString());
+          }
+
+          const { data: transactions, error } = await query;
 
           if (error) throw error;
 
@@ -391,14 +502,16 @@ export const WIDGET_CATALOG = {
         try {
           let query = supabaseBanking
             .from(TABLES.CUSTOMERS)
-            .select('*', { count: 'exact', head: true });
+            .select('customer_id');
           
           // Apply customer segment filter
           if (filters?.customerSegment && filters.customerSegment !== 'all') {
             query = query.eq('customer_segment', filters.customerSegment);
           }
           
-          const { count, error } = await query;
+          const { data: customers, error } = await query;
+          
+          const count = customers?.length || 0;
           
           if (error) throw error;
           
@@ -495,7 +608,8 @@ export const WIDGET_CATALOG = {
       nameEn: 'Profit Margin',
       icon: Percent,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
+        // TODO: Implement actual profit margin calculation with filters
         return {
           value: 34.8,
           change: 2.3,
@@ -510,14 +624,69 @@ export const WIDGET_CATALOG = {
       icon: Building2,
       type: 'chart',
       chartType: 'bar',
-      query: async () => {
-        return [
-          { branch: 'Riyadh Main', revenue: 1850000, customers: 4250 },
-          { branch: 'Jeddah Central', revenue: 1620000, customers: 3800 },
-          { branch: 'Dammam Plaza', revenue: 1450000, customers: 3200 },
-          { branch: 'Makkah Branch', revenue: 980000, customers: 2100 },
-          { branch: 'Madinah Office', revenue: 620000, customers: 1497 }
-        ];
+      query: async (filters = {}) => {
+        try {
+          // Get branch performance data
+          const { data: branches } = await supabaseBanking
+            .from(TABLES.BRANCHES)
+            .select('branch_id, branch_name');
+          
+          const performanceData = [];
+          
+          for (const branch of branches || []) {
+            // Build queries with filters
+            let accountsQuery = supabaseBanking
+              .from(TABLES.ACCOUNTS)
+              .select('current_balance')
+              .eq('branch_id', branch.branch_id)
+              .eq('account_status', 'ACTIVE');
+            
+            let customersQuery = supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('branch_id', branch.branch_id)
+              .eq('is_active', true);
+            
+            // Apply filters
+            if (filters.productType && filters.productType !== 'all') {
+              accountsQuery = accountsQuery.eq('product_type', filters.productType);
+            }
+            
+            if (filters.customerSegment && filters.customerSegment !== 'all') {
+              customersQuery = customersQuery.eq('customer_segment', filters.customerSegment);
+            }
+            
+            const [accountsResult, customersResult] = await Promise.all([
+              accountsQuery,
+              customersQuery
+            ]);
+            
+            const revenue = accountsResult.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
+            const customers = customersResult.data?.length || 0;
+            
+            performanceData.push({
+              branch: branch.branch_name || `Branch ${branch.branch_id}`,
+              revenue,
+              customers
+            });
+          }
+          
+          // Sort by revenue and take top 5
+          return performanceData
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 5);
+            
+        } catch (error) {
+          console.error('Error fetching branch performance:', error);
+          // Return mock data on error
+          return [
+            { branch: 'Riyadh Main', revenue: 1850000, customers: 4250 },
+            { branch: 'Jeddah Central', revenue: 1620000, customers: 3800 },
+            { branch: 'Dammam Plaza', revenue: 1450000, customers: 3200 },
+            { branch: 'Makkah Branch', revenue: 980000, customers: 2100 },
+            { branch: 'Madinah Office', revenue: 620000, customers: 1497 }
+          ];
+        }
       }
     },
     product_distribution: {
@@ -526,14 +695,65 @@ export const WIDGET_CATALOG = {
       icon: Package,
       type: 'chart',
       chartType: 'pie',
-      query: async () => {
-        return [
-          { name: 'Personal Loans', value: 3500000, fill: '#E6B800' },
-          { name: 'Home Finance', value: 4200000, fill: '#4A5568' },
-          { name: 'Auto Finance', value: 2100000, fill: '#68D391' },
-          { name: 'Credit Cards', value: 1800000, fill: '#63B3ED' },
-          { name: 'Business Loans', value: 2900000, fill: '#F687B3' }
-        ];
+      query: async (filters = {}) => {
+        try {
+          // Get product distribution from loan accounts
+          let query = supabaseBanking
+            .from(TABLES.LOAN_ACCOUNTS)
+            .select('product_type, outstanding_balance, branch_id, customer_id')
+            .eq('loan_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            // Need to join with customers
+            const { data: customers } = await supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('customer_segment', filters.customerSegment);
+            
+            if (customers && customers.length > 0) {
+              const customerIds = customers.map(c => c.customer_id);
+              query = query.in('customer_id', customerIds);
+            }
+          }
+          
+          const { data: loans } = await query;
+          
+          // Group by product type
+          const productGroups = {};
+          loans?.forEach(loan => {
+            const product = loan.product_type || 'Other';
+            if (!productGroups[product]) {
+              productGroups[product] = 0;
+            }
+            productGroups[product] += loan.outstanding_balance || 0;
+          });
+          
+          // Convert to array format with colors
+          const colors = ['#E6B800', '#4A5568', '#68D391', '#63B3ED', '#F687B3', '#9F7AEA', '#FC8181'];
+          return Object.entries(productGroups)
+            .map(([name, value], index) => ({
+              name,
+              value,
+              fill: colors[index % colors.length]
+            }))
+            .sort((a, b) => b.value - a.value);
+            
+        } catch (error) {
+          console.error('Error fetching product distribution:', error);
+          // Return mock data on error
+          return [
+            { name: 'Personal Loans', value: 3500000, fill: '#E6B800' },
+            { name: 'Home Finance', value: 4200000, fill: '#4A5568' },
+            { name: 'Auto Finance', value: 2100000, fill: '#68D391' },
+            { name: 'Credit Cards', value: 1800000, fill: '#63B3ED' },
+            { name: 'Business Loans', value: 2900000, fill: '#F687B3' }
+          ];
+        }
       }
     },
     risk_metrics: {
@@ -542,7 +762,8 @@ export const WIDGET_CATALOG = {
       icon: AlertTriangle,
       type: 'chart',
       chartType: 'radialbar',
-      query: async () => {
+      query: async (filters = {}) => {
+        // TODO: Implement actual risk metrics calculation with filters
         return [
           { name: 'Credit Risk', value: 15, fill: '#22c55e' },
           { name: 'Market Risk', value: 22, fill: '#3b82f6' },
@@ -556,7 +777,8 @@ export const WIDGET_CATALOG = {
       nameEn: 'Digital Adoption',
       icon: Zap,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
+        // TODO: Implement with filters
         return {
           value: 78.5,
           change: 15.2,
@@ -719,7 +941,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Daily Transactions',
       icon: Activity,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -727,11 +949,18 @@ export const WIDGET_CATALOG = {
           const tomorrow = new Date(today);
           tomorrow.setDate(tomorrow.getDate() + 1);
           
-          const { count, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.TRANSACTIONS)
             .select('*', { count: 'exact', head: true })
             .gte('transaction_date', today.toISOString())
             .lt('transaction_date', tomorrow.toISOString());
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { count, error } = await query;
           
           console.log('Daily transactions query result:', { count, error, date: today.toISOString() });
           
@@ -928,12 +1157,34 @@ export const WIDGET_CATALOG = {
       nameEn: 'Loan Portfolio',
       icon: Banknote,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
-          const { data, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
-            .select('outstanding_balance')
+            .select('outstanding_balance, branch_id, customer_id')
             .eq('loan_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          // Product type filter removed as loan_accounts table doesn't have product_type column
+          
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            // Need to join with customers
+            const { data: customers } = await supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('customer_segment', filters.customerSegment);
+            
+            if (customers && customers.length > 0) {
+              const customerIds = customers.map(c => c.customer_id);
+              query = query.in('customer_id', customerIds);
+            }
+          }
+          
+          const { data, error } = await query;
           
           if (error) throw error;
           
@@ -959,7 +1210,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'NPL Ratio',
       icon: AlertTriangle,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const { data: totalLoans, error: totalError } = await supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
@@ -1000,16 +1251,38 @@ export const WIDGET_CATALOG = {
       icon: Package,
       type: 'chart',
       chartType: 'bar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
-          const { data, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
             .select(`
               product_id,
               outstanding_balance,
+              branch_id,
+              customer_id,
               products!inner(product_name)
             `)
             .eq('loan_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          if (filters.customerSegment && filters.customerSegment !== 'all') {
+            // Need to join with customers
+            const { data: customers } = await supabaseBanking
+              .from(TABLES.CUSTOMERS)
+              .select('customer_id')
+              .eq('customer_segment', filters.customerSegment);
+            
+            if (customers && customers.length > 0) {
+              const customerIds = customers.map(c => c.customer_id);
+              query = query.in('customer_id', customerIds);
+            }
+          }
+          
+          const { data, error } = await query;
           
           if (error) throw error;
           
@@ -1039,12 +1312,19 @@ export const WIDGET_CATALOG = {
       nameEn: 'Active Cases',
       icon: Scale,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
-          const { count, error } = await supabaseBanking
+          let query = supabaseBanking
             .from(TABLES.COLLECTION_CASES)
             .select('*', { count: 'exact', head: true })
             .eq('case_status', 'ACTIVE');
+          
+          // Apply filters
+          if (filters.collectionStatus && filters.collectionStatus !== 'all') {
+            query = query.eq('case_status', filters.collectionStatus);
+          }
+          
+          const { count, error } = await query;
           
           if (error) throw error;
           
@@ -1068,7 +1348,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Collection Rate',
       icon: Percent,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const startOfMonth = new Date();
           startOfMonth.setDate(1);
@@ -1107,7 +1387,7 @@ export const WIDGET_CATALOG = {
       icon: Timer,
       type: 'chart',
       chartType: 'pie',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const { data, error } = await supabaseBanking
             .from(TABLES.COLLECTION_CASES)
@@ -1154,7 +1434,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Total Customers',
       icon: Users,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get total count of all customers
           const { data: allCustomers, error: totalError } = await supabaseBanking
@@ -1193,7 +1473,7 @@ export const WIDGET_CATALOG = {
       icon: UserCheck,
       type: 'chart',
       chartType: 'pie',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get all customers with their segments
           const { data: customers, error } = await supabaseBanking
@@ -1249,7 +1529,7 @@ export const WIDGET_CATALOG = {
       nameEn: 'Risk Score',
       icon: Shield,
       type: 'kpi',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           const { data: nplLoans, error: nplError } = await supabaseBanking
             .from(TABLES.LOAN_ACCOUNTS)
@@ -1290,7 +1570,7 @@ export const WIDGET_CATALOG = {
       icon: CheckCircle,
       type: 'chart',
       chartType: 'radialbar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // In a real implementation, this would fetch from compliance tables
           // For now, return static compliance metrics
@@ -1469,7 +1749,7 @@ export const WIDGET_CATALOG = {
       icon: Building2,
       type: 'chart',
       chartType: 'bar',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get deposits grouped by branch
           const { data: accounts, error: accountsError } = await supabaseBanking
@@ -1513,7 +1793,7 @@ export const WIDGET_CATALOG = {
       icon: Users,
       type: 'chart',
       chartType: 'composed',
-      query: async () => {
+      query: async (filters = {}) => {
         try {
           // Get account creation dates for the last 30 days
           const endDate = new Date();
@@ -1787,6 +2067,7 @@ export default function EnhancedDashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const hasInitialized = useRef(false);
+  const isFirstRender = useRef(true);
   const isMobile = useIsMobile();
   const rtl = useRTLClasses();
   
@@ -2025,6 +2306,12 @@ export default function EnhancedDashboard() {
 
   // Fetch data when widgets or filters change
   useEffect(() => {
+    // Skip the first render to avoid duplicate fetching
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
     if (widgets.length > 0) {
       fetchDashboardData();
     }
@@ -2161,13 +2448,40 @@ export default function EnhancedDashboard() {
     console.log('🖱️ Widget clicked:', {
       section: widget.section,
       widget: widget.widget,
-      id: widget.id
+      id: widget.id,
+      filters: filters
     });
     
-    // Navigate to enhanced detail page with widget information
+    // Build query parameters from current filters
+    const queryParams = new URLSearchParams();
+    
+    // Add each filter to query params if it has a value
+    if (filters.branch && filters.branch !== 'all') {
+      queryParams.append('branch', filters.branch);
+    }
+    if (filters.productType && filters.productType !== 'all') {
+      queryParams.append('productType', filters.productType);
+    }
+    if (filters.customerSegment && filters.customerSegment !== 'all') {
+      queryParams.append('customerSegment', filters.customerSegment);
+    }
+    if (filters.dateRange && filters.dateRange !== 'all') {
+      queryParams.append('dateRange', filters.dateRange);
+    }
+    if (filters.riskCategory && filters.riskCategory !== 'all') {
+      queryParams.append('riskCategory', filters.riskCategory);
+    }
+    if (filters.collectionStatus && filters.collectionStatus !== 'all') {
+      queryParams.append('collectionStatus', filters.collectionStatus);
+    }
+    
+    // Navigate to enhanced detail page with widget information and filters
     const detailPath = `/dashboard/detail-new/${widget.section}/${widget.widget}`;
-    console.log('🔗 Navigating to:', detailPath);
-    navigate(detailPath);
+    const queryString = queryParams.toString();
+    const fullPath = queryString ? `${detailPath}?${queryString}` : detailPath;
+    
+    console.log('🔗 Navigating to:', fullPath);
+    navigate(fullPath);
   };
 
   // Export dashboard
@@ -2218,6 +2532,8 @@ export default function EnhancedDashboard() {
     const currentWidgetData = widgetData[dataKey] || {};
     const isLoading = widgetLoadingStates[dataKey];
     const hasError = widgetErrorStates.includes(widget.id);
+    
+
     
     // Get widget name from translations
     const widgetName = widgetDef.widgetKey ? t(`dashboard.widgets.${widgetDef.widgetKey}`) : 
@@ -2428,7 +2744,7 @@ export default function EnhancedDashboard() {
                       )}
                       
                       {widgetDef.chartType === 'radar' && (
-                        <RadarChart data={widgetData}>
+                        <RadarChart data={currentWidgetData}>
                           <PolarGrid />
                           <PolarAngleAxis dataKey="metric" />
                           <PolarRadiusAxis />
@@ -2485,19 +2801,19 @@ export default function EnhancedDashboard() {
               variant="outline"
               onClick={handleFixData}
               disabled={isFixingData}
-              className="ml-4"
+                                          className={rtl.marginStart(4)}
             >
               {isFixingData ? (
                 <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  <RefreshCw className={cn("h-4 w-4 animate-spin", rtl.marginEnd(2))} />
                   Fixing...
                 </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Fix Data
-                </>
-              )}
+                              ) : (
+                  <>
+                    <Database className={cn("h-4 w-4", rtl.marginEnd(2))} />
+                    Fix Data
+                  </>
+                )}
             </Button>
           </AlertDescription>
         </Alert>
@@ -2507,7 +2823,7 @@ export default function EnhancedDashboard() {
       {/* Header Section */}
       <div className="space-y-4">
         {/* Title and Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className={cn("flex flex-col sm:items-center sm:justify-between gap-4", rtl.flexRowMobile)}>
           <div className="flex items-center gap-2 sm:gap-4">
             <h1 className={cn(
               "font-bold",
@@ -2517,7 +2833,7 @@ export default function EnhancedDashboard() {
             </h1>
             {selectedTemplate && !isMobile && (
               <Badge variant="outline" className="hidden sm:inline-flex">
-                <Layers className="w-3 h-3 mr-1" />
+                <Layers className={cn("w-3 h-3", rtl.marginEnd(1))} />
                 {t(`dashboard.templates.${selectedTemplate}`, DASHBOARD_TEMPLATES[selectedTemplate].nameEn)}
               </Badge>
             )}
@@ -2530,7 +2846,7 @@ export default function EnhancedDashboard() {
               onClick={() => setShowFilters(!showFilters)}
               className="text-xs sm:text-sm"
             >
-              <Filter className="h-4 w-4 mr-1 sm:mr-2" />
+                              <Filter className={cn("h-4 w-4", rtl.marginEndMobile(2, 1))} />
               <span className="hidden sm:inline">Filters</span>
             </Button>
             
@@ -2543,11 +2859,11 @@ export default function EnhancedDashboard() {
               disabled={refreshing}
               className="text-xs sm:text-sm"
             >
-              <RefreshCw className={cn("h-4 w-4 mr-1 sm:mr-2", refreshing && "animate-spin")} />
+                              <RefreshCw className={cn("h-4 w-4", rtl.marginEndMobile(2, 1), refreshing && "animate-spin")} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             
-            <div className="hidden sm:flex items-center gap-2 border-l pl-2 ml-2">
+                          <div className={cn("hidden sm:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}>
               <Switch
                 checked={autoRefresh}
                 onCheckedChange={setAutoRefresh}
@@ -2558,7 +2874,7 @@ export default function EnhancedDashboard() {
               </Label>
             </div>
             
-            <div className="hidden md:flex items-center gap-2 border-l pl-2 ml-2">
+                          <div className={cn("hidden md:flex items-center gap-2", rtl.borderStart(1), rtl.paddingStart(2), rtl.marginStart(2))}>
               <Switch
                 checked={isEditMode}
                 onCheckedChange={setIsEditMode}
@@ -2576,7 +2892,7 @@ export default function EnhancedDashboard() {
                   size="sm"
                   onClick={() => setShowTemplates(true)}
                 >
-                  <Layers className="h-4 w-4 mr-2" />
+                                      <Layers className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Templates
                 </Button>
                 
@@ -2584,7 +2900,7 @@ export default function EnhancedDashboard() {
                   size="sm"
                   onClick={saveDashboardConfig}
                 >
-                  <Save className="h-4 w-4 mr-2" />
+                                      <Save className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Save
                 </Button>
               </>
@@ -2599,26 +2915,26 @@ export default function EnhancedDashboard() {
               <DropdownMenuContent align="end" className="w-48">
                 <div className="md:hidden">
                   <DropdownMenuItem onClick={() => setAutoRefresh(!autoRefresh)}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
+                    <RotateCcw className={cn("h-4 w-4", rtl.marginEnd(2))} />
                     {autoRefresh ? 'Disable' : 'Enable'} Auto-refresh
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setIsEditMode(!isEditMode)}>
-                    {isEditMode ? <Lock className="h-4 w-4 mr-2" /> : <Unlock className="h-4 w-4 mr-2" />}
+                    {isEditMode ? <Lock className={cn("h-4 w-4", rtl.marginEnd(2))} /> : <Unlock className={cn("h-4 w-4", rtl.marginEnd(2))} />}
                     {isEditMode ? 'Lock' : 'Edit'} Dashboard
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </div>
                 <DropdownMenuItem onClick={() => exportDashboard('pdf')}>
-                  <FileText className="h-4 w-4 mr-2" />
+                  <FileText className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Export as PDF
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => exportDashboard('excel')}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  <FileSpreadsheet className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Export as Excel
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowDataSeeder(true)}>
-                  <Database className="h-4 w-4 mr-2" />
+                  <Database className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Seed Sample Data
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -2710,7 +3026,7 @@ export default function EnhancedDashboard() {
                 </div>
               </div>
               
-              <div className="flex justify-end mt-4 gap-2">
+              <div className={cn("flex mt-4 gap-2", rtl.isRTL ? "justify-start" : "justify-end")}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -2755,7 +3071,7 @@ export default function EnhancedDashboard() {
                 )}
               >
                 <section.icon className={cn(
-                  "mr-1",
+                  rtl.marginEnd(1),
                   isMobile ? "h-3 w-3" : "h-4 w-4"
                 )} />
                 <span className={isMobile && key !== selectedSection ? "hidden" : ""}>
@@ -2787,7 +3103,7 @@ export default function EnhancedDashboard() {
               size="sm"
               onClick={() => setShowAddWidget(true)}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className={cn("h-4 w-4", rtl.marginEnd(2))} />
               Add Widget
             </Button>
           )}
@@ -2814,7 +3130,7 @@ export default function EnhancedDashboard() {
               </p>
               {isEditMode && (
                 <Button onClick={() => setShowAddWidget(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Add Widget
                 </Button>
               )}
@@ -2835,7 +3151,7 @@ export default function EnhancedDashboard() {
             </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="h-[60vh] sm:h-[500px] pr-2 sm:pr-4">
+                      <ScrollArea className={cn("h-[60vh] sm:h-[500px]", rtl.paddingEndMobile(4, 2))}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(WIDGET_CATALOG[selectedSection] || {}).map(([widgetKey, widget]) => (
                 <Card
@@ -2871,7 +3187,7 @@ export default function EnhancedDashboard() {
             </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="h-[500px] pr-4">
+                      <ScrollArea className={cn("h-[500px]", rtl.paddingEnd(4))}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.entries(DASHBOARD_TEMPLATES).map(([key, template]) => (
                 <Card 
@@ -2968,6 +3284,8 @@ export default function EnhancedDashboard() {
           <RefreshCw className="h-4 w-4" />
           Refresh Data
         </Button>
+        
+
       </div>
     </div>
   );

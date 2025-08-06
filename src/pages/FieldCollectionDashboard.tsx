@@ -22,11 +22,28 @@ import {
 } from 'lucide-react';
 
 const FieldCollectionDashboard = () => {
-  const { t } = useTranslation();
+  const { t, i18n, ready } = useTranslation('translation');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [mapView, setMapView] = useState('heat');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Force translation reload if needed
+  useEffect(() => {
+    if (!ready && i18n.language) {
+      i18n.reloadResources();
+    }
+    // Debug: Check if translations are loaded
+    console.log('FieldCollectionDashboard - Translation ready:', ready);
+    console.log('FieldCollectionDashboard - Language:', i18n.language);
+    console.log('FieldCollectionDashboard - Has namespace:', i18n.hasResourceBundle(i18n.language, 'translation'));
+    if (ready) {
+      console.log('FieldCollectionDashboard - Test key:', t('common.loading'));
+      console.log('FieldCollectionDashboard - Nested key:', t('executiveCollection.fieldCollection.metrics.completed'));
+    }
+  }, [ready, i18n, t]);
   
   // Initialize field metrics state
   const [fieldMetrics, setFieldMetrics] = useState({
@@ -86,7 +103,7 @@ const FieldCollectionDashboard = () => {
         amount: 125000,
         duration: 45,
         distance: 12.5,
-        notes: 'Payment collected in cash'
+        notes: 'paymentCollectedInCash'
       },
       {
         visitId: 'V002',
@@ -98,7 +115,7 @@ const FieldCollectionDashboard = () => {
         amount: 0,
         duration: 15,
         distance: 18.2,
-        notes: 'Customer out of town, rescheduled'
+        notes: 'customerOutOfTownRescheduled'
       },
       {
         visitId: 'V003',
@@ -110,7 +127,7 @@ const FieldCollectionDashboard = () => {
         amount: 85000,
         duration: 30,
         distance: 8.7,
-        notes: 'Partial payment received'
+        notes: 'partialPaymentReceived'
       }
     ],
     performanceTrend: [
@@ -304,19 +321,82 @@ const FieldCollectionDashboard = () => {
     return colors[priority] || 'text-gray-600';
   };
 
+  const getTranslatedNote = (noteKey) => {
+    return t(`executiveCollection.fieldCollection.notes.${noteKey}`);
+  };
+
   const COLORS = ['#E6B800', '#F4D03F', '#F7DC6F', '#F9E79F', '#FCF3CF'];
+
+  // Add useEffect to handle loading
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        // Simulate data loading - in real app, this would be API calls
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setIsLoading(false);
+      } catch (err) {
+        setError(err.message || 'Failed to load field collection data');
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [selectedDate, selectedAgent, selectedRegion]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-gray-600">{t('common.loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Alert className="max-w-md">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+            size="sm"
+          >
+            {t('common.retry')}
+          </Button>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Wait for translations to be ready
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Field Collection Dashboard</h1>
-          <p className="text-gray-600 mt-1">Monitor and manage field collection activities</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('executiveCollection.fieldCollection.dashboard.title') || 'Field Collection Dashboard'}</h1>
+          <p className="text-gray-600 mt-1">{t('executiveCollection.fieldCollection.dashboard.subtitle') || 'Monitor and manage field collection activities'}</p>
         </div>
         <div className="flex gap-2 items-center">
           <Badge variant="outline" className="text-xs">
-            Last updated: {lastRefreshed ? lastRefreshed.toLocaleTimeString() : 'Loading...'}
+            {t('executiveCollection.fieldCollection.dashboard.lastUpdated')}: {lastRefreshed ? lastRefreshed.toLocaleTimeString() : 'Loading...'}
           </Badge>
           <Button
             variant="outline"
@@ -324,28 +404,28 @@ const FieldCollectionDashboard = () => {
             onClick={refresh}
             disabled={isRefreshing}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`${i18n.dir() === 'rtl' ? 'ml-2' : 'mr-2'} h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {t('executiveCollection.fieldCollection.dashboard.refresh')}
           </Button>
           <Select value={selectedRegion} onValueChange={setSelectedRegion}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select Region" />
+              <SelectValue placeholder={t('executiveCollection.fieldCollection.dashboard.selectRegion')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Regions</SelectItem>
-              <SelectItem value="north">North Riyadh</SelectItem>
-              <SelectItem value="south">South Riyadh</SelectItem>
-              <SelectItem value="east">East Riyadh</SelectItem>
-              <SelectItem value="west">West Riyadh</SelectItem>
-              <SelectItem value="central">Central</SelectItem>
+              <SelectItem value="all">{t('executiveCollection.fieldCollection.dashboard.allRegions')}</SelectItem>
+              <SelectItem value="north">{t('executiveCollection.fieldCollection.dashboard.regions.north')}</SelectItem>
+              <SelectItem value="south">{t('executiveCollection.fieldCollection.dashboard.regions.south')}</SelectItem>
+              <SelectItem value="east">{t('executiveCollection.fieldCollection.dashboard.regions.east')}</SelectItem>
+              <SelectItem value="west">{t('executiveCollection.fieldCollection.dashboard.regions.west')}</SelectItem>
+              <SelectItem value="central">{t('executiveCollection.fieldCollection.dashboard.regions.central')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={selectedAgent} onValueChange={setSelectedAgent}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select Agent" />
+              <SelectValue placeholder={t('executiveCollection.fieldCollection.dashboard.selectAgent')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Agents</SelectItem>
+              <SelectItem value="all">{t('executiveCollection.fieldCollection.dashboard.allAgents')}</SelectItem>
               {agentPerformance.map(agent => (
                 <SelectItem key={agent.name} value={agent.name}>
                   {agent.name}
@@ -354,7 +434,7 @@ const FieldCollectionDashboard = () => {
             </SelectContent>
           </Select>
           <Button variant="outline">
-            <Calendar className="h-4 w-4 mr-2" />
+            <Calendar className={`h-4 w-4 ${i18n.dir() === 'rtl' ? 'ml-2' : 'mr-2'}`} />
             {selectedDate}
           </Button>
         </div>
@@ -364,7 +444,7 @@ const FieldCollectionDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Visits Today</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.fieldCollection.metrics.visitsToday')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fieldMetrics.summary.totalVisitsScheduled}</div>
@@ -373,43 +453,43 @@ const FieldCollectionDashboard = () => {
               className="mt-2 h-1"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {fieldMetrics.summary.visitsCompleted} completed
+              {fieldMetrics.summary.visitsCompleted} {t('executiveCollection.fieldCollection.metrics.completed')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Amount Collected</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.fieldCollection.metrics.amountCollected')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(fieldMetrics.summary.totalAmountCollected)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Avg: {formatCurrency(fieldMetrics.summary.avgCollectionPerVisit)}/visit
+              {t('executiveCollection.fieldCollection.metrics.average')}: {formatCurrency(fieldMetrics.summary.avgCollectionPerVisit)}{t('executiveCollection.fieldCollection.metrics.perVisit')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-yellow-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Active Agents</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.fieldCollection.metrics.activeAgents')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fieldMetrics.summary.totalAgentsActive}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {fieldMetrics.summary.visitsInProgress} visits in progress
+              {fieldMetrics.summary.visitsInProgress} {t('executiveCollection.fieldCollection.metrics.visitsInProgress')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('executiveCollection.fieldCollection.metrics.successRate')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fieldMetrics.summary.successRate}%</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Collection success
+              {t('executiveCollection.fieldCollection.metrics.collectionSuccess')}
             </p>
           </CardContent>
         </Card>
@@ -421,8 +501,8 @@ const FieldCollectionDashboard = () => {
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <div className="flex items-center justify-between">
-              <span>{fieldMetrics.safetyMetrics.checkInsMissed} agents missed safety check-ins today</span>
-              <Button size="sm" variant="outline">{t('customers.viewDetails')}</Button>
+              <span>{fieldMetrics.safetyMetrics.checkInsMissed} {t('executiveCollection.fieldCollection.alerts.missedCheckIns')}</span>
+              <Button size="sm" variant="outline">{t('executiveCollection.fieldCollection.alerts.viewDetails')}</Button>
             </div>
           </AlertDescription>
         </Alert>
@@ -431,12 +511,12 @@ const FieldCollectionDashboard = () => {
       {/* Main Content */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="agents">Agents</TabsTrigger>
-          <TabsTrigger value="visits">Visits</TabsTrigger>
-          <TabsTrigger value="routing">Routing</TabsTrigger>
-          <TabsTrigger value="safety">Safety</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="overview">{t('executiveCollection.fieldCollection.tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="agents">{t('executiveCollection.fieldCollection.tabs.agents')}</TabsTrigger>
+          <TabsTrigger value="visits">{t('executiveCollection.fieldCollection.tabs.visits')}</TabsTrigger>
+          <TabsTrigger value="routing">{t('executiveCollection.fieldCollection.tabs.routing')}</TabsTrigger>
+          <TabsTrigger value="safety">{t('executiveCollection.fieldCollection.tabs.safety')}</TabsTrigger>
+          <TabsTrigger value="analytics">{t('executiveCollection.fieldCollection.tabs.analytics')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -444,8 +524,8 @@ const FieldCollectionDashboard = () => {
             {/* Visit Status Distribution */}
             <Card>
               <CardHeader>
-                <CardTitle>Visit Status Distribution</CardTitle>
-                <CardDescription>Today's field visits by status</CardDescription>
+                <CardTitle>{t('executiveCollection.fieldCollection.overview.visitStatusDistribution')}</CardTitle>
+                <CardDescription>{t('executiveCollection.fieldCollection.overview.todaysFieldVisitsByStatus')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -474,21 +554,21 @@ const FieldCollectionDashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>Agent Locations</span>
+                  <span>{t('executiveCollection.fieldCollection.overview.agentLocations')}</span>
                   <div className="flex gap-1">
                     <Button
                       size="sm"
                       variant={mapView === 'heat' ? 'default' : 'outline'}
                       onClick={() => setMapView('heat')}
                     >
-                      Heat
+                      {t('executiveCollection.fieldCollection.overview.heat')}
                     </Button>
                     <Button
                       size="sm"
                       variant={mapView === 'pins' ? 'default' : 'outline'}
                       onClick={() => setMapView('pins')}
                     >
-                      Pins
+                      {t('executiveCollection.fieldCollection.overview.pins')}
                     </Button>
                   </div>
                 </CardTitle>
@@ -497,7 +577,7 @@ const FieldCollectionDashboard = () => {
                 <div className="h-[300px] bg-gray-100 rounded-lg flex items-center justify-center">
                   <div className="text-center">
                     <MapPin className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                    <p className="text-gray-500">Interactive map would be displayed here</p>
+                    <p className="text-gray-500">{t('executiveCollection.fieldCollection.overview.interactiveMapPlaceholder')}</p>
                     <div className="mt-4 space-y-2">
                       {fieldMetrics.agentLocations.map((agent) => (
                         <div key={agent.id} className="flex items-center justify-between p-2 bg-white rounded border">
@@ -505,7 +585,16 @@ const FieldCollectionDashboard = () => {
                             <div className={`w-3 h-3 rounded-full ${getAgentStatusColor(agent.status)}`} />
                             <span className="text-sm font-medium">{agent.name}</span>
                           </div>
-                          <Badge variant="outline">{agent.status.replace('_', ' ')}</Badge>
+                          <Badge variant="outline">{(() => {
+                            const statusKey = {
+                              'ON_VISIT': 'onVisit',
+                              'IN_TRANSIT': 'inTransit',
+                              'AVAILABLE': 'available',
+                              'BREAK': 'break',
+                              'OFFLINE': 'offline'
+                            }[agent.status] || agent.status.toLowerCase();
+                            return t(`executiveCollection.fieldCollection.overview.agentStatus.${statusKey}`);
+                          })()}</Badge>
                         </div>
                       ))}
                     </div>
@@ -518,22 +607,22 @@ const FieldCollectionDashboard = () => {
           {/* Today's Visits Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Today's Field Visits</CardTitle>
-              <CardDescription>Detailed visit information</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.overview.todaysFieldVisits')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.overview.detailedVisitInformation')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <div className="min-w-full">
                   <div className="grid grid-cols-9 gap-4 p-4 border-b font-medium text-sm">
-                    <div>Visit ID</div>
-                    <div>Agent</div>
-                    <div>Customer</div>
-                    <div>Scheduled</div>
-                    <div>Actual</div>
-                    <div>Status</div>
-                    <div>Amount</div>
-                    <div>Duration</div>
-                    <div>Distance</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.visitId')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.agent')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.customer')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.scheduled')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.actual')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.status')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.amount')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.duration')}</div>
+                    <div>{t('executiveCollection.fieldCollection.overview.tableHeaders.distance')}</div>
                   </div>
                   {fieldMetrics.todaysVisits.map((visit) => (
                     <div key={visit.visitId} className="grid grid-cols-9 gap-4 p-4 border-b text-sm">
@@ -544,12 +633,22 @@ const FieldCollectionDashboard = () => {
                       <div>{visit.actualTime}</div>
                       <div>
                         <Badge className={`${getStatusColor(visit.status)} text-white`}>
-                          {visit.status.replace('_', ' ')}
+                          {(() => {
+                            const statusKey = {
+                              'COMPLETED': 'completed',
+                              'CUSTOMER_NOT_AVAILABLE': 'customerNotAvailable',
+                              'IN_PROGRESS': 'inProgress',
+                              'PENDING': 'pending',
+                              'WRONG_ADDRESS': 'wrongAddress',
+                              'REFUSED': 'refused'
+                            }[visit.status] || visit.status.toLowerCase();
+                            return t(`executiveCollection.fieldCollection.overview.visitStatus.${statusKey}`);
+                          })()}
                         </Badge>
                       </div>
                       <div className="font-bold">{formatCurrency(visit.amount)}</div>
-                      <div>{visit.duration} min</div>
-                      <div>{visit.distance} km</div>
+                      <div>{visit.duration} {t('executiveCollection.fieldCollection.time.min')}</div>
+                      <div>{visit.distance} {t('executiveCollection.fieldCollection.time.km')}</div>
                     </div>
                   ))}
                 </div>
@@ -560,8 +659,8 @@ const FieldCollectionDashboard = () => {
           {/* Upcoming Visits */}
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming Visits</CardTitle>
-              <CardDescription>Next scheduled field visits</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.overview.upcomingVisits')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.overview.nextScheduledFieldVisits')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -575,14 +674,14 @@ const FieldCollectionDashboard = () => {
                       <div>
                         <p className="font-medium">{visit.customer}</p>
                         <p className="text-sm text-gray-600">{visit.address}</p>
-                        <p className="text-sm text-gray-600">Agent: {visit.agent}</p>
+                        <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.overview.upcomingVisitDetails.agent')}: {visit.agent}</p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className={i18n.dir() === 'rtl' ? 'text-left' : 'text-right'}>
                       <p className={`font-bold ${getPriorityColor(visit.priority)}`}>
                         {formatCurrency(visit.amount)}
                       </p>
-                      <Badge variant="outline">DPD: {visit.dpd}</Badge>
+                      <Badge variant="outline">{t('executiveCollection.fieldCollection.overview.upcomingVisitDetails.dpd')}: {visit.dpd}</Badge>
                     </div>
                   </div>
                 ))}
@@ -595,21 +694,21 @@ const FieldCollectionDashboard = () => {
           {/* Agent Performance Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Field Agent Performance</CardTitle>
-              <CardDescription>Monthly performance metrics</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.agents.fieldAgentPerformance')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.agents.monthlyPerformanceMetrics')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <div className="min-w-full">
                   <div className="grid grid-cols-8 gap-4 p-4 border-b font-medium text-sm">
-                    <div>Agent Name</div>
-                    <div>Visits</div>
-                    <div>Successful</div>
-                    <div>Success Rate</div>
-                    <div>Amount Collected</div>
-                    <div>Avg Time</div>
-                    <div>Distance</div>
-                    <div>Rating</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.agentName')}</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.visits')}</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.successful')}</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.successRate')}</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.amountCollected')}</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.avgTime')}</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.distance')}</div>
+                    <div>{t('executiveCollection.fieldCollection.agents.tableHeaders.rating')}</div>
                   </div>
                   {agentPerformance.map((agent, index) => (
                     <div key={index} className="grid grid-cols-8 gap-4 p-4 border-b text-sm">
@@ -625,8 +724,8 @@ const FieldCollectionDashboard = () => {
                       <div className="font-bold text-green-600">
                         {formatCurrency(agent.collected)}
                       </div>
-                      <div>{agent.avgTime} min</div>
-                      <div>{agent.distance} km</div>
+                      <div>{agent.avgTime} {t('executiveCollection.fieldCollection.time.min')}</div>
+                      <div>{agent.distance} {t('executiveCollection.fieldCollection.time.km')}</div>
                       <div>
                         <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
@@ -643,28 +742,32 @@ const FieldCollectionDashboard = () => {
           {/* Agent Activity Timeline */}
           <Card>
             <CardHeader>
-              <CardTitle>Agent Activity Timeline</CardTitle>
-              <CardDescription>Real-time agent activities</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.agents.agentActivityTimeline')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.agents.realtimeAgentActivities')}</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-4">
                   {[
-                    { time: '13:45', agent: 'Ahmed Hassan', action: 'Completed visit', customer: 'Al-Rashid Trading', result: 'Payment collected: SAR 125,000' },
-                    { time: '13:30', agent: 'Omar Khalid', action: 'Started visit', customer: 'Gulf Industries', result: 'Visit in progress' },
-                    { time: '13:15', agent: 'Faisal Ahmed', action: 'En route', customer: 'Desert Palm', result: 'ETA: 13:25' },
-                    { time: '13:00', agent: 'Ahmed Hassan', action: 'Check-in', customer: '-', result: 'Safety check completed' },
-                    { time: '12:45', agent: 'Khalid Mohammed', action: 'Visit attempt', customer: 'Tech Solutions', result: 'Customer not available' },
+                    { time: '13:45', agent: 'Ahmed Hassan', action: 'completedVisit', customer: 'Al-Rashid Trading', result: 'paymentCollected', amount: 125000 },
+                    { time: '13:30', agent: 'Omar Khalid', action: 'startedVisit', customer: 'Gulf Industries', result: 'visitInProgress' },
+                    { time: '13:15', agent: 'Faisal Ahmed', action: 'enRoute', customer: 'Desert Palm', result: 'eta', eta: '13:25' },
+                    { time: '13:00', agent: 'Ahmed Hassan', action: 'checkIn', customer: '-', result: 'safetyCheckCompleted' },
+                    { time: '12:45', agent: 'Khalid Mohammed', action: 'visitAttempt', customer: 'Tech Solutions', result: 'customerNotAvailable' },
                   ].map((activity, index) => (
                     <div key={index} className="flex items-start gap-4 pb-4 border-b last:border-0">
                       <div className="text-sm text-gray-500">{activity.time}</div>
                       <div className="flex-1">
                         <p className="font-medium">{activity.agent}</p>
-                        <p className="text-sm text-gray-600">{activity.action}</p>
+                        <p className="text-sm text-gray-600">{t(`executiveCollection.fieldCollection.agents.activities.${activity.action}`)}</p>
                         {activity.customer !== '-' && (
-                          <p className="text-sm text-gray-600">Customer: {activity.customer}</p>
+                          <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.agents.activities.customer')}: {activity.customer}</p>
                         )}
-                        <p className="text-sm font-medium mt-1">{activity.result}</p>
+                        <p className="text-sm font-medium mt-1">
+                          {activity.result === 'paymentCollected' && `${t(`executiveCollection.fieldCollection.agents.activities.${activity.result}`)}: ${formatCurrency(activity.amount)}`}
+                          {activity.result === 'eta' && `${t(`executiveCollection.fieldCollection.agents.activities.${activity.result}`)}: ${activity.eta}`}
+                          {!['paymentCollected', 'eta'].includes(activity.result) && t(`executiveCollection.fieldCollection.agents.activities.${activity.result}`)}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -678,8 +781,8 @@ const FieldCollectionDashboard = () => {
           {/* Visit Performance Trend */}
           <Card>
             <CardHeader>
-              <CardTitle>Field Visit Performance Trend</CardTitle>
-              <CardDescription>Daily visits and collection amounts</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.visits.fieldVisitPerformanceTrend')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.visits.dailyVisitsAndCollectionAmounts')}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -690,9 +793,9 @@ const FieldCollectionDashboard = () => {
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip />
                   <Legend />
-                  <Bar yAxisId="left" dataKey="visits" fill="#8884d8" name="Total Visits" />
-                  <Bar yAxisId="left" dataKey="successful" fill="#82ca9d" name="Successful" />
-                  <Line yAxisId="right" type="monotone" dataKey="amount" stroke="#E6B800" name="Amount (SAR)" />
+                  <Bar yAxisId="left" dataKey="visits" fill="#8884d8" name={t('executiveCollection.fieldCollection.visits.chartLabels.totalVisits')} />
+                  <Bar yAxisId="left" dataKey="successful" fill="#82ca9d" name={t('executiveCollection.fieldCollection.visits.chartLabels.successful')} />
+                  <Line yAxisId="right" type="monotone" dataKey="amount" stroke="#E6B800" name={t('executiveCollection.fieldCollection.visits.chartLabels.amount')} />
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
@@ -701,8 +804,8 @@ const FieldCollectionDashboard = () => {
           {/* Region Performance */}
           <Card>
             <CardHeader>
-              <CardTitle>Performance by Region</CardTitle>
-              <CardDescription>Field collection effectiveness across regions</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.visits.performanceByRegion')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.visits.fieldCollectionEffectivenessAcrossRegions')}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -713,8 +816,8 @@ const FieldCollectionDashboard = () => {
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip />
                   <Legend />
-                  <Bar yAxisId="left" dataKey="visits" fill="#8884d8" name="Visits" />
-                  <Line yAxisId="right" type="monotone" dataKey="success" stroke="#82ca9d" name="Success Rate (%)" />
+                  <Bar yAxisId="left" dataKey="visits" fill="#8884d8" name={t('executiveCollection.fieldCollection.visits.chartLabels.visits')} />
+                  <Line yAxisId="right" type="monotone" dataKey="success" stroke="#82ca9d" name={t('executiveCollection.fieldCollection.visits.chartLabels.successRate')} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -725,29 +828,29 @@ const FieldCollectionDashboard = () => {
           {/* Route Optimization Summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Route Optimization Summary</CardTitle>
-              <CardDescription>Daily route efficiency improvements</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.routing.routeOptimizationSummary')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.routing.dailyRouteEfficiencyImprovements')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <Route className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                  <p className="text-sm text-gray-600">Original Distance</p>
-                  <p className="text-2xl font-bold">{routeOptimization.originalDistance} km</p>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.routing.metrics.originalDistance')}</p>
+                  <p className="text-2xl font-bold">{routeOptimization.originalDistance} {t('executiveCollection.fieldCollection.time.km')}</p>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <Navigation className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                  <p className="text-sm text-gray-600">Optimized Distance</p>
-                  <p className="text-2xl font-bold">{routeOptimization.optimizedDistance} km</p>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.routing.metrics.optimizedDistance')}</p>
+                  <p className="text-2xl font-bold">{routeOptimization.optimizedDistance} {t('executiveCollection.fieldCollection.time.km')}</p>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
                   <Timer className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
-                  <p className="text-sm text-gray-600">Time Saved</p>
-                  <p className="text-2xl font-bold">{routeOptimization.timeSaved} min</p>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.routing.metrics.timeSaved')}</p>
+                  <p className="text-2xl font-bold">{routeOptimization.timeSaved} {t('executiveCollection.fieldCollection.time.min')}</p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
                   <TrendingUp className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                  <p className="text-sm text-gray-600">Efficiency Gain</p>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.routing.metrics.efficiencyGain')}</p>
                   <p className="text-2xl font-bold">{routeOptimization.efficiency}%</p>
                 </div>
               </div>
@@ -757,24 +860,24 @@ const FieldCollectionDashboard = () => {
           {/* Route Planning Map */}
           <Card>
             <CardHeader>
-              <CardTitle>Route Planning</CardTitle>
-              <CardDescription>Optimized routes for field agents</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.routing.routePlanning')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.routing.optimizedRoutesForFieldAgents')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[400px] bg-gray-100 rounded-lg flex items-center justify-center">
                 <div className="text-center">
                   <Route className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-500">Interactive route planning map</p>
+                  <p className="text-gray-500">{t('executiveCollection.fieldCollection.routing.mapPlaceholder')}</p>
                   <p className="text-sm text-gray-400 mt-2">
-                    Shows optimized routes, traffic conditions, and visit sequences
+                    {t('executiveCollection.fieldCollection.routing.mapDescription')}
                   </p>
                   <div className="mt-6 grid grid-cols-2 gap-4 max-w-md mx-auto">
                     <div className="p-3 bg-white rounded border">
-                      <p className="text-sm font-medium">Distance Saved</p>
-                      <p className="text-lg font-bold text-green-600">{routeOptimization.distanceSaved} km</p>
+                      <p className="text-sm font-medium">{t('executiveCollection.fieldCollection.routing.metrics.distanceSaved')}</p>
+                      <p className="text-lg font-bold text-green-600">{routeOptimization.distanceSaved} {t('executiveCollection.fieldCollection.time.km')}</p>
                     </div>
                     <div className="p-3 bg-white rounded border">
-                      <p className="text-sm font-medium">Fuel Saved</p>
+                      <p className="text-sm font-medium">{t('executiveCollection.fieldCollection.routing.metrics.fuelSaved')}</p>
                       <p className="text-lg font-bold text-green-600">SAR {routeOptimization.fuelSaved}</p>
                     </div>
                   </div>
@@ -791,7 +894,7 @@ const FieldCollectionDashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Shield className="h-4 w-4" />
-                  Safety Score
+                  {t('executiveCollection.fieldCollection.safety.safetyScore')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -799,28 +902,28 @@ const FieldCollectionDashboard = () => {
                   {fieldMetrics.safetyMetrics.safetyScore}%
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Excellent safety record
+                  {t('executiveCollection.fieldCollection.safety.excellentSafetyRecord')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Days Without Incident</CardTitle>
+                <CardTitle className="text-sm">{t('executiveCollection.fieldCollection.safety.daysWithoutIncident')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {fieldMetrics.safetyMetrics.lastIncidentDays}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Continuous improvement
+                  {t('executiveCollection.fieldCollection.safety.continuousImprovement')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Check-ins Today</CardTitle>
+                <CardTitle className="text-sm">{t('executiveCollection.fieldCollection.safety.checkInsToday')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -835,14 +938,14 @@ const FieldCollectionDashboard = () => {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">SOS Alerts</CardTitle>
+                <CardTitle className="text-sm">{t('executiveCollection.fieldCollection.safety.sosAlerts')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {fieldMetrics.safetyMetrics.sosAlerts}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  No emergencies today
+                  {t('executiveCollection.fieldCollection.safety.noEmergenciesToday')}
                 </p>
               </CardContent>
             </Card>
@@ -851,25 +954,25 @@ const FieldCollectionDashboard = () => {
           {/* Safety Protocol Compliance */}
           <Card>
             <CardHeader>
-              <CardTitle>Safety Protocol Compliance</CardTitle>
-              <CardDescription>Agent compliance with safety procedures</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.safety.safetyProtocolCompliance')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.safety.agentComplianceWithSafetyProcedures')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {[
-                  { protocol: 'Pre-visit Check-in', compliance: 98, agents: 28 },
-                  { protocol: 'Post-visit Check-out', compliance: 95, agents: 28 },
-                  { protocol: 'Route Sharing', compliance: 100, agents: 28 },
-                  { protocol: 'Emergency Contact Update', compliance: 92, agents: 28 },
-                  { protocol: 'Vehicle Inspection', compliance: 88, agents: 28 }
+                  { protocol: 'preVisitCheckIn', compliance: 98, agents: 28 },
+                  { protocol: 'postVisitCheckOut', compliance: 95, agents: 28 },
+                  { protocol: 'routeSharing', compliance: 100, agents: 28 },
+                  { protocol: 'emergencyContactUpdate', compliance: 92, agents: 28 },
+                  { protocol: 'vehicleInspection', compliance: 88, agents: 28 }
                 ].map((item, index) => (
                   <div key={index}>
                     <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">{item.protocol}</span>
+                      <span className="text-sm font-medium">{t(`executiveCollection.fieldCollection.safety.protocols.${item.protocol}`)}</span>
                       <span className="text-sm">{item.compliance}%</span>
                     </div>
                     <Progress value={item.compliance} className="h-2" />
-                    <p className="text-xs text-gray-600 mt-1">{Math.floor(item.agents * item.compliance / 100)} of {item.agents} agents compliant</p>
+                    <p className="text-xs text-gray-600 mt-1">{Math.floor(item.agents * item.compliance / 100)} {t('executiveCollection.fieldCollection.safety.of')} {item.agents} {t('executiveCollection.fieldCollection.safety.agentsCompliant')}</p>
                   </div>
                 ))}
               </div>
@@ -881,24 +984,24 @@ const FieldCollectionDashboard = () => {
           {/* Cost Analysis */}
           <Card>
             <CardHeader>
-              <CardTitle>Field Collection Cost Analysis</CardTitle>
-              <CardDescription>Operational costs and efficiency metrics</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.analytics.fieldCollectionCostAnalysis')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.analytics.operationalCostsAndEfficiencyMetrics')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <Car className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                  <p className="text-sm text-gray-600">Total Fuel Cost</p>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.analytics.costMetrics.totalFuelCost')}</p>
                   <p className="text-2xl font-bold">{formatCurrency(fieldMetrics.costAnalysis.totalFuelCost)}</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <DollarSign className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                  <p className="text-sm text-gray-600">Cost per Visit</p>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.analytics.costMetrics.costPerVisit')}</p>
                   <p className="text-2xl font-bold">{formatCurrency(fieldMetrics.costAnalysis.avgCostPerVisit)}</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <Target className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                  <p className="text-sm text-gray-600">Cost per Collection</p>
+                  <p className="text-sm text-gray-600">{t('executiveCollection.fieldCollection.analytics.costMetrics.costPerCollection')}</p>
                   <p className="text-2xl font-bold">{formatCurrency(fieldMetrics.costAnalysis.costPerCollection)}</p>
                 </div>
               </div>
@@ -918,8 +1021,8 @@ const FieldCollectionDashboard = () => {
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip />
                   <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="cost" stroke="#8884d8" name="Cost per Visit (SAR)" />
-                  <Line yAxisId="right" type="monotone" dataKey="collections" stroke="#82ca9d" name="Collection Rate (%)" />
+                  <Line yAxisId="left" type="monotone" dataKey="cost" stroke="#8884d8" name={t('executiveCollection.fieldCollection.analytics.chartLabels.costPerVisit')} />
+                  <Line yAxisId="right" type="monotone" dataKey="collections" stroke="#82ca9d" name={t('executiveCollection.fieldCollection.analytics.chartLabels.collectionRate')} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -928,23 +1031,34 @@ const FieldCollectionDashboard = () => {
           {/* Visit Outcome Analysis */}
           <Card>
             <CardHeader>
-              <CardTitle>Visit Outcome Analysis</CardTitle>
-              <CardDescription>Reasons for unsuccessful visits</CardDescription>
+              <CardTitle>{t('executiveCollection.fieldCollection.analytics.visitOutcomeAnalysis')}</CardTitle>
+              <CardDescription>{t('executiveCollection.fieldCollection.analytics.reasonsForUnsuccessfulVisits')}</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { reason: 'Customer Not Available', count: 45, percentage: 35 },
-                  { reason: 'Wrong Address', count: 23, percentage: 18 },
-                  { reason: 'Customer Refused', count: 19, percentage: 15 },
-                  { reason: 'Partial Payment Only', count: 16, percentage: 12 },
-                  { reason: 'Rescheduled', count: 14, percentage: 11 },
-                  { reason: 'Other', count: 11, percentage: 9 }
+                  { reason: 'customerNotAvailable', count: 45, percentage: 35 },
+                  { reason: 'wrongAddress', count: 23, percentage: 18 },
+                  { reason: 'customerRefused', count: 19, percentage: 15 },
+                  { reason: 'partialPaymentOnly', count: 16, percentage: 12 },
+                  { reason: 'rescheduled', count: 14, percentage: 11 },
+                  { reason: 'other', count: 11, percentage: 9 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="reason" angle={-45} textAnchor="end" height={100} />
+                  <XAxis 
+                    dataKey="reason" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={100}
+                    tickFormatter={(value) => t(`executiveCollection.fieldCollection.analytics.visitOutcomes.${value}`)}
+                  />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      value,
+                      t(`executiveCollection.fieldCollection.analytics.visitOutcomes.${props.payload.reason}`)
+                    ]}
+                  />
                   <Bar dataKey="count" fill="#E6B800" />
                 </BarChart>
               </ResponsiveContainer>
