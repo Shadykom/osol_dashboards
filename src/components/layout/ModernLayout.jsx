@@ -63,7 +63,7 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
     <header className="sticky top-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Left side */}
-        <RTLFlex className="items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* Mobile menu button */}
           <button
             onClick={toggleSidebar}
@@ -78,7 +78,7 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
             "hidden sm:flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2",
             "w-64 lg:w-96"
           )}>
-            <Search className={cn("w-5 h-5 text-gray-400", marginEnd(2))} />
+            <Search className={cn("w-5 h-5 text-gray-400", isRTL ? "ml-2" : "mr-2")} />
             <input
               type="text"
               placeholder={t('common.searchPlaceholder')}
@@ -86,10 +86,10 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
               dir="auto"
             />
           </div>
-        </RTLFlex>
+        </div>
 
         {/* Right side */}
-        <RTLFlex className="items-center gap-1 sm:gap-2 lg:gap-4">
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
           {/* Mobile search button */}
           <button 
             className="sm:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target"
@@ -163,7 +163,7 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
               </div>
             )}
           </div>
-        </RTLFlex>
+        </div>
       </div>
     </header>
   );
@@ -203,8 +203,7 @@ const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, togg
 
   return (
     <div className={cn(
-      "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
-      isRTL ? "flex-row-reverse" : "flex-row"
+      "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950"
     )}>
       {/* Sidebar */}
       <ModernSidebar isMobile={isMobile} />
@@ -248,9 +247,9 @@ const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, togg
         {/* Mobile bottom navigation bar (optional) */}
         {isMobile && (
           <nav className="mobile-nav bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-4 py-2">
-            <RTLFlex className="justify-around">
+            <div className="flex justify-around">
               {/* Add mobile navigation items here if needed */}
-            </RTLFlex>
+            </div>
           </nav>
         )}
       </div>

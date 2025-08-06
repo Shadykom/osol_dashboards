@@ -305,9 +305,9 @@ const ModernSidebar = ({ isMobile }) => {
     const ItemIcon = item.icon;
     
     const itemContent = (
-      <RTLFlex
+      <div
         className={cn(
-          "group items-center w-full px-3 py-2.5 rounded-lg transition-all duration-200",
+          "group flex items-center w-full px-3 py-2.5 rounded-lg transition-all duration-200",
           "hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20",
           "hover:border-osoul-primary hover:border hover:shadow-md",
           isActive && "bg-primary/10 text-primary dark:bg-primary/20",
@@ -316,17 +316,15 @@ const ModernSidebar = ({ isMobile }) => {
           !isOpen && !isMobile && "justify-center"
         )}
         onClick={onClick}
-        responsive={false}
         title={!isOpen && !isMobile ? item.label : undefined}
       >
         {ItemIcon && (
-          <RTLIcon position="start">
-            <ItemIcon className={cn(
-              "w-5 h-5 transition-colors",
-              isActive ? "text-primary" : "text-gray-500 dark:text-gray-400",
-              "group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400"
-            )} />
-          </RTLIcon>
+          <ItemIcon className={cn(
+            "w-5 h-5 transition-colors",
+            isActive ? "text-primary" : "text-gray-500 dark:text-gray-400",
+            "group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400",
+            isRTL ? "ml-3" : "mr-3"
+          )} />
         )}
         
         {(isOpen || isMobile) && (
@@ -347,7 +345,7 @@ const ModernSidebar = ({ isMobile }) => {
             )}
           </>
         )}
-      </RTLFlex>
+      </div>
     );
 
     if (item.path && !hasChildren) {
@@ -404,7 +402,7 @@ const ModernSidebar = ({ isMobile }) => {
           !isOpen && !isMobile && "justify-center"
         )}>
           {(isOpen || isMobile) ? (
-            <RTLFlex className="items-center gap-3" responsive={false}>
+            <div className="flex items-center gap-3">
               <img 
                 src={osoulLogo} 
                 alt="Osoul" 
@@ -413,7 +411,7 @@ const ModernSidebar = ({ isMobile }) => {
               <span className="font-bold text-xl text-gray-900 dark:text-white">
                 {t('appName', 'Osoul')}
               </span>
-            </RTLFlex>
+            </div>
           ) : (
             <img 
               src={osoulLogo} 
@@ -491,7 +489,7 @@ const ModernSidebar = ({ isMobile }) => {
           )}>
             {isOpen ? (
               <>
-                <RTLFlex className="items-center gap-3 mb-3" responsive={false}>
+                <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center">
                     <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                   </div>
@@ -503,7 +501,7 @@ const ModernSidebar = ({ isMobile }) => {
                       admin@osoul.com
                     </p>
                   </div>
-                </RTLFlex>
+                </div>
                 
                 <button className={cn(
                   "w-full flex items-center gap-2 px-3 py-2 rounded-lg",
@@ -534,7 +532,8 @@ const ModernSidebar = ({ isMobile }) => {
           <button
             onClick={toggleSidebar}
             className={cn(
-              "absolute -end-3 top-9",
+              "absolute top-9",
+              isRTL ? "-left-3" : "-right-3",
               "w-6 h-6 bg-white dark:bg-gray-800",
               "border border-gray-200 dark:border-gray-700",
               "rounded-full flex items-center justify-center",
@@ -546,7 +545,7 @@ const ModernSidebar = ({ isMobile }) => {
             <ChevronRight className={cn(
               "w-3 h-3 text-gray-600 dark:text-gray-400",
               "group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400",
-              isOpen && "rotate-180"
+              isRTL ? (!isOpen && "rotate-180") : (isOpen && "rotate-180")
             )} />
           </button>
         )}

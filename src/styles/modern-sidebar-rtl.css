@@ -1,5 +1,15 @@
 /* Modern Sidebar RTL Fixes */
 
+/* Base RTL setup for the main layout container */
+[dir="rtl"] .flex {
+  direction: ltr; /* Keep flex direction normal, use flex-row-reverse instead */
+}
+
+/* Main layout container should use flex-row-reverse in RTL */
+[dir="rtl"] .flex.h-screen {
+  flex-direction: row-reverse !important;
+}
+
 /* When RTL, the sidebar should be on the right side */
 [dir="rtl"] aside.fixed {
   left: auto !important;
@@ -9,7 +19,7 @@
 /* Fix mobile sidebar transforms for RTL */
 @media (max-width: 1023px) {
   /* When sidebar is closed in RTL, it should slide to the right */
-  [dir="rtl"] aside.fixed.translate-x-full {
+  [dir="rtl"] aside.fixed.-translate-x-full {
     transform: translateX(100%) !important;
   }
   
@@ -19,7 +29,7 @@
   }
   
   /* Remove incorrect transform classes in RTL */
-  [dir="rtl"] aside.fixed.-translate-x-full {
+  [dir="rtl"] aside.fixed.translate-x-full {
     transform: translateX(100%) !important;
   }
 }
@@ -31,37 +41,30 @@
 }
 
 [dir="rtl"] .border-l {
-  border-left-width: 1px;
+  border-left-width: 0;
+  border-right-width: 1px;
 }
 
 [dir="rtl"] .border-r {
-  border-right-width: 0;
+  border-right-width: 1px;
+  border-left-width: 0;
 }
 
 /* Fix main content area margin in RTL */
 [dir="rtl"] .lg\:ml-20 {
-  margin-left: 0;
-  margin-right: 5rem;
+  margin-left: 0 !important;
+  margin-right: 5rem !important;
 }
 
 [dir="rtl"] .lg\:ml-64 {
-  margin-left: 0;
-  margin-right: 16rem;
+  margin-left: 0 !important;
+  margin-right: 16rem !important;
 }
 
 /* Fix overlay positioning for RTL */
 [dir="rtl"] .fixed.inset-0 {
   right: 0;
   left: 0;
-}
-
-/* Ensure flex-row-reverse works properly in the main layout */
-[dir="rtl"] .flex {
-  direction: rtl;
-}
-
-[dir="rtl"] .flex-row-reverse {
-  flex-direction: row-reverse !important;
 }
 
 /* Fix sidebar positioning on desktop */
@@ -84,6 +87,14 @@
   text-align: right !important;
 }
 
+[dir="rtl"] .text-left {
+  text-align: right !important;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left !important;
+}
+
 /* Fix padding and margins for RTL */
 [dir="rtl"] .pl-4 {
   padding-left: 0;
@@ -93,6 +104,16 @@
 [dir="rtl"] .pr-4 {
   padding-right: 0;
   padding-left: 1rem;
+}
+
+[dir="rtl"] .pl-8 {
+  padding-left: 0;
+  padding-right: 2rem;
+}
+
+[dir="rtl"] .pr-8 {
+  padding-right: 0;
+  padding-left: 2rem;
 }
 
 [dir="rtl"] .ml-2 {
@@ -105,20 +126,30 @@
   margin-left: 0.5rem;
 }
 
+[dir="rtl"] .ml-3 {
+  margin-left: 0;
+  margin-right: 0.75rem;
+}
+
+[dir="rtl"] .mr-3 {
+  margin-right: 0;
+  margin-left: 0.75rem;
+}
+
 /* Fix sidebar width transitions */
 [dir="rtl"] aside {
   transition-property: width, transform;
 }
 
-/* Ensure sidebar stays on the right in RTL mode on larger screens */
-@media (min-width: 1024px) {
-  [dir="rtl"] .flex-row-reverse > aside:first-child {
-    order: 2;
-  }
-  
-  [dir="rtl"] .flex-row-reverse > div:last-child {
-    order: 1;
-  }
+/* Fix sidebar collapse button position */
+[dir="rtl"] .-end-3 {
+  right: auto !important;
+  left: -0.75rem !important;
+}
+
+[dir="rtl"] .end-3 {
+  right: auto !important;
+  left: 0.75rem !important;
 }
 
 /* Override any conflicting transforms on desktop */
@@ -126,4 +157,50 @@
   [dir="rtl"] aside {
     transform: none !important;
   }
+}
+
+/* Fix flex items inside sidebar for RTL */
+[dir="rtl"] .flex-row {
+  flex-direction: row-reverse !important;
+}
+
+[dir="rtl"] .flex-row-reverse {
+  flex-direction: row !important;
+}
+
+/* Ensure icons are on the right side in RTL */
+[dir="rtl"] .gap-2 > *:first-child,
+[dir="rtl"] .gap-3 > *:first-child,
+[dir="rtl"] .gap-4 > *:first-child {
+  order: 2;
+}
+
+/* Fix space between classes for RTL */
+[dir="rtl"] .space-x-2 > * + * {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .space-x-3 > * + * {
+  margin-left: 0;
+  margin-right: 0.75rem;
+}
+
+[dir="rtl"] .space-x-4 > * + * {
+  margin-left: 0;
+  margin-right: 1rem;
+}
+
+/* Ensure proper text direction in inputs */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="search"],
+[dir="rtl"] textarea {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Fix the main layout flex direction */
+body[dir="rtl"] > #root > div > div.flex.h-screen {
+  flex-direction: row-reverse !important;
 }

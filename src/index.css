@@ -509,6 +509,47 @@ body.sidebar-open {
   animation: slideOutToRight 0.3s ease-in;
 }
 
+/* RTL fixes for main layout */
+[dir="rtl"] body {
+  direction: rtl;
+}
+
+/* Ensure the main flex container respects RTL */
+[dir="rtl"] #root > div > div.flex.h-screen {
+  flex-direction: row-reverse !important;
+}
+
+/* Fix sidebar positioning in RTL */
+[dir="rtl"] aside {
+  right: 0;
+  left: auto;
+}
+
+/* Fix icon and text alignment in sidebar items */
+[dir="rtl"] .flex:not(.flex-col):not(.flex-wrap) {
+  flex-direction: row-reverse;
+}
+
+/* Ensure proper margin for icons in RTL */
+[dir="rtl"] .mr-3 {
+  margin-right: 0;
+  margin-left: 0.75rem;
+}
+
+[dir="rtl"] .ml-3 {
+  margin-left: 0;
+  margin-right: 0.75rem;
+}
+
+/* Fix text alignment in RTL */
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+}
+
 @keyframes slideInFromRight {
   from {
     transform: translateX(100%);
