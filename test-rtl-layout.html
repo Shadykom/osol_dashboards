@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTL Layout Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            direction: rtl;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+            flex-direction: row-reverse;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-left: 1px solid #ddd;
+        }
+        
+        .content {
+            flex: 1;
+            padding: 20px;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .menu-item:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .icon {
+            width: 20px;
+            height: 20px;
+            background-color: #666;
+            border-radius: 3px;
+            margin-left: 10px;
+        }
+        
+        .label {
+            flex: 1;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <aside class="sidebar">
+            <h2>القائمة الجانبية</h2>
+            <div class="menu-item">
+                <span class="icon"></span>
+                <span class="label">الرئيسية</span>
+            </div>
+            <div class="menu-item">
+                <span class="icon"></span>
+                <span class="label">التقارير</span>
+            </div>
+            <div class="menu-item">
+                <span class="icon"></span>
+                <span class="label">العملاء</span>
+            </div>
+            <div class="menu-item">
+                <span class="icon"></span>
+                <span class="label">الإعدادات</span>
+            </div>
+        </aside>
+        <main class="content">
+            <h1>محتوى الصفحة</h1>
+            <p>هذا اختبار لتخطيط RTL. يجب أن تكون القائمة الجانبية على اليمين والأيقونات على يمين النص.</p>
+        </main>
+    </div>
+</body>
+</html>
