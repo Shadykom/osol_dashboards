@@ -521,11 +521,11 @@ const DashboardDetailNew = () => {
           ) : (
             <>
               <StatCard
-                title={t('dashboard.details.totalAssets.totalAssetsLabel')}
+                title={t('dashboard.totalAssets')}
                 value={formatCurrency(detailData.overview.totalAssets || 0)}
                 change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                 trend={detailData.overview.trend}
-                description={t('dashboard.details.totalAssets.combinedDepositsAndLoans')}
+                description={t('dashboard.details.totalAssets.description')}
                 icon={DollarSign}
                 size="small"
               />
@@ -824,24 +824,24 @@ const DashboardDetailNew = () => {
                   {/* Main KPI Grid */}
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard
-                      title="Total Assets"
+                      title={t('dashboard.totalAssets')}
                       value={formatCurrency(detailData.overview.totalAssets || 0)}
                       change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                       trend={detailData.overview.trend}
-                      description="Combined deposits and loans"
+                      description={t('dashboard.details.totalAssets.description')}
                       icon={DollarSign}
                       className="md:col-span-2 lg:col-span-1"
                     />
                     <StatCard
-                      title="Total Deposits"
+                      title={t('dashboard.totalDeposits')}
                       value={formatCurrency(detailData.overview.totalDeposits || 0)}
-                      description={`${detailData.overview.depositRatio || 0}% of total assets`}
+                      description={`${detailData.overview.depositRatio || 0}% ${t('dashboard.details.totalAssets.ofTotalAssets')}`}
                       icon={CreditCard}
                     />
                     <StatCard
-                      title="Total Loans"
+                      title={t('dashboard.totalLoans')}
                       value={formatCurrency(detailData.overview.totalLoans || 0)}
-                      description={`${detailData.overview.loanRatio || 0}% of total assets`}
+                      description={`${detailData.overview.loanRatio || 0}% ${t('dashboard.details.totalAssets.ofTotalAssets')}`}
                       icon={TrendingUp}
                     />
                   </div>
@@ -849,27 +849,27 @@ const DashboardDetailNew = () => {
                   {/* Secondary Metrics */}
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <StatCard
-                      title="Account Count"
+                      title={t('dashboard.details.totalAssets.totalAccountCount')}
                       value={(detailData.overview.accountCount || 0).toLocaleString()}
-                      description="Total number of accounts"
+                      description={t('dashboard.details.totalAssets.allActiveAccounts')}
                       icon={Users}
                     />
                     <StatCard
-                      title="Loan Count"
+                      title={t('loans.totalLoans')}
                       value={(detailData.overview.loanCount || 0).toLocaleString()}
-                      description="Total number of loans"
+                      description={t('dashboard.details.totalAssets.currentLoanPortfolio')}
                       icon={Activity}
                     />
                     <StatCard
-                      title="Avg Account Balance"
+                      title={t('dashboard.widgets.average_balance')}
                       value={formatCurrency(detailData.overview.avgAccountBalance || 0)}
-                      description="Per account average"
+                      description={t('dashboard.details.accounts.title')}
                       icon={BarChart3}
                     />
                     <StatCard
-                      title="Avg Loan Balance"
+                      title={t('dashboard.widgets.avgLoanSize')}
                       value={formatCurrency(detailData.overview.avgLoanBalance || 0)}
-                      description="Per loan average"
+                      description={t('dashboard.details.loans.title')}
                       icon={Building2}
                     />
                   </div>
@@ -1003,7 +1003,7 @@ const DashboardDetailNew = () => {
                     )}
                     {detailData.breakdown.byBranch && (
                       <BreakdownCard t={t} 
-                        title="Top Branches" 
+                        title={t('dashboard.topBranches')} 
                         data={detailData.breakdown.byBranch} 
                         type="list"
                         className="md:col-span-2 lg:col-span-1"
@@ -1011,14 +1011,14 @@ const DashboardDetailNew = () => {
                     )}
                     {detailData.breakdown.byKYC && (
                       <BreakdownCard t={t} 
-                        title="KYC Status" 
+                        title={t('dashboard.kycStatus')} 
                         data={detailData.breakdown.byKYC} 
                         type="pie"
                       />
                     )}
                     {detailData.breakdown.byStatus && (
                       <BreakdownCard t={t} 
-                        title="Verification Status" 
+                        title={t('dashboard.verificationStatus')} 
                         data={detailData.breakdown.byStatus} 
                         type="bar"
                       />
@@ -1028,7 +1028,7 @@ const DashboardDetailNew = () => {
                   <>
                     {detailData.breakdown.byCategory && (
                       <BreakdownCard t={t} 
-                        title="Asset Categories" 
+                        title={t('dashboard.assetCategories')} 
                         data={detailData.breakdown.byCategory} 
                         type="pie"
                         className="lg:col-span-1"
@@ -1036,21 +1036,21 @@ const DashboardDetailNew = () => {
                     )}
                     {detailData.breakdown.byAccountType && (
                       <BreakdownCard t={t} 
-                        title="Account Types" 
+                        title={t('dashboard.accountTypes')} 
                         data={detailData.breakdown.byAccountType} 
                         type="bar"
                       />
                     )}
                     {detailData.breakdown.byProductType && (
                       <BreakdownCard t={t} 
-                        title="Product Types" 
+                        title={t('dashboard.productTypes')} 
                         data={detailData.breakdown.byProductType} 
                         type="pie"
                       />
                     )}
                     {detailData.breakdown.byBranch && (
                       <BreakdownCard t={t} 
-                        title="Top Branches" 
+                        title={t('dashboard.topBranches')} 
                         data={detailData.breakdown.byBranch} 
                         type="list"
                         className="md:col-span-2 lg:col-span-1"
@@ -1058,14 +1058,14 @@ const DashboardDetailNew = () => {
                     )}
                     {detailData.breakdown.byCurrency && (
                       <BreakdownCard t={t} 
-                        title="Currency Distribution" 
+                        title={t('dashboard.currencyDistribution')} 
                         data={detailData.breakdown.byCurrency} 
                         type="pie"
                       />
                     )}
                     {detailData.breakdown.byStatus && (
                       <BreakdownCard t={t} 
-                        title="Status Breakdown" 
+                        title={t('dashboard.statusBreakdown')} 
                         data={detailData.breakdown.byStatus} 
                         type="bar"
                       />
