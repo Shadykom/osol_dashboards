@@ -2,7 +2,7 @@
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
 export class DashboardButtonService {
@@ -169,7 +169,7 @@ export class DashboardButtonService {
         ['NPL Ratio', `${data.npl?.ratio || 0}%`, `${data.npl?.previousRatio || 0}%`, data.npl?.change || '0%']
       ];
 
-      autoTable(pdf, {
+      pdf.autoTable({
         startY: yPosition,
         head: [kpiData[0]],
         body: kpiData.slice(1),
@@ -199,7 +199,7 @@ export class DashboardButtonService {
         ['Compliance Risk', `${data.riskScores?.compliance || 0}%`, this.getRiskStatus(data.riskScores?.compliance)]
       ];
 
-      autoTable(pdf, {
+      pdf.autoTable({
         startY: yPosition,
         head: [riskData[0]],
         body: riskData.slice(1),
@@ -232,7 +232,7 @@ export class DashboardButtonService {
           ])
         ];
 
-        autoTable(pdf, {
+        pdf.autoTable({
           startY: yPosition,
           head: [portfolioTableData[0]],
           body: portfolioTableData.slice(1),

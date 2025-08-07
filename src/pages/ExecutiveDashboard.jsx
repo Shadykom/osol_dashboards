@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -144,7 +145,7 @@ function formatCurrency(amount, currency = 'SAR') {
 }
 
 // Enhanced KPI Card with comparison features
-function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon, description, format = 'number', comparisonPeriod, color = 'primary', t }) {
+function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon, description, format = 'number', comparisonPeriod, color = 'primary', t, onClick }) {
   
   const formattedValue = format === 'currency' ? formatCurrency(value) : 
                         format === 'percentage' ? `${value}%` : 
@@ -172,12 +173,16 @@ function ModernKPICard({ title, value, previousValue, change, trend, icon: Icon,
       whileHover={{ y: -4 }}
       className="h-full"
     >
-      <Card className={cn(
-        "relative overflow-hidden h-full transition-all duration-300 hover:shadow-2xl",
-        "bg-gradient-to-br",
-        colorClasses[color],
-        "border backdrop-blur-sm"
-      )}>
+      <Card 
+        className={cn(
+          "relative overflow-hidden h-full transition-all duration-300 hover:shadow-2xl",
+          "bg-gradient-to-br",
+          colorClasses[color],
+          "border backdrop-blur-sm",
+          onClick && "cursor-pointer"
+        )}
+        onClick={onClick}
+      >
         <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 transform translate-x-8 -translate-y-8">
           <div className={cn(
             "w-full h-full rounded-full opacity-20",
@@ -376,10 +381,25 @@ export function ExecutiveDashboard() {
     period: 'current'
   });
   const [activeView, setActiveView] = useState('overview');
+  const navigate = useNavigate();
 
   // Handle date range change
   const handleDateChange = (newDateRange) => {
     setDateRange(newDateRange);
+  };
+  
+  // Handle KPI card clicks
+  const handleKPIClick = (kpiType) => {
+    const filters = {
+      dateRange: dateRange,
+      branch: selectedBranch,
+      comparison: comparisonSettings
+    };
+    
+    // Navigate to detail page with KPI type and filters
+    navigate(`/executive-dashboard/detail/${kpiType}`, { 
+      state: { filters, dashboardData } 
+    });
   };
   const [isExporting, setIsExporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -955,6 +975,7 @@ export function ExecutiveDashboard() {
                   comparisonPeriod={comparisonSettings.type}
                   color="success"
                   t={t}
+                  onClick={() => handleKPIClick('revenue')}
                 />
                 
                 <ModernKPICard
@@ -968,6 +989,7 @@ export function ExecutiveDashboard() {
                   comparisonPeriod={comparisonSettings.type}
                   color="primary"
                   t={t}
+                  onClick={() => handleKPIClick('activeLoans')}
                 />
                 
                 <ModernKPICard
@@ -982,6 +1004,7 @@ export function ExecutiveDashboard() {
                   comparisonPeriod={comparisonSettings.type}
                   color="info"
                   t={t}
+                  onClick={() => handleKPIClick('totalDeposits')}
                 />
                 
                 <ModernKPICard
@@ -996,13 +1019,17 @@ export function ExecutiveDashboard() {
                   comparisonPeriod={comparisonSettings.type}
                   color="warning"
                   t={t}
+                  onClick={() => handleKPIClick('nplRatio')}
                 />
               </div>
 
               {/* Enhanced Charts Section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Revenue Trend Chart */}
-                <Card className="p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
+                <Card 
+                  className="p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300 cursor-pointer"
+                  onClick={() => handleKPIClick('revenue')}
+                >
                   <CardHeader className="pb-4 p-0">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1011,18 +1038,25 @@ export function ExecutiveDashboard() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
                             console.log('Export Data clicked');
                             handleExport('excel');
                           }}>
                             {t('executiveDashboard.exportData')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
                             console.log('Generate Report clicked');
                             handleGenerateReport('pdf');
                           }}>
@@ -1090,7 +1124,10 @@ export function ExecutiveDashboard() {
                 </Card>
 
                 {/* Portfolio Distribution */}
-                <Card className="p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300">
+                <Card 
+                  className="p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300 cursor-pointer"
+                  onClick={() => handleKPIClick('activeLoans')}
+                >
                   <CardHeader className="pb-4 p-0">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1099,18 +1136,25 @@ export function ExecutiveDashboard() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
                             console.log('Export Data clicked (second menu)');
                             handleExport('excel');
                           }}>
                             {t('executiveDashboard.exportData')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
                             console.log('Generate Report clicked (second menu)');
                             handleGenerateReport('pdf');
                           }}>
