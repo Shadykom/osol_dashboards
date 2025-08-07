@@ -798,8 +798,22 @@
     "digitalChannels": "Digital Channels",
     "callCenter": "Call Center",
     "executiveDashboard": {
-      "title": "Executive Collection Dashboard",
-      "subtitle": "High-level overview of loan portfolio and collection performance"
+      "title": "Executive Dashboard",
+      "subtitle": "High-level overview of loan portfolio and collection performance",
+      "dateRange": "Date Range",
+      "comparisonPeriod": "Comparison Period",
+      "selectMetrics": "Select Metrics",
+      "fetchError": "Failed to fetch dashboard data",
+      "generatingReport": "Generating report...",
+      "reportGenerated": "Report generated successfully",
+      "reportGenerationError": "Failed to generate report",
+      "exportingData": "Exporting data...",
+      "dataExported": "Data exported successfully",
+      "exportError": "Failed to export data",
+      "previous_period": "Previous Period",
+      "previous_month": "Previous Month",
+      "previous_quarter": "Previous Quarter",
+      "previous_year": "Previous Year"
     },
     "metrics": {
       "totalPortfolioValue": "Total Portfolio Value",

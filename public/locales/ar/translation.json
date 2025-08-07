@@ -801,8 +801,22 @@
     "digitalChannels": "القنوات الرقمية",
     "callCenter": "مركز الاتصال",
     "executiveDashboard": {
-      "title": "لوحة التحصيل التنفيذية",
-      "subtitle": "نظرة عامة عالية المستوى على محفظة القروض وأداء التحصيل"
+      "title": "لوحة التحكم التنفيذية",
+      "subtitle": "نظرة عامة عالية المستوى على محفظة القروض وأداء التحصيل",
+      "dateRange": "نطاق التاريخ",
+      "comparisonPeriod": "فترة المقارنة",
+      "selectMetrics": "اختر المقاييس",
+      "fetchError": "فشل في جلب بيانات لوحة التحكم",
+      "generatingReport": "جاري إنشاء التقرير...",
+      "reportGenerated": "تم إنشاء التقرير بنجاح",
+      "reportGenerationError": "فشل في إنشاء التقرير",
+      "exportingData": "جاري تصدير البيانات...",
+      "dataExported": "تم تصدير البيانات بنجاح",
+      "exportError": "فشل في تصدير البيانات",
+      "previous_period": "الفترة السابقة",
+      "previous_month": "الشهر السابق",
+      "previous_quarter": "الربع السابق",
+      "previous_year": "السنة السابقة"
     },
     "metrics": {
       "totalPortfolioValue": "إجمالي قيمة المحفظة",

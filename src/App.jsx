@@ -13,6 +13,7 @@ import './utils/testCustomerCount';
 import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
 import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
+import ExecutiveDashboardNew from './pages/ExecutiveDashboardNew';
 import { OperationsDashboard } from './pages/OperationsDashboard';
 import { Customers } from './pages/Customers';
 import { Accounts } from './pages/Accounts';
@@ -304,7 +305,7 @@ function AppContent() {
               <CustomDashboard />
             </ErrorBoundary>
           } />
-          <Route path="/dashboards/executive" element={<ExecutiveDashboard />} />
+          <Route path="/dashboards/executive" element={<ExecutiveDashboardNew />} />
           <Route path="/dashboards/operations" element={<OperationsDashboard />} />
           
           {/* Customer Routes */}
