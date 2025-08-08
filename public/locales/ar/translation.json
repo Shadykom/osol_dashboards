@@ -103,7 +103,9 @@
     "monthly": "شهري",
     "quarterly": "ربع سنوي",
     "yearly": "سنوي",
-    "na": "غير متوفر"
+    "na": "غير متوفر",
+    "current": "الحالي",
+    "target": "المستهدف"
   },
   "branches": {
     "riyadhMain": "الرياض الرئيسي",
