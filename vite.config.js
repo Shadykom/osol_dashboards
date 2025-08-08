@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "jspdf": "jspdf/dist/jspdf.es.min.js"
       },
     },
     // Explicitly define environment variables for build
@@ -60,7 +61,6 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'esnext', // Support top-level await
       rollupOptions: {
-        external: ['jspdf','html2canvas','xlsx','react-pdf'],
         output: {
           manualChunks: {
             'lucide': ['lucide-react']
@@ -75,7 +75,6 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'html2canvas', 'jspdf', 'jspdf-autotable', 'file-saver', 'xlsx'],
       exclude: [],
-      // Force re-optimization in development
       force: true
     }
   }
