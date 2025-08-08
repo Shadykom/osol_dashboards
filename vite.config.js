@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'esnext', // Support top-level await
       rollupOptions: {
-        external: ['jspdf', 'jspdf-autotable', 'xlsx', 'react-pdf'],
+        external: ['jspdf', 'jspdf-autotable', 'xlsx'],
         output: {
           manualChunks: {
             'lucide': ['lucide-react']
@@ -73,7 +73,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'html2canvas', 'jspdf', 'jspdf-autotable', 'file-saver', 'xlsx'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'html2canvas', 'jspdf', 'jspdf-autotable', 'file-saver', 'xlsx', 'react-pdf'],
       exclude: [],
       force: true
     }
