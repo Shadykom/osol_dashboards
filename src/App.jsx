@@ -29,6 +29,7 @@ import CollectionCases from './pages/CollectionCases';
 import CollectionCaseDetails from './pages/CollectionCaseDetails';
 import CollectionReports from './pages/CollectionReports';
 import DailyCollectionDashboard from './pages/DailyCollectionDashboard';
+import DailyCollectionDetail from './pages/DailyCollectionDetail';
 import DigitalCollectionDashboard from './pages/DigitalCollectionDashboard';
 import EarlyWarningDashboard from './pages/EarlyWarningDashboard';
 import ExecutiveCollectionDashboard from './pages/ExecutiveCollectionDashboard';
@@ -372,6 +373,7 @@ function AppContent() {
           <Route path="/collection/cases/:caseId" element={<CollectionCaseDetails />} />
           <Route path="/collection/reports" element={<CollectionReports />} />
           <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
+          <Route path="/collection/daily-detail/:cardType" element={<DailyCollectionDetail />} />
           <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
           <Route path="/collection/early-warning" element={<EarlyWarningDashboard />} />
           <Route path="/collection/executive" element={<ExecutiveCollectionDashboard />} />

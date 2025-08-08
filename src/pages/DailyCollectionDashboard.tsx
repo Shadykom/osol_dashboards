@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,12 +19,24 @@ import {
   MapPin, MessageSquare, Mail, User, Zap, Eye, PhoneCall,
   UserCheck, UserX, Timer, Award, BarChart3
 } from 'lucide-react';
+import { collectionApi } from '@/api/collection';
 
 const DailyCollectionDashboard = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLive, setIsLive] = useState(true);
   const [selectedQueue, setSelectedQueue] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // State for real-time data
+  const [morningSnapshot, setMorningSnapshot] = useState(null);
+  const [liveTracking, setLiveTracking] = useState(null);
+  const [collectorActivity, setCollectorActivity] = useState([]);
+  const [hourlyCollectionTrend, setHourlyCollectionTrend] = useState([]);
+  const [queueStatus, setQueueStatus] = useState(null);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   
   // Update time every second for real-time feel
   useEffect(() => {
@@ -33,74 +46,179 @@ const DailyCollectionDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Mock real-time data
-  const morningSnapshot = {
-    totalDueToday: 15500000,
-    ptpDueToday: 8200000,
-    fieldVisitsScheduled: 145,
-    legalCasesUpdates: 23,
-    yesterdayCollection: 12800000,
-    yesterdayTarget: 14000000,
-    yesterdayAchievement: 91.4
+  // Load initial data
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!isLive) return;
+
+    const unsubscribe = collectionApi.subscribeToUpdates({
+      onPaymentUpdate: () => {
+        // Refresh payment-related data
+        loadRealtimeTracking();
+        loadHourlyTrend();
+        loadPaymentMethods();
+      },
+      onCollectorUpdate: () => {
+        // Refresh collector data
+        loadCollectorActivity();
+        loadRealtimeTracking();
+      },
+      onCaseUpdate: () => {
+        // Refresh case data
+        loadQueueStatus();
+      }
+    });
+
+    // Refresh data every 30 seconds
+    const refreshInterval = setInterval(() => {
+      loadDashboardData();
+    }, 30000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(refreshInterval);
+    };
+  }, [isLive]);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await Promise.all([
+        loadMorningSnapshot(),
+        loadRealtimeTracking(),
+        loadCollectorActivity(),
+        loadHourlyTrend(),
+        loadQueueStatus(),
+        loadPaymentMethods()
+      ]);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const liveTracking = {
-    collectorsOnline: 85,
-    collectorsOffline: 12,
-    collectorsOnBreak: 8,
-    totalCollectors: 105,
-    
-    realTimePayments: 3250000,
-    paymentsCount: 234,
-    failedAttempts: 45,
-    
-    contactSuccessRate: 68.5,
-    ptpObtained: 125,
-    ptpTarget: 180,
-    
-    currentHourCollection: 850000,
-    lastHourCollection: 720000,
-    
-    activeCalls: 42,
-    avgCallDuration: '3:25',
-    
-    recentPayments: [
-      { time: '10:45:23', customer: 'Ahmed Al-Rashid', amount: 25000, method: t('dailyCollectionDashboard.analytics.paymentMethods.online') },
-      { time: '10:44:15', customer: 'Fatima Enterprises', amount: 150000, method: t('dailyCollectionDashboard.analytics.paymentMethods.bankTransfer') },
-      { time: '10:43:58', customer: 'Gulf Trading Co.', amount: 75000, method: t('dailyCollectionDashboard.analytics.paymentMethods.fieldCollection') },
-      { time: '10:42:30', customer: 'Noor Holdings', amount: 45000, method: t('dailyCollectionDashboard.analytics.paymentMethods.ivr') },
-      { time: '10:41:12', customer: 'Desert Palm LLC', amount: 90000, method: t('dailyCollectionDashboard.analytics.paymentMethods.mobileApp') }
-    ],
-    
-    criticalAlerts: [
-      { type: 'HIGH_VALUE', message: `${t('dailyCollectionDashboard.criticalAlerts.highValue')}: ${t('common.currency')} 2.5M - Al-Jazeera Corp`, time: '10:30' },
-      { type: 'LEGAL', message: `${t('dailyCollectionDashboard.criticalAlerts.legal')}: Case #2024-1234`, time: '14:00' },
-      { type: 'SYSTEM', message: `${t('dailyCollectionDashboard.criticalAlerts.system')}: IVR system response slow - IT investigating`, time: '09:45' }
-    ]
+  const loadMorningSnapshot = async () => {
+    try {
+      const data = await collectionApi.getDailyCollectionSummary();
+      setMorningSnapshot({
+        totalDueToday: data.total_due_today || 0,
+        ptpDueToday: data.ptp_due_today || 0,
+        fieldVisitsScheduled: data.field_visits_scheduled || 0,
+        legalCasesUpdates: data.legal_cases_updates || 0,
+        yesterdayCollection: data.yesterday_collection || 0,
+        yesterdayTarget: data.yesterday_target || 0,
+        yesterdayAchievement: data.yesterday_target > 0 
+          ? (data.yesterday_collection / data.yesterday_target * 100) 
+          : 0
+      });
+    } catch (err) {
+      console.error('Error loading morning snapshot:', err);
+    }
   };
 
-  const collectorActivity = [
-    { name: 'Mohammed Ali', status: 'ON_CALL', duration: '5:23', customer: 'Tech Solutions Ltd', team: `${t('dailyCollectionDashboard.collectors.team')} A` },
-    { name: 'Sara Ahmed', status: 'AFTER_CALL', duration: '0:45', customer: 'Green Valley Trading', team: `${t('dailyCollectionDashboard.collectors.team')} B` },
-    { name: 'Abdullah Hassan', status: 'BREAK', duration: '12:30', customer: '-', team: `${t('dailyCollectionDashboard.collectors.team')} A` },
-    { name: 'Fatima Noor', status: 'ON_CALL', duration: '2:15', customer: 'Pearl Investments', team: `${t('dailyCollectionDashboard.collectors.team')} C` },
-    { name: 'Khalid Omar', status: 'AVAILABLE', duration: '-', customer: '-', team: `${t('dailyCollectionDashboard.collectors.team')} B` }
-  ];
-
-  const hourlyCollectionTrend = [
-    { hour: '08:00', collected: 450000, calls: 125, contacts: 89 },
-    { hour: '09:00', collected: 680000, calls: 156, contacts: 112 },
-    { hour: '10:00', collected: 850000, calls: 189, contacts: 134 },
-    { hour: '11:00', collected: 920000, calls: 198, contacts: 145 },
-    { hour: '12:00', collected: 0, calls: 0, contacts: 0 }, // Current hour projection
-  ];
-
-  const queueStatus = {
-    priority: { total: 45, assigned: 42, pending: 3, avgWait: '2:15' },
-    normal: { total: 234, assigned: 210, pending: 24, avgWait: '15:30' },
-    automated: { total: 567, assigned: 567, pending: 0, avgWait: '0:00' },
-    legal: { total: 23, assigned: 20, pending: 3, avgWait: '45:00' }
+  const loadRealtimeTracking = async () => {
+    try {
+      const data = await collectionApi.getRealtimeTracking();
+      setLiveTracking(data);
+    } catch (err) {
+      console.error('Error loading realtime tracking:', err);
+    }
   };
+
+  const loadCollectorActivity = async () => {
+    try {
+      const data = await collectionApi.getCollectorActivity();
+      setCollectorActivity(data);
+    } catch (err) {
+      console.error('Error loading collector activity:', err);
+    }
+  };
+
+  const loadHourlyTrend = async () => {
+    try {
+      const data = await collectionApi.getHourlyCollectionTrend();
+      setHourlyCollectionTrend(data);
+    } catch (err) {
+      console.error('Error loading hourly trend:', err);
+    }
+  };
+
+  const loadQueueStatus = async () => {
+    try {
+      const data = await collectionApi.getQueueStatus();
+      setQueueStatus(data);
+    } catch (err) {
+      console.error('Error loading queue status:', err);
+    }
+  };
+
+  const loadPaymentMethods = async () => {
+    try {
+      const data = await collectionApi.getPaymentMethodsDistribution();
+      setPaymentMethods(data);
+    } catch (err) {
+      console.error('Error loading payment methods:', err);
+    }
+  };
+
+  // Navigate to detail page
+  const handleCardClick = (cardType, data) => {
+    navigate(`/collection/daily-detail/${cardType}`, { 
+      state: { cardType, data } 
+    });
+  };
+
+  // Default data if loading or error
+  const defaultMorningSnapshot = {
+    totalDueToday: 0,
+    ptpDueToday: 0,
+    fieldVisitsScheduled: 0,
+    legalCasesUpdates: 0,
+    yesterdayCollection: 0,
+    yesterdayTarget: 0,
+    yesterdayAchievement: 0
+  };
+
+  const defaultLiveTracking = {
+    collectorsOnline: 0,
+    collectorsOffline: 0,
+    collectorsOnBreak: 0,
+    totalCollectors: 0,
+    realTimePayments: 0,
+    paymentsCount: 0,
+    failedAttempts: 0,
+    contactSuccessRate: 0,
+    ptpObtained: 0,
+    ptpTarget: 0,
+    currentHourCollection: 0,
+    lastHourCollection: 0,
+    activeCalls: 0,
+    avgCallDuration: '0:00',
+    recentPayments: [],
+    criticalAlerts: []
+  };
+
+  const defaultQueueStatus = {
+    priority: { total: 0, assigned: 0, pending: 0, avgWait: '0:00' },
+    normal: { total: 0, assigned: 0, pending: 0, avgWait: '0:00' },
+    low: { total: 0, assigned: 0, pending: 0, avgWait: '0:00' }
+  };
+
+  // Use real data or defaults
+  const currentMorningSnapshot = morningSnapshot || defaultMorningSnapshot;
+  const currentLiveTracking = liveTracking || defaultLiveTracking;
+  const currentQueueStatus = queueStatus || defaultQueueStatus;
+  const currentCollectorActivity = collectorActivity || [];
+  const currentHourlyTrend = hourlyCollectionTrend || [];
+  const currentPaymentMethods = paymentMethods || [];
 
   const topPerformers = [
     { name: 'Ahmed Al-Rashid', collected: 450000, calls: 45, ptp: 12, rate: 85 },
@@ -182,6 +300,24 @@ const DailyCollectionDashboard = () => {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-lg font-medium">Loading collection data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error Alert */}
+      {error && (
+        <Alert className="border-red-200 bg-red-50 mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Header with Live Status */}
       <div className="flex justify-between items-center">
         <div>
@@ -203,7 +339,11 @@ const DailyCollectionDashboard = () => {
           >
             {isLive ? t('dailyCollectionDashboard.pause') : t('dailyCollectionDashboard.resume')}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => loadDashboardData()}
+          >
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -211,60 +351,75 @@ const DailyCollectionDashboard = () => {
 
       {/* Morning Snapshot */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card 
+          className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleCardClick('total-due', currentMorningSnapshot)}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.totalDueToday')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(morningSnapshot.totalDueToday)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(currentMorningSnapshot.totalDueToday)}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card 
+          className="border-l-4 border-l-green-500 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleCardClick('ptp-due', currentMorningSnapshot)}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.ptpDueToday')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(morningSnapshot.ptpDueToday)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(currentMorningSnapshot.ptpDueToday)}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-yellow-500">
+        <Card 
+          className="border-l-4 border-l-yellow-500 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleCardClick('field-visits', currentMorningSnapshot)}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.fieldVisits')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{morningSnapshot.fieldVisitsScheduled}</div>
+            <div className="text-2xl font-bold">{currentMorningSnapshot.fieldVisitsScheduled}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card 
+          className="border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleCardClick('legal-cases', currentMorningSnapshot)}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.legalUpdates')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{morningSnapshot.legalCasesUpdates}</div>
+            <div className="text-2xl font-bold">{currentMorningSnapshot.legalCasesUpdates}</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-gray-500">
+        <Card 
+          className="border-l-4 border-l-gray-500 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => handleCardClick('yesterday-achievement', currentMorningSnapshot)}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">{t('dailyCollectionDashboard.morningSnapshot.yesterdayAchievement')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{morningSnapshot.yesterdayAchievement}%</div>
-            <Progress value={morningSnapshot.yesterdayAchievement} className="mt-1 h-1" />
+            <div className="text-2xl font-bold">{currentMorningSnapshot.yesterdayAchievement.toFixed(1)}%</div>
+            <Progress value={currentMorningSnapshot.yesterdayAchievement} className="mt-1 h-1" />
           </CardContent>
         </Card>
       </div>
 
       {/* Critical Alerts */}
-      {liveTracking.criticalAlerts.length > 0 && (
+      {currentLiveTracking.criticalAlerts.length > 0 && (
         <Alert className="border-red-200 bg-red-50">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <div className="space-y-2">
-              {liveTracking.criticalAlerts.map((alert, index) => (
+              {currentLiveTracking.criticalAlerts.map((alert, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {getAlertIcon(alert.type)}
@@ -296,21 +451,21 @@ const DailyCollectionDashboard = () => {
                 <CardTitle className="flex items-center justify-between">
                   <span>{t('dailyCollectionDashboard.liveTracking.livePaymentTracking')}</span>
                   <Badge variant="secondary" className="animate-pulse">
-                    {liveTracking.paymentsCount} {t('dailyCollectionDashboard.liveTracking.paymentsToday')}
+                    {currentLiveTracking.paymentsCount} {t('dailyCollectionDashboard.liveTracking.paymentsToday')}
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="mb-4">
                   <div className="text-3xl font-bold text-green-600">
-                    {formatCurrency(liveTracking.realTimePayments)}
+                    {formatCurrency(currentLiveTracking.realTimePayments)}
                   </div>
                   <p className="text-sm text-gray-600">{t('dailyCollectionDashboard.liveTracking.collectedSoFar')}</p>
                 </div>
                 
                 <ScrollArea className="h-64">
                   <div className="space-y-2">
-                    {liveTracking.recentPayments.map((payment, index) => (
+                    {currentLiveTracking.recentPayments.map((payment, index) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="text-xs text-gray-500">{payment.time}</div>
@@ -341,21 +496,21 @@ const DailyCollectionDashboard = () => {
                       <UserCheck className="h-4 w-4 text-green-500" />
                       <span className="text-sm">{t('dailyCollectionDashboard.liveTracking.online')}</span>
                     </div>
-                    <span className="font-bold">{liveTracking.collectorsOnline}</span>
+                    <span className="font-bold">{currentLiveTracking.collectorsOnline}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Timer className="h-4 w-4 text-yellow-500" />
                       <span className="text-sm">{t('dailyCollectionDashboard.liveTracking.onBreak')}</span>
                     </div>
-                    <span className="font-bold">{liveTracking.collectorsOnBreak}</span>
+                    <span className="font-bold">{currentLiveTracking.collectorsOnBreak}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <UserX className="h-4 w-4 text-gray-500" />
                       <span className="text-sm">{t('dailyCollectionDashboard.liveTracking.offline')}</span>
                     </div>
-                    <span className="font-bold">{liveTracking.collectorsOffline}</span>
+                    <span className="font-bold">{currentLiveTracking.collectorsOffline}</span>
                   </div>
                   
                   <div className="pt-4 border-t">
@@ -363,9 +518,9 @@ const DailyCollectionDashboard = () => {
                       <PieChart>
                         <Pie
                           data={[
-                            { name: t('dailyCollectionDashboard.liveTracking.online'), value: liveTracking.collectorsOnline },
-                            { name: t('dailyCollectionDashboard.liveTracking.onBreak'), value: liveTracking.collectorsOnBreak },
-                            { name: t('dailyCollectionDashboard.liveTracking.offline'), value: liveTracking.collectorsOffline }
+                            { name: t('dailyCollectionDashboard.liveTracking.online'), value: currentLiveTracking.collectorsOnline },
+                            { name: t('dailyCollectionDashboard.liveTracking.onBreak'), value: currentLiveTracking.collectorsOnBreak },
+                            { name: t('dailyCollectionDashboard.liveTracking.offline'), value: currentLiveTracking.collectorsOffline }
                           ]}
                           cx="50%"
                           cy="50%"
@@ -397,8 +552,8 @@ const DailyCollectionDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{liveTracking.activeCalls}</div>
-                <p className="text-xs text-gray-600">{t('dailyCollectionDashboard.liveTracking.avgCallDuration')}: {liveTracking.avgCallDuration}</p>
+                <div className="text-2xl font-bold">{currentLiveTracking.activeCalls}</div>
+                <p className="text-xs text-gray-600">{t('dailyCollectionDashboard.liveTracking.avgCallDuration')}: {currentLiveTracking.avgCallDuration}</p>
               </CardContent>
             </Card>
 
@@ -410,8 +565,8 @@ const DailyCollectionDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{liveTracking.contactSuccessRate}%</div>
-                <Progress value={liveTracking.contactSuccessRate} className="mt-1 h-1" />
+                <div className="text-2xl font-bold">{currentLiveTracking.contactSuccessRate}%</div>
+                <Progress value={currentLiveTracking.contactSuccessRate} className="mt-1 h-1" />
               </CardContent>
             </Card>
 
@@ -424,10 +579,10 @@ const DailyCollectionDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {liveTracking.ptpObtained}/{liveTracking.ptpTarget}
+                  {currentLiveTracking.ptpObtained}/{currentLiveTracking.ptpTarget}
                 </div>
                 <Progress 
-                  value={(liveTracking.ptpObtained / liveTracking.ptpTarget) * 100} 
+                  value={(currentLiveTracking.ptpObtained / currentLiveTracking.ptpTarget) * 100} 
                   className="mt-1 h-1" 
                 />
               </CardContent>
@@ -442,7 +597,7 @@ const DailyCollectionDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {((liveTracking.currentHourCollection / liveTracking.lastHourCollection - 1) * 100).toFixed(1)}%
+                  {((currentLiveTracking.currentHourCollection / currentLiveTracking.lastHourCollection - 1) * 100).toFixed(1)}%
                 </div>
                 <p className="text-xs text-green-600">{t('dailyCollectionDashboard.liveTracking.vsLastHour')}</p>
               </CardContent>
@@ -457,7 +612,7 @@ const DailyCollectionDashboard = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={hourlyCollectionTrend}>
+                                  <AreaChart data={currentHourlyTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="hour" />
                   <YAxis />
@@ -498,7 +653,7 @@ const DailyCollectionDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {collectorActivity.map((collector, index) => (
+                    {currentCollectorActivity.map((collector, index) => (
                       <tr key={index} className="border-b">
                         <td className="py-3 font-medium">{collector.name}</td>
                         <td className="py-3">
@@ -643,7 +798,7 @@ const DailyCollectionDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {Object.entries(queueStatus).map(([queue, stats]) => (
+                {Object.entries(currentQueueStatus).map(([queue, stats]) => (
                   <Card key={queue}>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm">{t(`dailyCollectionDashboard.queues.queueTypes.${queue}`)}</CardTitle>
@@ -711,7 +866,7 @@ const DailyCollectionDashboard = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={hourlyCollectionTrend}>
+                                      <LineChart data={currentHourlyTrend}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="hour" />
                     <YAxis />
