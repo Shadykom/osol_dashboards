@@ -60,6 +60,7 @@ import ReportsHealthCheck from './pages/ReportsHealthCheck';
 import TestDashboardRouting from './pages/TestDashboardRouting';
 import TestDashboardDetailNew from './pages/TestDashboardDetailNew';
 import ErrorBoundary from './components/ErrorBoundary';
+import CustomerGrowthDetail from './pages/CustomerGrowthDetail';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -378,7 +379,7 @@ function AppContent() {
           <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
           <Route path="/collection/early-warning" element={<EarlyWarningDashboard />} />
           <Route path="/collection/executive" element={<ExecutiveCollectionDashboard />} />
-          <Route path="/collection/field" element={<FieldCollectionDashboard />} />
+          <Route path="/collection/field" element={<CustomerGrowthDetail />} />
           <Route path="/collection/officer-performance" element={<OfficerPerformanceDashboard />} />
           <Route path="/collection/sharia-compliance" element={<ShariaComplianceDashboard />} />
           <Route path="/collection/vintage-analysis" element={<VintageAnalysisDashboard />} />
