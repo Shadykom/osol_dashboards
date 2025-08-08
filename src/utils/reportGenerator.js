@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 let __XLSX_MODULE = null;
 async function getXLSX() {
   if (__XLSX_MODULE) return __XLSX_MODULE;
-  const mod = await import(/* @vite-ignore */ 'xlsx');
+  const mod = await import('xlsx');
   // Handle different export styles
   __XLSX_MODULE = mod?.default || mod;
   return __XLSX_MODULE;
@@ -15,7 +15,7 @@ async function getXLSX() {
 let __JSPDF_MODULE = null;
 async function getJsPDF() {
   if (__JSPDF_MODULE) return __JSPDF_MODULE;
-  const mod = await import(/* @vite-ignore */ 'jspdf');
+  const mod = await import('jspdf');
   __JSPDF_MODULE = mod?.jsPDF || mod?.default || mod;
   return __JSPDF_MODULE;
 }

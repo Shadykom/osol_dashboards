@@ -64,9 +64,7 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'lucide': ['lucide-react']
           }
-        },
-        // Do not externalize libs; bundle them so bare specifiers are resolved
-                 external: ['jspdf','jspdf-autotable','html2canvas','xlsx','react-pdf']
+        }
       },
       // Ensure proper handling of external dependencies
       commonjsOptions: {
