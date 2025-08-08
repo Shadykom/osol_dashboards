@@ -43,8 +43,7 @@ const FieldCollectionDashboard = () => {
       const { data: visits, error } = await supabaseBanking
         .from('field_visits')
         .select('*')
-        .gte('visit_date', startOfDay.toISOString())
-        .lte('visit_date', endOfDay.toISOString());
+        .eq('visit_date', date);
 
       if (error) throw error;
 
@@ -168,12 +167,16 @@ const FieldCollectionDashboard = () => {
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
+      const now = new Date();
+      const currentTimeStr = now.toTimeString().slice(0, 8); // HH:MM:SS
+
       const { data: visits, error } = await supabaseBanking
         .from('field_visits')
         .select('*')
         .eq('visit_status', 'SCHEDULED')
-        .gte('scheduled_time', new Date().toISOString())
-        .lte('scheduled_time', endOfDay.toISOString())
+        .eq('visit_date', date)
+        .gte('scheduled_time', currentTimeStr)
+        .lte('scheduled_time', '23:59:59')
         .order('scheduled_time', { ascending: true })
         .limit(10);
 
