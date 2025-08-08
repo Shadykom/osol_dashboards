@@ -1,7 +1,7 @@
 // src/services/dashboardButtonService.js
 import reportGenerator from '@/utils/reportGenerator';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+// html2canvas is dynamically imported only when needed to avoid bundling issues
 
 export class DashboardButtonService {
   /**
@@ -14,10 +14,9 @@ export class DashboardButtonService {
     console.log('Options:', options);
     
     // Check if required dependencies are available
-    if (!jsPDF || !html2canvas) {
+    if (!jsPDF) {
       const missingDeps = [];
       if (!jsPDF) missingDeps.push('jspdf');
-      if (!html2canvas) missingDeps.push('html2canvas');
       throw new Error(`Missing dependencies: ${missingDeps.join(', ')}`);
     }
     
@@ -242,6 +241,7 @@ export class DashboardButtonService {
       if (!element) {
         throw new Error('Dashboard element not found');
       }
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(element, {
         allowTaint: true,
         useCORS: true,
