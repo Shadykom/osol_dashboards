@@ -1,9 +1,10 @@
 /* Modern Sidebar RTL Fixes */
 
 /* Base RTL setup for the main layout container */
-[dir="rtl"] .flex {
-  direction: ltr; /* Keep flex direction normal, use flex-row-reverse instead */
-}
+/* Removed global flex direction override to preserve natural RTL item flow */
+/* [dir="rtl"] .flex { */
+/*   direction: ltr;  Keep flex direction normal, use flex-row-reverse instead */
+/* } */
 
 /* Main layout container should use flex-row-reverse in RTL */
 [dir="rtl"] .flex.h-screen {
@@ -169,11 +170,14 @@
 }
 
 /* Ensure icons are on the right side in RTL */
+/* Disabled global order override which pushed icons after labels in RTL */
+/*
 [dir="rtl"] .gap-2 > *:first-child,
 [dir="rtl"] .gap-3 > *:first-child,
 [dir="rtl"] .gap-4 > *:first-child {
   order: 2;
 }
+*/
 
 /* Fix space between classes for RTL */
 [dir="rtl"] .space-x-2 > * + * {

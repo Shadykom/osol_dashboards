@@ -23,9 +23,10 @@
 }
 
 /* Flip icons in RTL */
-[dir="rtl"] .rtl-flip {
+/* Disabled global icon flip to keep icons orientation consistent in sidebar */
+/* [dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
-}
+} */
 
 /* Adjust chart direction for RTL */
 [dir="rtl"] .recharts-wrapper {
@@ -200,12 +201,12 @@
 }
 
 /* Space utilities for RTL */
-[dir="rtl"] .space-x-1 > * + * {
+[dir="rtl"] .space-x-1 > *:not(:first-child) {
   margin-right: 0.25rem;
   margin-left: 0;
 }
 
-[dir="rtl"] .space-x-3 > * + * {
+[dir="rtl"] .space-x-3 > *:not(:first-child) {
   margin-right: 0.75rem;
   margin-left: 0;
 }
@@ -360,7 +361,8 @@
 }
 
 /* Fix icon positioning in buttons and labels */
-[dir="rtl"] button > .flex,
+/* Do not force icons after labels globally; components handle their own spacing */
+/* [dir="rtl"] button > .flex,
 [dir="rtl"] label > .flex {
   flex-direction: row-reverse;
 }
@@ -369,7 +371,7 @@
 [dir="rtl"] label svg:first-child {
   margin-left: 0.5rem;
   margin-right: 0;
-}
+} */
 
 /* Fix spacing utilities */
 [dir="rtl"] .space-x-1 > *:not(:first-child) {
