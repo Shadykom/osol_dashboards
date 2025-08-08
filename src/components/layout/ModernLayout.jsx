@@ -10,28 +10,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Language Switcher Component
-const LanguageSwitcher = () => {
-  const { i18n } = useTranslation();
-  const isRTL = i18n.language === 'ar';
-
-  const toggleLanguage = () => {
-    const newLang = i18n.language === 'ar' ? 'en' : 'ar';
-    i18n.changeLanguage(newLang);
-  };
-
-  return (
-    <button
-      onClick={toggleLanguage}
-      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
-      title={isRTL ? 'Switch to English' : 'التبديل إلى العربية'}
-    >
-      <Globe className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-      <span className="hidden sm:inline-block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {isRTL ? 'EN' : 'AR'}
-      </span>
-    </button>
-  );
-};
+import { LanguageSelector } from '@/components/ui/language-selector';
 
 // Header component
 const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
@@ -99,7 +78,7 @@ const Header = ({ isDarkMode, toggleDarkMode, isMobile }) => {
           </button>
 
           {/* Language Switcher */}
-          <LanguageSwitcher />
+          <LanguageSelector />
 
           {/* Dark Mode Toggle */}
           <button
