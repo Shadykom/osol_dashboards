@@ -13,8 +13,6 @@ async function getXLSX() {
   return __XLSX_MODULE;
 }
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 import osolLogo from '@/assets/osol-logo.png';
 import { supabaseBanking, TABLES } from '@/lib/supabase';
@@ -65,7 +63,34 @@ class ReportGenerator {
     // Use provided doc or instance doc
     const pdfDoc = doc || this.doc;
     if (!pdfDoc) return;
-    
+    // Fallback simple table if autoTable is unavailable
+    if (typeof pdfDoc.autoTable !== 'function') {
+      const startX = 15;
+      const colWidths = headers.map(() => 60);
+      let y = startY || this.currentY;
+      pdfDoc.setFontSize(10);
+      // Header
+      let x = startX;
+      headers.forEach((h, i) => {
+        pdfDoc.text(String(h), x + 2, y + 6);
+        pdfDoc.rect(x, y, colWidths[i], 10);
+        x += colWidths[i];
+      });
+      y += 10;
+      // Rows
+      data.forEach((row) => {
+        let xx = startX;
+        const cells = Array.isArray(row) ? row : headers.map(h => row[h] ?? '');
+        cells.forEach((cell, i) => {
+          pdfDoc.text(String(cell), xx + 2, y + 6);
+          pdfDoc.rect(xx, y, colWidths[i], 10);
+          xx += colWidths[i];
+        });
+        y += 10;
+      });
+      this.currentY = y + 10;
+      return;
+    }
     // Convert data to the format expected by autoTable
     const tableData = data.map(row => {
       if (Array.isArray(row)) {

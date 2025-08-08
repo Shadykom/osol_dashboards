@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 
 const COLORS = {
   primary: ['#E6B800', '#FFD700'],
@@ -72,6 +73,25 @@ export default function ExecutiveDashboardDetail() {
     branch: 'all',
     comparison: { type: 'previous_period', period: 'month' }
   });
+  const [branchOptions, setBranchOptions] = useState([{ value: 'all', label: 'All Branches' }]);
+  
+  useEffect(() => {
+    // Load branches from database for accurate names
+    (async () => {
+      try {
+        const { data } = await supabaseBanking
+          .from(TABLES.BRANCHES)
+          .select('branch_id, branch_name')
+          .order('branch_name', { ascending: true });
+        const opts = [{ value: 'all', label: 'All Branches' }].concat(
+          (data || []).map(b => ({ value: b.branch_id, label: b.branch_name || b.branch_id }))
+        );
+        setBranchOptions(opts);
+      } catch (e) {
+        // keep defaults
+      }
+    })();
+  }, []);
   
   // KPI configurations
   const kpiConfigs = {
@@ -285,14 +305,13 @@ export default function ExecutiveDashboardDetail() {
             value={filters.branch} 
             onValueChange={(value) => setFilters({ ...filters, branch: value })}
           >
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[220px]">
               <SelectValue placeholder="Select Branch" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Branches</SelectItem>
-              <SelectItem value="riyadh">Riyadh</SelectItem>
-              <SelectItem value="jeddah">Jeddah</SelectItem>
-              <SelectItem value="dammam">Dammam</SelectItem>
+              {branchOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabaseClient';
+import { supabase } from '@/lib/supabase';
 
 // Get report statistics
 export const getReportStats = async () => {
