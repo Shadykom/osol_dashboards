@@ -379,7 +379,7 @@ const ModernSidebar = ({ isMobile }) => {
         className={cn(
           "fixed lg:relative z-50 lg:z-0",
           "h-full bg-white dark:bg-gray-900",
-          isRTL ? "border-l" : "border-r",
+          isRTL ? "border-l right-0 lg:right-auto" : "border-r left-0 lg:left-auto",
           "border-gray-200 dark:border-gray-700",
           "transition-all duration-300 ease-in-out",
           "flex flex-col",
