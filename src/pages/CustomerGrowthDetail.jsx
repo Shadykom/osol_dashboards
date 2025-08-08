@@ -12,6 +12,10 @@ import { ChartWidget } from '@/components/widgets/ChartWidget';
 import { Users, Activity, Calendar, TrendingUp, Search } from 'lucide-react';
 import { customerDetailsService } from '@/services/dashboardDetailsService';
 import { supabaseBanking, TABLES } from '@/lib/supabase';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useFilters } from '@/contexts/FilterContext';
+import { enhancedDashboardDetailsService } from '@/services/enhancedDashboardDetailsService';
+import { format } from 'date-fns';
 
 function StatCard({ title, value, description, icon: Icon, change, trend }) {
   return (
@@ -40,6 +44,7 @@ function StatCard({ title, value, description, icon: Icon, change, trend }) {
 export default function CustomerGrowthDetail() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
+  const { filters, updateFilter, filterOptions, loadFilterOptions } = useFilters();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -48,20 +53,23 @@ export default function CustomerGrowthDetail() {
   const [trends, setTrends] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [query, setQuery] = useState('');
+  const [comparisonMode, setComparisonMode] = useState('none'); // none | branches | months
+  const [comparisonData, setComparisonData] = useState(null);
 
   const fetchPageData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [ovrRes, brkRes, trRes] = await Promise.all([
-        customerDetailsService.getOverviewStats(),
-        customerDetailsService.getBreakdown(),
-        customerDetailsService.getCustomerTrends(12)
+      // Use enhanced service to ensure same logic as main dashboard filters
+      const [ovr, brk, tr] = await Promise.all([
+        enhancedDashboardDetailsService.getCustomersOverview({ ...filters, applyDateFilter: false }),
+        enhancedDashboardDetailsService.getCustomersBreakdown('total_customers', { ...filters, applyDateFilter: false }),
+        enhancedDashboardDetailsService.getCustomersTrendsData({ ...filters, applyDateFilter: false })
       ]);
 
-      setOverview(ovrRes?.data || null);
-      setBreakdown(brkRes?.data || null);
-      setTrends(trRes?.data || null);
+      setOverview(ovr || null);
+      setBreakdown(brk || null);
+      setTrends(tr || null);
 
       // Recent customers with enriched metrics
       const { data: custList } = await supabaseBanking
@@ -113,6 +121,9 @@ export default function CustomerGrowthDetail() {
       }));
 
       setCustomers(enriched);
+
+      // Build comparison data if enabled
+      await buildComparison();
     } catch (e) {
       console.error('Failed to load customer details:', e);
       setError(e?.message || 'Failed to load data');
@@ -122,9 +133,44 @@ export default function CustomerGrowthDetail() {
   };
 
   useEffect(() => {
+    // ensure filter options are loaded for branches etc.
+    if (!filterOptions?.branches?.length) {
+      // dashboard loads options elsewhere; here we just noop if not present
+    }
     fetchPageData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // re-fetch when filters or comparison change
+    fetchPageData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.branch, filters.dateRange, comparisonMode]);
+
+  const buildComparison = async () => {
+    try {
+      if (comparisonMode === 'branches') {
+        const branchIds = (filterOptions.branches || []).map(b => b.branch_id).slice(0, 5);
+        const results = await Promise.all(
+          branchIds.map(async (bid) => {
+            const o = await enhancedDashboardDetailsService.getCustomersOverview({ ...filters, branch: bid, applyDateFilter: false });
+            return { name: bid, value: o?.totalCustomers || 0 };
+          })
+        );
+        setComparisonData({ type: 'bar', series: results });
+      } else if (comparisonMode === 'months') {
+        const tr = await enhancedDashboardDetailsService.getCustomersTrendsData({ ...filters, applyDateFilter: false });
+        const months = tr?.dates?.slice(-6) || [];
+        const totals = tr?.totalCustomers?.slice(-6) || [];
+        setComparisonData({ type: 'line', series: months.map((m, i) => ({ month: m, total: totals[i] || 0 })) });
+      } else {
+        setComparisonData(null);
+      }
+    } catch (e) {
+      console.warn('Comparison build failed:', e);
+      setComparisonData(null);
+    }
+  };
 
   const filteredCustomers = useMemo(() => {
     if (!query) return customers;
@@ -146,6 +192,34 @@ export default function CustomerGrowthDetail() {
           <p className="text-gray-600 mt-1">{t('dashboard.customerGrowthSubtitle', 'Detailed analytics and insights about customers')}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Advanced Filters */}
+          <Select value={filters.dateRange} onValueChange={(v) => updateFilter('dateRange', v)}>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Date Range" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+              <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+              <SelectItem value="last_quarter">Last Quarter</SelectItem>
+              <SelectItem value="last_year">Last Year</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filters.branch} onValueChange={(v) => updateFilter('branch', v)}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Branch" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Branches</SelectItem>
+              {(filterOptions.branches || []).map(b => (
+                <SelectItem key={b.branch_id} value={b.branch_id}>{b.branch_name || b.branch_id}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={comparisonMode} onValueChange={setComparisonMode}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Compare" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Comparison</SelectItem>
+              <SelectItem value="branches">Compare Branches</SelectItem>
+              <SelectItem value="months">Compare Months</SelectItem>
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={fetchPageData}>Refresh</Button>
         </div>
       </div>
@@ -160,11 +234,45 @@ export default function CustomerGrowthDetail() {
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Customers" value={(overview?.totalCustomers || 0).toLocaleString()} icon={Users} change={overview?.growthRate ? `+${overview.growthRate}%` : undefined} trend="up" description="All customers" />
+            <StatCard title="Total Customers" value={(overview?.totalCustomers || 0).toLocaleString()} icon={Users} change={overview?.change ? `${Number(overview.change).toFixed(2)}%` : undefined} trend={overview?.trend || 'up'} description="All customers" />
             <StatCard title="Active Customers" value={(overview?.activeCustomers || 0).toLocaleString()} icon={Activity} description="With active accounts" />
-            <StatCard title="New This Month" value={(overview?.newCustomersMonth || 0).toLocaleString()} icon={Calendar} description="Created since month start" />
-            <StatCard title="Avg Monthly Growth" value={(Number(overview?.growthRate || '0')).toFixed(2) + '%'} icon={TrendingUp} description="Based on new registrations" />
+            <StatCard title="New This Month" value={(overview?.newCustomers || overview?.newCustomersMonth || 0).toLocaleString()} icon={Calendar} description="Created since month start" />
+            <StatCard title="Avg Monthly Growth" value={(Number(overview?.change || overview?.growthRate || 0)).toFixed(2) + '%'} icon={TrendingUp} description="Based on new registrations" />
           </div>
+
+          {comparisonData && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-[#4A5568]">
+                  {comparisonMode === 'branches' ? 'Branch Comparison' : 'Monthly Comparison'}
+                </CardTitle>
+                <CardDescription>
+                  {comparisonMode === 'branches' ? 'Total customers by branch' : 'Total customers over recent months'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {comparisonMode === 'branches' ? (
+                  <ChartWidget
+                    data={comparisonData.series}
+                    chartType="bar"
+                    xAxisKey="name"
+                    yAxisKey="value"
+                    height={280}
+                    clickable={false}
+                  />
+                ) : (
+                  <ChartWidget
+                    data={comparisonData.series}
+                    chartType="line"
+                    xAxisKey="month"
+                    yAxisKey="total"
+                    height={280}
+                    clickable={false}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -232,7 +340,7 @@ export default function CustomerGrowthDetail() {
               </CardHeader>
               <CardContent>
                 <ChartWidget
-                  data={Object.entries(breakdown?.byBranch || {}).map(([name, value]) => ({ name, value }))}
+                  data={(breakdown?.byBranch || []).map(({ name, value }) => ({ name, value }))}
                   chartType="bar"
                   xAxisKey="name"
                   yAxisKey="value"
@@ -286,13 +394,13 @@ export default function CustomerGrowthDetail() {
             </CardHeader>
             <CardContent>
               <ChartWidget
-                data={(trends?.dates || []).map((d, i) => ({ month: d, newCustomers: trends?.values?.[i] || 0, cumulative: trends?.cumulative?.[i] || 0 }))}
+                data={(trends?.dates || []).map((d, i) => ({ month: d, newCustomers: trends?.newCustomers?.[i] || 0, total: trends?.totalCustomers?.[i] || 0 }))}
                 chartType="line"
                 xAxisKey="month"
                 yAxisKey="newCustomers"
                 height={320}
                 clickable={false}
-                multiLine={{ cumulative: { color: '#4A5568' } }}
+                multiLine={{ total: { color: '#4A5568' } }}
               />
             </CardContent>
           </Card>

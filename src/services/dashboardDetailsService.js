@@ -152,12 +152,32 @@ export const customerDetailsService = {
     
     try {
       // Total customers - get all customers
-      const { count: totalCustomers, error: totalError } = await supabaseBanking
-        .from(TABLES.CUSTOMERS)
-        .select('*', { count: 'exact', head: true });
+      let totalCustomers = 0;
+      try {
+        const { count, error: headCountError } = await supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select('*', { count: 'exact', head: true });
+        if (!headCountError && typeof count === 'number') {
+          totalCustomers = count;
+        } else {
+          console.warn('Head count query failed or returned invalid count, falling back to non-head select:', headCountError);
+          // Fallback: regular select with count
+          const { count: fallbackCount, error: fallbackError } = await supabaseBanking
+            .from(TABLES.CUSTOMERS)
+            .select('customer_id', { count: 'exact' })
+            .limit(1);
+          if (!fallbackError && typeof fallbackCount === 'number') {
+            totalCustomers = fallbackCount;
+          } else if (fallbackError) {
+            console.error('Fallback count query failed:', fallbackError);
+          }
+        }
+      } catch (e) {
+        console.error('Unexpected error while counting customers:', e);
+      }
 
-      if (totalError) {
-        console.error('Error fetching total customers:', totalError);
+      if (!totalCustomers) {
+        console.warn('Total customers count resolved to 0. This may indicate missing RLS/headers.');
       }
 
       // Active customers (with active accounts)
