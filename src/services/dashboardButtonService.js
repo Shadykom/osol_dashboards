@@ -8,6 +8,7 @@ async function getJsPDF() {
   return __JSPDF_MODULE;
 }
 // html2canvas is dynamically imported only when needed to avoid bundling issues
+// Note: dynamic import used below for html2canvas to resolve correctly under pnpm
 
 export class DashboardButtonService {
   /**
@@ -248,7 +249,7 @@ export class DashboardButtonService {
       if (!element) {
         throw new Error('Dashboard element not found');
       }
-      const { default: html2canvas } = await import('html2canvas');
+      const { default: html2canvas } = await import('html2canvas/dist/html2canvas.js');
       const canvas = await html2canvas(element, {
         allowTaint: true,
         useCORS: true,
