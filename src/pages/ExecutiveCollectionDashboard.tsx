@@ -18,10 +18,14 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { useFilters } from '@/contexts/FilterContext';
 
 const ExecutiveCollectionDashboard = () => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
+  const navigate = useNavigate();
+  const { filters, updateFilter } = useFilters();
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [selectedBranch, setSelectedBranch] = useState('all');
@@ -72,10 +76,16 @@ const ExecutiveCollectionDashboard = () => {
   const fetchPortfolioMetrics = async () => {
     try {
       // Fetch current portfolio metrics
-      const { data: cases, error: casesError } = await supabase
+      let casesQuery = supabase
         .from('collection_cases')
-        .select('total_outstanding, days_past_due, case_status')
+        .select('total_outstanding, days_past_due, case_status, branch_id')
         .in('case_status', ['ACTIVE', 'LEGAL']);
+
+      if (selectedBranch && selectedBranch !== 'all') {
+        casesQuery = casesQuery.eq('branch_id', selectedBranch);
+      }
+
+      const { data: cases, error: casesError } = await casesQuery;
 
       if (casesError) {
         console.error('Error fetching cases:', casesError);
@@ -126,10 +136,16 @@ const ExecutiveCollectionDashboard = () => {
   // Fetch aging distribution
   const fetchAgingDistribution = async () => {
     try {
-      const { data: cases, error } = await supabase
+      let query = supabase
         .from('collection_cases')
-        .select('days_past_due, total_outstanding')
+        .select('days_past_due, total_outstanding, branch_id')
         .in('case_status', ['ACTIVE', 'LEGAL']);
+
+      if (selectedBranch && selectedBranch !== 'all') {
+        query = query.eq('branch_id', selectedBranch);
+      }
+
+      const { data: cases, error } = await query;
 
       if (error) throw error;
 
@@ -305,10 +321,38 @@ const ExecutiveCollectionDashboard = () => {
     loadDashboardData();
   }, [selectedPeriod, selectedBranch]);
 
+  // Map local period selector to global dateRange
+  useEffect(() => {
+    const periodToDateRange = {
+      daily: 'today',
+      weekly: 'last_7_days',
+      monthly: 'last_30_days',
+      quarterly: 'last_quarter'
+    };
+    const mapped = periodToDateRange[selectedPeriod] || 'last_30_days';
+    updateFilter('dateRange', mapped);
+  }, [selectedPeriod]);
+
+  // Sync local branch with global filters
+  useEffect(() => {
+    if (selectedBranch !== filters.branch) {
+      updateFilter('branch', selectedBranch);
+    }
+  }, [selectedBranch]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadDashboardData();
     setRefreshing(false);
+  };
+
+  const handleDrill = (section: string, widgetId: string) => {
+    const query = new URLSearchParams();
+    if (filters.dateRange && filters.dateRange !== 'all') query.set('dateRange', filters.dateRange);
+    if (filters.branch && filters.branch !== 'all') query.set('branch', filters.branch);
+    if (filters.productType && filters.productType !== 'all') query.set('productType', filters.productType);
+    if (filters.customerSegment && filters.customerSegment !== 'all') query.set('customerSegment', filters.customerSegment);
+    navigate(`/dashboard/detail-new/${section}/${widgetId}?${query.toString()}`);
   };
 
   const formatCurrency = (value) => {
@@ -396,7 +440,39 @@ const ExecutiveCollectionDashboard = () => {
               <SelectItem value="quarterly">{t('common.quarterly')}</SelectItem>
             </SelectContent>
           </Select>
-          
+
+          <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={t('dashboard.filters.branch')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('dashboard.filters.allBranches')}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.productType} onValueChange={(v) => updateFilter('productType', v)}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder={t('dashboard.filters.productType')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('dashboard.filters.allProducts')}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.customerSegment} onValueChange={(v) => updateFilter('customerSegment', v)}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder={t('dashboard.filters.customerSegment')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('dashboard.filters.allSegments')}</SelectItem>
+              <SelectItem value="RETAIL">RETAIL</SelectItem>
+              <SelectItem value="PREMIUM">PREMIUM</SelectItem>
+              <SelectItem value="HNI">HNI</SelectItem>
+              <SelectItem value="CORPORATE">CORPORATE</SelectItem>
+              <SelectItem value="SME">SME</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button
             variant="outline"
             size="icon"
@@ -406,7 +482,7 @@ const ExecutiveCollectionDashboard = () => {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          
+
           <Button variant="outline" size="icon">
             <Download className="h-4 w-4" />
           </Button>
@@ -415,7 +491,7 @@ const ExecutiveCollectionDashboard = () => {
 
       {/* US-001: Key Portfolio Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card onClick={() => handleDrill('overview', 'total_assets')} className="cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('collection.metrics.totalPortfolioValue')}
@@ -430,7 +506,7 @@ const ExecutiveCollectionDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card onClick={() => handleDrill('collections', 'active_cases')} className="cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('collection.metrics.totalOverdueAmount')}
@@ -446,7 +522,7 @@ const ExecutiveCollectionDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card onClick={() => handleDrill('lending', 'npl_ratio')} className="cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('collection.metrics.nplRatio')}
@@ -462,7 +538,7 @@ const ExecutiveCollectionDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card onClick={() => handleDrill('collections', 'collection_rate')} className="cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('collection.metrics.collectionRate')}
@@ -591,7 +667,7 @@ const ExecutiveCollectionDashboard = () => {
       {/* US-004: NPL Trend & US-005: Performance Comparison */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* NPL Trend */}
-        <Card>
+        <Card className="cursor-pointer" onClick={() => handleDrill('overview', 'performance_radar')}>
           <CardHeader>
             <CardTitle>{t('collection.nplTrend.title')}</CardTitle>
             <CardDescription>{t('collection.nplTrend.description')}</CardDescription>
@@ -624,7 +700,7 @@ const ExecutiveCollectionDashboard = () => {
         </Card>
 
         {/* Performance vs Target */}
-        <Card>
+        <Card className="cursor-pointer" onClick={() => handleDrill('collections', 'collection_rate')}>
           <CardHeader>
             <CardTitle>{t('collection.performance.title')}</CardTitle>
             <CardDescription>{t('collection.performance.description')}</CardDescription>

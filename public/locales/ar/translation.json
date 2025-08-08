@@ -213,7 +213,8 @@
     "administration": "الإدارة",
     "management": "الإدارة",
     "settings": "الإعدادات",
-    "helpSupport": "المساعدة والدعم"
+    "helpSupport": "المساعدة والدعم",
+    "risk": "المخاطر"
   },
   "dashboard": {
     "title": "لوحة التحكم الشاملة",
@@ -315,7 +316,12 @@
       "npl_ratio": "نسبة القروض المتعثرة",
       "loan_by_product": "القروض حسب المنتج",
       "total_customers": "إجمالي العملاء",
-      "customer_segments": "شرائح العملاء"
+      "customer_segments": "شرائح العملاء",
+      "active_cases": "الحالات النشطة",
+      "collection_rate": "معدل التحصيل",
+      "dpd_distribution": "توزيع أيام التأخير",
+      "risk_score": "مؤشر المخاطر",
+      "compliance_status": "حالة الامتثال"
     },
     "filters": {
       "dateRange": "النطاق الزمني",
@@ -831,6 +837,10 @@
       "description": "أداء الشهر الحالي مقارنة بالأهداف",
       "collectionTarget": "هدف التحصيل",
       "monthComparison": "مقارنة شهرية"
+    },
+    "executiveDashboard": {
+      "title": "لوحة التحصيل التنفيذية",
+      "subtitle": "نظرة عامة عالية المستوى على أداء التحصيل وصحة المحفظة"
     }
   },
   "compliance": {
@@ -2193,7 +2203,7 @@
   },
   "executiveCollection": {
     "title": "لوحة التحصيل التنفيذية",
-    "subtitle": "نظرة عامة رفيعة المستوى للإدارة التنفيذية",
+    "subtitle": "نظرة عامة عالية المستوى على أداء التحصيل وصحة المحفظة",
     "selectBranch": "اختر الفرع",
     "allBranches": "جميع الفروع",
     "fromLastPeriod": "من الفترة السابقة",
