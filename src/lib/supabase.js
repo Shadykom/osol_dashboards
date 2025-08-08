@@ -260,7 +260,7 @@ export const supabaseBanking = (() => {
           global: {
             headers: {
               'apikey': supabaseAnonKey,
-              'Prefer': 'return=representation',
+              // Removed global 'Prefer' header to allow per-request count and head options from supabase-js
               'Accept-Profile': 'kastle_banking',
               'Content-Profile': 'kastle_banking'
             },

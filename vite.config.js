@@ -66,7 +66,7 @@ export default defineConfig(({ mode }) => {
           }
         },
         // Do not externalize libs; bundle them so bare specifiers are resolved
-        external: []
+                 external: ['jspdf','jspdf-autotable','html2canvas','xlsx','react-pdf']
       },
       // Ensure proper handling of external dependencies
       commonjsOptions: {

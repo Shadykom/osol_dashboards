@@ -258,11 +258,14 @@
       "customers": "Customer analytics",
       "risk": "Risk management"
     },
-    "widgets": {
+          "customerGrowth": "Customer Growth",
+      "customerGrowthSubtitle": "Detailed analytics and insights about customers",
+      "widgets": {
       "totalAssets": "Total Assets",
       "performanceIndicators": "Performance Indicators",
       "monthlyRevenue": "Monthly Revenue",
       "customerGrowth": "Customer Growth",
+      "customerGrowthSubtitle": "Detailed analytics and insights about customers",
       "transactionVolume": "Transaction Volume",
       "profitMargin": "Profit Margin",
       "branchPerformance": "Branch Performance",
@@ -2753,6 +2756,10 @@
       "campaigns": "Campaigns",
       "analytics": "Analytics",
       "optimization": "Optimization"
+    },
+    "channels": {
+      "mobileapp": "Mobile App",
+      "webportal": "Web Portal"
     }
   },
   "login": {

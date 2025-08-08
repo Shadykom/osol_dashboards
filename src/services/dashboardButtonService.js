@@ -1,6 +1,12 @@
 // src/services/dashboardButtonService.js
 import reportGenerator from '@/utils/reportGenerator';
-import { jsPDF } from 'jspdf';
+let __JSPDF_MODULE = null;
+async function getJsPDF() {
+  if (__JSPDF_MODULE) return __JSPDF_MODULE;
+  const mod = await import(/* @vite-ignore */ 'jspdf');
+  __JSPDF_MODULE = mod?.jsPDF || mod?.default || mod;
+  return __JSPDF_MODULE;
+}
 // html2canvas is dynamically imported only when needed to avoid bundling issues
 
 export class DashboardButtonService {
@@ -14,9 +20,9 @@ export class DashboardButtonService {
     console.log('Options:', options);
     
     // Check if required dependencies are available
-    if (!jsPDF) {
+    if (!getJsPDF) {
       const missingDeps = [];
-      if (!jsPDF) missingDeps.push('jspdf');
+      if (!getJsPDF) missingDeps.push('jspdf');
       throw new Error(`Missing dependencies: ${missingDeps.join(', ')}`);
     }
     
@@ -66,7 +72,8 @@ export class DashboardButtonService {
   static async exportToPDF(data, filename, options = {}) {
     try {
       console.log('Starting PDF export...');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const JsPDF = await getJsPDF();
+      const pdf = new JsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       let yPosition = 20;
@@ -464,7 +471,7 @@ Risk Scores:
     console.log('Options:', options);
     
     // Validate required dependencies
-    if (!jsPDF || !reportGenerator) {
+    if (!getJsPDF || !reportGenerator) {
       throw new Error('Required dependencies for report generation are not available');
     }
     

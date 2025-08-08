@@ -80,7 +80,14 @@ import {
 } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 
-import { jsPDF } from 'jspdf';
+// Load jsPDF lazily to avoid bundling issues during build when this page is not used
+let jsPDFPromise = null;
+const getJsPDF = async () => {
+  if (!jsPDFPromise) {
+    jsPDFPromise = import(/* @vite-ignore */ 'jspdf').then(m => m.jsPDF || m.default || m);
+  }
+  return jsPDFPromise;
+};
 import reportGenerator from '@/utils/reportGenerator';
 
 // Color palette
@@ -349,7 +356,8 @@ export function ExecutiveDashboardNew() {
       toast.loading(t('executiveDashboard.generatingReport'));
       
       // Create PDF
-      const pdf = new jsPDF();
+      const JsPDF = await getJsPDF();
+        const pdf = new JsPDF();
       
       // Add header
       pdf.setFontSize(20);
