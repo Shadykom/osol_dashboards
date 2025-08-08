@@ -38,7 +38,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        "jspdf": "jspdf/dist/jspdf.es.min.js"
+        // Ensure rollup resolves html2canvas correctly
+        "html2canvas": "html2canvas/dist/html2canvas.esm.js"
       },
     },
     // Explicitly define environment variables for build
