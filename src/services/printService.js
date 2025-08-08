@@ -2,7 +2,7 @@ import html2canvas from 'html2canvas';
 let __JSPDF_MODULE = null;
 async function getJsPDF() {
   if (__JSPDF_MODULE) return __JSPDF_MODULE;
-  const mod = await import(/* @vite-ignore */ 'jspdf');
+  const mod = await import('jspdf');
   __JSPDF_MODULE = mod?.jsPDF || mod?.default || mod;
   return __JSPDF_MODULE;
 }

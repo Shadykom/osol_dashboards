@@ -84,7 +84,7 @@ import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subM
 let jsPDFPromise = null;
 const getJsPDF = async () => {
   if (!jsPDFPromise) {
-    jsPDFPromise = import(/* @vite-ignore */ 'jspdf').then(m => m.jsPDF || m.default || m);
+    jsPDFPromise = import('jspdf').then(m => m.jsPDF || m.default || m);
   }
   return jsPDFPromise;
 };
