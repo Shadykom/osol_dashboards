@@ -370,8 +370,8 @@ export function Loans() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Loan Management</h1>
-          <p className="text-muted-foreground">Monitor loan portfolio and applications</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('navigation.loans')}</h1>
+          <p className="text-muted-foreground">{t('navigation.operationsDashboardDesc')}</p>
         </div>
         <Button className="gap-2" onClick={() => toast.info('New loan application functionality coming soon')}>
           <Plus className="h-4 w-4" />

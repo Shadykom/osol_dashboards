@@ -161,8 +161,8 @@ const ShariaComplianceDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Sharia Compliance Dashboard</h1>
-          <p className="text-gray-600 mt-1">Monitor Islamic finance compliance and charity distribution</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('navigation.shariaCompliance')}</h1>
+          <p className="text-gray-600 mt-1">{t('navigation.shariaComplianceDesc')}</p>
         </div>
         <div className="flex gap-2">
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>

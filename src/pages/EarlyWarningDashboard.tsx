@@ -217,8 +217,8 @@ const EarlyWarningDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Early Warning Dashboard</h1>
-          <p className="text-gray-600 mt-1">Proactive risk detection and prevention system</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('navigation.earlyWarning')}</h1>
+          <p className="text-gray-600 mt-1">{t('navigation.earlyWarningDesc')}</p>
         </div>
         <div className="flex gap-2">
           <Select value={selectedRiskLevel} onValueChange={setSelectedRiskLevel}>
