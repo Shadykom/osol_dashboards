@@ -122,9 +122,6 @@ importers:
       framer-motion:
         specifier: ^12.15.0
         version: 12.15.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      html2canvas:
-        specifier: ^1.4.1
-        version: 1.4.1
       i18next:
         specifier: ^25.3.2
         version: 25.3.2
@@ -240,6 +237,9 @@ importers:
       globals:
         specifier: ^16.0.0
         version: 16.1.0
+      html2canvas:
+        specifier: ^1.4.1
+        version: 1.4.1
       postcss:
         specifier: ^8.5.6
         version: 8.5.6

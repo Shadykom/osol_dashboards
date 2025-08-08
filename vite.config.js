@@ -38,9 +38,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        // Prefer ESM build of jspdf for bundlers
-        "jspdf": "jspdf/dist/jspdf.es.min.js",
-        // autotable resolves via package main, no special alias needed
+        // Use package entry for jspdf to avoid missing file errors
+        jspdf: 'jspdf',
       },
     },
     // Explicitly define environment variables for build
