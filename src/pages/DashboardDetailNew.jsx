@@ -134,7 +134,7 @@ const BreakdownCard = ({ title, data, type = 'pie', className, t }) => {
         {total === 0 || chartData.every(item => item.value === 0) ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">{t('delinquencyDashboard.noData')}</p>
+            <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
           </div>
         ) : type === 'pie' ? (
           <div className="space-y-4">
@@ -212,7 +212,7 @@ const DataTable = ({ data, columns, title, t }) => {
         <CardContent className="py-8">
           <div className="text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">{t('delinquencyDashboard.noData')}</p>
+            <p className="text-muted-foreground">{t('common.noData')}</p>
           </div>
         </CardContent>
       </Card>

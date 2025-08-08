@@ -137,15 +137,27 @@ export const enhancedDashboardDetailsService = {
 
   async getTotalAssetsOverview(filters) {
     const dateFilter = getDateFilter(filters.dateRange);
+    // Build queries with date and optional branch filters
+    let accountsQuery = supabaseBanking
+      .from(TABLES.ACCOUNTS)
+      .select('*')
+      .gte('created_at', dateFilter.start)
+      .lte('created_at', dateFilter.end);
+
+    let loansQuery = supabaseBanking
+      .from(TABLES.LOAN_ACCOUNTS)
+      .select('*')
+      .gte('created_at', dateFilter.start)
+      .lte('created_at', dateFilter.end);
+
+    if (filters?.branch && filters.branch !== 'all') {
+      accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+      loansQuery = loansQuery.eq('branch_id', filters.branch);
+    }
+
     const [accounts, loans] = await Promise.all([
-      supabaseBanking.from(TABLES.ACCOUNTS)
-        .select('*')
-        .gte('created_at', dateFilter.start)
-        .lte('created_at', dateFilter.end),
-      supabaseBanking.from(TABLES.LOAN_ACCOUNTS)
-        .select('*')
-        .gte('created_at', dateFilter.start)
-        .lte('created_at', dateFilter.end)
+      accountsQuery,
+      loansQuery
     ]);
     const totalDeposits = accounts.data?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
     const totalLoans = loans.data?.reduce((sum, loan) => sum + (loan.outstanding_balance || 0), 0) || 0;
@@ -390,18 +402,27 @@ export const enhancedDashboardDetailsService = {
     try {
       const dateFilter = getDateFilter(filters.dateRange);
       
+      // Build base queries
+      let accountsQuery = supabaseBanking.from(TABLES.ACCOUNTS)
+        .select('account_type_id, current_balance, account_status, branch_id, currency, account_types!inner(type_name)')
+        .gte('created_at', dateFilter.start)
+        .lte('created_at', dateFilter.end);
+
+      let loansQuery = supabaseBanking.from(TABLES.LOAN_ACCOUNTS)
+        .select('loan_type_id, outstanding_balance, loan_status, branch_id, loan_types(type_name)')
+        .gte('created_at', dateFilter.start)
+        .lte('created_at', dateFilter.end);
+
+      if (filters?.branch && filters.branch !== 'all') {
+        accountsQuery = accountsQuery.eq('branch_id', filters.branch);
+        loansQuery = loansQuery.eq('branch_id', filters.branch);
+      }
+
       // Fetch accounts and loans data with better error handling
       const [accountsResult, loansResult, branchesResult] = await Promise.allSettled([
-        supabaseBanking.from(TABLES.ACCOUNTS)
-          .select('account_type_id, current_balance, status, branch_id, currency, account_types!inner(type_name)')
-          .gte('created_at', dateFilter.start)
-          .lte('created_at', dateFilter.end),
-        supabaseBanking.from(TABLES.LOAN_ACCOUNTS)
-          .select('loan_type_id, outstanding_balance, status, branch_id, loan_types(type_name)')
-          .gte('created_at', dateFilter.start)
-          .lte('created_at', dateFilter.end),
-        supabaseBanking.from(TABLES.BRANCHES)
-          .select('branch_id, branch_name')
+        accountsQuery,
+        loansQuery,
+        supabaseBanking.from(TABLES.BRANCHES).select('branch_id, branch_name')
       ]);
 
       const accounts = accountsResult.status === 'fulfilled' ? (accountsResult.value.data || []) : [];
@@ -475,7 +496,7 @@ export const enhancedDashboardDetailsService = {
       };
       accounts.forEach(acc => {
         const balance = parseFloat(acc.current_balance) || 0;
-        if (acc.status === 'active') {
+        if (acc.account_status === 'ACTIVE') {
           byStatus['Active Accounts'] += balance;
         } else {
           byStatus['Inactive Accounts'] += balance;
@@ -483,7 +504,7 @@ export const enhancedDashboardDetailsService = {
       });
       loans.forEach(loan => {
         const balance = parseFloat(loan.outstanding_balance) || 0;
-        if (loan.status === 'active') {
+        if (loan.loan_status === 'ACTIVE') {
           byStatus['Active Loans'] += balance;
         } else {
           byStatus['Closed Loans'] += balance;
