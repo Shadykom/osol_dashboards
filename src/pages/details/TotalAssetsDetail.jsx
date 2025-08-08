@@ -1,268 +1,225 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Container, 
-  Typography, 
-  Box, 
-  Paper, 
-  Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Button,
-  Card,
-  CardContent,
-  Divider
-} from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { ChartWidget } from '@/components/widgets/ChartWidget';
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, DollarSign, PieChart, BarChart3 } from 'lucide-react';
+import { supabaseBanking, TABLES } from '@/lib/supabase';
 
-const TotalAssetsDetail = () => {
+function Stat({ title, value, change, trend, description }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <div className="text-2xl font-bold">{value}</div>
+          {typeof change !== 'undefined' && (
+            <Badge variant={trend === 'down' ? 'destructive' : 'default'} className="flex items-center gap-1">
+              {trend === 'down' ? <ArrowDownRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+              {change}%
+            </Badge>
+          )}
+        </div>
+        {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function TotalAssetsDetail() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [assetData, setAssetData] = useState({
-    current: 7600904,
-    previous: 6763607,
-    change: 12.5,
-    breakdown: [
-      { category: 'Cash & Equivalents', amount: 2500000, percentage: 32.9 },
-      { category: 'Investments', amount: 3100000, percentage: 40.8 },
-      { category: 'Fixed Assets', amount: 1500000, percentage: 19.7 },
-      { category: 'Other Assets', amount: 500904, percentage: 6.6 }
-    ],
-    monthlyTrend: [
-      { month: 'Jan', value: 6500000 },
-      { month: 'Feb', value: 6700000 },
-      { month: 'Mar', value: 6900000 },
-      { month: 'Apr', value: 7100000 },
-      { month: 'May', value: 7400000 },
-      { month: 'Jun', value: 7600904 }
-    ],
-    recentTransactions: [
-      { date: '2024-06-15', description: 'Investment Portfolio Update', amount: 250000, type: 'increase' },
-      { date: '2024-06-10', description: 'Equipment Purchase', amount: -75000, type: 'decrease' },
-      { date: '2024-06-05', description: 'Cash Deposit', amount: 150000, type: 'increase' },
-      { date: '2024-06-01', description: 'Property Acquisition', amount: 500000, type: 'increase' }
-    ]
-  });
+  const [searchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  const [overview, setOverview] = useState({ total: 0, deposits: 0, loans: 0, change: 0, trend: 'stable' });
+  const [breakdownByType, setBreakdownByType] = useState({});
+  const [breakdownByBranch, setBreakdownByBranch] = useState({});
+  const [trendSeries, setTrendSeries] = useState([]);
+
+  const branchFilter = searchParams.get('branch') || null;
+
+  const formatCurrency = (v) => new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(Number(v || 0));
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Accounts and loans current balances
+      let accountsQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('current_balance, account_status, branch_id, account_types!inner(type_name, account_category)')
+        .eq('account_status', 'ACTIVE');
+      let loansQuery = supabaseBanking
+        .from(TABLES.LOAN_ACCOUNTS)
+        .select('outstanding_balance, loan_status, branch_id, loan_types!inner(type_name)')
+        .in('loan_status', ['ACTIVE','DISBURSED']);
+      if (branchFilter && branchFilter !== 'all') {
+        accountsQuery = accountsQuery.eq('branch_id', branchFilter);
+        loansQuery = loansQuery.eq('branch_id', branchFilter);
+      }
+      const [{ data: accounts }, { data: loans }] = await Promise.all([accountsQuery, loansQuery]);
+
+      const totalDeposits = (accounts || []).reduce((s, a) => s + Number(a.current_balance || 0), 0);
+      const totalLoans = (loans || []).reduce((s, l) => s + Number(l.outstanding_balance || 0), 0);
+      const total = totalDeposits + totalLoans;
+
+      // Previous period approximation: 30 days ago snapshot
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      let prevAccQuery = supabaseBanking
+        .from(TABLES.ACCOUNTS)
+        .select('current_balance, branch_id, account_status')
+        .lte('created_at', thirtyDaysAgo.toISOString())
+        .eq('account_status', 'ACTIVE');
+      let prevLoanQuery = supabaseBanking
+        .from(TABLES.LOAN_ACCOUNTS)
+        .select('outstanding_balance, branch_id, loan_status')
+        .lte('disbursement_date', thirtyDaysAgo.toISOString())
+        .in('loan_status', ['ACTIVE','DISBURSED']);
+      if (branchFilter && branchFilter !== 'all') {
+        prevAccQuery = prevAccQuery.eq('branch_id', branchFilter);
+        prevLoanQuery = prevLoanQuery.eq('branch_id', branchFilter);
+      }
+      const [{ data: prevAcc }, { data: prevLoans }] = await Promise.all([prevAccQuery, prevLoanQuery]);
+      const prevTotal = (prevAcc || []).reduce((s, a) => s + Number(a.current_balance || 0), 0) + (prevLoans || []).reduce((s, l) => s + Number(l.outstanding_balance || 0), 0);
+      const change = prevTotal > 0 ? (((total - prevTotal) / prevTotal) * 100).toFixed(1) : 0;
+      const trend = Number(change) > 0 ? 'up' : Number(change) < 0 ? 'down' : 'stable';
+
+      // Breakdown by account and loan types
+      const byType = {};
+      (accounts || []).forEach(a => {
+        const key = a.account_types?.type_name || 'Other';
+        byType[key] = (byType[key] || 0) + Number(a.current_balance || 0);
+      });
+      (loans || []).forEach(l => {
+        const key = l.loan_types?.type_name || 'Loan';
+        byType[key] = (byType[key] || 0) + Number(l.outstanding_balance || 0);
+      });
+
+      // Breakdown by branch
+      const byBranch = {};
+      (accounts || []).forEach(a => {
+        const key = a.branch_id || 'Unknown';
+        byBranch[key] = (byBranch[key] || 0) + Number(a.current_balance || 0);
+      });
+      (loans || []).forEach(l => {
+        const key = l.branch_id || 'Unknown';
+        byBranch[key] = (byBranch[key] || 0) + Number(l.outstanding_balance || 0);
+      });
+
+      // Trend series: last 6 months estimated from transactions sums (fallback)
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      let txQuery = supabaseBanking
+        .from(TABLES.TRANSACTIONS)
+        .select('transaction_amount, transaction_date, branch_id')
+        .gte('transaction_date', sixMonthsAgo.toISOString());
+      if (branchFilter && branchFilter !== 'all') txQuery = txQuery.eq('branch_id', branchFilter);
+      const { data: tx } = await txQuery;
+      const monthly = {};
+      (tx || []).forEach(t => {
+        const d = new Date(t.transaction_date);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!monthly[key]) monthly[key] = { month: `${d.toLocaleString('en-US', { month: 'short' })} ${d.getFullYear()}`, assets: 0 };
+        monthly[key].assets += Number(t.transaction_amount || 0);
+      });
+      const trendArr = Object.values(monthly).slice(-6);
+
+      setOverview({ total, deposits: totalDeposits, loans: totalLoans, change, trend });
+      setBreakdownByType(byType);
+      setBreakdownByBranch(byBranch);
+      setTrendSeries(trendArr);
+    } catch (e) {
+      console.error('TotalAssetsDetail load error', e);
+      setError(e?.message || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Box mb={3}>
-        <Button 
-          startIcon={<ArrowBackIcon />} 
-          onClick={() => navigate('/dashboard')}
-          sx={{ mb: 2 }}
-        >
-          Back to Dashboard
-        </Button>
-        <Box display="flex" alignItems="center" mb={2}>
-          <AccountBalanceIcon sx={{ fontSize: 40, mr: 2, color: 'primary.main' }} />
-          <Typography variant="h4" component="h1">
-            Total Assets Detail
-          </Typography>
-        </Box>
-      </Box>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{t('dashboard.totalAssets', 'Total Assets')}</h1>
+          <p className="text-muted-foreground">{t('dashboard.totalAssetsSubtitle', 'Detailed breakdown of deposits and loans')}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/dashboard')}><ArrowLeft className="h-4 w-4" /> Back</Button>
+        </div>
+      </div>
 
-      <Grid container spacing={3}>
-        {/* Summary Cards */}
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Current Total Assets</Typography>
-              <Typography variant="h3" color="primary">
-                SAR {assetData.current.toLocaleString()}
-              </Typography>
-              <Box display="flex" alignItems="center" mt={1}>
-                <TrendingUpIcon sx={{ color: 'success.main', mr: 0.5 }} />
-                <Typography variant="body2" color="success.main">
-                  +{assetData.change}% from last period
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
+        </TabsList>
 
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Previous Period</Typography>
-              <Typography variant="h4">
-                SAR {assetData.previous.toLocaleString()}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mt={1}>
-                Last month total
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Stat title={t('dashboard.total', 'Total')} value={formatCurrency(overview.total)} change={overview.change} trend={overview.trend} />
+            <Stat title={t('dashboard.deposits', 'Deposits')} value={formatCurrency(overview.deposits)} />
+            <Stat title={t('dashboard.loans', 'Loans')} value={formatCurrency(overview.loans)} />
+            <Stat title={t('dashboard.accounts', 'Accounts')} value={(overview.deposits && overview.loans) ? '—' : '—'} description={t('dashboard.accountsNote','Balances include active accounts and loans')}/>
+          </div>
+        </TabsContent>
 
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Growth Amount</Typography>
-              <Typography variant="h4" color="success.main">
-                SAR {(assetData.current - assetData.previous).toLocaleString()}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mt={1}>
-                Absolute increase
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Trend Chart */}
-        <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>6-Month Asset Trend</Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={assetData.monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
-                <Tooltip 
-                  formatter={(value) => `SAR ${value.toLocaleString()}`}
-                  labelFormatter={(label) => `Month: ${label}`}
+        <TabsContent value="breakdown" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><PieChart className="h-4 w-4" /> {t('dashboard.byType','By Type')}</CardTitle>
+                <CardDescription>{t('dashboard.productsAndAccounts','Account and loan types')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartWidget
+                  chartType="pie"
+                  data={Object.entries(breakdownByType).map(([name, value]) => ({ name, value }))}
+                  dataKey="value"
+                  height={300}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#8884d8" 
-                  strokeWidth={2}
-                  dot={{ fill: '#8884d8' }}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> {t('dashboard.byBranch','By Branch')}</CardTitle>
+                <CardDescription>{t('dashboard.topBranches','Top branches by assets')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartWidget
+                  chartType="bar"
+                  data={Object.entries(breakdownByBranch).map(([name, value]) => ({ name: String(name), value }))}
+                  xAxisKey="name"
+                  yAxisKey="value"
+                  height={300}
                 />
-              </LineChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-        {/* Pie Chart */}
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Asset Distribution</Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={assetData.breakdown}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ percentage }) => `${percentage}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="amount"
-                >
-                  {assetData.breakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `SAR ${value.toLocaleString()}`} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
-
-        {/* Breakdown Table */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Asset Breakdown by Category</Typography>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Category</TableCell>
-                    <TableCell align="right">Amount (SAR)</TableCell>
-                    <TableCell align="right">Percentage</TableCell>
-                    <TableCell align="right">Change from Last Period</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {assetData.breakdown.map((row) => (
-                    <TableRow key={row.category}>
-                      <TableCell component="th" scope="row">
-                        {row.category}
-                      </TableCell>
-                      <TableCell align="right">{row.amount.toLocaleString()}</TableCell>
-                      <TableCell align="right">{row.percentage}%</TableCell>
-                      <TableCell align="right">
-                        <Typography color="success.main">+{(Math.random() * 10).toFixed(1)}%</Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell component="th" scope="row">
-                      <strong>Total</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>{assetData.current.toLocaleString()}</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>100%</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography color="success.main">
-                        <strong>+{assetData.change}%</strong>
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Grid>
-
-        {/* Recent Transactions */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Recent Asset Transactions</Typography>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell align="right">Amount (SAR)</TableCell>
-                    <TableCell align="center">Type</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {assetData.recentTransactions.map((transaction, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{transaction.date}</TableCell>
-                      <TableCell>{transaction.description}</TableCell>
-                      <TableCell align="right">
-                        <Typography color={transaction.type === 'increase' ? 'success.main' : 'error.main'}>
-                          {transaction.type === 'increase' ? '+' : ''}{transaction.amount.toLocaleString()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: transaction.type === 'increase' ? 'success.main' : 'error.main',
-                            textTransform: 'capitalize'
-                          }}
-                        >
-                          {transaction.type}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Container>
+        <TabsContent value="trends">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.assetTrend','Asset Trend')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartWidget chartType="area" data={trendSeries} xAxisKey="month" yAxisKey="assets" height={320} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
-};
-
-export default TotalAssetsDetail;
+}
