@@ -1,5 +1,6 @@
 import { BaseWidget } from './BaseWidget';
 import { useNavigate } from 'react-router-dom';
+import { useFilters } from '@/contexts/FilterContext';
 import {
   LineChart,
   Line,
@@ -49,6 +50,7 @@ export function ChartWidget({
   ...props
 }) {
   const navigate = useNavigate();
+  const { filters } = useFilters();
   
   // Use custom colors if provided, otherwise use default colors
   const chartColors = colors || CHART_COLORS;
@@ -147,9 +149,19 @@ export function ChartWidget({
 
   const handleClick = () => {
     if (clickable && id) {
-      // Extract the type from the widget ID
       const widgetType = id.split('_')[0];
-      navigate(`/dashboard/detail/${widgetType}/${id}`);
+      const basePath = `/dashboard/detail/${widgetType}/${id}`;
+
+      const params = new URLSearchParams();
+      if (filters?.branch && filters.branch !== 'all') params.set('branch', filters.branch);
+      if (filters?.productType && filters.productType !== 'all') params.set('productType', filters.productType);
+      if (filters?.customerSegment && filters.customerSegment !== 'all') params.set('customerSegment', filters.customerSegment);
+      if (filters?.dateRange && filters.dateRange !== 'all') params.set('dateRange', filters.dateRange);
+      if (filters?.riskCategory && filters.riskCategory !== 'all') params.set('riskCategory', filters.riskCategory);
+      if (filters?.collectionStatus && filters.collectionStatus !== 'all') params.set('collectionStatus', filters.collectionStatus);
+
+      const target = params.toString() ? `${basePath}?${params.toString()}` : basePath;
+      navigate(target);
     }
   };
 

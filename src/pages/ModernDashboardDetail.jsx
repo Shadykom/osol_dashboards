@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -47,6 +47,7 @@ import {
 } from '../components/ui/dropdown-menu';
 import { cn } from '../lib/utils';
 import { enhancedDashboardDetailsService } from '../services/enhancedDashboardDetailsService';
+import { revenueDetailsService } from '../services/dashboardDetailsService';
 import { useFilters } from '../contexts/FilterContext';
 import { ChartWidget } from '../components/widgets/ChartWidget';
 
@@ -272,6 +273,7 @@ const ModernDashboardDetail = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [timeRange, setTimeRange] = useState('30d');
   const [viewMode, setViewMode] = useState('cards');
+  const hasMergedUrlFiltersRef = useRef(false);
 
   // Widget configurations with modern styling
   const widgetConfigs = {
@@ -322,32 +324,87 @@ const ModernDashboardDetail = () => {
   const config = widgetConfigs[cardType] || widgetConfigs.customers;
   const IconComponent = config.icon;
 
+  // Merge any URL filters passed from card click BEFORE first fetch
   useEffect(() => {
-    fetchData();
-  }, [cardType, timeRange, filters]);
-
-  // Merge any URL filters passed from card click
-  useEffect(() => {
+    if (hasMergedUrlFiltersRef.current) return;
     const search = window.location.search;
     if (search) {
       const params = new URLSearchParams(search);
       const urlFilters = {};
       params.forEach((v, k) => (urlFilters[k] = v));
       if (Object.keys(urlFilters).length > 0) {
+        hasMergedUrlFiltersRef.current = true;
         updateFilters({ ...filters, ...urlFilters });
+        return; // wait for filters to update, next effect run will fetch
       }
     }
-  }, []);
+    hasMergedUrlFiltersRef.current = true;
+  }, [filters, updateFilters]);
+
+  useEffect(() => {
+    if (!hasMergedUrlFiltersRef.current) return;
+    fetchData();
+  }, [cardType, timeRange, filters]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data based on card type
-      const mockData = generateMockData(cardType);
-      setData(mockData);
+      // If revenue card, use real revenue details service with current filters
+      if (cardType === 'revenue') {
+        const [overviewRes, breakdownRes, trendsRes] = await Promise.all([
+          revenueDetailsService.getOverviewStats(filters),
+          revenueDetailsService.getBreakdown(),
+          revenueDetailsService.getRevenueTrends(30)
+        ]);
+
+        const overview = overviewRes?.data || {};
+        const breakdown = breakdownRes?.data || {};
+        const trends = trendsRes?.data || {};
+
+        const transformed = {
+          overview: {
+            mainMetric: `SAR ${(overview.currentMonth / 1000000).toFixed(2)}M`,
+            change: `${overview.growthRate || 0}%`,
+            trend: (Number(overview.growthRate) || 0) >= 0 ? 'up' : 'down',
+            secondaryMetrics: [
+              { label: 'Previous Month', value: `SAR ${(overview.previousMonth / 1000000).toFixed(2)}M`, change: '', trend: 'up' },
+              { label: 'Year to Date', value: `SAR ${(overview.yearToDate / 1000000).toFixed(2)}M`, change: '', trend: 'up' },
+              { label: 'Daily Average', value: `SAR ${(overview.dailyAverage / 1000).toFixed(1)}K`, change: '', trend: 'up' },
+              { label: 'Growth Rate', value: `${overview.growthRate || 0}%`, change: '', trend: (Number(overview.growthRate) || 0) >= 0 ? 'up' : 'down' }
+            ]
+          },
+          distribution: {
+            bySegment: Object.entries(breakdown.byRevenueType || {}).map(([name, value]) => ({ name, value })),
+            byRegion: Object.entries(breakdown.byProduct || {}).map(([name, value]) => ({ name, value }))
+          },
+          trends: {
+            daily: (trends.dates || []).map((date, idx) => ({
+              date,
+              value: trends.values?.[idx] || 0,
+              revenue: trends.values?.[idx] || 0
+            }))
+          },
+          performance: {
+            current: 85,
+            target: 90,
+            categories: [
+              { label: 'Revenue', value: 85, percentage: 85 },
+              { label: 'Retention', value: 88, percentage: 88 },
+              { label: 'Acquisition', value: 92, percentage: 92 },
+              { label: 'Satisfaction', value: 78, percentage: 78 }
+            ]
+          },
+          topItems: [],
+          alerts: [
+            { type: 'success', message: 'Revenue data loaded', icon: <CheckCircle2 className="h-4 w-4" /> }
+          ]
+        };
+        setData(transformed);
+      } else {
+        // Fallback to mock for other card types
+        const mockData = generateMockData(cardType);
+        setData(mockData);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
