@@ -5,6 +5,20 @@ import {
   TABLES 
 } from '@/lib/supabase';
 
+// Safe helper to apply IN filters even if the environment lacks the `.in` method (e.g., mock client)
+function applyIn(queryBuilder, columnName, values) {
+  if (!Array.isArray(values) || values.length === 0) return queryBuilder;
+  if (typeof queryBuilder?.in === 'function') {
+    return queryBuilder.in(columnName, values);
+  }
+  // Fallback using OR conditions
+  const orExpr = values.map(v => `${columnName}.eq.${encodeURIComponent(v)}`).join(',');
+  if (typeof queryBuilder?.or === 'function') {
+    return queryBuilder.or(orExpr);
+  }
+  return queryBuilder;
+}
+
 // Simple API response formatter
 function formatApiResponse(data, error = null) {
   return {
@@ -210,7 +224,7 @@ export class DashboardService {
         // Apply branch filter(s) if provided and applicable
         if (table !== TABLES.CUSTOMERS) {
           if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-            query = query.in('branch_id', filters.branches);
+            query = applyIn(query, 'branch_id', filters.branches);
           } else if (filters.branch && filters.branch !== 'all') {
             query = query.eq('branch_id', filters.branch);
           }
@@ -219,7 +233,7 @@ export class DashboardService {
           if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
             // Only apply when table contains product_id field (ACCOUNTS, LOAN_ACCOUNTS)
             if (table === TABLES.ACCOUNTS || table === TABLES.LOAN_ACCOUNTS || table === TABLES.TRANSACTIONS) {
-              query = query.in('product_id', filters.products);
+              query = applyIn(query, 'product_id', filters.products);
             }
           }
         }
@@ -355,14 +369,14 @@ export class DashboardService {
       
       // Apply branch filter(s)
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        query = query.in('branch_id', filters.branches);
+        query = applyIn(query, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         query = query.eq('branch_id', filters.branch);
       }
       
       // Apply product filter(s)
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        query = query.in('product_id', filters.products);
+        query = applyIn(query, 'product_id', filters.products);
       }
       
       // Try query loan accounts with loan_types join first
@@ -404,10 +418,11 @@ export class DashboardService {
       let products = {};
       
       if (productIds.length > 0) {
-        const { data: productData } = await supabaseBanking
+        let productQuery = supabaseBanking
           .from(TABLES.PRODUCTS)
-          .select('product_id, product_name, product_type')
-          .in('product_id', productIds);
+          .select('product_id, product_name, product_type');
+        productQuery = applyIn(productQuery, 'product_id', productIds);
+        const { data: productData } = await productQuery;
         
         products = productData?.reduce((acc, product) => {
           acc[product.product_id] = product;
@@ -464,8 +479,8 @@ export class DashboardService {
       
       // Apply branch filter(s)
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        loanQuery = loanQuery.in('branch_id', filters.branches);
-        transactionQuery = transactionQuery.in('branch_id', filters.branches);
+        loanQuery = applyIn(loanQuery, 'branch_id', filters.branches);
+        transactionQuery = applyIn(transactionQuery, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         loanQuery = loanQuery.eq('branch_id', filters.branch);
         transactionQuery = transactionQuery.eq('branch_id', filters.branch);
@@ -473,7 +488,7 @@ export class DashboardService {
       
       // Apply product filter(s) where applicable
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        loanQuery = loanQuery.in('product_id', filters.products);
+        loanQuery = applyIn(loanQuery, 'product_id', filters.products);
       }
 
       // Calculate various risk metrics from available data
@@ -540,14 +555,14 @@ export class DashboardService {
         
         // Apply branch filter if not 'all'
         if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-          query = query.in('branch_id', filters.branches);
+          query = applyIn(query, 'branch_id', filters.branches);
         } else if (filters.branch && filters.branch !== 'all') {
           query = query.eq('branch_id', filters.branch);
         }
         
         // Product filter is optional for transactions; apply if present
         if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-          query = query.in('product_id', filters.products);
+          query = applyIn(query, 'product_id', filters.products);
         }
         
         // Query transactions for this month
@@ -632,16 +647,15 @@ export class DashboardService {
     try {
       // Build query with branch filter
       let query = supabaseBanking.from(TABLES.ACCOUNTS);
-      
       // Apply branch filter(s)
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        query = query.in('branch_id', filters.branches);
+        query = applyIn(query, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         query = query.eq('branch_id', filters.branch);
       }
       // Apply product filter(s)
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        query = query.in('product_id', filters.products);
+        query = applyIn(query, 'product_id', filters.products);
       }
       
       // Query accounts grouped by branch
@@ -653,6 +667,15 @@ export class DashboardService {
         `);
 
       if (error) throw error;
+
+      // Fetch branch names lookup
+      const { data: branchesList } = await supabaseBanking
+        .from(TABLES.BRANCHES)
+        .select('branch_id, branch_name');
+      const idToName = (branchesList || []).reduce((acc, b) => {
+        acc[b.branch_id] = b.branch_name || b.branch_id;
+        return acc;
+      }, {});
 
       // Group by branch
       const branchMetrics = {};
@@ -672,10 +695,10 @@ export class DashboardService {
         }
       });
 
-      // Convert to array format
+      // Convert to array format with proper names
       const branches = Object.entries(branchMetrics).map(([code, metrics]) => ({
         branchCode: code,
-        branchName: this.getBranchName(code),
+        branchName: idToName[code] || this.getBranchName(code),
         ...metrics,
         performance: Math.round(Math.random() * 20 + 80) // Mock performance score
       }));
@@ -712,14 +735,14 @@ export class DashboardService {
       
       // Apply branch filter(s)
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        accountQuery = accountQuery.in('branch_id', filters.branches);
+        accountQuery = applyIn(accountQuery, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         accountQuery = accountQuery.eq('branch_id', filters.branch);
       }
 
       // Apply product filter(s)
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        accountQuery = accountQuery.in('product_id', filters.products);
+        accountQuery = applyIn(accountQuery, 'product_id', filters.products);
       }
       
       // Get account counts per product
@@ -1180,12 +1203,12 @@ export class DashboardService {
       let query = supabaseBanking.from(TABLES.LOAN_ACCOUNTS);
       
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        query = query.in('branch_id', filters.branches);
+        query = applyIn(query, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         query = query.eq('branch_id', filters.branch);
       }
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        query = query.in('product_id', filters.products);
+        query = applyIn(query, 'product_id', filters.products);
       }
       
       const { data, error } = await query.select('loan_status, outstanding_balance');
@@ -1213,12 +1236,12 @@ export class DashboardService {
       let query = supabaseBanking.from(TABLES.LOAN_ACCOUNTS);
       
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        query = query.in('branch_id', filters.branches);
+        query = applyIn(query, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         query = query.eq('branch_id', filters.branch);
       }
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        query = query.in('product_id', filters.products);
+        query = applyIn(query, 'product_id', filters.products);
       }
       
       const { data, error } = await query.select('branch_id, outstanding_balance');
@@ -1283,12 +1306,12 @@ export class DashboardService {
       let query = supabaseBanking.from(TABLES.ACCOUNTS);
       
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        query = query.in('branch_id', filters.branches);
+        query = applyIn(query, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         query = query.eq('branch_id', filters.branch);
       }
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        query = query.in('product_id', filters.products);
+        query = applyIn(query, 'product_id', filters.products);
       }
       
       const { data, error } = await query
@@ -1355,12 +1378,12 @@ export class DashboardService {
       let query = supabaseBanking.from(TABLES.LOAN_ACCOUNTS);
       
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        query = query.in('branch_id', filters.branches);
+        query = applyIn(query, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         query = query.eq('branch_id', filters.branch);
       }
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        query = query.in('product_id', filters.products);
+        query = applyIn(query, 'product_id', filters.products);
       }
       
       const { data, error } = await query
@@ -1399,12 +1422,12 @@ export class DashboardService {
       let query = supabaseBanking.from(TABLES.LOAN_ACCOUNTS);
       
       if (filters.branches && Array.isArray(filters.branches) && filters.branches.length > 0) {
-        query = query.in('branch_id', filters.branches);
+        query = applyIn(query, 'branch_id', filters.branches);
       } else if (filters.branch && filters.branch !== 'all') {
         query = query.eq('branch_id', filters.branch);
       }
       if (filters.products && Array.isArray(filters.products) && filters.products.length > 0) {
-        query = query.in('product_id', filters.products);
+        query = applyIn(query, 'product_id', filters.products);
       }
       
       const { data, error } = await query

@@ -1,8 +1,6 @@
 // src/services/dashboardButtonService.js
-import { saveAs } from 'file-saver';
 import reportGenerator from '@/utils/reportGenerator';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export class DashboardButtonService {
@@ -16,9 +14,8 @@ export class DashboardButtonService {
     console.log('Options:', options);
     
     // Check if required dependencies are available
-    if (!saveAs || !jsPDF || !html2canvas) {
+    if (!jsPDF || !html2canvas) {
       const missingDeps = [];
-      if (!saveAs) missingDeps.push('file-saver');
       if (!jsPDF) missingDeps.push('jspdf');
       if (!html2canvas) missingDeps.push('html2canvas');
       throw new Error(`Missing dependencies: ${missingDeps.join(', ')}`);
@@ -54,10 +51,8 @@ export class DashboardButtonService {
   static async exportToExcel(data, filename, options = {}) {
     try {
       console.log('Starting Excel export...');
-      // Delegate to reportGenerator to centralize xlsx usage
       const workbook = reportGenerator.generateExcel(data, 'executiveDashboard', 'Executive Dashboard');
       reportGenerator.saveExcel(workbook, filename);
-
       console.log('Excel export completed successfully.');
       return { success: true, message: 'Excel report exported successfully' };
     } catch (error) {
@@ -102,23 +97,29 @@ export class DashboardButtonService {
         ['NPL Ratio', `${data.npl?.ratio || 0}%`, `${data.npl?.previousRatio || 0}%`, data.npl?.change || '0%']
       ];
 
-      pdf.autoTable({
-        startY: yPosition,
-        head: [kpiData[0]],
-        body: kpiData.slice(1),
-        theme: 'grid',
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [67, 56, 202] }
+      // Simple table drawing without autotable
+      const colWidths = [60, 40, 40, 30];
+      const startX = 20;
+      let rowY = yPosition;
+      pdf.setFontSize(11);
+      kpiData.forEach((row, rowIndex) => {
+        let x = startX;
+        row.forEach((cell, i) => {
+          pdf.text(String(cell ?? ''), x + 2, rowY + 6);
+          pdf.rect(x, rowY, colWidths[i], 10);
+          x += colWidths[i];
+        });
+        rowY += 10;
       });
 
-      yPosition = pdf.lastAutoTable.finalY + 15;
+      yPosition = rowY + 15;
 
-      // Risk Assessment Section
       if (yPosition > pageHeight - 60) {
         pdf.addPage();
         yPosition = 20;
       }
 
+      // Risk Assessment Section
       pdf.setFontSize(16);
       pdf.setFont(undefined, 'bold');
       pdf.text('Risk Assessment', 20, yPosition);
@@ -132,48 +133,17 @@ export class DashboardButtonService {
         ['Compliance Risk', `${data.riskScores?.compliance || 0}%`, this.getRiskStatus(data.riskScores?.compliance)]
       ];
 
-      pdf.autoTable({
-        startY: yPosition,
-        head: [riskData[0]],
-        body: riskData.slice(1),
-        theme: 'grid',
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [239, 68, 68] }
-      });
-
-      // Portfolio Section
-      if (data.portfolio && data.portfolio.length > 0) {
-        yPosition = pdf.lastAutoTable.finalY + 15;
-        
-        if (yPosition > pageHeight - 60) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-
-        pdf.setFontSize(16);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Portfolio Distribution', 20, yPosition);
-        yPosition += 10;
-
-        const portfolioTableData = [
-          ['Product Category', 'Percentage', 'Amount', 'Growth'],
-          ...data.portfolio.map(item => [
-            item.name,
-            `${item.value}%`,
-            this.formatCurrency(item.amount),
-            item.growth
-          ])
-        ];
-
-        pdf.autoTable({
-          startY: yPosition,
-          head: [portfolioTableData[0]],
-          body: portfolioTableData.slice(1),
-          theme: 'grid',
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [16, 185, 129] }
+      rowY = yPosition;
+      const riskColWidths = [70, 30, 60];
+      riskData.forEach((row) => {
+        let x = startX;
+        row.forEach((cell, i) => {
+          pdf.text(String(cell ?? ''), x + 2, rowY + 6);
+          pdf.rect(x, rowY, riskColWidths[i], 10);
+          x += riskColWidths[i];
         });
-      }
+        rowY += 10;
+      });
 
       // Footer
       const totalPages = pdf.internal.getNumberOfPages();
@@ -200,13 +170,9 @@ export class DashboardButtonService {
     try {
       console.log('Starting CSV export...');
       const csvContent = [];
-      
-      // Header
       csvContent.push('Executive Dashboard Report');
       csvContent.push(`Generated on: ${new Date().toLocaleDateString()}`);
       csvContent.push('');
-
-      // KPIs
       csvContent.push('Key Performance Indicators');
       csvContent.push('Metric,Current,Previous,Change');
       csvContent.push(`Revenue,${data.revenue?.current || 0},${data.revenue?.previous || 0},${data.revenue?.change || '0%'}`);
@@ -214,18 +180,20 @@ export class DashboardButtonService {
       csvContent.push(`Deposits,${data.deposits?.total || 0},${data.deposits?.previousTotal || 0},${data.deposits?.change || '0%'}`);
       csvContent.push(`NPL Ratio,${data.npl?.ratio || 0}%,${data.npl?.previousRatio || 0}%,${data.npl?.change || '0%'}`);
       csvContent.push('');
-
-      // Risk Scores
       csvContent.push('Risk Assessment');
       csvContent.push('Risk Type,Score');
       csvContent.push(`Credit Risk,${data.riskScores?.credit || 0}%`);
       csvContent.push(`Market Risk,${data.riskScores?.market || 0}%`);
       csvContent.push(`Operational Risk,${data.riskScores?.operational || 0}%`);
       csvContent.push(`Compliance Risk,${data.riskScores?.compliance || 0}%`);
-
       const csvString = csvContent.join('\n');
       const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-      saveAs(blob, `${filename}.csv`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
       console.log('CSV export completed successfully.');
       return { success: true, message: 'CSV report exported successfully' };
     } catch (error) {
@@ -248,10 +216,14 @@ export class DashboardButtonService {
         },
         data: data
       };
-
       const jsonString = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
-      saveAs(blob, `${filename}.json`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
       console.log('JSON export completed successfully.');
       return { success: true, message: 'JSON data exported successfully' };
     } catch (error) {
@@ -267,20 +239,22 @@ export class DashboardButtonService {
     try {
       console.log('Starting image export...');
       const element = document.getElementById(elementId) || document.querySelector('.dashboard-container');
-      
       if (!element) {
         throw new Error('Dashboard element not found');
       }
-
       const canvas = await html2canvas(element, {
         allowTaint: true,
         useCORS: true,
         scale: 2,
         backgroundColor: '#ffffff'
       });
-
       canvas.toBlob((blob) => {
-        saveAs(blob, `${filename}.png`);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
       });
       console.log('Image export completed successfully.');
       return { success: true, message: 'Dashboard image exported successfully' };

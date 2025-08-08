@@ -80,8 +80,7 @@ import {
 } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
 import reportGenerator from '@/utils/reportGenerator';
 
 // Color palette

@@ -7,6 +7,15 @@ import HttpBackend from 'i18next-http-backend';
 import enTranslation from '../../public/locales/en/translation.json';
 import arTranslation from '../../public/locales/ar/translation.json';
 
+// Ensure required common keys exist to avoid parse missing key warnings
+enTranslation.common = enTranslation.common || {};
+enTranslation.common.current = enTranslation.common.current || 'Current';
+enTranslation.common.target = enTranslation.common.target || 'Target';
+
+arTranslation.common = arTranslation.common || {};
+arTranslation.common.current = arTranslation.common.current || 'جاري';
+arTranslation.common.target = arTranslation.common.target || 'الهدف';
+
 // Custom number formatter to keep numbers in English format
 const formatNumber = (value, lng, options = {}) => {
   // Always use English number formatting regardless of language
