@@ -10,7 +10,13 @@ import {
 import { Printer, FileDown, X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+let __JSPDF_MODULE = null;
+async function getJsPDF() {
+  if (__JSPDF_MODULE) return __JSPDF_MODULE;
+  const mod = await import(/* @vite-ignore */ 'jspdf');
+  __JSPDF_MODULE = mod?.jsPDF || mod?.default || mod;
+  return __JSPDF_MODULE;
+}
 
 export function PrintView({ 
   children, 
@@ -202,7 +208,8 @@ export function PrintView({
       let heightLeft = imgHeight;
 
       // Create PDF
-      const pdf = new jsPDF({
+      const JsPDF = await getJsPDF();
+      const pdf = new JsPDF({
         orientation: orientation,
         unit: 'mm',
         format: 'a4'

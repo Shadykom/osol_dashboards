@@ -12,7 +12,13 @@ async function getXLSX() {
   __XLSX_MODULE = mod?.default || mod;
   return __XLSX_MODULE;
 }
-import { jsPDF } from 'jspdf';
+let __JSPDF_MODULE = null;
+async function getJsPDF() {
+  if (__JSPDF_MODULE) return __JSPDF_MODULE;
+  const mod = await import(/* @vite-ignore */ 'jspdf');
+  __JSPDF_MODULE = mod?.jsPDF || mod?.default || mod;
+  return __JSPDF_MODULE;
+}
 import { format } from 'date-fns';
 import osolLogo from '@/assets/osol-logo.png';
 import { supabaseBanking, TABLES } from '@/lib/supabase';
@@ -371,7 +377,8 @@ class ReportGenerator {
   // Generate Enhanced Income Statement PDF with OSOL Branding
   async generateIncomeStatementPDF(data, reportName, metadata = {}) {
     // Create PDF with A4 dimensions and proper margins
-    const doc = new jsPDF({
+    const JsPDF = await getJsPDF();
+    const doc = new JsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
@@ -635,7 +642,8 @@ class ReportGenerator {
 
   // Generate Balance Sheet PDF
   async generateBalanceSheetPDF(data, reportName, metadata = {}) {
-    const doc = new jsPDF({
+    const JsPDF = await getJsPDF();
+    const doc = new JsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
@@ -743,7 +751,8 @@ class ReportGenerator {
 
   // Generate Customer Report PDF
   async generateCustomerReportPDF(data, reportName, metadata = {}) {
-    const doc = new jsPDF({
+    const JsPDF = await getJsPDF();
+    const doc = new JsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
@@ -849,7 +858,8 @@ class ReportGenerator {
 
   // Generate Risk Report PDF
   async generateRiskReportPDF(data, reportName, metadata = {}) {
-    const doc = new jsPDF({
+    const JsPDF = await getJsPDF();
+    const doc = new JsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
@@ -931,7 +941,8 @@ class ReportGenerator {
 
   // Generic PDF generator for array data
   async generateGenericPDF(data, reportName, metadata = {}) {
-    const doc = new jsPDF({
+    const JsPDF = await getJsPDF();
+    const doc = new JsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
@@ -1023,7 +1034,7 @@ class ReportGenerator {
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      const doc = new jsPDF({
+      const doc = new JsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
@@ -1185,8 +1196,9 @@ class ReportGenerator {
   }
 
   // Generate Regulatory Report PDF
-  generateRegulatoryReportPDF(data, reportType, reportName, metadata = {}) {
-    const doc = new jsPDF({
+  async generateRegulatoryReportPDF(data, reportType, reportName, metadata = {}) {
+    const JsPDF = await getJsPDF();
+    const doc = new JsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',

@@ -1,5 +1,11 @@
 import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+let __JSPDF_MODULE = null;
+async function getJsPDF() {
+  if (__JSPDF_MODULE) return __JSPDF_MODULE;
+  const mod = await import(/* @vite-ignore */ 'jspdf');
+  __JSPDF_MODULE = mod?.jsPDF || mod?.default || mod;
+  return __JSPDF_MODULE;
+}
 import * as XLSX from 'xlsx';
 
 class PrintService {
@@ -36,7 +42,8 @@ class PrintService {
       if (onProgress) onProgress(40, 'Generating PDF...');
 
       // Initialize PDF
-      const pdf = new jsPDF({
+      const JsPDF = await getJsPDF();
+      const pdf = new JsPDF({
         orientation,
         unit: 'mm',
         format
