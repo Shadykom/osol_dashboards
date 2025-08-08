@@ -104,11 +104,12 @@ function RouteRedirect() {
 
 // 404 Page Component
 function NotFound() {
+  const { t } = useTranslation();
   return (
     <div style={{ textAlign: 'center', padding: '50px' }}>
       <h1 style={{ fontSize: '48px', color: '#dc2626' }}>404</h1>
-      <h2>Page Not Found</h2>
-      <p>The page you are looking for doesn't exist.</p>
+      <h2>{t('common.pageNotFound', 'Page Not Found')}</h2>
+      <p>{t("common.pageNotFoundDescription", "The page you are looking for doesn't exist.")}</p>
       <button 
         onClick={() => window.location.href = '/dashboard'} 
         style={{ 
@@ -121,7 +122,7 @@ function NotFound() {
           cursor: 'pointer' 
         }}
       >
-        Go to Dashboard
+        {t('common.goToDashboard', 'Go to Dashboard')}
       </button>
     </div>
   );

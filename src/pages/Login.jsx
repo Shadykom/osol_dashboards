@@ -19,7 +19,7 @@ import {
   ArrowLeft as FiArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import LanguageSwitcher from '../components/LanguageSwitcher';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import osolLogo from '../assets/osol-logo.png';
 
 const Login = () => {
@@ -191,13 +191,13 @@ const Login = () => {
               />
             </motion.div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-osoul-dark mb-1 sm:mb-2">
-              {isRTL ? 'مرحباً بعودتك' : 'Welcome Back'}
+              {t('login.welcomeBackPrimary', 'Welcome Back')}
             </h1>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-osoul-secondary mb-1 sm:mb-2">
-              {isRTL ? 'Welcome Back' : 'مرحباً بعودتك'}
+              {t('login.welcomeBackSecondary', 'Modern Finance')}
             </h2>
             <p className="text-sm sm:text-base text-osoul-gray-600">
-              {isRTL ? 'الحديثة للتمويل | Modern Finance' : 'Modern Finance | الحديثة للتمويل'}
+              {t('login.brandTagline', 'Modern Finance | الحديثة للتمويل')}
             </p>
           </motion.div>
 

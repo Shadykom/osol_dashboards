@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Globe as FiGlobe } from 'lucide-react';
+import { changeLanguage } from '@/i18n/i18n';
 
 const LanguageSwitcher = ({ className = '' }) => {
   const { i18n } = useTranslation();
@@ -10,14 +11,7 @@ const LanguageSwitcher = ({ className = '' }) => {
 
   const toggleLanguage = () => {
     const newLang = currentLanguage === 'en' ? 'ar' : 'en';
-    i18n.changeLanguage(newLang);
-    
-    // Update document attributes
-    document.documentElement.setAttribute('lang', newLang);
-    document.documentElement.setAttribute('dir', newLang === 'ar' ? 'rtl' : 'ltr');
-    
-    // Store preference
-    localStorage.setItem('i18nextLng', newLang);
+    changeLanguage(newLang);
   };
 
   return (
