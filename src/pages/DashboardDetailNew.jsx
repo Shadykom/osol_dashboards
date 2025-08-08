@@ -519,7 +519,7 @@ const DashboardDetailNew = () => {
           ) : (
             <>
               <StatCard
-                title={t('dashboard.totalAssets')}
+                title={t('dashboard.widgets.totalAssets')}
                 value={formatCurrency(detailData.overview.totalAssets || 0)}
                 change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                 trend={detailData.overview.trend}
@@ -1364,9 +1364,9 @@ const DashboardDetailNew = () => {
                       data={detailData.raw.accounts.slice(0, 10)}
                       columns={[
                         { header: 'Account Number', accessor: (row) => row.account_number },
-                        { header: 'Type', accessor: (row) => <Badge variant="outline">{row.account_type}</Badge> },
+                        { header: 'Type', accessor: (row) => <Badge variant="outline">{row.account_types?.type_name || row.account_type || row.account_type_id || 'Unknown'}</Badge> },
                         { header: 'Balance', accessor: (row) => formatCurrency(row.current_balance || 0) },
-                        { header: 'Status', accessor: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge> },
+                        { header: 'Status', accessor: (row) => <Badge variant={row.account_status === 'ACTIVE' ? 'default' : 'secondary'}>{row.account_status || 'UNKNOWN'}</Badge> },
                         { header: 'Created', accessor: (row) => new Date(row.created_at).toLocaleDateString() }
                       ]}
                     />

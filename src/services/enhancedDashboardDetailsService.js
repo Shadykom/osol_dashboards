@@ -719,9 +719,9 @@ export const enhancedDashboardDetailsService = {
           accounts:${TABLES.ACCOUNTS}(
             account_id,
             account_number,
-            account_type,
+            account_type_id,
             current_balance,
-            status
+            account_status
           )
         `);
       
@@ -748,7 +748,7 @@ export const enhancedDashboardDetailsService = {
         ...customer,
         total_balance: customer.accounts?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0,
         account_count: customer.accounts?.length || 0,
-        active_accounts: customer.accounts?.filter(acc => acc.status === 'active').length || 0
+        active_accounts: customer.accounts?.filter(acc => acc.account_status === 'ACTIVE').length || 0
       })) || [];
 
       return {
