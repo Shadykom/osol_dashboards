@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -101,7 +102,7 @@ const AVAILABLE_METRICS = {
     icon: Users, 
     color: 'primary',
     format: 'number',
-    defaultSelected: true
+    defaultSelected: false
   },
   loans: { 
     label: 'Active Loans', 
@@ -170,6 +171,7 @@ const QUICK_FILTERS = [
 
 export function ExecutiveDashboardNew() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   
@@ -441,6 +443,35 @@ export function ExecutiveDashboardNew() {
     }
   }, [dateRange, selectedMetrics, dashboardData, t]);
 
+  // Navigate to detail page with current filters
+  const handleCardClick = useCallback((metricKey) => {
+    // Map metric keys to detail page kpiType
+    const metricToKpiType = {
+      revenue: 'revenue',
+      loans: 'activeLoans',
+      deposits: 'totalDeposits',
+      npl: 'nplRatio',
+      customers: 'customers'
+    };
+
+    const kpiType = metricToKpiType[metricKey];
+    if (!kpiType) return;
+
+    // Use single-branch if exactly one selected, otherwise 'all'
+    const branch = selectedBranches?.length === 1 ? selectedBranches[0] : 'all';
+
+    const filters = {
+      dateRange,
+      branch,
+      comparison: { type: comparisonPeriod, period: 'custom' },
+      // Pass-through extras for future use
+      products: selectedProducts,
+      branches: selectedBranches
+    };
+
+    navigate(`/executive-dashboard/detail/${kpiType}`, { state: { filters } });
+  }, [navigate, dateRange, comparisonPeriod, selectedBranches, selectedProducts]);
+
   // Format value based on type
   const formatValue = (value, format) => {
     if (!value && value !== 0) return '-';
@@ -466,8 +497,25 @@ export function ExecutiveDashboardNew() {
   const MetricCard = ({ metricKey, data }) => {
     const config = AVAILABLE_METRICS[metricKey];
     const Icon = config.icon;
-    const current = data?.current || 0;
-    const previous = data?.previous || 0;
+    // Normalize service response fields per metric
+    let current = 0;
+    let previous = 0;
+    if (metricKey === 'revenue') {
+      current = data?.current || 0;
+      previous = data?.previous || 0;
+    } else if (metricKey === 'loans') {
+      current = data?.active || 0;
+      previous = data?.previousActive || 0;
+    } else if (metricKey === 'deposits') {
+      current = data?.total || 0;
+      previous = data?.previousTotal || 0;
+    } else if (metricKey === 'npl') {
+      current = data?.ratio || 0;
+      previous = data?.previousRatio || 0;
+    } else {
+      current = data?.current || 0;
+      previous = data?.previous || 0;
+    }
     const change = previous ? ((current - previous) / previous * 100) : 0;
     const trend = change > 0 ? 'up' : change < 0 ? 'down' : 'neutral';
     
@@ -478,7 +526,7 @@ export function ExecutiveDashboardNew() {
         transition={{ duration: 0.5 }}
         whileHover={{ y: -4 }}
       >
-        <Card className={cn(
+        <Card onClick={() => handleCardClick(metricKey)} className={cn(
           "relative overflow-hidden transition-all duration-300 hover:shadow-lg",
           "bg-gradient-to-br from-background to-muted/20"
         )}>
