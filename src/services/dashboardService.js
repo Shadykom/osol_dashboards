@@ -54,6 +54,20 @@ export class DashboardService {
     try {
       console.log('🎯 Fetching executive dashboard data with filters:', filters);
       
+      // Determine previous/comparison metrics strategy
+      const previousMetricsPromise = (async () => {
+        if (filters.comparisonDateRange && filters.comparisonDateRange.from && filters.comparisonDateRange.to) {
+          // Build a filters clone using the explicit comparison date range
+          const prevFilters = {
+            ...filters,
+            dateRange: { from: filters.comparisonDateRange.from, to: filters.comparisonDateRange.to }
+          };
+          return this.getCurrentPeriodMetrics(prevFilters);
+        }
+        // Fallback to default previous-period logic
+        return this.getPreviousPeriodMetrics(filters);
+      })();
+
       // Get current and previous period data in parallel
       const [
         currentMetrics,
@@ -66,7 +80,7 @@ export class DashboardService {
         productPerformance
       ] = await Promise.allSettled([
         this.getCurrentPeriodMetrics(filters),
-        this.getPreviousPeriodMetrics(filters),
+        previousMetricsPromise,
         this.getPortfolioDistribution(filters),
         this.getRiskAssessment(filters),
         this.getRevenueAnalytics(filters),
@@ -118,6 +132,18 @@ export class DashboardService {
           previousRatio: kpis.npl.previousRatio,
           change: kpis.npl.change,
           trend: kpis.npl.trend
+        },
+        customers: {
+          total: kpis.customers.total,
+          previousTotal: kpis.customers.previousTotal,
+          change: kpis.customers.change,
+          trend: kpis.customers.trend
+        },
+        transactionsKpi: {
+          total: kpis.transactions.total,
+          previousTotal: kpis.transactions.previousTotal,
+          change: kpis.transactions.change,
+          trend: kpis.transactions.trend
         },
         
         // Chart data
@@ -799,6 +825,16 @@ export class DashboardService {
         ratio: current.nplRatio || 0,
         previousRatio: previous.nplRatio || 0,
         ...calculateChange(current.nplRatio, previous.nplRatio)
+      },
+      customers: {
+        total: current.totalCustomers || 0,
+        previousTotal: previous.totalCustomers || 0,
+        ...calculateChange(current.totalCustomers, previous.totalCustomers)
+      },
+      transactions: {
+        total: current.transactionCount || 0,
+        previousTotal: previous.transactionCount || 0,
+        ...calculateChange(current.transactionCount, previous.transactionCount)
       }
     };
   }

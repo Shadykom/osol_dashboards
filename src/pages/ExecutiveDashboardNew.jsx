@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,8 @@ import {
   BarChart3,
   PieChartIcon,
   LineChartIcon,
+  Percent,
+  Banknote
 } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -101,7 +104,7 @@ const AVAILABLE_METRICS = {
     icon: Users, 
     color: 'primary',
     format: 'number',
-    defaultSelected: true
+    defaultSelected: false
   },
   loans: { 
     label: 'Active Loans', 
@@ -122,6 +125,13 @@ const AVAILABLE_METRICS = {
     icon: AlertTriangle, 
     color: 'danger',
     format: 'percentage',
+    defaultSelected: false
+  },
+  transactions: {
+    label: 'Transactions',
+    icon: Banknote,
+    color: 'info',
+    format: 'number',
     defaultSelected: false
   },
   branches: { 
@@ -149,11 +159,12 @@ const AVAILABLE_METRICS = {
 
 // Comparison period options
 const COMPARISON_PERIODS = [
-  { value: 'previous_period', label: 'Previous Period' },
-  { value: 'previous_month', label: 'Previous Month' },
-  { value: 'previous_quarter', label: 'Previous Quarter' },
-  { value: 'previous_year', label: 'Previous Year' },
-  { value: 'custom', label: 'Custom Range' }
+  { value: 'day_over_day', label: 'Day over Day' },
+  { value: 'month_over_month', label: 'Month over Month' },
+  { value: 'quarter_over_quarter', label: 'Quarter over Quarter' },
+  { value: 'year_over_year', label: 'Year over Year' },
+  { value: 'previous_period', label: 'Previous Period (auto)' },
+  { value: 'custom', label: 'Custom (pick exact)' }
 ];
 
 // Quick filter presets
@@ -170,6 +181,7 @@ const QUICK_FILTERS = [
 
 export function ExecutiveDashboardNew() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   
@@ -178,7 +190,7 @@ export function ExecutiveDashboardNew() {
     from: startOfMonth(new Date()),
     to: new Date()
   });
-  const [comparisonPeriod, setComparisonPeriod] = useState('previous_period');
+  const [comparisonPeriod, setComparisonPeriod] = useState('month_over_month');
   const [comparisonDateRange, setComparisonDateRange] = useState(null);
   const [selectedMetrics, setSelectedMetrics] = useState(
     Object.entries(AVAILABLE_METRICS)
@@ -193,6 +205,14 @@ export function ExecutiveDashboardNew() {
   const [availableBranches, setAvailableBranches] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
 
+  // Explicit month/quarter/year selectors for custom comparisons
+  const [comparisonSelectors, setComparisonSelectors] = useState({
+    // Examples: { type: 'month', primary: { y: 2025, m: 1 }, secondary: { y: 2024, m: 12 } }
+    type: null,
+    primary: null,
+    secondary: null
+  });
+
   // Auto-refresh
   const { lastRefresh, isRefreshing, triggerRefresh } = useDataRefresh(60000);
 
@@ -201,25 +221,22 @@ export function ExecutiveDashboardNew() {
     const daysDiff = Math.ceil((mainRange.to - mainRange.from) / (1000 * 60 * 60 * 24));
     
     switch (period) {
+      case 'day_over_day': {
+        return { from: subDays(mainRange.from, 1), to: subDays(mainRange.to, 1) };
+      }
+      case 'month_over_month': {
+        return { from: subMonths(mainRange.from, 1), to: subMonths(mainRange.to, 1) };
+      }
+      case 'quarter_over_quarter': {
+        return { from: subMonths(mainRange.from, 3), to: subMonths(mainRange.to, 3) };
+      }
+      case 'year_over_year': {
+        return { from: subMonths(mainRange.from, 12), to: subMonths(mainRange.to, 12) };
+      }
       case 'previous_period':
         return {
           from: subDays(mainRange.from, daysDiff + 1),
           to: subDays(mainRange.from, 1)
-        };
-      case 'previous_month':
-        return {
-          from: subMonths(mainRange.from, 1),
-          to: subMonths(mainRange.to, 1)
-        };
-      case 'previous_quarter':
-        return {
-          from: subMonths(mainRange.from, 3),
-          to: subMonths(mainRange.to, 3)
-        };
-      case 'previous_year':
-        return {
-          from: subMonths(mainRange.from, 12),
-          to: subMonths(mainRange.to, 12)
         };
       default:
         return null;
@@ -441,6 +458,37 @@ export function ExecutiveDashboardNew() {
     }
   }, [dateRange, selectedMetrics, dashboardData, t]);
 
+  // Navigate to detail page with current filters
+  const handleCardClick = useCallback((metricKey) => {
+    // Map metric keys to detail page kpiType
+    const metricToKpiType = {
+      revenue: 'revenue',
+      loans: 'activeLoans',
+      deposits: 'totalDeposits',
+      npl: 'nplRatio',
+      customers: 'customers',
+      transactions: 'transactions'
+    };
+
+    const kpiType = metricToKpiType[metricKey];
+    if (!kpiType) return;
+
+    // Use single-branch if exactly one selected, otherwise 'all'
+    const branch = selectedBranches?.length === 1 ? selectedBranches[0] : 'all';
+
+    const filters = {
+      dateRange,
+      comparisonDateRange,
+      branch,
+      comparison: { type: comparisonPeriod, period: 'custom' },
+      // Pass-through extras for future use
+      products: selectedProducts,
+      branches: selectedBranches
+    };
+
+    navigate(`/executive-dashboard/detail/${kpiType}`, { state: { filters } });
+  }, [navigate, dateRange, comparisonPeriod, comparisonDateRange, selectedBranches, selectedProducts]);
+
   // Format value based on type
   const formatValue = (value, format) => {
     if (!value && value !== 0) return '-';
@@ -466,8 +514,28 @@ export function ExecutiveDashboardNew() {
   const MetricCard = ({ metricKey, data }) => {
     const config = AVAILABLE_METRICS[metricKey];
     const Icon = config.icon;
-    const current = data?.current || 0;
-    const previous = data?.previous || 0;
+    // Normalize service response fields per metric
+    let current = 0;
+    let previous = 0;
+    if (metricKey === 'revenue') {
+      current = data?.current || 0;
+      previous = data?.previous || 0;
+    } else if (metricKey === 'loans') {
+      current = data?.active || 0;
+      previous = data?.previousActive || 0;
+    } else if (metricKey === 'deposits') {
+      current = data?.total || 0;
+      previous = data?.previousTotal || 0;
+    } else if (metricKey === 'npl') {
+      current = data?.ratio || 0;
+      previous = data?.previousRatio || 0;
+    } else if (metricKey === 'transactions') {
+      current = dashboardData?.transactionsKpi?.total || 0;
+      previous = dashboardData?.transactionsKpi?.previousTotal || 0;
+    } else {
+      current = data?.current || 0;
+      previous = data?.previous || 0;
+    }
     const change = previous ? ((current - previous) / previous * 100) : 0;
     const trend = change > 0 ? 'up' : change < 0 ? 'down' : 'neutral';
     
@@ -478,7 +546,7 @@ export function ExecutiveDashboardNew() {
         transition={{ duration: 0.5 }}
         whileHover={{ y: -4 }}
       >
-        <Card className={cn(
+        <Card onClick={() => handleCardClick(metricKey)} className={cn(
           "relative overflow-hidden transition-all duration-300 hover:shadow-lg",
           "bg-gradient-to-br from-background to-muted/20"
         )}>
@@ -558,159 +626,50 @@ export function ExecutiveDashboardNew() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Date Range */}
             <div className="space-y-2">
-              <Label>{t('executiveDashboard.dateRange')}</Label>
+              <Label>Date Range</Label>
               <DatePickerWithRange
-                value={dateRange}
-                onChange={setDateRange}
+                date={dateRange}
+                onDateChange={setDateRange}
               />
             </div>
             
-            {/* Comparison Period */}
+            {/* Comparison */}
             <div className="space-y-2">
-              <Label>{t('executiveDashboard.comparisonPeriod')}</Label>
-              <Select value={comparisonPeriod} onValueChange={setComparisonPeriod}>
+              <Label>Comparison</Label>
+              <Select value={comparisonPeriod} onValueChange={(v) => setComparisonPeriod(v)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select comparison" />
                 </SelectTrigger>
                 <SelectContent>
-                  {COMPARISON_PERIODS.map(period => (
-                    <SelectItem key={period.value} value={period.value}>
-                      {period.label}
-                    </SelectItem>
+                  {COMPARISON_PERIODS.map(p => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
-            {/* Metrics Selection */}
+            {/* Custom comparison range (visible when custom selected) */}
             <div className="space-y-2">
-              <Label>{t('executiveDashboard.selectMetrics')}</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
-                    <span className="truncate">
-                      {selectedMetrics.length} metrics selected
-                    </span>
-                    <ChevronDown className="h-4 w-4 ml-2 shrink-0" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  <DropdownMenuLabel>Select Metrics</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {Object.entries(AVAILABLE_METRICS).map(([key, config]) => (
-                    <DropdownMenuCheckboxItem
-                      key={key}
-                      checked={selectedMetrics.includes(key)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedMetrics([...selectedMetrics, key]);
-                        } else {
-                          setSelectedMetrics(selectedMetrics.filter(m => m !== key));
-                        }
-                      }}
-                    >
-                      {config.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Label>Custom Compare Range</Label>
+              <DatePickerWithRange
+                date={comparisonDateRange}
+                onDateChange={setComparisonDateRange}
+                disabled={comparisonPeriod !== 'custom'}
+              />
             </div>
             
-            {/* Actions */}
-            <div className="flex items-end gap-2">
-              <Button
-                onClick={generateReport}
-                variant="default"
-                className="flex-1"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Report
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => exportData('xlsx')}>
-                    Export as Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData('csv')}>
-                    Export as CSV
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            {/* Branch/Product selections could be here */}
           </div>
-          
-          {/* Additional Filters */}
-          {(availableBranches.length > 0 || availableProducts.length > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t">
-              {availableBranches.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Filter by Branch</Label>
-                  <Select
-                    value={selectedBranches[0] || "all"}
-                    onValueChange={(value) => {
-                      setSelectedBranches(value === "all" ? [] : [value]);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All branches" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All branches</SelectItem>
-                      {availableBranches.map(branch => (
-                        <SelectItem key={branch.value} value={branch.value}>
-                          {branch.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              
-              {availableProducts.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Filter by Product</Label>
-                  <Select
-                    value={selectedProducts[0] || "all"}
-                    onValueChange={(value) => {
-                      setSelectedProducts(value === "all" ? [] : [value]);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All products" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All products</SelectItem>
-                      {availableProducts.map(product => (
-                        <SelectItem key={product.value} value={product.value}>
-                          {product.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          )}
         </Card>
       </div>
-      
-      {/* Metrics Grid */}
+ 
+      {/* KPI Cards */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {selectedMetrics.map(metric => (
             <Card key={metric} className="animate-pulse">
-              <CardHeader className="space-y-2">
-                <div className="h-4 bg-muted rounded w-24" />
-                <div className="h-8 bg-muted rounded w-32" />
-              </CardHeader>
-              <CardContent>
-                <div className="h-4 bg-muted rounded w-20" />
-              </CardContent>
+              <CardHeader className="space-y-2"></CardHeader>
+              <CardContent></CardContent>
             </Card>
           ))}
         </div>
@@ -725,73 +684,49 @@ export function ExecutiveDashboardNew() {
           ))}
         </div>
       )}
-      
-      {/* Charts and Additional Content */}
-      {!loading && dashboardData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Trend Chart */}
-          {dashboardData.revenueTrend && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue Trend</CardTitle>
-                <CardDescription>Daily revenue over selected period</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dashboardData.revenueTrend}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => formatValue(value, 'currency')} />
-                      <Area
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke={COLORS.success[0]}
-                        fill={COLORS.success[0]}
-                        fillOpacity={0.3}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Portfolio Distribution */}
-          {dashboardData.portfolioDistribution && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Portfolio Distribution</CardTitle>
-                <CardDescription>Distribution across products</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={dashboardData.portfolioDistribution}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {dashboardData.portfolioDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS.primary[index % COLORS.primary.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => formatValue(value, 'currency')} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+ 
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Trend</CardTitle>
+            <CardDescription>Daily revenue over selected period</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dashboardData?.revenueTrend || []}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="current" stroke={COLORS.success[0]} name="Current" />
+                <Line type="monotone" dataKey="previous" stroke={COLORS.primary[0]} name="Previous" />
+                <Line type="monotone" dataKey="target" stroke={COLORS.warning[0]} name="Target" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+ 
+        <Card>
+          <CardHeader>
+            <CardTitle>Portfolio Distribution</CardTitle>
+            <CardDescription>Distribution across products</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={dashboardData?.portfolio || []} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100}>
+                  {(dashboardData?.portfolio || []).map((_, idx) => (
+                    <Cell key={idx} fill={COLORS.chart?.[idx % (COLORS.chart?.length || 6)] || COLORS.primary[0]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
