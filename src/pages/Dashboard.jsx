@@ -2444,43 +2444,34 @@ export default function EnhancedDashboard() {
   // Handle widget click for navigation
   const handleWidgetClick = (widget) => {
     if (isEditMode) return;
-    
-    console.log('🖱️ Widget clicked:', {
-      section: widget.section,
-      widget: widget.widget,
-      id: widget.id,
-      filters: filters
-    });
-    
+
+    // Map specific widgets to dedicated detail routes
+    const widgetRouteMap = {
+      overview_total_assets: '/dashboard/total-assets',
+      overview_performance_radar: '/dashboard/performance-indicators',
+      overview_monthly_revenue: '/dashboard/monthly-revenue',
+      overview_customer_growth: '/dashboard/customer-growth',
+      overview_transaction_volume: '/dashboard/transaction-volume',
+      overview_profit_margin: '/dashboard/profit-margin',
+      overview_branch_performance: '/dashboard/branch-performance',
+      overview_product_distribution: '/dashboard/product-distribution',
+      overview_risk_metrics: '/dashboard/risk-metrics',
+    };
+
+    const key = `${widget.section}_${widget.widget}`;
+
     // Build query parameters from current filters
     const queryParams = new URLSearchParams();
-    
-    // Add each filter to query params if it has a value
-    if (filters.branch && filters.branch !== 'all') {
-      queryParams.append('branch', filters.branch);
-    }
-    if (filters.productType && filters.productType !== 'all') {
-      queryParams.append('productType', filters.productType);
-    }
-    if (filters.customerSegment && filters.customerSegment !== 'all') {
-      queryParams.append('customerSegment', filters.customerSegment);
-    }
-    if (filters.dateRange && filters.dateRange !== 'all') {
-      queryParams.append('dateRange', filters.dateRange);
-    }
-    if (filters.riskCategory && filters.riskCategory !== 'all') {
-      queryParams.append('riskCategory', filters.riskCategory);
-    }
-    if (filters.collectionStatus && filters.collectionStatus !== 'all') {
-      queryParams.append('collectionStatus', filters.collectionStatus);
-    }
-    
-    // Navigate to enhanced detail page with widget information and filters
-    const detailPath = `/dashboard/detail-new/${widget.section}/${widget.widget}`;
+    if (filters.branch && filters.branch !== 'all') queryParams.append('branch', filters.branch);
+    if (filters.productType && filters.productType !== 'all') queryParams.append('productType', filters.productType);
+    if (filters.customerSegment && filters.customerSegment !== 'all') queryParams.append('customerSegment', filters.customerSegment);
+    if (filters.dateRange && filters.dateRange !== 'all') queryParams.append('dateRange', filters.dateRange);
+    if (filters.riskCategory && filters.riskCategory !== 'all') queryParams.append('riskCategory', filters.riskCategory);
+    if (filters.collectionStatus && filters.collectionStatus !== 'all') queryParams.append('collectionStatus', filters.collectionStatus);
+
+    let detailPath = widgetRouteMap[key] || `/dashboard/detail-new/${widget.section}/${widget.widget}`;
     const queryString = queryParams.toString();
     const fullPath = queryString ? `${detailPath}?${queryString}` : detailPath;
-    
-    console.log('🔗 Navigating to:', fullPath);
     navigate(fullPath);
   };
 

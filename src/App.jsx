@@ -61,6 +61,14 @@ import TestDashboardRouting from './pages/TestDashboardRouting';
 import TestDashboardDetailNew from './pages/TestDashboardDetailNew';
 import ErrorBoundary from './components/ErrorBoundary';
 import CustomerGrowthDetail from './pages/CustomerGrowthDetail';
+import TotalAssetsDetail from './pages/details/TotalAssetsDetail';
+import PerformanceIndicatorsDetail from './pages/details/PerformanceIndicatorsDetail';
+import MonthlyRevenueDetail from './pages/details/MonthlyRevenueDetail';
+import TransactionVolumeDetail from './pages/details/TransactionVolumeDetail';
+import ProfitMarginDetail from './pages/details/ProfitMarginDetail';
+import BranchPerformanceDetail from './pages/details/BranchPerformanceDetail';
+import ProductDistributionDetail from './pages/details/ProductDistributionDetail';
+import RiskMetricsDetail from './pages/details/RiskMetricsDetail';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -298,6 +306,16 @@ function AppContent() {
           <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
           <Route path="/dashboard/detail-new/:section/:widgetId" element={<DashboardDetailNew />} />
           <Route path="/dashboard/modern-detail/:cardType" element={<ModernDashboardDetail />} />
+          {/* Dedicated card detail pages */}
+          <Route path="/dashboard/total-assets" element={<TotalAssetsDetail />} />
+          <Route path="/dashboard/performance-indicators" element={<PerformanceIndicatorsDetail />} />
+          <Route path="/dashboard/monthly-revenue" element={<MonthlyRevenueDetail />} />
+          <Route path="/dashboard/customer-growth" element={<CustomerGrowthDetail />} />
+          <Route path="/dashboard/transaction-volume" element={<TransactionVolumeDetail />} />
+          <Route path="/dashboard/profit-margin" element={<ProfitMarginDetail />} />
+          <Route path="/dashboard/branch-performance" element={<BranchPerformanceDetail />} />
+          <Route path="/dashboard/product-distribution" element={<ProductDistributionDetail />} />
+          <Route path="/dashboard/risk-metrics" element={<RiskMetricsDetail />} />
           <Route path="/dashboard/cards-demo" element={<DashboardCardsDemo />} />
           <Route path="/dashboard/reports" element={<DashboardReports />} />
           <Route path="/test-dashboard" element={<TestDashboardRouting />} />
