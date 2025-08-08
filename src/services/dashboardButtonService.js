@@ -1,6 +1,6 @@
 // src/services/dashboardButtonService.js
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
+import reportGenerator from '@/utils/reportGenerator';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -16,10 +16,9 @@ export class DashboardButtonService {
     console.log('Options:', options);
     
     // Check if required dependencies are available
-    if (!saveAs || !XLSX || !jsPDF || !html2canvas) {
+    if (!saveAs || !jsPDF || !html2canvas) {
       const missingDeps = [];
       if (!saveAs) missingDeps.push('file-saver');
-      if (!XLSX) missingDeps.push('xlsx');
       if (!jsPDF) missingDeps.push('jspdf');
       if (!html2canvas) missingDeps.push('html2canvas');
       throw new Error(`Missing dependencies: ${missingDeps.join(', ')}`);
@@ -55,75 +54,9 @@ export class DashboardButtonService {
   static async exportToExcel(data, filename, options = {}) {
     try {
       console.log('Starting Excel export...');
-      const workbook = XLSX.utils.book_new();
-
-      // Summary sheet
-      const summaryData = [
-        ['Executive Dashboard Report'],
-        ['Generated on:', new Date().toLocaleDateString()],
-        [''],
-        ['Key Performance Indicators'],
-        ['Metric', 'Current', 'Previous', 'Change'],
-        ['Total Revenue', data.revenue?.current || 0, data.revenue?.previous || 0, data.revenue?.change || '0%'],
-        ['Active Loans', data.loans?.active || 0, data.loans?.previousActive || 0, data.loans?.change || '0%'],
-        ['Total Deposits', data.deposits?.total || 0, data.deposits?.previousTotal || 0, data.deposits?.change || '0%'],
-        ['NPL Ratio', `${data.npl?.ratio || 0}%`, `${data.npl?.previousRatio || 0}%`, data.npl?.change || '0%'],
-        [''],
-        ['Risk Scores'],
-        ['Risk Type', 'Score'],
-        ['Credit Risk', `${data.riskScores?.credit || 0}%`],
-        ['Market Risk', `${data.riskScores?.market || 0}%`],
-        ['Operational Risk', `${data.riskScores?.operational || 0}%`],
-        ['Compliance Risk', `${data.riskScores?.compliance || 0}%`]
-      ];
-
-      const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(workbook, summaryWS, 'Executive Summary');
-
-      // Revenue trend sheet
-      if (data.revenueTrend && data.revenueTrend.length > 0) {
-        const revenueData = [
-          ['Revenue Trend Analysis'],
-          ['Month', 'Current Period', 'Previous Period'],
-          ...data.revenueTrend.map(item => [item.month, item.current, item.previous])
-        ];
-        const revenueWS = XLSX.utils.aoa_to_sheet(revenueData);
-        XLSX.utils.book_append_sheet(workbook, revenueWS, 'Revenue Trend');
-      }
-
-      // Portfolio distribution sheet
-      if (data.portfolio && data.portfolio.length > 0) {
-        const portfolioData = [
-          ['Portfolio Distribution'],
-          ['Product Category', 'Percentage', 'Amount', 'Count', 'Growth'],
-          ...data.portfolio.map(item => [item.name, `${item.value}%`, item.amount, item.count, item.growth])
-        ];
-        const portfolioWS = XLSX.utils.aoa_to_sheet(portfolioData);
-        XLSX.utils.book_append_sheet(workbook, portfolioWS, 'Portfolio');
-      }
-
-      // Recent transactions sheet
-      if (data.recentTransactions && data.recentTransactions.length > 0) {
-        const transactionData = [
-          ['Recent Transactions'],
-          ['Customer', 'Type', 'Amount', 'Status', 'Date', 'Description'],
-          ...data.recentTransactions.map(tx => [
-            tx.customer_name,
-            tx.type,
-            tx.amount,
-            tx.status,
-            new Date(tx.date).toLocaleDateString(),
-            tx.description
-          ])
-        ];
-        const transactionWS = XLSX.utils.aoa_to_sheet(transactionData);
-        XLSX.utils.book_append_sheet(workbook, transactionWS, 'Transactions');
-      }
-
-      // Write file
-      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      saveAs(blob, `${filename}.xlsx`);
+      // Delegate to reportGenerator to centralize xlsx usage
+      const workbook = reportGenerator.generateExcel(data, 'executiveDashboard', 'Executive Dashboard');
+      reportGenerator.saveExcel(workbook, filename);
 
       console.log('Excel export completed successfully.');
       return { success: true, message: 'Excel report exported successfully' };
@@ -557,7 +490,7 @@ Risk Scores:
     console.log('Options:', options);
     
     // Validate required dependencies
-    if (!jsPDF || !XLSX) {
+    if (!jsPDF || !reportGenerator) {
       throw new Error('Required dependencies for report generation are not available');
     }
     

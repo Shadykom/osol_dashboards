@@ -77,9 +77,10 @@ import {
   Banknote
 } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
-import * as XLSX from 'xlsx';
+
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import reportGenerator from '@/utils/reportGenerator';
 
 // Color palette
 const COLORS = {
@@ -213,9 +214,6 @@ export function ExecutiveDashboardNew() {
     secondary: null
   });
 
-  // Auto-refresh
-  const { lastRefresh, isRefreshing, triggerRefresh } = useDataRefresh(60000);
-
   // Calculate comparison date range based on selected period
   const calculateComparisonRange = useCallback((mainRange, period) => {
     const daysDiff = Math.ceil((mainRange.to - mainRange.from) / (1000 * 60 * 60 * 24));
@@ -332,17 +330,16 @@ export function ExecutiveDashboardNew() {
     }
   }, [dateRange, comparisonDateRange, comparisonPeriod, selectedBranches, selectedProducts, selectedMetrics, calculateComparisonRange, t]);
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-
   // Auto-refresh
-  useEffect(() => {
-    if (lastRefresh) {
-      fetchDashboardData();
-    }
-  }, [lastRefresh, fetchDashboardData]);
+  const { refresh, isRefreshing, lastRefreshed } = useDataRefresh(
+    fetchDashboardData,
+    [dateRange, comparisonDateRange, comparisonPeriod, selectedBranches, selectedProducts, selectedMetrics],
+    { refreshOnMount: true, refreshInterval: 60000, showNotification: false }
+  );
+
+
+
+
 
   // Generate report
   const generateReport = useCallback(async () => {
@@ -401,46 +398,32 @@ export function ExecutiveDashboardNew() {
   const exportData = useCallback(async (format = 'xlsx') => {
     try {
       toast.loading(t('executiveDashboard.exportingData'));
-      
-      // Prepare data for export
-      const exportData = {
-        summary: selectedMetrics.map(metric => {
-          const config = AVAILABLE_METRICS[metric];
-          return {
-            Metric: config.label,
-            Current: dashboardData?.[metric]?.current || 0,
-            Previous: dashboardData?.[metric]?.previous || 0,
-            Change: dashboardData?.[metric]?.change || '0%'
-          };
-        }),
+
+      const summary = selectedMetrics.map(metric => {
+        const config = AVAILABLE_METRICS[metric];
+        return {
+          Metric: config.label,
+          Current: dashboardData?.[metric]?.current || 0,
+          Previous: dashboardData?.[metric]?.previous || 0,
+          Change: dashboardData?.[metric]?.change || '0%'
+        };
+      });
+
+      const dataForExport = {
+        summary,
+        details: dashboardData?.details || null,
         dateRange: {
           From: format(dateRange.from, 'yyyy-MM-dd'),
           To: format(dateRange.to, 'yyyy-MM-dd')
         }
       };
-      
+
       if (format === 'xlsx') {
-        // Create workbook
-        const wb = XLSX.utils.book_new();
-        
-        // Add summary sheet
-        const summaryWs = XLSX.utils.json_to_sheet(exportData.summary);
-        XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
-        
-        // Add details sheet if available
-        if (dashboardData?.details) {
-          const detailsWs = XLSX.utils.json_to_sheet(dashboardData.details);
-          XLSX.utils.book_append_sheet(wb, detailsWs, 'Details');
-        }
-        
-        // Save file
-        XLSX.writeFile(wb, `executive-dashboard-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        const wb = reportGenerator.generateExcel(dataForExport, 'executiveDashboard', 'Executive Dashboard', {});
+        reportGenerator.saveExcel(wb, 'executive-dashboard');
       } else if (format === 'csv') {
-        // Convert to CSV
-        const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(exportData.summary));
-        
-        // Create blob and download
-        const blob = new Blob([csv], { type: 'text/csv' });
+        const wb = reportGenerator.generateExcel(dataForExport, 'executiveDashboard', 'Executive Dashboard', {});
+        const blob = reportGenerator.getExcelBlob(wb);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -448,7 +431,7 @@ export function ExecutiveDashboardNew() {
         a.click();
         URL.revokeObjectURL(url);
       }
-      
+
       toast.dismiss();
       toast.success(t('executiveDashboard.dataExported'));
     } catch (error) {
@@ -596,7 +579,7 @@ export function ExecutiveDashboardNew() {
           <h1 className="text-3xl font-bold">{t('executiveDashboard.title')}</h1>
           <div className="flex items-center gap-2">
             <Button
-              onClick={triggerRefresh}
+              onClick={refresh}
               disabled={isRefreshing}
               size="sm"
               variant="outline"
