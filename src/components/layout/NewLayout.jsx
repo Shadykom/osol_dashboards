@@ -101,7 +101,7 @@ export function NewLayout({ children }) {
   }, [isMobile, isMobileSidebarOpen]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950" dir={isRTL ? "rtl" : "ltr"}>
+    <div className={cn("flex h-screen bg-gray-50 dark:bg-gray-950", isRTL && "flex-row-reverse")} dir={isRTL ? "rtl" : "ltr"}>
       
       {/* Desktop Sidebar */}
       <DesktopSidebarContainer isCollapsed={isSidebarCollapsed}>

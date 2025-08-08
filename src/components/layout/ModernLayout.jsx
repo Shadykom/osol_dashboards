@@ -203,7 +203,8 @@ const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, togg
 
   return (
     <div className={cn(
-      "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950"
+      "flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950",
+      isRTL && "flex-row-reverse"
     )}>
       {/* Sidebar */}
       <ModernSidebar isMobile={isMobile} />
