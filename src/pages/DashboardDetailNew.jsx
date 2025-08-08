@@ -522,6 +522,37 @@ const DashboardDetailNew = () => {
                 size="small"
               />
             </>
+          ) : (section === 'overview' && widgetId === 'branch_performance') ? (
+            <>
+              <StatCard
+                title={t('dashboard.widgets.branchPerformance') || 'Branch Performance'}
+                value={(detailData.overview.totalBranches || 0).toLocaleString()}
+                description={t('dashboard.details.analytics.totalBranches') || 'Total Branches'}
+                icon={Building2}
+                size="small"
+              />
+              <StatCard
+                title={t('dashboard.details.analytics.totalRevenue') || 'Total Revenue'}
+                value={formatCurrency(detailData.overview.totalRevenue || 0)}
+                description={t('dashboard.details.analytics.combinedBranchRevenue') || 'Combined branch revenue'}
+                icon={DollarSign}
+                size="small"
+              />
+              <StatCard
+                title={t('dashboard.details.analytics.topBranch') || 'Top Branch'}
+                value={detailData.overview.topBranch || 'N/A'}
+                description={`${t('dashboard.details.analytics.revenue') || 'Revenue'}: ${formatCurrency(detailData.overview.topBranchRevenue || 0)}`}
+                icon={TrendingUp}
+                size="small"
+              />
+              <StatCard
+                title={t('dashboard.details.analytics.avgRevenuePerBranch') || 'Avg Revenue/Branch'}
+                value={formatCurrency(detailData.overview.averageRevenue || 0)}
+                description={t('dashboard.details.analytics.averageAcrossBranches') || 'Average across branches'}
+                icon={BarChart3}
+                size="small"
+              />
+            </>
           ) : (section === 'overview' && widgetId === 'performance_radar') ? (
             <></>
           ) : (
@@ -730,6 +761,54 @@ const DashboardDetailNew = () => {
                           </div>
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (section === 'overview' && widgetId === 'branch_performance') ? (
+                <>
+                  {/* Branch Revenue by Branch */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        {t('dashboard.details.charts.branchPerformance') || 'Branch Performance'}
+                      </CardTitle>
+                      <CardDescription>
+                        {t('dashboard.details.analytics.revenueByBranch') || 'Revenue by branch'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartWidget
+                        data={(detailData.overview.data || []).map(row => ({ name: row.branch || row.name, value: row.revenue }))}
+                        chartType="bar"
+                        xAxisKey="name"
+                        yAxisKey="value"
+                        height={360}
+                        showLegend={false}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Customers by Branch */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        {t('dashboard.details.analytics.customersByBranch') || 'Customers by Branch'}
+                      </CardTitle>
+                      <CardDescription>
+                        {t('dashboard.details.analytics.activeCustomersAcrossBranches') || 'Active customers across branches'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartWidget
+                        data={(detailData.overview.data || []).map(row => ({ name: row.branch || row.name, value: row.customers }))}
+                        chartType="bar"
+                        xAxisKey="name"
+                        yAxisKey="value"
+                        height={320}
+                        showLegend={false}
+                      />
                     </CardContent>
                   </Card>
                 </>
@@ -997,6 +1076,8 @@ const DashboardDetailNew = () => {
                         ? t('dashboard.details.breakdownDescCustomers')
                         : section === 'banking'
                         ? t('dashboard.details.breakdownDescBanking')
+                        : (section === 'overview' && widgetId === 'branch_performance')
+                        ? (t('dashboard.details.breakdownDescBranches') || 'Branch-wise performance distribution')
                         : t('dashboard.details.breakdownDescAssets')}
                     </p>
                   </div>
@@ -1054,6 +1135,26 @@ const DashboardDetailNew = () => {
                         title={t('dashboard.verificationStatus')} 
                         data={detailData.breakdown.byStatus} 
                         type="bar"
+                      />
+                    )}
+                  </>
+                ) : (section === 'overview' && widgetId === 'branch_performance') ? (
+                  <>
+                    {detailData.breakdown.byBranchRevenue && (
+                      <BreakdownCard
+                        t={t}
+                        title={t('dashboard.details.analytics.topBranchesByRevenue') || 'Top Branches by Revenue'}
+                        data={detailData.breakdown.byBranchRevenue}
+                        type="list"
+                        className="md:col-span-2 lg:col-span-1"
+                      />
+                    )}
+                    {detailData.breakdown.byBranchCustomers && (
+                      <BreakdownCard
+                        t={t}
+                        title={t('dashboard.details.analytics.topBranchesByCustomers') || 'Top Branches by Customers'}
+                        data={detailData.breakdown.byBranchCustomers}
+                        type="list"
                       />
                     )}
                   </>
@@ -1134,6 +1235,8 @@ const DashboardDetailNew = () => {
                       ? t('dashboard.details.trendsDescCustomers')
                       : section === 'banking'
                       ? t('dashboard.details.trendsDescBanking')
+                      : (section === 'overview' && widgetId === 'branch_performance')
+                      ? (t('dashboard.details.trendsDescBranches') || 'Daily revenue trend for top branches')
                       : t('dashboard.details.trendsDescAssets')}
                   </p>
                 </div>
@@ -1147,6 +1250,8 @@ const DashboardDetailNew = () => {
                       ? 'Customer Growth Trend'
                       : section === 'banking'
                       ? 'Account Balance Growth Trend'
+                      : (section === 'overview' && widgetId === 'branch_performance')
+                      ? 'Top Branches Revenue Trend'
                       : 'Asset Growth Trend'}
                   </CardTitle>
                   <CardDescription>
@@ -1154,6 +1259,8 @@ const DashboardDetailNew = () => {
                       ? '30-day historical customer performance'
                       : section === 'banking'
                       ? '30-day historical account balance performance'
+                      : (section === 'overview' && widgetId === 'branch_performance')
+                      ? '30-day revenue trend for top branches'
                       : '30-day historical asset performance'}
                   </CardDescription>
                 </CardHeader>
@@ -1199,6 +1306,29 @@ const DashboardDetailNew = () => {
                       <div className="text-center text-muted-foreground py-8">
                         <BarChart3 className="h-8 w-8 mx-auto mb-2" />
                         <p>No banking trend data available</p>
+                      </div>
+                    )
+                  ) : (section === 'overview' && widgetId === 'branch_performance') ? (
+                    detailData.trends.dates && detailData.trends.series && Object.keys(detailData.trends.series).length > 0 ? (
+                      <ChartWidget
+                        data={detailData.trends.dates.map((date, index) => {
+                          const row = { date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
+                          Object.entries(detailData.trends.series).forEach(([name, arr]) => {
+                            row[name] = arr[index] || 0;
+                          });
+                          return row;
+                        })}
+                        chartType="line"
+                        xAxisKey="date"
+                        yAxisKey={Object.keys(detailData.trends.series)[0]}
+                        height={400}
+                        showLegend={true}
+                        multiLine={Object.keys(detailData.trends.series)}
+                      />
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <BarChart3 className="h-8 w-8 mx-auto mb-2" />
+                        <p>No branch trend data available</p>
                       </div>
                     )
                   ) : (
@@ -1336,6 +1466,22 @@ const DashboardDetailNew = () => {
                       </div>
                     </CardContent>
                   </Card>
+                </>
+              ) : (section === 'overview' && widgetId === 'branch_performance') ? (
+                <>
+                  {detailData.raw.data && detailData.raw.data.length > 0 && (
+                    <DataTable t={t}
+                      title={t('dashboard.widgets.branchPerformance') || 'Branch Performance'}
+                      data={detailData.raw.data.slice(0, 50)}
+                      columns={[
+                        { header: 'Branch', accessor: (row) => row.branch },
+                        { header: 'Revenue', accessor: (row) => formatCurrency(row.revenue || 0) },
+                        { header: 'Customers', accessor: (row) => (row.customers || 0).toLocaleString() },
+                        { header: 'Accounts', accessor: (row) => (row.accounts || 0).toLocaleString() },
+                        { header: 'Avg Balance', accessor: (row) => formatCurrency(row.averageBalance || 0) }
+                      ]}
+                    />
+                  )}
                 </>
               ) : section === 'banking' ? (
                 <>

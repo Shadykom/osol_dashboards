@@ -46,6 +46,23 @@ export const enhancedDashboardDetailsService = {
             overviewData = await this.getTotalAssetsOverview(filters);
             overviewData.widgetType = widgetDef.type;
             overviewData.widgetName = widgetDef.nameEn || widgetDef.name || widgetId;
+          } else if (section === 'overview' && widgetId === 'branch_performance') {
+            // For branch performance, enrich overview with summary stats
+            const dataArray = Array.isArray(widgetData) ? widgetData : widgetData.data || [];
+            const totalBranches = dataArray.length;
+            const totalRevenue = dataArray.reduce((sum, b) => sum + (parseFloat(b.revenue) || 0), 0);
+            const top = dataArray.reduce((acc, b) => (b.revenue > acc.revenue ? b : acc), { branch: 'N/A', revenue: 0 });
+            overviewData = {
+              data: dataArray,
+              widgetName: widgetDef.nameEn || widgetDef.name || widgetId,
+              widgetType: widgetDef.type,
+              chartType: widgetDef.chartType,
+              totalBranches,
+              totalRevenue,
+              topBranch: top.branch,
+              topBranchRevenue: top.revenue,
+              averageRevenue: totalBranches > 0 ? totalRevenue / totalBranches : 0
+            };
           } else if (section === 'customers' && widgetId === 'total_customers') {
             // For total_customers detail view
             overviewData = await this.getCustomersOverview(filters);
@@ -77,7 +94,11 @@ export const enhancedDashboardDetailsService = {
         }
 
         // Get breakdown data based on widget type and section
-        if (section === 'customers') {
+        if (section === 'overview' && widgetId === 'branch_performance') {
+          breakdownData = await this.getBranchPerformanceBreakdown(filters);
+          trendsData = await this.getBranchPerformanceTrends(filters);
+          rawData = await this.getBranchPerformanceRaw(filters);
+        } else if (section === 'customers') {
           breakdownData = await this.getCustomersBreakdown(widgetId, filters);
           trendsData = await this.getCustomersTrendsData(filters);
           rawData = await this.getCustomersRawData(filters);
@@ -725,6 +746,190 @@ export const enhancedDashboardDetailsService = {
       return {
         data: []
       };
+    }
+  },
+
+  async getBranchPerformanceBreakdown(filters) {
+    try {
+      // Fetch branches
+      const { data: branches } = await supabaseBanking
+        .from(TABLES.BRANCHES)
+        .select('branch_id, branch_name');
+
+      const byBranchRevenue = {};
+      const byBranchCustomers = {};
+
+      for (const branch of branches || []) {
+        // Build queries with filters
+        let accountsQuery = supabaseBanking
+          .from(TABLES.ACCOUNTS)
+          .select('current_balance')
+          .eq('branch_id', branch.branch_id)
+          .eq('account_status', 'ACTIVE');
+
+        let customersQuery = supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select('customer_id')
+          .eq('branch_id', branch.branch_id)
+          .eq('is_active', true);
+
+        if (filters.productType && filters.productType !== 'all') {
+          accountsQuery = accountsQuery.eq('product_type', filters.productType);
+        }
+        if (filters.customerSegment && filters.customerSegment !== 'all') {
+          customersQuery = customersQuery.eq('customer_segment', filters.customerSegment);
+        }
+
+        const [accountsRes, customersRes] = await Promise.all([
+          accountsQuery,
+          customersQuery
+        ]);
+
+        const revenue = accountsRes.data?.reduce((sum, acc) => sum + (parseFloat(acc.current_balance) || 0), 0) || 0;
+        const customers = customersRes.data?.length || 0;
+
+        byBranchRevenue[branch.branch_name || `Branch ${branch.branch_id}`] = revenue;
+        byBranchCustomers[branch.branch_name || `Branch ${branch.branch_id}`] = customers;
+      }
+
+      // Sort and take top 10 for display convenience
+      const topRevenueEntries = Object.entries(byBranchRevenue).sort((a,b) => b[1]-a[1]).slice(0,10);
+      const topCustomerEntries = Object.entries(byBranchCustomers).sort((a,b) => b[1]-a[1]).slice(0,10);
+
+      return {
+        byBranchRevenue: Object.fromEntries(topRevenueEntries),
+        byBranchCustomers: Object.fromEntries(topCustomerEntries)
+      };
+    } catch (error) {
+      console.error('Error in getBranchPerformanceBreakdown:', error);
+      return {
+        byBranchRevenue: { 'No Data': 0 },
+        byBranchCustomers: { 'No Data': 0 }
+      };
+    }
+  },
+
+  async getBranchPerformanceTrends(filters) {
+    try {
+      // Determine time window (default last 30 days)
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      // Fetch transactions within range (apply branch filter later per branch charts handled via breakdown)
+      let txQuery = supabaseBanking
+        .from(TABLES.TRANSACTIONS)
+        .select('transaction_amount, transaction_date, branch_id')
+        .gte('transaction_date', startDate.toISOString())
+        .lte('transaction_date', endDate.toISOString());
+
+      if (filters.branch && filters.branch !== 'all') {
+        txQuery = txQuery.eq('branch_id', filters.branch);
+      }
+
+      const { data: transactions } = await txQuery;
+
+      // Build branch name map
+      const { data: branches } = await supabaseBanking
+        .from(TABLES.BRANCHES)
+        .select('branch_id, branch_name');
+      const branchNameById = Object.fromEntries((branches||[]).map(b => [b.branch_id, b.branch_name]));
+
+      // Aggregate by branch total to find top 3
+      const totalByBranch = {};
+      (transactions||[]).forEach(tx => {
+        const bid = tx.branch_id;
+        totalByBranch[bid] = (totalByBranch[bid] || 0) + (parseFloat(tx.transaction_amount) || 0);
+      });
+      const topBranchIds = Object.entries(totalByBranch)
+        .sort((a,b) => b[1]-a[1])
+        .slice(0,3)
+        .map(([bid]) => bid);
+
+      // Build date axis
+      const dateKeys = [];
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        dateKeys.push(d.toISOString().split('T')[0]);
+      }
+
+      // Initialize series per top branch
+      const series = {};
+      topBranchIds.forEach(bid => {
+        const name = branchNameById[bid] || `Branch ${bid}`;
+        series[name] = Array(dateKeys.length).fill(0);
+      });
+
+      // Fill series by summing transaction amounts per day
+      (transactions||[]).forEach(tx => {
+        if (!topBranchIds.includes(tx.branch_id)) return;
+        const dayKey = new Date(tx.transaction_date).toISOString().split('T')[0];
+        const idx = dateKeys.indexOf(dayKey);
+        if (idx >= 0) {
+          const name = branchNameById[tx.branch_id] || `Branch ${tx.branch_id}`;
+          series[name][idx] += parseFloat(tx.transaction_amount) || 0;
+        }
+      });
+
+      return {
+        dates: dateKeys,
+        series // e.g., { 'Riyadh Main': [...], 'Jeddah Central': [...] }
+      };
+    } catch (error) {
+      console.error('Error in getBranchPerformanceTrends:', error);
+      return {
+        dates: [],
+        series: {}
+      };
+    }
+  },
+
+  async getBranchPerformanceRaw(filters) {
+    try {
+      // Fetch branches
+      const { data: branches } = await supabaseBanking
+        .from(TABLES.BRANCHES)
+        .select('branch_id, branch_name');
+
+      const rows = [];
+      for (const branch of branches || []) {
+        let accountsQuery = supabaseBanking
+          .from(TABLES.ACCOUNTS)
+          .select('current_balance')
+          .eq('branch_id', branch.branch_id)
+          .eq('account_status', 'ACTIVE');
+        if (filters.productType && filters.productType !== 'all') {
+          accountsQuery = accountsQuery.eq('product_type', filters.productType);
+        }
+
+        const { data: accounts } = await accountsQuery;
+        const revenue = accounts?.reduce((sum, a) => sum + (parseFloat(a.current_balance) || 0), 0) || 0;
+        const accountsCount = accounts?.length || 0;
+
+        let customersQuery = supabaseBanking
+          .from(TABLES.CUSTOMERS)
+          .select('customer_id')
+          .eq('branch_id', branch.branch_id)
+          .eq('is_active', true);
+        if (filters.customerSegment && filters.customerSegment !== 'all') {
+          customersQuery = customersQuery.eq('customer_segment', filters.customerSegment);
+        }
+        const { data: customers } = await customersQuery;
+
+        rows.push({
+          branch: branch.branch_name || `Branch ${branch.branch_id}`,
+          revenue,
+          customers: customers?.length || 0,
+          accounts: accountsCount,
+          averageBalance: accountsCount > 0 ? revenue / accountsCount : 0
+        });
+      }
+
+      // Sort by revenue desc
+      rows.sort((a,b) => b.revenue - a.revenue);
+      return { data: rows };
+    } catch (error) {
+      console.error('Error in getBranchPerformanceRaw:', error);
+      return { data: [] };
     }
   },
 
