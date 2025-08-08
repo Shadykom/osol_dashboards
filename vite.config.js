@@ -36,8 +36,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        // Ensure xlsx resolves to ESM build
-        "xlsx": path.resolve(__dirname, "./node_modules/xlsx/dist/xlsx.mjs"),
         // Ensure jspdf resolves correctly
         "jspdf": path.resolve(__dirname, "./node_modules/jspdf/dist/jspdf.es.min.js"),
         // Ensure jspdf-autotable resolves correctly
@@ -81,7 +79,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'xlsx/dist/xlsx.mjs', 'jspdf', 'jspdf-autotable', 'file-saver', 'html2canvas'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'xlsx', 'jspdf', 'jspdf-autotable', 'file-saver', 'html2canvas'],
       // Force re-optimization in development
       force: true
     }
