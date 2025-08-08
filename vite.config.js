@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'esnext', // Support top-level await
       rollupOptions: {
-        external: ['jspdf', 'jspdf-autotable', 'xlsx'],
+        external: ['jspdf', 'jspdf-autotable'],
         output: {
           manualChunks: {
             'lucide': ['lucide-react']
