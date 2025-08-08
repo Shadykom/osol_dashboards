@@ -404,21 +404,16 @@ const ModernSidebar = ({ isMobile }) => {
           !isOpen && !isMobile && "justify-center"
         )}>
           {(isOpen || isMobile) ? (
-            <div className="flex items-center gap-3">
-              <img 
-                src={osoulLogo} 
-                alt="Osoul" 
-                className="h-8 w-auto"
-              />
-              <span className="font-bold text-xl text-gray-900 dark:text-white">
-                {t('appName', 'Osoul')}
-              </span>
-            </div>
+            <img 
+              src={osoulLogo} 
+              alt="Osoul" 
+              className="h-12 w-auto"
+            />
           ) : (
             <img 
               src={osoulLogo} 
               alt="Osoul" 
-              className="h-8 w-auto"
+              className="h-12 w-auto"
               title={t('appName', 'Osoul')}
             />
           )}
