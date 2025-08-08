@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTL Sidebar Test - اختبار الشريط الجانبي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for RTL support */
+        [dir="rtl"] .sidebar {
+            right: 0;
+            left: auto;
+            border-left: 1px solid #e5e7eb;
+            border-right: none;
+        }
+        
+        [dir="rtl"] .main-content {
+            margin-right: 256px;
+            margin-left: 0;
+        }
+        
+        [dir="rtl"] .sidebar.collapsed {
+            width: 80px;
+        }
+        
+        [dir="rtl"] .main-content.sidebar-collapsed {
+            margin-right: 80px;
+        }
+        
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            [dir="rtl"] .sidebar {
+                transform: translateX(100%);
+            }
+            
+            [dir="rtl"] .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            [dir="rtl"] .main-content {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Sidebar -->
+    <aside class="sidebar fixed top-0 bottom-0 w-64 bg-white shadow-lg transition-all duration-300 z-50">
+        <div class="p-4 border-b">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold">أ</span>
+                    </div>
+                    <span class="font-bold text-xl">أصول</span>
+                </div>
+                <button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-lg md:hidden">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li>
+                    <a href="#" class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 text-blue-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span>لوحة التحكم</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <span>العملاء</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                        </svg>
+                        <span>الحسابات</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                        <span>التقارير</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="main-content transition-all duration-300">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="flex items-center justify-between h-16 px-4">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-lg md:hidden">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <h1 class="text-xl font-bold">نظرة عامة</h1>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleLanguage()" class="p-2 hover:bg-gray-100 rounded-lg flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                        </svg>
+                        <span>EN</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Page Content -->
+        <main class="p-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-2xl font-bold mb-4">لوحة التحكم الشاملة</h2>
+                <p class="text-gray-600 mb-6">مرحباً بك في لوحة التحكم. هذا مثال على واجهة مستخدم تدعم اللغة العربية مع شريط جانبي على اليمين.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-blue-50 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold mb-2">إجمالي الأصول</h3>
+                        <p class="text-3xl font-bold text-blue-600">SAR 7,600,904.00</p>
+                        <p class="text-sm text-green-600 mt-2">↑ 12.5% مقارنة بالفترة السابقة</p>
+                    </div>
+                    
+                    <div class="bg-green-50 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold mb-2">عدد العملاء</h3>
+                        <p class="text-3xl font-bold text-green-600">1,234</p>
+                        <p class="text-sm text-green-600 mt-2">↑ 8.3% مقارنة بالفترة السابقة</p>
+                    </div>
+                    
+                    <div class="bg-purple-50 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold mb-2">المعاملات النشطة</h3>
+                        <p class="text-3xl font-bold text-purple-600">456</p>
+                        <p class="text-sm text-red-600 mt-2">↓ 2.1% مقارنة بالفترة السابقة</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Mobile Overlay -->
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden" onclick="closeSidebar()"></div>
+    
+    <script>
+        let sidebarOpen = false;
+        
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebarOpen = !sidebarOpen;
+            
+            if (window.innerWidth <= 768) {
+                if (sidebarOpen) {
+                    sidebar.classList.add('open');
+                    overlay.classList.remove('hidden');
+                } else {
+                    sidebar.classList.remove('open');
+                    overlay.classList.add('hidden');
+                }
+            } else {
+                sidebar.classList.toggle('collapsed');
+                document.querySelector('.main-content').classList.toggle('sidebar-collapsed');
+            }
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.remove('open');
+            overlay.classList.add('hidden');
+            sidebarOpen = false;
+        }
+        
+        function toggleLanguage() {
+            const html = document.documentElement;
+            const isRTL = html.dir === 'rtl';
+            
+            if (isRTL) {
+                html.dir = 'ltr';
+                html.lang = 'en';
+                // Update text content to English
+                document.querySelector('h1').textContent = 'Dashboard Overview';
+                document.querySelector('h2').textContent = 'Comprehensive Dashboard';
+                // ... update other text elements
+            } else {
+                html.dir = 'rtl';
+                html.lang = 'ar';
+                // Update text content to Arabic
+                document.querySelector('h1').textContent = 'نظرة عامة';
+                document.querySelector('h2').textContent = 'لوحة التحكم الشاملة';
+                // ... update other text elements
+            }
+        }
+    </script>
+</body>
+</html>

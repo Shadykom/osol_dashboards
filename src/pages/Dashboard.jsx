@@ -2823,11 +2823,18 @@ export default function EnhancedDashboard() {
       {/* Header Section */}
       <div className="space-y-4">
         {/* Title and Actions */}
-                  <div className={cn("flex flex-col sm:items-center sm:justify-between gap-4", rtl.flexRowMobile)}>
-          <div className="flex items-center gap-2 sm:gap-4">
+        <div className={cn(
+          "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4",
+          rtl.isRTL && "sm:flex-row-reverse"
+        )}>
+          <div className={cn(
+            "flex items-center gap-2 sm:gap-4",
+            rtl.isRTL && "flex-row-reverse"
+          )}>
             <h1 className={cn(
               "font-bold",
-              isMobile ? "text-lg" : "text-xl sm:text-2xl"
+              isMobile ? "text-lg" : "text-xl sm:text-2xl",
+              rtl.isRTL && "text-right"
             )}>
               {t('dashboard.title', 'Comprehensive Dashboard')}
             </h1>
@@ -2839,7 +2846,10 @@ export default function EnhancedDashboard() {
             )}
           </div>
           
-          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <div className={cn(
+            "flex items-center gap-1 sm:gap-2 flex-wrap",
+            rtl.isRTL && "flex-row-reverse"
+          )}>
             <Button
               variant="ghost"
               size="sm"
