@@ -38,8 +38,9 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        // Let jspdf and jspdf-autotable resolve via package exports
-        // no xlsx alias
+        // Prefer ESM build of jspdf for bundlers
+        "jspdf": "jspdf/dist/jspdf.es.min.js",
+        // autotable resolves via package main, no special alias needed
       },
     },
     // Explicitly define environment variables for build
@@ -67,7 +68,8 @@ export default defineConfig(({ mode }) => {
             'lucide': ['lucide-react']
           }
         },
-        external: ['jspdf', 'jspdf-autotable', 'react-pdf', 'file-saver', 'html2canvas', 'xlsx']
+        // Do not externalize libs; bundle them so bare specifiers are resolved
+        external: []
       },
       // Ensure proper handling of external dependencies
       commonjsOptions: {
@@ -75,8 +77,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist'],
-      exclude: ['xlsx', 'jspdf', 'jspdf-autotable', 'react-pdf', 'file-saver', 'html2canvas'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'html2canvas', 'jspdf', 'jspdf-autotable', 'file-saver', 'xlsx'],
+      exclude: [],
       // Force re-optimization in development
       force: true
     }
