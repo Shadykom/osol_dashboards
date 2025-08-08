@@ -280,7 +280,6 @@
       "avgLoanSize": "Average Loan Size",
       "average_balance": "Average Balance",
       
-      // snake_case keys used by widget ids
       "total_assets": "Total Assets",
       "performance_radar": "Performance Indicators",
       "monthly_revenue": "Monthly Revenue",
