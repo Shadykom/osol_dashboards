@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useFilters } from '@/contexts/FilterContext';
 
 const ModernDashboardCard = ({ 
   title, 
@@ -17,9 +18,23 @@ const ModernDashboardCard = ({
   className
 }) => {
   const navigate = useNavigate();
+  const { filters } = useFilters();
 
   const handleCardClick = () => {
-    navigate(`/dashboard/modern-detail/${cardType}`);
+    const basePath = `/dashboard/modern-detail/${cardType}`;
+
+    // Build query from current filters
+    const params = new URLSearchParams();
+    if (filters?.branch && filters.branch !== 'all') params.set('branch', filters.branch);
+    if (filters?.productType && filters.productType !== 'all') params.set('productType', filters.productType);
+    if (filters?.customerSegment && filters.customerSegment !== 'all') params.set('customerSegment', filters.customerSegment);
+    if (filters?.dateRange && filters.dateRange !== 'all') params.set('dateRange', filters.dateRange);
+    if (filters?.riskCategory && filters.riskCategory !== 'all') params.set('riskCategory', filters.riskCategory);
+    if (filters?.collectionStatus && filters.collectionStatus !== 'all') params.set('collectionStatus', filters.collectionStatus);
+    if (title) params.set('title', title);
+
+    const target = params.toString() ? `${basePath}?${params.toString()}` : basePath;
+    navigate(target);
   };
 
   const formatValue = (val) => {
