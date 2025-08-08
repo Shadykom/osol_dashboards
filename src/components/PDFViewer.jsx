@@ -5,8 +5,18 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Printer, X, Maxim
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
+// Dynamically load react-pdf styles in browser to avoid bundler resolution issues
+if (typeof document !== 'undefined') {
+  const ensureStyle = (href) => {
+    if (document.querySelector(`link[href='${href}']`)) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  };
+  ensureStyle('https://unpkg.com/react-pdf@7.7.4/dist/Page/AnnotationLayer.css');
+  ensureStyle('https://unpkg.com/react-pdf@7.7.4/dist/Page/TextLayer.css');
+}
 
 // Configure PDF.js worker with the correct approach for the current version
 const setupPdfWorker = () => {
