@@ -379,7 +379,7 @@ const ModernSidebar = ({ isMobile }) => {
         className={cn(
           "fixed lg:relative z-50 lg:z-0",
           "h-full bg-white dark:bg-gray-900",
-          isRTL ? "border-l right-0 lg:right-auto" : "border-r left-0 lg:left-auto",
+          isRTL ? "border-l" : "border-r",
           "border-gray-200 dark:border-gray-700",
           "transition-all duration-300 ease-in-out",
           "flex flex-col",
@@ -393,7 +393,9 @@ const ModernSidebar = ({ isMobile }) => {
           isMobile && (isOpen 
             ? "translate-x-0" 
             : (isRTL ? "translate-x-full" : "-translate-x-full")
-          )
+          ),
+          // Order in flex container for RTL
+          isRTL && "order-2"
         )}
       >
         {/* Header */}
