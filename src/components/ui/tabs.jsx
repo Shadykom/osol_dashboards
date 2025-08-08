@@ -27,13 +27,15 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
+        className,
+        // visual container
         "bg-gray-100/80 dark:bg-gray-800/50 backdrop-blur-sm",
-        // remove forced display/width so parent layout (grid/flex) can control alignment
-        // keep consistent sizing and visuals
-        "h-12 rounded-xl p-1",
-        "shadow-sm border border-gray-200 dark:border-gray-700",
-        isRTL && "rtl",
-        className
+        "rounded-xl p-1 shadow-sm border border-gray-200 dark:border-gray-700",
+        // enforce horizontal layout
+        "flex flex-row flex-wrap items-center gap-1 overflow-x-auto",
+        // sensible height without forcing fixed height
+        "min-h-[2.75rem]",
+        isRTL && "rtl"
       )}
       dir={isRTL ? "rtl" : "ltr"}
       {...props} />
@@ -51,7 +53,7 @@ function TabsTrigger({
       data-slot="tabs-trigger"
       className={cn(
         // Base styles
-        "inline-flex h-10 flex-1 items-center justify-center gap-2",
+        "inline-flex h-10 items-center justify-center gap-2",
         "rounded-lg px-4 py-2 text-sm font-medium",
         "whitespace-nowrap transition-all duration-200",
         "border border-transparent",
