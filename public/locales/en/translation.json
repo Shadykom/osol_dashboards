@@ -2907,6 +2907,7 @@
     "reports_customers": "Reports - Customers",
     "reports_risk": "Reports - Risk",
     "dashboard_templates": "Dashboard Templates",
+    "dashboard_testIncomeStatement": "Test Income Statement",
     "notFound": "Page Not Found"
   }
 }
