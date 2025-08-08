@@ -120,7 +120,9 @@
     "printPreview": "Print Preview",
     "printPreviewDescription": "Preview how the report will look when printed",
     "realtime": "Real-time",
-    "notConnected": "Not Connected"
+    "notConnected": "Not Connected",
+    "current": "Current",
+    "target": "Target"
   },
   "navigation": {
     "sections": {
