@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { FiLock, FiAlertCircle } from 'react-icons/fi';
+import { Lock as FiLock, AlertCircle as FiAlertCircle } from 'lucide-react';
 
 const ProtectedRoute = ({ 
   children, 

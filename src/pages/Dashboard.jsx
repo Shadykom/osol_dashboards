@@ -97,7 +97,7 @@ import { fixDashboardData, checkDatabaseStatus } from '@/utils/fixDashboardData'
 // Removed mock Supabase clients - using real database connections only
 
 // Import with fallback - using regular imports
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+// import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatNumber } from '@/utils/formatters';
 import { useIsMobile, responsiveClasses } from '@/utils/responsive';
 import { useRTLClasses } from '@/components/ui/rtl-wrapper';

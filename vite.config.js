@@ -36,6 +36,16 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        // Ensure xlsx resolves to ESM build
+        "xlsx": path.resolve(__dirname, "./node_modules/xlsx/dist/xlsx.mjs"),
+        // Ensure jspdf resolves correctly
+        "jspdf": path.resolve(__dirname, "./node_modules/jspdf/dist/jspdf.es.min.js"),
+        // Ensure jspdf-autotable resolves correctly
+        "jspdf-autotable": path.resolve(__dirname, "./node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.js"),
+        // Ensure file-saver resolves correctly
+        "file-saver": path.resolve(__dirname, "./node_modules/file-saver/dist/FileSaver.min.js"),
+        // Ensure html2canvas resolves correctly
+        "html2canvas": path.resolve(__dirname, "./node_modules/html2canvas/dist/html2canvas.esm.js")
       },
     },
     // Explicitly define environment variables for build
@@ -62,7 +72,8 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'lucide': ['lucide-react']
           }
-        }
+        },
+        external: []
       },
       // Ensure proper handling of external dependencies
       commonjsOptions: {
@@ -70,7 +81,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'xlsx/dist/xlsx.mjs', 'jspdf', 'jspdf-autotable', 'file-saver', 'html2canvas'],
       // Force re-optimization in development
       force: true
     }

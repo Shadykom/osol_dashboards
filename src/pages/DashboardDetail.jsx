@@ -147,13 +147,25 @@ export default function DashboardDetail() {
   const { t, i18n } = useTranslation();
   const isMobile = useIsMobile();
   const rtl = useRTLClasses();
-  const { filters } = useFilters();
+  const { filters, updateFilters } = useFilters();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [breakdown, setBreakdown] = useState(null);
   const [trends, setTrends] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Merge URL filters once on mount so detail respects originating dashboard state
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const urlFilters = {};
+    for (const [key, value] of searchParams.entries()) {
+      urlFilters[key] = value;
+    }
+    if (Object.keys(urlFilters).length > 0) {
+      updateFilters({ ...filters, ...urlFilters });
+    }
+  }, [location.search]);
 
   // Widget type configurations
   const widgetConfigs = {

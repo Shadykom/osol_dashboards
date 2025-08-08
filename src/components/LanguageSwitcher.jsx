@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { FiGlobe } from 'react-icons/fi';
+import { Globe as FiGlobe } from 'lucide-react';
 
 const LanguageSwitcher = ({ className = '' }) => {
   const { i18n } = useTranslation();

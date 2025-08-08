@@ -9,6 +9,8 @@ import Dashboard from '../pages/Dashboard.jsx';
 import DashboardDetail from '../pages/DashboardDetail.jsx';
 import DashboardReports from '../pages/DashboardReports.jsx';
 import TestIncomeStatement from '../pages/TestIncomeStatement.jsx';
+import DashboardDetailNew from '../pages/DashboardDetailNew.jsx';
+import ModernDashboardDetail from '../pages/ModernDashboardDetail.jsx';
 
 // Placeholder component for templates page
 const DashboardTemplates = () => <div>Dashboard templates placeholder</div>;
@@ -18,6 +20,8 @@ export const DashboardRoutes = () => {
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="detail/:section/:widgetId" element={<DashboardDetail />} />
+      <Route path="detail-new/:section/:widgetId" element={<DashboardDetailNew />} />
+      <Route path="modern-detail/:cardType" element={<ModernDashboardDetail />} />
       <Route path="reports" element={<DashboardReports />} />
       <Route path="test-income-statement" element={<TestIncomeStatement />} />
       <Route path="templates" element={<DashboardTemplates />} />

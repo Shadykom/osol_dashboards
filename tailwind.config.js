@@ -106,6 +106,16 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("tailwindcss-rtl")],
+  plugins: [
+    require("tailwindcss-animate"),
+    // Make RTL plugin optional to avoid build break if missing
+    (() => {
+      try {
+        return require("tailwindcss-rtl");
+      } catch (e) {
+        return () => {};
+      }
+    })(),
+  ],
 }
 
