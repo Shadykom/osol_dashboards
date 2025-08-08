@@ -28,7 +28,9 @@ function TabsList({
       data-slot="tabs-list"
       className={cn(
         "bg-gray-100/80 dark:bg-gray-800/50 backdrop-blur-sm",
-        "inline-flex h-12 w-fit items-center justify-center rounded-xl p-1",
+        // remove forced display/width so parent layout (grid/flex) can control alignment
+        // keep consistent sizing and visuals
+        "h-12 rounded-xl p-1",
         "shadow-sm border border-gray-200 dark:border-gray-700",
         isRTL && "rtl",
         className

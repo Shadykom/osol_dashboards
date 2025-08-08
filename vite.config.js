@@ -38,8 +38,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        // Use package entry for jspdf to avoid missing file errors
-        jspdf: 'jspdf',
       },
     },
     // Explicitly define environment variables for build
