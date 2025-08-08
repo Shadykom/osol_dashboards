@@ -4,6 +4,11 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { copyFileSync, mkdirSync, existsSync } from 'fs'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const xlsxPath = (() => {
+  try { return require.resolve('xlsx'); } catch { return null; }
+})();
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -43,7 +48,8 @@ export default defineConfig(({ mode }) => {
         // Ensure file-saver resolves correctly
         "file-saver": path.resolve(__dirname, "./node_modules/file-saver/dist/FileSaver.min.js"),
         // Ensure html2canvas resolves correctly
-        "html2canvas": path.resolve(__dirname, "./node_modules/html2canvas/dist/html2canvas.esm.js")
+        "html2canvas": path.resolve(__dirname, "./node_modules/html2canvas/dist/html2canvas.esm.js"),
+        ...(xlsxPath ? { "xlsx": xlsxPath } : {})
       },
     },
     // Explicitly define environment variables for build

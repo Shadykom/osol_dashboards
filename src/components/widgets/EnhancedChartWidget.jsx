@@ -32,7 +32,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import html2canvas from 'html2canvas';
-import * as XLSX from 'xlsx';
+import reportGenerator from '@/utils/reportGenerator';
 import { saveAs } from 'file-saver';
 
 // Chart components mapping
@@ -199,19 +199,12 @@ export function EnhancedChartWidget({
     }
   };
 
-  const exportAsExcel = () => {
-    if (!data) return;
-    
-    setIsExporting(true);
+  const exportToExcel = () => {
     try {
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, config.title || 'Data');
-      XLSX.writeFile(wb, `${config.title || 'chart'}-${Date.now()}.xlsx`);
+      const wb = reportGenerator.generateExcel({ sheet: data || [] }, 'widget', config.title || 'Chart Data');
+      reportGenerator.saveExcel(wb, config.title || 'chart-data');
     } catch (error) {
-      console.error('Error exporting Excel:', error);
-    } finally {
-      setIsExporting(false);
+      console.error('Excel export error:', error);
     }
   };
 
@@ -623,7 +616,7 @@ export function EnhancedChartWidget({
                       <FileText className="h-4 w-4 mr-2" />
                       Export as CSV
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={exportAsExcel} disabled={isExporting}>
+                    <DropdownMenuItem onClick={exportToExcel} disabled={isExporting}>
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                       Export as Excel
                     </DropdownMenuItem>
