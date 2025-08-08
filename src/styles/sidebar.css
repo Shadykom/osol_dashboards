@@ -185,3 +185,38 @@
   width: 100px;
   height: 100px;
 }
+
+/* RTL-specific sidebar navigation fixes */
+[dir="rtl"] .sidebar {
+  text-align: right;
+}
+
+/* Fix navigation item flex direction in RTL */
+[dir="rtl"] .sidebar button > div.flex-row-reverse {
+  gap: 0.75rem;
+}
+
+/* Ensure proper spacing for RTL navigation items */
+[dir="rtl"] .sidebar nav {
+  direction: rtl;
+}
+
+/* Fix icon positioning in RTL mode */
+[dir="rtl"] .sidebar .flex-row-reverse > div:first-child {
+  order: 1;
+}
+
+/* Section headers in RTL */
+[dir="rtl"] .sidebar h4 {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Fix chevron icon rotation in RTL */
+[dir="rtl"] .sidebar .rotate-180 {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .sidebar .rotate-180.rotate-90 {
+  transform: rotate(270deg);
+}
