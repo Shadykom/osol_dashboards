@@ -296,8 +296,8 @@ export function Accounts() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Accounts Management</h1>
-          <p className="text-muted-foreground">Manage and monitor all bank accounts</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('navigation.accounts','Accounts Management')}</h1>
+          <p className="text-muted-foreground">{t('accounts.pageSubtitle','Manage and monitor all bank accounts')}</p>
         </div>
         <Button className="gap-2" onClick={() => toast.info('New account functionality coming soon')}>
           <Plus className="h-4 w-4" />

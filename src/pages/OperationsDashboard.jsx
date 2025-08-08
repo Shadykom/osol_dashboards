@@ -332,9 +332,9 @@ export function OperationsDashboard() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Operations Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('navigation.operationsDashboard')}</h1>
           <p className="text-muted-foreground">
-            Real-time monitoring of banking operations and system performance
+            {t('navigation.operationsDashboardDesc')}
           </p>
         </div>
         

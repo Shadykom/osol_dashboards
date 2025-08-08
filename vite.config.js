@@ -38,8 +38,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        // Ensure rollup resolves html2canvas correctly
-        "html2canvas": "html2canvas/dist/html2canvas.esm.js"
       },
     },
     // Explicitly define environment variables for build
@@ -62,6 +60,7 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'esnext', // Support top-level await
       rollupOptions: {
+        external: ['jspdf', 'jspdf-autotable', 'xlsx', 'react-pdf', 'html2canvas'],
         output: {
           manualChunks: {
             'lucide': ['lucide-react']

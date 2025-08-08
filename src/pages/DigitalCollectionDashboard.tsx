@@ -667,7 +667,7 @@ const DigitalCollectionDashboard = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="text-center p-6 bg-gray-50 rounded-lg">
-                  <h3 className="font-semibold mb-4">Traditional Methods</h3>
+                  <h3 className="font-semibold mb-4">{t('digitalCollection.methods.traditional','Traditional Methods')}</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Phone Call</span>
@@ -684,7 +684,7 @@ const DigitalCollectionDashboard = () => {
                   </div>
                 </div>
                 <div className="text-center p-6 bg-green-50 rounded-lg">
-                  <h3 className="font-semibold mb-4">Digital Methods</h3>
+                  <h3 className="font-semibold mb-4">{t('digitalCollection.methods.digital','Digital Methods')}</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>SMS</span>

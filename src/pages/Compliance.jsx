@@ -337,8 +337,8 @@ export function Compliance() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Compliance Dashboard</h1>
-          <p className="text-muted-foreground">Monitor regulatory compliance and risk management</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('navigation.compliance')}</h1>
+          <p className="text-muted-foreground">{t('navigation.complianceDesc')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => toast.success('Data refreshed')}>

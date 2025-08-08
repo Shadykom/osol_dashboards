@@ -833,6 +833,14 @@
       "description": "Current month performance compared to targets",
       "collectionTarget": "Collection Target",
       "monthComparison": "Month-over-Month Comparison"
+    },
+    "executiveDashboard": {
+      "title": "Executive Collection Dashboard",
+      "subtitle": "High-level overview of collections performance and portfolio health"
+    },
+    "specialistDashboard": {
+      "title": "Specialist Collection Dashboard",
+      "subtitle": "Worklist, tasks, and performance insights for collection specialists"
     }
   },
   "compliance": {

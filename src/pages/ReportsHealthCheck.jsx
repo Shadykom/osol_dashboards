@@ -245,8 +245,8 @@ const ReportsHealthCheck = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Reports Health Check</h1>
-          <p className="text-gray-600 mt-1">Verify all report functionalities and database connections</p>
+          <h1 className="text-3xl font-bold">{t('navigation.reports')}</h1>
+          <p className="text-gray-600 mt-1">{t('navigation.operationsDashboardDesc')}</p>
         </div>
         <Button 
           onClick={runTests} 
