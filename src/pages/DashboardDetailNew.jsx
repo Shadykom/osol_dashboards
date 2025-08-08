@@ -274,20 +274,18 @@ const DashboardDetailNew = () => {
   const [error, setError] = useState(null);
   const { t } = useTranslation();
   
-  // Parse filters from URL on mount
+  // Parse filters from URL on mount and merge into existing filters
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const urlFilters = {};
-    
-    // Extract filters from URL
+
     for (const [key, value] of searchParams.entries()) {
       urlFilters[key] = value;
     }
-    
-    // Update filter context if URL has filters
+
     if (Object.keys(urlFilters).length > 0) {
       console.log('Applying filters from URL:', urlFilters);
-      updateFilters(urlFilters);
+      updateFilters({ ...filters, ...urlFilters });
     }
   }, [location.search]);
 

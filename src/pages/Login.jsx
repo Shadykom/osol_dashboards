@@ -3,21 +3,21 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { 
-  FiUser, 
-  FiLock, 
-  FiEye, 
-  FiEyeOff, 
-  FiMail,
-  FiAlertCircle,
-  FiCheck,
-  FiChevronRight,
-  FiShield,
-  FiActivity,
-  FiTrendingUp,
-  FiUsers,
-  FiArrowRight,
-  FiArrowLeft
-} from 'react-icons/fi';
+  User as FiUser,
+  Lock as FiLock,
+  Eye as FiEye,
+  EyeOff as FiEyeOff,
+  Mail as FiMail,
+  AlertCircle as FiAlertCircle,
+  Check as FiCheck,
+  ChevronRight as FiChevronRight,
+  Shield as FiShield,
+  Activity as FiActivity,
+  TrendingUp as FiTrendingUp,
+  Users as FiUsers,
+  ArrowRight as FiArrowRight,
+  ArrowLeft as FiArrowLeft
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import osolLogo from '../assets/osol-logo.png';

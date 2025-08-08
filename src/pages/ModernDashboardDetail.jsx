@@ -266,7 +266,7 @@ const ModernListCard = ({ title, items, icon: Icon }) => {
 const ModernDashboardDetail = () => {
   const { cardType } = useParams();
   const navigate = useNavigate();
-  const { filters } = useFilters();
+  const { filters, updateFilters } = useFilters();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -325,6 +325,19 @@ const ModernDashboardDetail = () => {
   useEffect(() => {
     fetchData();
   }, [cardType, timeRange, filters]);
+
+  // Merge any URL filters passed from card click
+  useEffect(() => {
+    const search = window.location.search;
+    if (search) {
+      const params = new URLSearchParams(search);
+      const urlFilters = {};
+      params.forEach((v, k) => (urlFilters[k] = v));
+      if (Object.keys(urlFilters).length > 0) {
+        updateFilters({ ...filters, ...urlFilters });
+      }
+    }
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
