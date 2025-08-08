@@ -1310,10 +1310,10 @@ const DashboardDetailNew = () => {
                       data={detailData.raw.accounts.slice(0, 20)}
                       columns={[
                         { header: 'Account Number', accessor: (row) => row.account_number },
-                        { header: 'Customer', accessor: (row) => `${row.kastle_banking?.customers?.first_name || ''} ${row.kastle_banking?.customers?.last_name || ''}`.trim() || 'N/A' },
+                        { header: 'Customer', accessor: (row) => `${row.customers?.first_name || ''} ${row.customers?.last_name || ''}`.trim() || 'N/A' },
                         { header: 'Type', accessor: (row) => (
                           <Badge variant="outline">
-                            {row.kastle_banking?.account_types?.type_name || 'Unknown'}
+                                                          {row.account_types?.type_name || 'Unknown'}
                           </Badge>
                         )},
                         { header: 'Balance', accessor: (row) => formatCurrency(row.current_balance || 0) },

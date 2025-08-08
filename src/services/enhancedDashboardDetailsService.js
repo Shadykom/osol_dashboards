@@ -262,7 +262,7 @@ export const enhancedDashboardDetailsService = {
         .from(TABLES.ACCOUNTS)
         .select(`
           *,
-          kastle_banking.account_types!account_type_id (
+          account_types!account_type_id (
             type_name,
             account_category
           )
@@ -293,7 +293,7 @@ export const enhancedDashboardDetailsService = {
       // Account type breakdown for overview
       const accountTypes = {};
       accounts.forEach(account => {
-        const category = account.kastle_banking?.account_types?.account_category || 'Unknown';
+        const category = account.account_types?.account_category || 'Unknown';
         accountTypes[category] = (accountTypes[category] || 0) + 1;
       });
 
@@ -352,16 +352,16 @@ export const enhancedDashboardDetailsService = {
         newAccountsThisMonth: newAccountsThisMonth || 0,
         // Additional banking-specific metrics
         savingsAccounts: accounts.filter(acc => 
-          acc.kastle_banking?.account_types?.account_category === 'SAVINGS'
+          acc.account_types?.account_category === 'SAVINGS'
         ).length,
         currentAccounts: accounts.filter(acc => 
-          acc.kastle_banking?.account_types?.account_category === 'CURRENT'
+          acc.account_types?.account_category === 'CURRENT'
         ).length,
         totalSavingsBalance: accounts
-          .filter(acc => acc.kastle_banking?.account_types?.account_category === 'SAVINGS')
+          .filter(acc => acc.account_types?.account_category === 'SAVINGS')
           .reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0),
         totalCurrentBalance: accounts
-          .filter(acc => acc.kastle_banking?.account_types?.account_category === 'CURRENT')
+          .filter(acc => acc.account_types?.account_category === 'CURRENT')
           .reduce((sum, acc) => sum + parseFloat(acc.current_balance || 0), 0)
       };
     } catch (error) {
@@ -864,11 +864,11 @@ export const enhancedDashboardDetailsService = {
         .from(TABLES.ACCOUNTS)
         .select(`
           *,
-          kastle_banking.account_types!account_type_id (
+          account_types!account_type_id (
             type_name,
             account_category
           ),
-          kastle_banking.customers!customer_id (
+          customers!customer_id (
             customer_id,
             first_name,
             last_name
@@ -894,7 +894,7 @@ export const enhancedDashboardDetailsService = {
       // Breakdown by account category
       const byCategory = {};
       accounts.forEach(account => {
-        const category = account.kastle_banking?.account_types?.account_category || 'Unknown';
+        const category = account.account_types?.account_category || 'Unknown';
         if (!byCategory[category]) byCategory[category] = 0;
         byCategory[category] += parseFloat(account.current_balance || 0);
       });
@@ -902,7 +902,7 @@ export const enhancedDashboardDetailsService = {
       // Breakdown by account type
       const byAccountType = {};
       accounts.forEach(account => {
-        const type = account.kastle_banking?.account_types?.type_name || 'Unknown';
+        const type = account.account_types?.type_name || 'Unknown';
         if (!byAccountType[type]) byAccountType[type] = 0;
         byAccountType[type] += parseFloat(account.current_balance || 0);
       });
@@ -1028,11 +1028,11 @@ export const enhancedDashboardDetailsService = {
         .from(TABLES.ACCOUNTS)
         .select(`
           *,
-          kastle_banking.account_types!account_type_id (
+          account_types!account_type_id (
             type_name,
             account_category
           ),
-          kastle_banking.customers!customer_id (
+          customers!customer_id (
             customer_id,
             first_name,
             last_name,
