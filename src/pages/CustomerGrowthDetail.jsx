@@ -56,6 +56,41 @@ export default function CustomerGrowthDetail() {
   const [comparisonMode, setComparisonMode] = useState('none'); // none | branches | months
   const [comparisonData, setComparisonData] = useState(null);
 
+  // Add sorting and per-column filters for Recent Customers table
+  const [sortBy, setSortBy] = useState({ key: 'created_at', dir: 'desc' });
+  const [columnFilters, setColumnFilters] = useState({
+    customer_id: '',
+    name: '',
+    segment: '',
+    branch_id: '',
+    status: '',
+    accounts_count_min: '',
+    accounts_count_max: '',
+    accounts_active_min: '',
+    accounts_active_max: '',
+    balance_min: '',
+    balance_max: '',
+    loans_count_min: '',
+    loans_count_max: '',
+    outstanding_min: '',
+    outstanding_max: '',
+    created_from: '',
+    created_to: ''
+  });
+
+  const updateColumnFilter = (key, value) => {
+    setColumnFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSort = (key) => {
+    setSortBy(prev => {
+      if (prev.key === key) {
+        return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, dir: 'asc' };
+    });
+  };
+
   const fetchPageData = async () => {
     setLoading(true);
     setError(null);
@@ -173,16 +208,93 @@ export default function CustomerGrowthDetail() {
   };
 
   const filteredCustomers = useMemo(() => {
-    if (!query) return customers;
-    const q = query.toLowerCase();
-    return customers.filter(c =>
-      (c.full_name || `${c.first_name || ''} ${c.last_name || ''}` || '')
-        .toLowerCase()
-        .includes(q) ||
-      (c.customer_id || '').toLowerCase().includes(q) ||
-      (c.customer_segment || '').toLowerCase().includes(q)
-    );
-  }, [customers, query]);
+    const q = (query || '').toLowerCase();
+    return customers.filter(c => {
+      // Global text search
+      const name = (c.full_name || `${c.first_name || ''} ${c.last_name || ''}` || '').toLowerCase();
+      const segment = (c.customer_segment || c.customer_type || '').toLowerCase();
+      const matchesQuery = !q || name.includes(q) || (c.customer_id || '').toLowerCase().includes(q) || segment.includes(q);
+
+      // Column filters
+      const cf = columnFilters;
+      const idOk = !cf.customer_id || (c.customer_id || '').toLowerCase().includes(cf.customer_id.toLowerCase());
+      const nameOk = !cf.name || name.includes(cf.name.toLowerCase());
+      const segOk = !cf.segment || segment.includes(cf.segment.toLowerCase());
+      const branchOk = !cf.branch_id || (c.branch_id || '').toLowerCase().includes(cf.branch_id.toLowerCase());
+      const statusOk = !cf.status || (c.customer_status || 'ACTIVE').toLowerCase().includes(cf.status.toLowerCase());
+
+      const accountsCount = Number(c.accounts?.count || 0);
+      const accountsActive = Number(c.accounts?.active || 0);
+      const balance = Number(c.accounts?.balance || 0);
+      const loansCount = Number(c.loans?.count || 0);
+      const outstanding = Number(c.loans?.outstanding || 0);
+      const createdAt = c.created_at ? new Date(c.created_at) : null;
+
+      const numInRange = (val, min, max) => {
+        const minOk = min === '' || (Number.isFinite(Number(min)) && val >= Number(min));
+        const maxOk = max === '' || (Number.isFinite(Number(max)) && val <= Number(max));
+        return minOk && maxOk;
+      };
+
+      const accCountOk = numInRange(accountsCount, cf.accounts_count_min, cf.accounts_count_max);
+      const accActiveOk = numInRange(accountsActive, cf.accounts_active_min, cf.accounts_active_max);
+      const balOk = numInRange(balance, cf.balance_min, cf.balance_max);
+      const loansCountOk = numInRange(loansCount, cf.loans_count_min, cf.loans_count_max);
+      const outstandingOk = numInRange(outstanding, cf.outstanding_min, cf.outstanding_max);
+      const createdFromOk = !cf.created_from || (createdAt && createdAt >= new Date(cf.created_from));
+      const createdToOk = !cf.created_to || (createdAt && createdAt <= new Date(cf.created_to));
+
+      return (
+        matchesQuery && idOk && nameOk && segOk && branchOk && statusOk &&
+        accCountOk && accActiveOk && balOk && loansCountOk && outstandingOk &&
+        createdFromOk && createdToOk
+      );
+    });
+  }, [customers, query, columnFilters]);
+
+  const sortedCustomers = useMemo(() => {
+    const list = [...filteredCustomers];
+    const dir = sortBy.dir === 'asc' ? 1 : -1;
+
+    const getVal = (c) => {
+      switch (sortBy.key) {
+        case 'customer_id':
+          return c.customer_id || '';
+        case 'name':
+          return c.full_name || `${c.first_name || ''} ${c.last_name || ''}`;
+        case 'segment':
+          return c.customer_segment || c.customer_type || '';
+        case 'branch_id':
+          return c.branch_id || '';
+        case 'status':
+          return c.customer_status || 'ACTIVE';
+        case 'accounts_count':
+          return Number(c.accounts?.count || 0);
+        case 'accounts_active':
+          return Number(c.accounts?.active || 0);
+        case 'balance':
+          return Number(c.accounts?.balance || 0);
+        case 'loans_count':
+          return Number(c.loans?.count || 0);
+        case 'outstanding':
+          return Number(c.loans?.outstanding || 0);
+        case 'created_at':
+          return c.created_at ? new Date(c.created_at).getTime() : 0;
+        default:
+          return 0;
+      }
+    };
+
+    list.sort((a, b) => {
+      const va = getVal(a);
+      const vb = getVal(b);
+      if (typeof va === 'number' && typeof vb === 'number') {
+        return (va - vb) * dir;
+      }
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+    return list;
+  }, [filteredCustomers, sortBy]);
 
   return (
     <div className="space-y-6">
@@ -290,21 +402,75 @@ export default function CustomerGrowthDetail() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Segment</TableHead>
-                      <TableHead>Branch</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Accounts</TableHead>
-                      <TableHead>Active</TableHead>
-                      <TableHead>Balance (SAR)</TableHead>
-                      <TableHead>Loans</TableHead>
-                      <TableHead>Outstanding (SAR)</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('customer_id')}>ID {sortBy.key==='customer_id' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>Name {sortBy.key==='name' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('segment')}>Segment {sortBy.key==='segment' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('branch_id')}>Branch {sortBy.key==='branch_id' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('status')}>Status {sortBy.key==='status' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('accounts_count')}>Accounts {sortBy.key==='accounts_count' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('accounts_active')}>Active {sortBy.key==='accounts_active' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('balance')}>Balance (SAR) {sortBy.key==='balance' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('loans_count')}>Loans {sortBy.key==='loans_count' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('outstanding')}>Outstanding (SAR) {sortBy.key==='outstanding' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('created_at')}>Created {sortBy.key==='created_at' ? (sortBy.dir==='asc' ? '▲' : '▼') : ''}</TableHead>
+                    </TableRow>
+                    {/* Filters row */}
+                    <TableRow>
+                      <TableHead>
+                        <Input placeholder="ID" value={columnFilters.customer_id} onChange={(e)=>updateColumnFilter('customer_id', e.target.value)} className="h-8" />
+                      </TableHead>
+                      <TableHead>
+                        <Input placeholder="Name" value={columnFilters.name} onChange={(e)=>updateColumnFilter('name', e.target.value)} className="h-8" />
+                      </TableHead>
+                      <TableHead>
+                        <Input placeholder="Segment" value={columnFilters.segment} onChange={(e)=>updateColumnFilter('segment', e.target.value)} className="h-8" />
+                      </TableHead>
+                      <TableHead>
+                        <Input placeholder="Branch" value={columnFilters.branch_id} onChange={(e)=>updateColumnFilter('branch_id', e.target.value)} className="h-8" />
+                      </TableHead>
+                      <TableHead>
+                        <Input placeholder="Status" value={columnFilters.status} onChange={(e)=>updateColumnFilter('status', e.target.value)} className="h-8" />
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex gap-1">
+                          <Input type="number" placeholder="min" value={columnFilters.accounts_count_min} onChange={(e)=>updateColumnFilter('accounts_count_min', e.target.value)} className="h-8 w-20" />
+                          <Input type="number" placeholder="max" value={columnFilters.accounts_count_max} onChange={(e)=>updateColumnFilter('accounts_count_max', e.target.value)} className="h-8 w-20" />
+                        </div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex gap-1">
+                          <Input type="number" placeholder="min" value={columnFilters.accounts_active_min} onChange={(e)=>updateColumnFilter('accounts_active_min', e.target.value)} className="h-8 w-20" />
+                          <Input type="number" placeholder="max" value={columnFilters.accounts_active_max} onChange={(e)=>updateColumnFilter('accounts_active_max', e.target.value)} className="h-8 w-20" />
+                        </div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex gap-1">
+                          <Input type="number" placeholder="min" value={columnFilters.balance_min} onChange={(e)=>updateColumnFilter('balance_min', e.target.value)} className="h-8 w-24" />
+                          <Input type="number" placeholder="max" value={columnFilters.balance_max} onChange={(e)=>updateColumnFilter('balance_max', e.target.value)} className="h-8 w-24" />
+                        </div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex gap-1">
+                          <Input type="number" placeholder="min" value={columnFilters.loans_count_min} onChange={(e)=>updateColumnFilter('loans_count_min', e.target.value)} className="h-8 w-20" />
+                          <Input type="number" placeholder="max" value={columnFilters.loans_count_max} onChange={(e)=>updateColumnFilter('loans_count_max', e.target.value)} className="h-8 w-20" />
+                        </div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex gap-1">
+                          <Input type="number" placeholder="min" value={columnFilters.outstanding_min} onChange={(e)=>updateColumnFilter('outstanding_min', e.target.value)} className="h-8 w-24" />
+                          <Input type="number" placeholder="max" value={columnFilters.outstanding_max} onChange={(e)=>updateColumnFilter('outstanding_max', e.target.value)} className="h-8 w-24" />
+                        </div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex gap-1">
+                          <Input type="date" value={columnFilters.created_from} onChange={(e)=>updateColumnFilter('created_from', e.target.value)} className="h-8" />
+                          <Input type="date" value={columnFilters.created_to} onChange={(e)=>updateColumnFilter('created_to', e.target.value)} className="h-8" />
+                        </div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCustomers.map((c) => (
+                    {sortedCustomers.map((c) => (
                       <TableRow key={c.customer_id}>
                         <TableCell className="font-medium">{c.customer_id}</TableCell>
                         <TableCell>{c.full_name || `${c.first_name || ''} ${c.last_name || ''}`}</TableCell>
@@ -319,7 +485,7 @@ export default function CustomerGrowthDetail() {
                         <TableCell>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</TableCell>
                       </TableRow>
                     ))}
-                    {filteredCustomers.length === 0 && (
+                    {sortedCustomers.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={11} className="text-center text-gray-500">No customers found</TableCell>
                       </TableRow>
