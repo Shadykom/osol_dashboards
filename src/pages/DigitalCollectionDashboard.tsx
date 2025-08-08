@@ -248,7 +248,7 @@ const DigitalCollectionDashboard = () => {
 
       {/* Main Content */}
       <Tabs defaultValue="channels" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="w-full">
           <TabsTrigger value="channels">{t('digitalCollection.tabs.channels')}</TabsTrigger>
           <TabsTrigger value="automation">{t('digitalCollection.tabs.automation')}</TabsTrigger>
           <TabsTrigger value="payments">{t('digitalCollection.tabs.payments')}</TabsTrigger>

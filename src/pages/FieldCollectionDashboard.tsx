@@ -676,7 +676,7 @@ const FieldCollectionDashboard = () => {
 
       {/* Main Content */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="w-full">
           <TabsTrigger value="overview">{t('executiveCollection.fieldCollection.tabs.overview')}</TabsTrigger>
           <TabsTrigger value="agents">{t('executiveCollection.fieldCollection.tabs.agents')}</TabsTrigger>
           <TabsTrigger value="visits">{t('executiveCollection.fieldCollection.tabs.visits')}</TabsTrigger>

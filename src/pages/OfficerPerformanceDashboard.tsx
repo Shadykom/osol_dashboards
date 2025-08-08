@@ -331,7 +331,7 @@ const OfficerPerformanceDashboard = () => {
 
       {/* Main Content */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="w-full">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="individual">Individual</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
