@@ -18,12 +18,42 @@ import {
   MapPin, MessageSquare, Mail, User, Zap, Eye, PhoneCall,
   UserCheck, UserX, Timer, Award, BarChart3
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { CollectionService } from '@/services/collectionService';
+import { supabaseCollection } from '@/lib/supabase';
 
 const DailyCollectionDashboard = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLive, setIsLive] = useState(true);
   const [selectedQueue, setSelectedQueue] = useState('all');
+
+  // Advanced filters
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<any>({
+    dateRange: { from: new Date(), to: new Date() },
+    branch: 'all',
+    team: 'all',
+    status: 'all',
+    bucket: 'all',
+    search: ''
+  });
+
+  // DB-backed summaries
+  const [summary, setSummary] = useState<any>({
+    totalCollected: 0,
+    totalCalls: 0,
+    ptpCreated: 0,
+    ptpKept: 0
+  });
+  const [dailyTrend, setDailyTrend] = useState<any[]>([]);
+  const [topOfficers, setTopOfficers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Update time every second for real-time feel
   useEffect(() => {
@@ -33,7 +63,7 @@ const DailyCollectionDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Mock real-time data
+  // Mock real-time data (kept as fallback visual)
   const morningSnapshot = {
     totalDueToday: 15500000,
     ptpDueToday: 8200000,
@@ -50,13 +80,14 @@ const DailyCollectionDashboard = () => {
     collectorsOnBreak: 8,
     totalCollectors: 105,
     
-    realTimePayments: 3250000,
-    paymentsCount: 234,
+    realTimePayments: summary.totalCollected,
+    paymentsCount: dailyTrend.reduce((sum, d) => sum + (d.payments || 0), 0),
     failedAttempts: 45,
     
-    contactSuccessRate: 68.5,
-    ptpObtained: 125,
-    ptpTarget: 180,
+    contactSuccessRate: topOfficers.length > 0 ?
+      (topOfficers.reduce((s, o) => s + (o.contactRate || 0), 0) / topOfficers.length) : 0,
+    ptpObtained: summary.ptpCreated,
+    ptpTarget: Math.max(summary.ptpCreated, 1) * 1.2,
     
     currentHourCollection: 850000,
     lastHourCollection: 720000,
@@ -78,6 +109,41 @@ const DailyCollectionDashboard = () => {
       { type: 'SYSTEM', message: `${t('dailyCollectionDashboard.criticalAlerts.system')}: IVR system response slow - IT investigating`, time: '09:45' }
     ]
   };
+
+  // Load DB data based on filters
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Performance and daily trends
+        const perf = await CollectionService.getCollectionPerformance('daily', {
+          branch: filters.branch,
+          team: filters.team,
+          status: filters.status,
+          dateFrom: filters?.dateRange?.from ? new Date(filters.dateRange.from).toISOString().split('T')[0] : undefined,
+          dateTo: filters?.dateRange?.to ? new Date(filters.dateRange.to).toISOString().split('T')[0] : undefined
+        });
+        if (perf.success) {
+          const p = perf.data;
+          setDailyTrend(p.dailyTrends || []);
+          setTopOfficers(p.topOfficers || []);
+          setSummary({
+            totalCollected: p.summary?.totalCollected || 0,
+            totalCalls: p.summary?.totalCalls || 0,
+            ptpCreated: p.summary?.totalPTPs || 0,
+            ptpKept: (p.dailyTrends || []).reduce((s, d) => s + (d.ptpKept || 0), 0)
+          });
+        }
+      } catch (e: any) {
+        console.error('Daily load error:', e);
+        setError(e?.message || 'Failed to load');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [filters.branch, filters.team, filters.status, filters.bucket, filters.dateRange?.from, filters.dateRange?.to]);
 
   const collectorActivity = [
     { name: 'Mohammed Ali', status: 'ON_CALL', duration: '5:23', customer: 'Tech Solutions Ltd', team: `${t('dailyCollectionDashboard.collectors.team')} A` },
@@ -182,6 +248,51 @@ const DailyCollectionDashboard = () => {
 
   return (
     <div className="space-y-6 p-6">
+      {/* Advanced Filters */}
+      <Card className="border border-dashed">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-base">{t('common.filters') || 'Filters'}</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setFiltersOpen(!filtersOpen)}>
+              {filtersOpen ? 'Hide' : 'Show'}
+            </Button>
+          </div>
+        </CardHeader>
+        {filtersOpen && (
+          <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div className="md:col-span-2">
+              <DateRangePicker value={filters.dateRange} onChange={(range: any) => setFilters((f: any) => ({ ...f, dateRange: range }))} />
+            </div>
+            <Select value={filters.branch} onValueChange={(v) => setFilters((f: any) => ({ ...f, branch: v }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filters.team} onValueChange={(v) => setFilters((f: any) => ({ ...f, team: v }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Team" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Teams</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filters.status} onValueChange={(v) => setFilters((f: any) => ({ ...f, status: v }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="CLOSED">Closed</SelectItem>
+                <SelectItem value="LEGAL">Legal</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        )}
+      </Card>
       {/* Header with Live Status */}
       <div className="flex justify-between items-center">
         <div>
@@ -307,6 +418,12 @@ const DailyCollectionDashboard = () => {
                   </div>
                   <p className="text-sm text-gray-600">{t('dailyCollectionDashboard.liveTracking.collectedSoFar')}</p>
                 </div>
+                {/* Add click-through to detail with filters */}
+                <div className="mb-4">
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/collection/daily/detail/payments`, { state: { filters } })}>
+                    View daily details
+                  </Button>
+                </div>
                 
                 <ScrollArea className="h-64">
                   <div className="space-y-2">
@@ -398,38 +515,11 @@ const DailyCollectionDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{liveTracking.activeCalls}</div>
-                <p className="text-xs text-gray-600">{t('dailyCollectionDashboard.liveTracking.avgCallDuration')}: {liveTracking.avgCallDuration}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Target className="h-4 w-4" />
-                  {t('dailyCollectionDashboard.liveTracking.contactSuccess')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{liveTracking.contactSuccessRate}%</div>
-                <Progress value={liveTracking.contactSuccessRate} className="mt-1 h-1" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  {t('dailyCollectionDashboard.liveTracking.ptpProgress')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {liveTracking.ptpObtained}/{liveTracking.ptpTarget}
+                <div className="mt-2">
+                  <Button size="sm" variant="ghost" onClick={() => navigate(`/collection/daily/detail/collectors`, { state: { filters } })}>
+                    Inspect collectors
+                  </Button>
                 </div>
-                <Progress 
-                  value={(liveTracking.ptpObtained / liveTracking.ptpTarget) * 100} 
-                  className="mt-1 h-1" 
-                />
               </CardContent>
             </Card>
 
@@ -437,14 +527,38 @@ const DailyCollectionDashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
-                  {t('dailyCollectionDashboard.liveTracking.hourlyTrend')}
+                  {t('dailyCollectionDashboard.liveTracking.ptpObtained')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {((liveTracking.currentHourCollection / liveTracking.lastHourCollection - 1) * 100).toFixed(1)}%
+                <div className="text-2xl font-bold">{liveTracking.ptpObtained}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  {t('dailyCollectionDashboard.liveTracking.collectorStatus')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{liveTracking.totalCollectors}</div>
+                <div className="mt-2">
+                  <Button size="sm" variant="ghost" onClick={() => navigate(`/collection/daily/detail/collectors`, { state: { filters } })}>
+                    View performance
+                  </Button>
                 </div>
-                <p className="text-xs text-green-600">{t('dailyCollectionDashboard.liveTracking.vsLastHour')}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {t('dailyCollectionDashboard.liveTracking.failedAttempts')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{liveTracking.failedAttempts}</div>
               </CardContent>
             </Card>
           </div>
@@ -799,6 +913,13 @@ const DailyCollectionDashboard = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Cases tile linking to details */}
+      <div>
+        <Button size="sm" variant="outline" onClick={() => navigate(`/collection/daily/detail/cases`, { state: { filters } })}>
+          View cases (filtered)
+        </Button>
+      </div>
     </div>
   );
 };

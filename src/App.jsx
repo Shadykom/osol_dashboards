@@ -69,6 +69,7 @@ import 'react-resizable/css/styles.css';
 import './App.css';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { testDashboardConsistency } from '@/utils/testDashboardConsistency';
+import DailyCollectionDetail from './pages/DailyCollectionDetail';
 
 // Route Redirect Component
 function RouteRedirect() {
@@ -372,6 +373,7 @@ function AppContent() {
           <Route path="/collection/cases/:caseId" element={<CollectionCaseDetails />} />
           <Route path="/collection/reports" element={<CollectionReports />} />
           <Route path="/collection/daily" element={<DailyCollectionDashboard />} />
+          <Route path="/collection/daily/detail/:metric" element={<DailyCollectionDetail />} />
           <Route path="/collection/digital" element={<DigitalCollectionDashboard />} />
           <Route path="/collection/early-warning" element={<EarlyWarningDashboard />} />
           <Route path="/collection/executive" element={<ExecutiveCollectionDashboard />} />
