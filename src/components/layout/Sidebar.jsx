@@ -429,40 +429,43 @@ function NavItem({ item, level = 0, isCollapsed, onNavigate }) {
             className={cn(
               "w-full justify-start gap-3 font-normal group hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 h-11 px-3 rounded-xl",
               level > 0 && (isRTL ? "mr-6 w-[calc(100%-1.5rem)]" : "ml-6 w-[calc(100%-1.5rem)]"),
-              isActive && "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-medium border-l-4 border-primary"
+              isActive && "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-medium",
+              isActive && (isRTL ? "border-r-4 border-primary" : "border-l-4 border-primary")
             )}
           >
-            {ItemIcon && (
-              <div className={cn(
-                "p-2 rounded-lg transition-colors",
-                isActive ? "bg-primary/10" : "bg-gray-100 dark:bg-gray-800 group-hover:bg-primary/10"
-              )}>
-                <ItemIcon className={cn(
-                  "h-4 w-4 transition-colors",
-                  isActive && "text-primary"
-                )} />
-              </div>
-            )}
-            {!isCollapsed && (
-              <>
-                <span className={cn("flex-1 text-sm", isRTL ? "text-right" : "text-left")}>{item.title}</span>
-                <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
-                  {item.badge && (
-                    <Badge 
-                      variant={item.badgeVariant || "secondary"} 
-                      className="h-5 px-1.5 text-xs font-medium"
-                    >
-                      {item.badge}
-                    </Badge>
-                  )}
-                  <ChevronRight className={cn(
-                    "h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground",
-                    isOpen && "rotate-90",
-                    isRTL && "rotate-180"
+            <div className={cn("flex items-center w-full", isRTL && "flex-row-reverse")}>
+              {ItemIcon && (
+                <div className={cn(
+                  "p-2 rounded-lg transition-colors flex-shrink-0",
+                  isActive ? "bg-primary/10" : "bg-gray-100 dark:bg-gray-800 group-hover:bg-primary/10"
+                )}>
+                  <ItemIcon className={cn(
+                    "h-4 w-4 transition-colors",
+                    isActive && "text-primary"
                   )} />
                 </div>
-              </>
-            )}
+              )}
+              {!isCollapsed && (
+                <div className={cn("flex items-center justify-between flex-1", isRTL ? "flex-row-reverse ml-3" : "mr-0")}>
+                  <span className={cn("text-sm", isRTL ? "text-right" : "text-left")}>{item.title}</span>
+                  <div className={cn("flex items-center gap-1", isRTL && "flex-row-reverse")}>
+                    {item.badge && (
+                      <Badge 
+                        variant={item.badgeVariant || "secondary"} 
+                        className="h-5 px-1.5 text-xs font-medium"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
+                    <ChevronRight className={cn(
+                      "h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground",
+                      isOpen && "rotate-90",
+                      isRTL && "rotate-180"
+                    )} />
+                  </div>
+                </div>
+              )}
+            </div>
           </Button>
         </CollapsibleTrigger>
         {!isCollapsed && (
@@ -482,14 +485,15 @@ function NavItem({ item, level = 0, isCollapsed, onNavigate }) {
       className={cn(
         "w-full justify-start gap-3 font-normal group hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent transition-all duration-200 h-11 px-3 rounded-xl",
         level > 0 && (isRTL ? "mr-6 w-[calc(100%-1.5rem)]" : "ml-6 w-[calc(100%-1.5rem)]"),
-        isActive && "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-medium border-l-4 border-primary"
+        isActive && "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-medium",
+        isActive && (isRTL ? "border-r-4 border-primary" : "border-l-4 border-primary")
       )}
       asChild
     >
-      <Link to={item.href} onClick={onNavigate}>
+      <Link to={item.href} onClick={onNavigate} className={cn("flex items-center", isRTL && "flex-row-reverse")}>
         {ItemIcon && (
           <div className={cn(
-            "p-2 rounded-lg transition-colors",
+            "p-2 rounded-lg transition-colors flex-shrink-0",
             isActive ? "bg-primary/10" : "bg-gray-100 dark:bg-gray-800 group-hover:bg-primary/10"
           )}>
             <ItemIcon className={cn(
@@ -499,8 +503,8 @@ function NavItem({ item, level = 0, isCollapsed, onNavigate }) {
           </div>
         )}
         {!isCollapsed && (
-          <>
-            <span className={cn("flex-1 text-sm", isRTL ? "text-right" : "text-left")}>{item.title}</span>
+          <div className={cn("flex items-center justify-between flex-1", isRTL && "flex-row-reverse")}>
+            <span className={cn("text-sm", isRTL ? "text-right mr-3" : "text-left ml-0")}>{item.title}</span>
             {item.badge && (
               <Badge 
                 variant={item.badgeVariant || "secondary"} 
@@ -509,7 +513,7 @@ function NavItem({ item, level = 0, isCollapsed, onNavigate }) {
                 {item.badge}
               </Badge>
             )}
-          </>
+          </div>
         )}
       </Link>
     </Button>
@@ -738,7 +742,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileSheet = false, mo
               {!isCollapsed && section.title && (
                 <h4 className={cn(
                   "mb-3 px-3 text-xs font-semibold uppercase text-muted-foreground/60 tracking-wider",
-                  isRTL && "text-right"
+                  isRTL ? "text-right" : "text-left"
                 )}>
                   {section.title}
                 </h4>
