@@ -44,6 +44,8 @@ import { enhancedDashboardDetailsService } from '../services/enhancedDashboardDe
 import { useFilters } from '../contexts/FilterContext';
 import { ChartWidget } from '../components/widgets/ChartWidget';
 import { cn } from '../lib/utils';
+// Add Recharts imports for radar chart rendering
+import { ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend as RechartsLegend, Tooltip as RechartsTooltip } from 'recharts';
 
 // Enhanced Stat Card Component with modern design
 const StatCard = ({ title, value, change, trend, description, icon: Icon, className, size = 'default' }) => {
@@ -419,7 +421,11 @@ const DashboardDetailNew = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-bold tracking-tight">
-                {detailData.metadata?.title || t('dashboard.widgets.totalAssets')}
+                {section === 'overview' && widgetId === 'performance_radar'
+                  ? t('dashboard.widgets.performanceIndicators')
+                  : section === 'overview' && widgetId === 'total_assets'
+                  ? t('dashboard.widgets.totalAssets')
+                  : (detailData.metadata?.title || t('dashboard.widgets.totalAssets'))}
               </h1>
               <Badge variant="outline" className="text-xs">
                 {t(`navigation.${section}`, section)}
@@ -516,6 +522,8 @@ const DashboardDetailNew = () => {
                 size="small"
               />
             </>
+          ) : (section === 'overview' && widgetId === 'performance_radar') ? (
+            <></>
           ) : (
             <>
               <StatCard
@@ -583,7 +591,34 @@ const DashboardDetailNew = () => {
             </div>
           ) : detailData.overview ? (
             <>
-              {section === 'customers' && widgetId === 'total_customers' ? (
+              {(section === 'overview' && widgetId === 'performance_radar' && Array.isArray(detailData.overview.data)) ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      {detailData.metadata?.title || t('dashboard.widgets.performanceIndicators')}
+                    </CardTitle>
+                    <CardDescription>
+                      {t('dashboard.chartTypes.performanceIndicator', 'Performance Indicator')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[400px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={detailData.overview.data} outerRadius="80%">
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="metric" />
+                          <PolarRadiusAxis />
+                          <Radar name={t('common.current', 'Current')} dataKey="A" stroke="#E6B800" fill="#E6B800" fillOpacity={0.6} />
+                          <Radar name={t('common.target', 'Target')} dataKey="B" stroke="#4A5568" fill="#4A5568" fillOpacity={0.3} />
+                          <RechartsLegend />
+                          <RechartsTooltip />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : section === 'customers' && widgetId === 'total_customers' ? (
                 <>
                   {/* Main Customer KPI Grid */}
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -822,7 +857,7 @@ const DashboardDetailNew = () => {
                   {/* Main KPI Grid */}
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard
-                      title={t('dashboard.totalAssets')}
+                      title={t('dashboard.widgets.totalAssets')}
                       value={formatCurrency(detailData.overview.totalAssets || 0)}
                       change={detailData.overview.change ? `${detailData.overview.change > 0 ? '+' : ''}${typeof detailData.overview.change === 'string' ? parseFloat(detailData.overview.change).toFixed(1) : detailData.overview.change.toFixed(1)}%` : null}
                       trend={detailData.overview.trend}
@@ -939,7 +974,7 @@ const DashboardDetailNew = () => {
               <CardContent className="py-8">
                 <div className="text-center">
                   <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">No overview data available</p>
+                  <p className="text-muted-foreground">{t('common.noData')}</p>
                 </div>
               </CardContent>
             </Card>
