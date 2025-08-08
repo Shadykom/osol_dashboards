@@ -82,14 +82,14 @@ export function Accounts() {
         .from(TABLES.ACCOUNTS)
         .select(`
           *,
-          kastle_banking.customers!customer_id (
+          customers!customer_id (
             customer_id,
             first_name,
             last_name,
             email,
             phone_number
           ),
-          kastle_banking.account_types!account_type_id (
+          account_types!account_type_id (
             type_id,
             type_code,
             type_name,
@@ -103,7 +103,7 @@ export function Accounts() {
       }
       
       if (filterType !== 'all') {
-        query = query.eq('kastle_banking.account_types.account_category', filterType.toUpperCase());
+        query = query.eq('account_types.account_category', filterType.toUpperCase());
       }
 
       const { data, error } = await query;
@@ -166,7 +166,7 @@ export function Accounts() {
         .from(TABLES.ACCOUNTS)
         .select(`
           account_type_id,
-          kastle_banking.account_types!account_type_id (
+          account_types!account_type_id (
             type_name,
             account_category
           )
@@ -174,7 +174,7 @@ export function Accounts() {
         .eq('account_status', 'ACTIVE');
 
       const typeCounts = typeData?.reduce((acc, curr) => {
-        const typeName = curr.kastle_banking?.account_types?.type_name || 'Unknown';
+        const typeName = curr.account_types?.type_name || 'Unknown';
         acc[typeName] = (acc[typeName] || 0) + 1;
         return acc;
       }, {});
@@ -503,7 +503,7 @@ export function Accounts() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {account.kastle_banking?.account_types?.type_name || account.account_type?.replace('_', ' ')}
+                            {account.account_types?.type_name || account.account_type?.replace('_', ' ') }
                           </Badge>
                         </TableCell>
                         <TableCell>SAR {parseFloat(account.current_balance).toLocaleString()}</TableCell>
