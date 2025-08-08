@@ -4,11 +4,8 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { copyFileSync, mkdirSync, existsSync } from 'fs'
-import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
-const xlsxPath = (() => {
-  try { return require.resolve('xlsx'); } catch { return null; }
-})();
+
+// xlsx is heavy; handle at runtime via dynamic import in code. No alias here.
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -41,15 +38,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        // Ensure jspdf resolves correctly
-        "jspdf": path.resolve(__dirname, "./node_modules/jspdf/dist/jspdf.es.min.js"),
-        // Ensure jspdf-autotable resolves correctly
-        "jspdf-autotable": path.resolve(__dirname, "./node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.js"),
-        // Ensure file-saver resolves correctly
-        "file-saver": path.resolve(__dirname, "./node_modules/file-saver/dist/FileSaver.min.js"),
-        // Ensure html2canvas resolves correctly
-        "html2canvas": path.resolve(__dirname, "./node_modules/html2canvas/dist/html2canvas.esm.js"),
-        ...(xlsxPath ? { "xlsx": xlsxPath } : {})
+        // Let jspdf and jspdf-autotable resolve via package exports
+        // no xlsx alias
       },
     },
     // Explicitly define environment variables for build
@@ -77,7 +67,7 @@ export default defineConfig(({ mode }) => {
             'lucide': ['lucide-react']
           }
         },
-        external: []
+        external: ['jspdf', 'jspdf-autotable', 'react-pdf', 'file-saver', 'html2canvas', 'xlsx']
       },
       // Ensure proper handling of external dependencies
       commonjsOptions: {
@@ -85,7 +75,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'xlsx', 'jspdf', 'jspdf-autotable', 'file-saver', 'html2canvas'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist'],
+      exclude: ['xlsx', 'jspdf', 'jspdf-autotable', 'react-pdf', 'file-saver', 'html2canvas'],
       // Force re-optimization in development
       force: true
     }

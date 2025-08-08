@@ -4,7 +4,14 @@
 // and handles data formatting, styling, and layout for professional reports.
 
 import html2canvas from 'html2canvas';
-import * as XLSX from 'xlsx';
+let __XLSX_MODULE = null;
+async function getXLSX() {
+  if (__XLSX_MODULE) return __XLSX_MODULE;
+  const mod = await import(/* @vite-ignore */ 'xlsx');
+  // Handle different export styles
+  __XLSX_MODULE = mod?.default || mod;
+  return __XLSX_MODULE;
+}
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { saveAs } from 'file-saver';
@@ -1044,6 +1051,7 @@ class ReportGenerator {
   // Generate Excel file
   async generateExcel(data, reportType, reportName, metadata = {}) {
     try {
+      const XLSX = await getXLSX();
       const wb = XLSX.utils.book_new();
       
       // Add metadata sheet with filters and report info
@@ -1107,6 +1115,7 @@ class ReportGenerator {
       return wb;
     } catch (error) {
       console.error('Error generating Excel:', error);
+      const XLSX = await getXLSX();
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet([{ error: 'Failed to generate report: ' + error.message }]);
       XLSX.utils.book_append_sheet(wb, ws, 'Error');
@@ -1123,9 +1132,10 @@ class ReportGenerator {
 
   // Save Excel
   saveExcel(wb, filename) {
-    if (wb) {
+    if (!wb) return;
+    getXLSX().then((XLSX) => {
       XLSX.writeFile(wb, `${filename}_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`);
-    }
+    }).catch((e) => console.error('xlsx writeFile failed', e));
   }
 
   // Get PDF blob for email attachment
@@ -1137,12 +1147,16 @@ class ReportGenerator {
   }
 
   // Get Excel blob for email attachment
-  getExcelBlob(wb) {
-    if (wb) {
+  async getExcelBlob(wb) {
+    if (!wb) return null;
+    try {
+      const XLSX = await getXLSX();
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    } catch (e) {
+      console.warn('getExcelBlob failed; returning null. Use saveExcel instead.', e);
+      return null;
     }
-    return null;
   }
 
   // Generate Regulatory Report PDF

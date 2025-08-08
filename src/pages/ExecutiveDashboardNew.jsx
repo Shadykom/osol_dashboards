@@ -23,6 +23,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
   LineChart,
   Line,
@@ -205,6 +207,7 @@ export function ExecutiveDashboardNew() {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [availableBranches, setAvailableBranches] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
+  const [showTransactions, setShowTransactions] = useState(true);
 
   // Explicit month/quarter/year selectors for custom comparisons
   const [comparisonSelectors, setComparisonSelectors] = useState({
@@ -419,11 +422,15 @@ export function ExecutiveDashboardNew() {
       };
 
       if (format === 'xlsx') {
-        const wb = reportGenerator.generateExcel(dataForExport, 'executiveDashboard', 'Executive Dashboard', {});
+        const wb = await reportGenerator.generateExcel(dataForExport, 'executiveDashboard', 'Executive Dashboard', {});
         reportGenerator.saveExcel(wb, 'executive-dashboard');
       } else if (format === 'csv') {
-        const wb = reportGenerator.generateExcel(dataForExport, 'executiveDashboard', 'Executive Dashboard', {});
-        const blob = reportGenerator.getExcelBlob(wb);
+        const wb = await reportGenerator.generateExcel(dataForExport, 'executiveDashboard', 'Executive Dashboard', {});
+        const blob = await reportGenerator.getExcelBlob(wb);
+        if (!blob) {
+          toast.error('CSV export unavailable. Please use Excel export.');
+          return;
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -641,9 +648,51 @@ export function ExecutiveDashboardNew() {
               />
             </div>
             
-            {/* Branch/Product selections could be here */}
+            {/* Branch selection */}
+            <div className="space-y-2">
+              <Label>Branches</Label>
+              <MultiSelect
+                options={availableBranches}
+                value={selectedBranches}
+                onChange={setSelectedBranches}
+                placeholder="Select branches"
+              />
+            </div>
+            
+            {/* Product selection */}
+            <div className="space-y-2">
+              <Label>Products</Label>
+              <MultiSelect
+                options={availableProducts}
+                value={selectedProducts}
+                onChange={setSelectedProducts}
+                placeholder="Select products"
+              />
+            </div>
           </div>
         </Card>
+
+        {/* Metric selector */}
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <Label className="text-sm">Metrics</Label>
+            {Object.entries(AVAILABLE_METRICS).map(([key, cfg]) => (
+              <div key={key} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`metric-${key}`}
+                  checked={selectedMetrics.includes(key)}
+                  onCheckedChange={(checked) => {
+                    setSelectedMetrics(prev => checked
+                      ? [...prev, key]
+                      : prev.filter(m => m !== key));
+                  }}
+                />
+                <Label htmlFor={`metric-${key}`}>{cfg.label}</Label>
+              </div>
+            ))}
+          </div>
+        </Card>
+
       </div>
  
       {/* KPI Cards */}
@@ -710,6 +759,53 @@ export function ExecutiveDashboardNew() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Row-level data: Recent Transactions */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Transactions</CardTitle>
+            <CardDescription>Latest activity within selected filters</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => exportData('xlsx')}>
+              <Download className="h-4 w-4 mr-2" /> Export
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="w-full overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(dashboardData?.recentTransactions || []).slice(0, 25).map((tx) => (
+                  <TableRow key={tx.id} className="hover:bg-muted/40">
+                    <TableCell>{new Date(tx.date).toLocaleString()}</TableCell>
+                    <TableCell>{tx.customer_name || '-'}</TableCell>
+                    <TableCell>{tx.account_number || '-'}</TableCell>
+                    <TableCell>{tx.type}</TableCell>
+                    <TableCell className="text-right">{tx.formatted_amount || tx.amount?.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={tx.status === 'COMPLETED' ? 'secondary' : tx.status === 'FAILED' ? 'destructive' : 'outline'}>
+                        {tx.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
