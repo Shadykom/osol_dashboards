@@ -37,7 +37,9 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src")
+        "@": path.resolve(__dirname, "./src"),
+        // Ensure consistent ESM build resolution for xlsx
+        "xlsx": path.resolve(__dirname, "./node_modules/xlsx/xlsx.mjs")
       },
     },
     // Explicitly define environment variables for build
