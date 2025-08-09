@@ -71,6 +71,9 @@ import ProfitMarginDetail from './pages/details/ProfitMarginDetail';
 import BranchPerformanceDetail from './pages/details/BranchPerformanceDetail';
 import ProductDistributionDetail from './pages/details/ProductDistributionDetail';
 import RiskMetricsDetail from './pages/details/RiskMetricsDetail';
+import DueAmountDetail from './pages/details/DueAmountDetail';
+import NonDueAmountDetail from './pages/details/NonDueAmountDetail';
+import OverdueAmountDetail from './pages/details/OverdueAmountDetail';
 import { EnhancedCustomDashboard } from '@/components/dashboard/EnhancedCustomDashboard';
 
 import { Toaster } from './components/ui/sonner';
@@ -320,7 +323,9 @@ function AppContent() {
           <Route path="/dashboard/branch-performance" element={<BranchPerformanceDetail />} />
           <Route path="/dashboard/product-distribution" element={<ProductDistributionDetail />} />
           <Route path="/dashboard/risk-metrics" element={<RiskMetricsDetail />} />
-          <Route path="/dashboard/cards-demo" element={<DashboardCardsDemo />} />
+          <Route path="/dashboard/total-due-amount" element={<DueAmountDetail />} />
+          <Route path="/dashboard/non-due-amount" element={<NonDueAmountDetail />} />
+          <Route path="/dashboard/overdue-amount" element={<OverdueAmountDetail />} />
           <Route path="/dashboard/reports" element={<DashboardReports />} />
           <Route path="/test-dashboard" element={<TestDashboardRouting />} />
           <Route path="/test-dashboard-detail-new" element={<TestDashboardDetailNew />} />
