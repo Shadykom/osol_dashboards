@@ -208,9 +208,10 @@ const ExecutiveDashboardComprehensive = () => {
           branch_id,
           product_id,
           transaction_amount,
-          transaction_type,
+          transaction_type_id,
           transaction_date,
-          customer_id
+          customer_id,
+          transaction_types!inner(type_name)
         `)
         .gte('transaction_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('transaction_date', format(dateRange.to, 'yyyy-MM-dd'));
@@ -240,11 +241,11 @@ const ExecutiveDashboardComprehensive = () => {
         const branchLoans = loanAccounts.filter(l => l.branch_id === branch.branch_id);
         
         const revenue = branchTransactions
-          .filter(t => ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_type))
+          .filter(t => t.transaction_types && ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_types.type_name))
           .reduce((sum, t) => sum + (t.transaction_amount || 0), 0);
         
         const deposits = branchTransactions
-          .filter(t => t.transaction_type === 'DEPOSIT')
+          .filter(t => t.transaction_types && t.transaction_types.type_name === 'DEPOSIT')
           .reduce((sum, t) => sum + (t.transaction_amount || 0), 0);
         
         const uniqueCustomers = new Set(branchTransactions.map(t => t.customer_id)).size;
@@ -285,7 +286,7 @@ const ExecutiveDashboardComprehensive = () => {
         const productLoans = loanAccounts.filter(l => l.product_id === product.product_id);
         
         const revenue = productTransactions
-          .filter(t => ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_type))
+          .filter(t => t.transaction_types && ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_types.type_name))
           .reduce((sum, t) => sum + (t.transaction_amount || 0), 0);
         
         const activeAccounts = productLoans.filter(l => l.account_status === 'ACTIVE').length;

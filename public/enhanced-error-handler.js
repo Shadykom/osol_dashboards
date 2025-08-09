@@ -18,7 +18,17 @@
     /inpage\.js/i,
     /contentscript\.js/i,
     /pageProvider\.js/i,
-    /injected.*\.js/i
+    /injected.*\.js/i,
+    /executive:1.*runtime\.lastError/i,
+    /content\.namada\.js/i,
+    /bundle\.js/i,
+    /inject\.js/i,
+    /early-error-handler\.js/i,
+    /enhanced-error-handler\.js/i,
+    /injected-penumbra-global\.js/i,
+    /injected-session\.js/i,
+    /Check phishing by URL/i,
+    /eth getParams/i
   ];
   
   // Store original console methods
