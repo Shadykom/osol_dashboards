@@ -307,6 +307,32 @@
 "accountsNote": "الأرصدة تشمل الحسابات والقروض النشطة",
 "byType": "حسب النوع",
 "productsAndAccounts": "أنواع الحسابات والقروض",
+"executive": {
+  "title": "لوحة التحكم التنفيذية",
+  "subtitle": "نظرة شاملة على العمليات المصرفية"
+},
+"tabs": {
+  "overview": "نظرة عامة",
+  "branches": "الفروع",
+  "products": "المنتجات",
+  "analysis": "التحليل"
+},
+"performanceOverview": "نظرة عامة على الأداء",
+"branchPerformanceMatrix": "مصفوفة أداء الفروع",
+"productMix": "مزيج المنتجات",
+"regionalDistribution": "التوزيع الإقليمي",
+"performanceRadar": "رادار الأداء",
+"branchComparison": "مقارنة الفروع",
+"branchRevenueComparison": "مقارنة إيرادات الفروع",
+"branchEfficiencyMatrix": "مصفوفة كفاءة الفروع",
+"productAnalysis": "تحليل المنتجات",
+"productDemographics": "التوزيع الديموغرافي للمنتجات",
+"productRiskProfile": "ملف مخاطر المنتج",
+"correlationAnalysis": "تحليل الارتباط",
+"correlationDescription": "تحليل العلاقات بين المقاييس المختلفة",
+"predictiveAnalytics": "التحليلات التنبؤية",
+"predictiveDescription": "رؤى وتوقعات مدعومة بالذكاء الاصطناعي",
+"comprehensiveTrendAnalysis": "تحليل شامل للاتجاهات",
 "byBranch": "حسب الفرع",
 "assetTrend": "اتجاه الأصول",
 "sections": {
