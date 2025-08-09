@@ -1,5 +1,6 @@
 // src/services/dashboardButtonService.js
 import reportGenerator from '@/utils/reportGenerator';
+import html2canvas from 'html2canvas';
 let __JSPDF_MODULE = null;
 async function getJsPDF() {
   if (__JSPDF_MODULE) return __JSPDF_MODULE;
@@ -249,7 +250,6 @@ export class DashboardButtonService {
       if (!element) {
         throw new Error('Dashboard element not found');
       }
-      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(element, {
         allowTaint: true,
         useCORS: true,
@@ -263,12 +263,12 @@ export class DashboardButtonService {
         a.download = `${filename}.png`;
         a.click();
         URL.revokeObjectURL(url);
-      });
+      }, 'image/png');
       console.log('Image export completed successfully.');
       return { success: true, message: 'Dashboard image exported successfully' };
     } catch (error) {
       console.error('Image export error:', error);
-      throw new Error('Failed to export dashboard as image');
+      throw new Error(`Failed to export dashboard as image: ${error.message}`);
     }
   }
 
