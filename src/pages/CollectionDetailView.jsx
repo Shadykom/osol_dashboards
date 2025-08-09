@@ -15,6 +15,7 @@ import {
   Download, Filter, RefreshCw
 } from 'lucide-react';
 import { CollectionService } from '../services/collectionService';
+import RawDataPanel from '@/components/RawDataPanel';
 
 const CollectionDetailView = () => {
   const { cardType } = useParams();
@@ -644,18 +645,7 @@ const CollectionDetailView = () => {
 
         <TabsContent value="details" className="space-y-4">
           {/* Raw data and export options */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Raw Data</CardTitle>
-              <CardDescription>Access to underlying data and export options</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <Download className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Raw data tables and export functionality will be available here</p>
-              </div>
-            </CardContent>
-          </Card>
+          <RawDataPanel title="Raw Data" description="Access to underlying data and export options" data={detailData?.rawRows || []} />
         </TabsContent>
       </Tabs>
     </div>
