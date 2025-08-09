@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import { CustomDashboard } from './pages/CustomDashboard';
 import { ExecutiveDashboard } from './pages/ExecutiveDashboard';
 import ExecutiveDashboardNew from './pages/ExecutiveDashboardNew';
+import ExecutiveDashboardComprehensive from './pages/ExecutiveDashboardComprehensive';
 import ExecutiveDashboardDetail from './pages/ExecutiveDashboardDetail';
 import { OperationsDashboard } from './pages/OperationsDashboard';
 import { Customers } from './pages/Customers';
@@ -329,7 +330,7 @@ function AppContent() {
               <CustomDashboard />
             </ErrorBoundary>
           } />
-          <Route path="/dashboards/executive" element={<ExecutiveDashboardNew />} />
+          <Route path="/dashboards/executive" element={<ExecutiveDashboardComprehensive />} />
           <Route path="/executive-dashboard/detail/:kpiType" element={<ExecutiveDashboardDetail />} />
           <Route path="/dashboards/operations" element={<OperationsDashboard />} />
           
