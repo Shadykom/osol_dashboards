@@ -30,7 +30,7 @@ import {
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadialBarChart, RadialBar,
-  ComposedChart, Scatter, Funnel, FunnelChart, LabelList
+  ComposedChart, Scatter, Funnel, FunnelChart, LabelList, ScatterChart
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
