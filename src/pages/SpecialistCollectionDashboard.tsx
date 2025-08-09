@@ -100,7 +100,14 @@ const SpecialistCollectionDashboard = () => {
   // US-006: Fetch portfolio summary
   const fetchPortfolioSummary = async () => {
     try {
-      const userId = (await supabase.auth.getUser()).data.user?.id;
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !userData?.user) {
+        console.warn('[EALAANI] User not authenticated in portfolio summary');
+        return;
+      }
+      
+      const userId = userData.user.id;
       
       // Fetch assigned cases summary
       const { data: cases, error } = await supabase
@@ -149,7 +156,14 @@ const SpecialistCollectionDashboard = () => {
   // US-007: Fetch assigned cases with details
   const fetchAssignedCases = async () => {
     try {
-      const userId = (await supabase.auth.getUser()).data.user?.id;
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !userData?.user) {
+        console.warn('[EALAANI] User not authenticated in assigned cases');
+        return;
+      }
+      
+      const userId = userData.user.id;
       
       let query = supabase
         .from('collection_cases')
@@ -201,7 +215,12 @@ const SpecialistCollectionDashboard = () => {
       if (caseId) {
         query = query.eq('case_id', caseId);
       } else {
-        const userId = (await supabase.auth.getUser()).data.user?.id;
+        const { data: userData, error: authError } = await supabase.auth.getUser();
+        if (authError || !userData?.user) {
+          console.warn('[EALAANI] User not authenticated in fetch interactions');
+          return;
+        }
+        const userId = userData.user.id;
         query = query.eq('officer_id', userId);
       }
       
@@ -223,7 +242,14 @@ const SpecialistCollectionDashboard = () => {
     if (!selectedCase || !ptpForm.amount || !ptpForm.date) return;
     
     try {
-      const userId = (await supabase.auth.getUser()).data.user?.id;
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !userData?.user) {
+        console.warn('[EALAANI] User not authenticated in record PTP');
+        return;
+      }
+      
+      const userId = userData.user.id;
       
       const { error } = await supabase
         .from('promise_to_pay')
@@ -261,7 +287,14 @@ const SpecialistCollectionDashboard = () => {
     if (!selectedCase) return;
     
     try {
-      const userId = (await supabase.auth.getUser()).data.user?.id;
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !userData?.user) {
+        console.warn('[EALAANI] User not authenticated in log interaction');
+        return;
+      }
+      
+      const userId = userData.user.id;
       
       const { error } = await supabase
         .from('collection_interactions')

@@ -146,6 +146,11 @@ function App() {
 
   // Set up mobile viewport
   useEffect(() => {
+    console.log('[EALAANI] App component mounted');
+    console.log('[EALAANI] Activating production error handler');
+    
+    // The AI service will be initialized via the production error fixes
+    // which handle CORS errors gracefully
     // Add viewport meta tag for proper mobile scaling
     const viewport = document.querySelector('meta[name="viewport"]');
     if (!viewport) {
