@@ -162,11 +162,11 @@ const ExecutiveDashboardComprehensive = () => {
       const { data: branchesData, error: branchesError } = await supabase
         .from('branches')
         .select(`
-          id,
-          name,
-          name_ar,
-          region,
+          branch_id,
+          branch_name,
           branch_code,
+          city,
+          region,
           is_active
         `)
         .eq('is_active', true);
@@ -177,10 +177,10 @@ const ExecutiveDashboardComprehensive = () => {
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select(`
-          id,
-          name,
-          name_ar,
-          product_category_id,
+          product_id,
+          product_name,
+          product_code,
+          category_id,
           is_active,
           product_categories (
             name,
@@ -226,8 +226,8 @@ const ExecutiveDashboardComprehensive = () => {
 
       // Process data for branches
       const processedBranches = branchesData.map(branch => {
-        const branchTransactions = transactions.filter(t => t.branch_id === branch.id);
-        const branchLoans = loanAccounts.filter(l => l.branch_id === branch.id);
+        const branchTransactions = transactions.filter(t => t.branch_id === branch.branch_id);
+        const branchLoans = loanAccounts.filter(l => l.branch_id === branch.branch_id);
         
         const revenue = branchTransactions
           .filter(t => ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_type))
@@ -244,9 +244,9 @@ const ExecutiveDashboardComprehensive = () => {
         const nplRatio = totalLoans > 0 ? (overdueLoans / totalLoans) * 100 : 0;
         
         return {
-          id: branch.id,
-          name: branch.name,
-          nameAr: branch.name_ar,
+          id: branch.branch_id,
+          name: branch.branch_name,
+          nameAr: branch.branch_name,
           region: branch.region,
           metrics: {
             revenue,
@@ -271,8 +271,8 @@ const ExecutiveDashboardComprehensive = () => {
 
       // Process data for products
       const processedProducts = productsData.map(product => {
-        const productTransactions = transactions.filter(t => t.product_id === product.id);
-        const productLoans = loanAccounts.filter(l => l.product_id === product.id);
+        const productTransactions = transactions.filter(t => t.product_id === product.product_id);
+        const productLoans = loanAccounts.filter(l => l.product_id === product.product_id);
         
         const revenue = productTransactions
           .filter(t => ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_type))
@@ -283,9 +283,9 @@ const ExecutiveDashboardComprehensive = () => {
         const avgBalance = activeAccounts > 0 ? totalBalance / activeAccounts : 0;
         
         return {
-          id: product.id,
-          name: product.name,
-          nameAr: product.name_ar,
+          id: product.product_id,
+          name: product.product_name,
+          nameAr: product.product_name,
           category: product.product_categories?.name || 'Uncategorized',
           metrics: {
             activeAccounts,
