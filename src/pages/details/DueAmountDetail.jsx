@@ -75,10 +75,6 @@ export default function DueAmountDetail() {
             last_name,
             phone,
             email
-          ),
-          loan_types (
-            type_name,
-            type_code
           )
         `)
         .in('loan_status', ['ACTIVE', 'NPA', 'RESTRUCTURED']);
@@ -102,8 +98,19 @@ export default function DueAmountDetail() {
         }
       }
 
-      const { data: loans, error } = await query;
+      const { data: loansRaw, error } = await query;
       if (error) throw error;
+
+      // Enrich with loan type names via a separate lookup
+      const { data: loanTypes } = await supabaseBanking
+        .from('loan_types')
+        .select('loan_type_id, type_name, type_code');
+      const typeById = (loanTypes || []).reduce((m, t) => { m[t.loan_type_id] = t; return m; }, {});
+
+      const loans = (loansRaw || []).map(l => ({
+        ...l,
+        loan_types: typeById[l.loan_type_id] || null,
+      }));
 
       // Calculate summary statistics
       const summary = {

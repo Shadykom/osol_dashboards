@@ -81,10 +81,6 @@ export default function OverdueAmountDetail() {
             phone,
             email,
             credit_score
-          ),
-          loan_types (
-            type_name,
-            type_code
           )
         `)
         .gt('overdue_days', 0)
@@ -117,8 +113,15 @@ export default function OverdueAmountDetail() {
         }
       }
 
-      const { data: loans, error } = await query;
+      const { data: loansRaw, error } = await query;
       if (error) throw error;
+
+      // Enrich with loan type names
+      const { data: loanTypes } = await supabaseBanking
+        .from('loan_types')
+        .select('loan_type_id, type_name, type_code');
+      const typeById = (loanTypes || []).reduce((m, t) => { m[t.loan_type_id] = t; return m; }, {});
+      const loans = (loansRaw || []).map(l => ({ ...l, loan_types: typeById[l.loan_type_id] || null }));
 
       // Fetch collection cases for these loans
       const loanNumbers = loans?.map(l => l.loan_account_number) || [];
