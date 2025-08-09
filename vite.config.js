@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
+        "@": path.resolve(__dirname, "./src")
       },
     },
     // Explicitly define environment variables for build
@@ -64,7 +64,9 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             'lucide': ['lucide-react']
           }
-        }
+        },
+        // Avoid bundling jspdf which we load dynamically at runtime
+        external: ['jspdf']
       },
       // Ensure proper handling of external dependencies
       commonjsOptions: {
@@ -72,8 +74,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'html2canvas', 'jspdf', 'jspdf-autotable', 'file-saver', 'xlsx', 'react-pdf'],
-      exclude: [],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'html2canvas', 'file-saver', 'xlsx', 'react-pdf'],
+      exclude: ['jspdf'],
       force: true
     }
   }
