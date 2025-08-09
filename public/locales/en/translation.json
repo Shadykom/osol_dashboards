@@ -570,6 +570,32 @@
 "accountsNote": "Balances include active accounts and loans",
 "byType": "By Type",
 "productsAndAccounts": "Account and loan types",
+"executive": {
+  "title": "Executive Dashboard",
+  "subtitle": "Comprehensive overview of banking operations"
+},
+"tabs": {
+  "overview": "Overview",
+  "branches": "Branches",
+  "products": "Products",
+  "analysis": "Analysis"
+},
+"performanceOverview": "Performance Overview",
+"branchPerformanceMatrix": "Branch Performance Matrix",
+"productMix": "Product Mix",
+"regionalDistribution": "Regional Distribution",
+"performanceRadar": "Performance Radar",
+"branchComparison": "Branch Comparison",
+"branchRevenueComparison": "Branch Revenue Comparison",
+"branchEfficiencyMatrix": "Branch Efficiency Matrix",
+"productAnalysis": "Product Analysis",
+"productDemographics": "Product Demographics",
+"productRiskProfile": "Product Risk Profile",
+"correlationAnalysis": "Correlation Analysis",
+"correlationDescription": "Analyze relationships between different metrics",
+"predictiveAnalytics": "Predictive Analytics",
+"predictiveDescription": "AI-driven insights and forecasts",
+"comprehensiveTrendAnalysis": "Comprehensive Trend Analysis",
 "byBranch": "By Branch",
 "assetTrend": "Asset Trend",
 "sections": {

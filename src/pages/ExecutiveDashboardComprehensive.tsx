@@ -27,10 +27,11 @@ import {
   ChevronDown, ChevronRight, Info, ArrowUpRight, ArrowDownRight,
   Briefcase, CreditCard, Banknote, TrendingUp as TrendIcon
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabaseBanking } from '@/lib/supabase';
 import { format, subMonths, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Define comprehensive metric types
 interface Metric {
@@ -95,6 +96,7 @@ const ExecutiveDashboardComprehensive = () => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   // State management
   const [loading, setLoading] = useState(true);
@@ -159,14 +161,14 @@ const ExecutiveDashboardComprehensive = () => {
       const dateRange = timeRange === 'custom' ? customDateRange : dateRanges[timeRange];
       
       // Fetch branches data
-      const { data: branchesData, error: branchesError } = await supabase
+      const { data: branchesData, error: branchesError } = await supabaseBanking
         .from('branches')
         .select(`
-          id,
-          name,
-          name_ar,
-          region,
+          branch_id,
+          branch_name,
           branch_code,
+          city,
+          region,
           is_active
         `)
         .eq('is_active', true);
@@ -174,13 +176,13 @@ const ExecutiveDashboardComprehensive = () => {
       if (branchesError) throw branchesError;
 
       // Fetch products data
-      const { data: productsData, error: productsError } = await supabase
+      const { data: productsData, error: productsError } = await supabaseBanking
         .from('products')
         .select(`
-          id,
-          name,
-          name_ar,
-          product_category_id,
+          product_id,
+          product_name,
+          product_code,
+          category_id,
           is_active,
           product_categories (
             name,
@@ -192,7 +194,7 @@ const ExecutiveDashboardComprehensive = () => {
       if (productsError) throw productsError;
 
       // Fetch transactions for metrics
-      const { data: transactions, error: transError } = await supabase
+      const { data: transactions, error: transError } = await supabaseBanking
         .from('transactions')
         .select(`
           branch_id,
@@ -208,7 +210,7 @@ const ExecutiveDashboardComprehensive = () => {
       if (transError) throw transError;
 
       // Fetch loan accounts
-      const { data: loanAccounts, error: loansError } = await supabase
+      const { data: loanAccounts, error: loansError } = await supabaseBanking
         .from('loan_accounts')
         .select(`
           id,
@@ -226,8 +228,8 @@ const ExecutiveDashboardComprehensive = () => {
 
       // Process data for branches
       const processedBranches = branchesData.map(branch => {
-        const branchTransactions = transactions.filter(t => t.branch_id === branch.id);
-        const branchLoans = loanAccounts.filter(l => l.branch_id === branch.id);
+        const branchTransactions = transactions.filter(t => t.branch_id === branch.branch_id);
+        const branchLoans = loanAccounts.filter(l => l.branch_id === branch.branch_id);
         
         const revenue = branchTransactions
           .filter(t => ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_type))
@@ -244,9 +246,9 @@ const ExecutiveDashboardComprehensive = () => {
         const nplRatio = totalLoans > 0 ? (overdueLoans / totalLoans) * 100 : 0;
         
         return {
-          id: branch.id,
-          name: branch.name,
-          nameAr: branch.name_ar,
+          id: branch.branch_id,
+          name: branch.branch_name,
+          nameAr: branch.branch_name,
           region: branch.region,
           metrics: {
             revenue,
@@ -271,8 +273,8 @@ const ExecutiveDashboardComprehensive = () => {
 
       // Process data for products
       const processedProducts = productsData.map(product => {
-        const productTransactions = transactions.filter(t => t.product_id === product.id);
-        const productLoans = loanAccounts.filter(l => l.product_id === product.id);
+        const productTransactions = transactions.filter(t => t.product_id === product.product_id);
+        const productLoans = loanAccounts.filter(l => l.product_id === product.product_id);
         
         const revenue = productTransactions
           .filter(t => ['LOAN_DISBURSEMENT', 'INTEREST_PAYMENT', 'FEE_PAYMENT'].includes(t.transaction_type))
@@ -283,9 +285,9 @@ const ExecutiveDashboardComprehensive = () => {
         const avgBalance = activeAccounts > 0 ? totalBalance / activeAccounts : 0;
         
         return {
-          id: product.id,
-          name: product.name,
-          nameAr: product.name_ar,
+          id: product.product_id,
+          name: product.product_name,
+          nameAr: product.product_name,
           category: product.product_categories?.name || 'Uncategorized',
           metrics: {
             activeAccounts,
@@ -464,19 +466,37 @@ const ExecutiveDashboardComprehensive = () => {
 
   const renderMetricCard = (metric: Metric) => (
     <Card key={metric.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{metric.name}</CardTitle>
-        <metric.icon className={cn("h-4 w-4", metric.color)} />
+      <CardHeader className={cn(
+        "flex flex-row items-center justify-between space-y-0 pb-2",
+        isRTL && "flex-row-reverse"
+      )}>
+        <CardTitle className={cn(
+          "text-xs sm:text-sm font-medium",
+          isRTL && "text-right"
+        )}>{metric.name}</CardTitle>
+        <metric.icon className={cn("h-3 w-3 sm:h-4 sm:w-4", metric.color)} />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{formatValue(metric.value, metric.unit)}</div>
+        <div className={cn(
+          "text-lg sm:text-xl md:text-2xl font-bold",
+          isRTL && "text-right"
+        )}>{formatValue(metric.value, metric.unit)}</div>
         
         {showComparison && (
-          <div className="flex items-center text-xs mt-2">
+          <div className={cn(
+            "flex items-center text-xs mt-2",
+            isRTL && "flex-row-reverse justify-end"
+          )}>
             {metric.changeType === 'positive' ? (
-              <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+              <TrendingUp className={cn(
+                "h-3 w-3 text-green-500",
+                isRTL ? "ml-1" : "mr-1"
+              )} />
             ) : metric.changeType === 'negative' ? (
-              <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+              <TrendingDown className={cn(
+                "h-3 w-3 text-red-500",
+                isRTL ? "ml-1" : "mr-1"
+              )} />
             ) : null}
             <span className={cn(
               "font-medium",
@@ -486,7 +506,10 @@ const ExecutiveDashboardComprehensive = () => {
             )}>
               {metric.change > 0 ? '+' : ''}{metric.change}%
             </span>
-            <span className="text-muted-foreground ml-1">{t('common.vsLastPeriod')}</span>
+            <span className={cn(
+              "text-muted-foreground",
+              isRTL ? "mr-1" : "ml-1"
+            )}>{t('common.vsLastPeriod')}</span>
           </div>
         )}
         
@@ -528,28 +551,45 @@ const ExecutiveDashboardComprehensive = () => {
   }
 
   return (
-    <div className={cn("p-6 space-y-6", isRTL && "rtl")}>
+    <div className={cn("p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6", isRTL && "rtl")}>
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className={cn(
+            "text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white",
+            isRTL && "text-right"
+          )}>
             {t('dashboard.executive.title')}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <p className={cn(
+            "text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1",
+            isRTL && "text-right"
+          )}>
             {t('dashboard.executive.subtitle')}
           </p>
         </div>
         
-        <div className="flex flex-wrap gap-2">
+        <div className={cn(
+          "flex flex-wrap gap-2 w-full lg:w-auto",
+          isRTL && "flex-row-reverse"
+        )}>
           {/* Time Range Selection */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {timeRange === 'custom' 
-                  ? `${format(customDateRange.from, 'PP')} - ${format(customDateRange.to, 'PP')}`
-                  : t(`dateRanges.${timeRange}`)
-                }
+              <Button variant="outline" className={cn(
+                "w-full sm:w-[240px] justify-start text-left font-normal text-xs sm:text-sm",
+                isRTL && "text-right"
+              )}>
+                <CalendarIcon className={cn(
+                  "h-3 w-3 sm:h-4 sm:w-4",
+                  isRTL ? "ml-2" : "mr-2"
+                )} />
+                <span className="truncate">
+                  {timeRange === 'custom' 
+                    ? `${format(customDateRange.from, 'PP')} - ${format(customDateRange.to, 'PP')}`
+                    : t(`dateRanges.${timeRange}`)
+                  }
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -691,22 +731,35 @@ const ExecutiveDashboardComprehensive = () => {
       </div>
 
       {/* Overall Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
         {overallMetrics.map(metric => renderMetricCard(metric))}
       </div>
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">{t('dashboard.tabs.overview')}</TabsTrigger>
-          <TabsTrigger value="branches">{t('dashboard.tabs.branches')}</TabsTrigger>
-          <TabsTrigger value="products">{t('dashboard.tabs.products')}</TabsTrigger>
-          <TabsTrigger value="analysis">{t('dashboard.tabs.analysis')}</TabsTrigger>
-        </TabsList>
+        <ScrollArea className="w-full">
+          <TabsList className={cn(
+            "grid w-full min-w-[400px] grid-cols-4",
+            isRTL && "flex-row-reverse"
+          )}>
+            <TabsTrigger value="overview" className="text-xs sm:text-sm">
+              {t('dashboard.tabs.overview')}
+            </TabsTrigger>
+            <TabsTrigger value="branches" className="text-xs sm:text-sm">
+              {t('dashboard.tabs.branches')}
+            </TabsTrigger>
+            <TabsTrigger value="products" className="text-xs sm:text-sm">
+              {t('dashboard.tabs.products')}
+            </TabsTrigger>
+            <TabsTrigger value="analysis" className="text-xs sm:text-sm">
+              {t('dashboard.tabs.analysis')}
+            </TabsTrigger>
+          </TabsList>
+        </ScrollArea>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {/* Performance Chart */}
             <Card>
               <CardHeader>
@@ -746,7 +799,7 @@ const ExecutiveDashboardComprehensive = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={isMobile ? 250 : 400}>
                   {chartType === 'composed' ? (
                     <ComposedChart data={performanceData}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -854,7 +907,7 @@ const ExecutiveDashboardComprehensive = () => {
                 <CardTitle>{t('dashboard.productMix')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={isMobile ? 200 : 300}>
                   <PieChart>
                     <Pie
                       data={products.map(p => ({
