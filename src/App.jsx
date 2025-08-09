@@ -48,6 +48,7 @@ import BranchReportDetail from '@/pages/collection/BranchReportDetail';
 import ProductReportPage from '@/pages/collection/ProductReport';
 import { NewSidebarDemo } from './pages/NewSidebarDemo';
 import { SimpleSidebarDemo } from './pages/SimpleSidebarDemo';
+import EnhancedBookingWorkflow from './pages/advertiser/EnhancedBookingWorkflow';
 import { BasicSidebarTest } from './pages/BasicSidebarTest';
 import TestModernLayout from './pages/TestModernLayout';
 import SimpleTest from './pages/SimpleTest';
@@ -372,6 +373,9 @@ function AppContent() {
           <Route path="/operations/users" element={<OperationsDashboard />} />
           <Route path="/operations/audit" element={<OperationsDashboard />} />
           <Route path="/operations/health" element={<OperationsDashboard />} />
+          
+          {/* Advertiser Routes */}
+          <Route path="/dashboard/advertiser/EnhancedBookingWorkflow" element={<EnhancedBookingWorkflow />} />
           
           {/* Other Routes */}
           <Route path="/analytics" element={<Analytics />} />
