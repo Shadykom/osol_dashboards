@@ -249,7 +249,7 @@ export class DashboardButtonService {
       if (!element) {
         throw new Error('Dashboard element not found');
       }
-      const { default: html2canvas } = await import('html2canvas/dist/html2canvas.js');
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(element, {
         allowTaint: true,
         useCORS: true,
