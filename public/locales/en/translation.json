@@ -239,10 +239,31 @@
     "assetCategories": "Asset Categories",
     "statusBreakdown": "Status Breakdown",
     "currencyDistribution": "Currency Distribution",
-    "topBranches": "Top Branches",
-    "kycStatus": "KYC Status",
-    "verificationStatus": "Verification Status",
-    "sections": {
+"topBranches": "Top Branches",
+"kycStatus": "KYC Status",
+"verificationStatus": "Verification Status",
+"totalAssets": "Total Assets",
+"totalAssetsSubtitle": "Detailed breakdown of deposits and loans",
+"performanceIndicators": "Performance Indicators",
+"performanceIndicatorsSubtitle": "Radar of core KPIs with context",
+"monthlyRevenue": "Monthly Revenue",
+"monthlyRevenueSubtitle": "Revenue and estimated profit by month",
+"transactionVolume": "Transaction Volume",
+"transactionVolumeSubtitle": "Counts and volumes by day and type",
+"productDistribution": "Product Distribution",
+"profitMargin": "Profit Margin",
+"riskMetrics": "Risk Metrics",
+"branchPerformance": "Branch Performance",
+"total": "Total",
+"deposits": "Deposits",
+"loans": "Loans",
+"accounts": "Accounts",
+"accountsNote": "Balances include active accounts and loans",
+"byType": "By Type",
+"productsAndAccounts": "Account and loan types",
+"byBranch": "By Branch",
+"assetTrend": "Asset Trend",
+"sections": {
       "overview": "Overview",
       "banking": "Banking Services",
       "lending": "Loans & Financing",
@@ -840,7 +861,91 @@
     },
     "specialistDashboard": {
       "title": "Specialist Collection Dashboard",
-      "subtitle": "Worklist, tasks, and performance insights for collection specialists"
+      "subtitle": "Worklist, tasks, and performance insights for collection specialists",
+      "activityLog": "Activity Log",
+      "metrics": {
+        "assignedCases": "Assigned Cases",
+        "activeCases": "Active cases",
+        "totalOverdue": "Total Overdue",
+        "inCollection": "In collection",
+        "collectedThisMonth": "Collected This Month",
+        "ofTarget": "of target",
+        "ptpScheduled": "PTP Scheduled",
+        "expectedCollection": "Expected collection",
+        "successRate": "Success Rate",
+        "contactSuccess": "Contact success"
+      },
+      "tabs": {
+        "cases": "Cases",
+        "todaysTasks": "Today's Tasks",
+        "interactions": "Interactions",
+        "performance": "Performance"
+      },
+      "filters": {
+        "title": "Filters",
+        "searchPlaceholder": "Search by loan, customer, or ID...",
+        "priority": "Priority",
+        "status": "Status"
+      },
+      "cases": {
+        "title": "Assigned Cases",
+        "description": "Cases assigned to you for action",
+        "loanId": "Loan ID",
+        "customer": "Customer",
+        "product": "Product",
+        "overdue": "Overdue",
+        "dpd": "DPD",
+        "priority": "Priority",
+        "nextAction": "Next Action"
+      },
+      "todaysTasks": {
+        "title": "Today's Tasks",
+        "description": "Actions due today across your cases",
+        "ptpDueToday": "PTP due today",
+        "ptpAmount": "PTP Amount",
+        "followUp": "Follow up",
+        "scheduledActions": "Scheduled follow-ups"
+      },
+      "interactions": {
+        "title": "Recent Interactions",
+        "description": "Most recent interactions across your portfolio"
+      },
+      "performance": {
+        "title": "Performance Overview",
+        "monthlyTrend": "Monthly Trend",
+        "callsMade": "Calls Made",
+        "successfulContacts": "Successful Contacts",
+        "ptpsSecured": "PTPs Secured",
+        "ptpKeptRate": "PTP Kept Rate",
+        "collectionBreakdown": "Collection Breakdown",
+        "regularPayments": "Regular Payments",
+        "settlements": "Settlements",
+        "restructured": "Restructured"
+      },
+      "ptp": {
+        "title": "Record Promise to Pay",
+        "amount": "Amount",
+        "amountPlaceholder": "Enter promised amount",
+        "totalOutstanding": "Total Outstanding",
+        "promiseDate": "Promise Date",
+        "notes": "Notes",
+        "notesPlaceholder": "Add any notes",
+        "schedule": "Schedule"
+      },
+      "logInteraction": {
+        "title": "Log Interaction",
+        "type": "Type",
+        "outcome": "Outcome",
+        "notes": "Notes",
+        "notesPlaceholder": "Write call notes...",
+        "nextAction": "Next Action",
+        "nextActionPlaceholder": "Describe the next action",
+        "nextActionDate": "Next Action Date"
+      },
+      "recommendedActions": {
+        "title": "Recommended Actions",
+        "execute": "Execute"
+      }
     }
   },
   "compliance": {
