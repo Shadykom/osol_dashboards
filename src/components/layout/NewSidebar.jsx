@@ -396,7 +396,8 @@ function NavigationItem({ item, isCollapsed, onItemClick, level = 0 }) {
         isActive 
           ? "bg-primary/10 text-primary border-r-2 border-primary" 
           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
-        isCollapsed ? "justify-center" : "justify-between"
+        isCollapsed ? "justify-center" : "justify-between",
+        isRTL && "flex-row-reverse"
       )}
       style={{ paddingLeft: isCollapsed ? undefined : `${12 + paddingLeft}px` }}
       onClick={handleClick}
@@ -409,7 +410,7 @@ function NavigationItem({ item, isCollapsed, onItemClick, level = 0 }) {
           )} />
         )}
         {!isCollapsed && (
-          <span className="truncate" dir={isRTL ? "rtl" : "ltr"}>
+          <span className={cn("truncate", isRTL ? "text-center w-full" : "")} dir={isRTL ? "rtl" : "ltr"}>
             {item.title}
           </span>
         )}
@@ -637,7 +638,7 @@ export function NewSidebar({
     )} dir={isRTL ? "rtl" : "ltr"}>
       
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+      <div className="flex items-center justify-center p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
         {!isCollapsed ? (
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -672,7 +673,8 @@ export function NewSidebar({
             variant="ghost"
             size="sm"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-8 w-8 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="h-8 w-8 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 absolute top-1/2 -translate-y-1/2"
+            style={{ [isRTL ? 'left' : 'right']: '1rem' }}
           >
             {isRTL ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
           </Button>

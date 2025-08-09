@@ -313,7 +313,8 @@ const ModernSidebar = ({ isMobile }) => {
           isActive && "bg-primary/10 text-primary dark:bg-primary/20",
           !isActive && "text-gray-700 dark:text-gray-300 hover:text-osoul-primary dark:hover:text-osoul-golden-400",
           level > 0 && paddingStart(level * 4),
-          !isOpen && !isMobile && "justify-center"
+          !isOpen && !isMobile && "justify-center",
+          isRTL && "flex-row-reverse"
         )}
         onClick={onClick}
         title={!isOpen && !isMobile ? item.label : undefined}
@@ -331,7 +332,7 @@ const ModernSidebar = ({ isMobile }) => {
           <>
             <span className={cn(
               "font-medium text-sm flex-1",
-              isRTL ? "text-right" : "text-left"
+              isRTL ? "text-center" : "text-left"
             )}>
               {item.label}
             </span>
@@ -400,7 +401,7 @@ const ModernSidebar = ({ isMobile }) => {
       >
         {/* Header */}
         <div className={cn(
-          "flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700",
+          "flex items-center justify-center p-4 border-b border-gray-200 dark:border-gray-700 relative",
           !isOpen && !isMobile && "justify-center"
         )}>
           {(isOpen || isMobile) ? (
@@ -421,7 +422,10 @@ const ModernSidebar = ({ isMobile }) => {
           {isMobile && (
             <button
               onClick={closeSidebar}
-              className="p-2 rounded-lg hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20 lg:hidden group"
+              className={cn(
+                "p-2 rounded-lg hover:bg-osoul-golden-100 dark:hover:bg-osoul-golden-900/20 lg:hidden group absolute top-1/2 -translate-y-1/2",
+                isRTL ? "left-4" : "right-4"
+              )}
               aria-label={t('common.closeSidebar')}
             >
               <X className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-osoul-primary dark:group-hover:text-osoul-golden-400" />
