@@ -168,7 +168,7 @@ const ExecutiveDashboardComprehensive = () => {
           branch_name,
           branch_code,
           city,
-          region,
+          region:state,
           is_active
         `)
         .eq('is_active', true);
