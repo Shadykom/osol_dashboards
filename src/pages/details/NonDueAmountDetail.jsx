@@ -78,10 +78,6 @@ export default function NonDueAmountDetail() {
             phone,
             email,
             credit_score
-          ),
-          loan_types (
-            type_name,
-            type_code
           )
         `)
         .eq('loan_status', 'ACTIVE')
@@ -95,8 +91,16 @@ export default function NonDueAmountDetail() {
         query = query.eq('loan_type_id', filters.loanType);
       }
 
-      const { data: loans, error } = await query;
+      const { data: loansRaw, error } = await query;
       if (error) throw error;
+
+      // Enrich with loan type names via separate query
+      const { data: loanTypes } = await supabaseBanking
+        .from('loan_types')
+        .select('loan_type_id, type_name, type_code');
+      const typeById = (loanTypes || []).reduce((m, t) => { m[t.loan_type_id] = t; return m; }, {});
+
+      const loans = (loansRaw || []).map(l => ({ ...l, loan_types: typeById[l.loan_type_id] || null }));
 
       // Calculate summary statistics
       const summary = {
