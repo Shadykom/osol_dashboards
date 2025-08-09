@@ -175,7 +175,19 @@ const ExecutiveDashboardComprehensive = () => {
 
       if (branchesError) throw branchesError;
 
-      // Fetch products data
+      // Fetch product categories separately to avoid implicit relationship requirement
+      const { data: categoriesData, error: categoriesError } = await supabaseBanking
+        .from('product_categories')
+        .select('category_id, category_name, name, name_ar');
+
+      if (categoriesError) throw categoriesError;
+
+      // Build a map of category_id -> category display name
+      const categoryNameById = Object.fromEntries(
+        (categoriesData || []).map(c => [c.category_id, c.category_name || c.name || 'Uncategorized'])
+      );
+
+      // Fetch products data (without nested relationship)
       const { data: productsData, error: productsError } = await supabaseBanking
         .from('products')
         .select(`
@@ -183,11 +195,7 @@ const ExecutiveDashboardComprehensive = () => {
           product_name,
           product_code,
           category_id,
-          is_active,
-          product_categories (
-            name,
-            name_ar
-          )
+          is_active
         `)
         .eq('is_active', true);
 
@@ -288,7 +296,7 @@ const ExecutiveDashboardComprehensive = () => {
           id: product.product_id,
           name: product.product_name,
           nameAr: product.product_name,
-          category: product.product_categories?.name || 'Uncategorized',
+          category: categoryNameById[product.category_id] || 'Uncategorized',
           metrics: {
             activeAccounts,
             revenue,
