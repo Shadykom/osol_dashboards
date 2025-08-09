@@ -60,6 +60,7 @@ import { cn } from '@/lib/utils';
 // Services
 import { DashboardService } from '@/services/dashboardService';
 import { CustomerService } from '@/services/customerService';
+import { DashboardTemplateService } from '@/services/dashboardTemplates';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -261,6 +262,8 @@ export function EnhancedCustomDashboard() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectedWidgetForConfig, setSelectedWidgetForConfig] = useState(null);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
 
   // Breakpoints for responsive design
   const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
@@ -548,9 +551,11 @@ export function EnhancedCustomDashboard() {
           title={widgetCatalog.name}
           description={widgetCatalog.description}
           data={chartData}
-          chartType={widgetCatalog.chartType}
+          chartType={config?.chartType || widgetCatalog.chartType}
           xAxisKey={type === 'transaction_trend' ? 'date' : 'name'}
           yAxisKey="value"
+          showGrid={config?.showGrid ?? true}
+          showLegend={config?.showLegend ?? false}
           isLoading={isLoading}
           onRemove={isEditMode ? () => removeWidget(widgetId) : undefined}
           onConfigure={isEditMode ? () => {
@@ -645,6 +650,18 @@ export function EnhancedCustomDashboard() {
             >
               <Save className="w-4 h-4 mr-2" />
               Save Dashboard
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setTemplateName(dashboardName || 'Custom Template');
+                setShowSaveTemplate(true);
+              }}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Save as Template
             </Button>
           </div>
         </div>
@@ -998,51 +1015,152 @@ export function EnhancedCustomDashboard() {
                 )}
               </div>
 
-              {/* Display Settings */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Display Settings</h4>
-                
-                <div className="flex items-center justify-between">
+              {/* Widget Settings (when a widget is selected for configuration) */}
+              {selectedWidgetForConfig && (
+                <div className="space-y-4 border-t pt-4">
                   <div>
-                    <Label htmlFor="grid-lines">Show Grid Lines</Label>
+                    <Label>Widget Settings</Label>
                     <p className="text-sm text-muted-foreground">
-                      Display grid lines in edit mode
+                      Configure: {selectedWidgetForConfig.id}
                     </p>
                   </div>
-                  <Switch
-                    id="grid-lines"
-                    checked={showGridLines}
-                    onCheckedChange={setShowGridLines}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="compact-mode">Compact Mode</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Reduce spacing between widgets
-                    </p>
+
+                  {selectedWidgetForConfig.category === 'charts' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="chart-type">Chart Type</Label>
+                        <Select
+                          value={(selectedWidgetForConfig.config?.chartType || WIDGET_CATALOG.charts.widgets[selectedWidgetForConfig.type]?.chartType || 'line')}
+                          onValueChange={(value) => {
+                            setSelectedWidgetForConfig(prev => ({
+                              ...prev,
+                              config: { ...prev.config, chartType: value }
+                            }));
+                          }}
+                        >
+                          <SelectTrigger id="chart-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="line">Line</SelectItem>
+                            <SelectItem value="area">Area</SelectItem>
+                            <SelectItem value="bar">Bar</SelectItem>
+                            <SelectItem value="pie">Pie</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Show Legend</Label>
+                        <Switch
+                          checked={selectedWidgetForConfig.config?.showLegend ?? false}
+                          onCheckedChange={(checked) => {
+                            setSelectedWidgetForConfig(prev => ({
+                              ...prev,
+                              config: { ...prev.config, showLegend: checked }
+                            }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Show Grid</Label>
+                        <Switch
+                          checked={selectedWidgetForConfig.config?.showGrid ?? true}
+                          onCheckedChange={(checked) => {
+                            setSelectedWidgetForConfig(prev => ({
+                              ...prev,
+                              config: { ...prev.config, showGrid: checked }
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedWidgetForConfig(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (selectedWidgetForConfig) {
+                          configureWidget(selectedWidgetForConfig.id, selectedWidgetForConfig.config || {});
+                        }
+                        setShowSettings(false);
+                        setSelectedWidgetForConfig(null);
+                        toast.success('Widget settings saved');
+                      }}
+                    >
+                      Save Widget
+                    </Button>
                   </div>
-                  <Switch
-                    id="compact-mode"
-                    checked={compactMode}
-                    onCheckedChange={setCompactMode}
-                  />
                 </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Save as Template Dialog */}
+        <Dialog open={showSaveTemplate} onOpenChange={setShowSaveTemplate}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Save as Template</DialogTitle>
+              <DialogDescription>
+                Name your template and save the current layout and widgets for reuse.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="template-name">Template Name</Label>
+                <Input
+                  id="template-name"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="e.g. My Executive Layout"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowSaveTemplate(false)}>Cancel</Button>
+                <Button
+                  onClick={() => {
+                    try {
+                      const widgetEntries = Array.from(widgets.entries());
+                      const widgetsMap = new Map();
+                      const configsMap = new Map();
+                      widgetEntries.forEach(([id, w]) => {
+                        widgetsMap.set(id, { type: w.type, category: w.category });
+                        configsMap.set(id, w.config || {});
+                      });
+
+                      const templateInput = {
+                        name: templateName || 'Custom Template',
+                        description: 'User-created custom template',
+                        layout: layouts,
+                        widgets: Array.from(widgetsMap.entries()),
+                        configs: configsMap,
+                        theme: colorTheme,
+                        settings: { autoRefresh, refreshInterval, showGridLines, compactMode }
+                      };
+
+                      const created = DashboardTemplateService.createCustomTemplate(templateInput);
+                      setShowSaveTemplate(false);
+                      toast.success(`Template saved: ${created.name}`);
+                    } catch (err) {
+                      console.error(err);
+                      toast.error('Failed to save template');
+                    }
+                  }}
+                >
+                  Save Template
+                </Button>
               </div>
             </div>
-            
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setShowSettings(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => {
-                saveDashboard();
-                setShowSettings(false);
-              }}>
-                Save Settings
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 

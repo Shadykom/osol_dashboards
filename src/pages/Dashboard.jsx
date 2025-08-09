@@ -2904,6 +2904,14 @@ export default function EnhancedDashboard() {
                                       <Save className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Save
                 </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/dashboard/custom')}
+                  >
+                    Customize
+                  </Button>
               </>
             )}
             

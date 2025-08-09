@@ -69,6 +69,7 @@ import ProfitMarginDetail from './pages/details/ProfitMarginDetail';
 import BranchPerformanceDetail from './pages/details/BranchPerformanceDetail';
 import ProductDistributionDetail from './pages/details/ProductDistributionDetail';
 import RiskMetricsDetail from './pages/details/RiskMetricsDetail';
+import { EnhancedCustomDashboard } from '@/components/dashboard/EnhancedCustomDashboard';
 
 import { Toaster } from './components/ui/sonner';
 import { useTranslation } from 'react-i18next';
@@ -303,6 +304,7 @@ function AppContent() {
           {/* Main Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard/custom" element={<EnhancedCustomDashboard />} />
           <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
           <Route path="/dashboard/detail-new/:section/:widgetId" element={<DashboardDetailNew />} />
           <Route path="/dashboard/modern-detail/:cardType" element={<ModernDashboardDetail />} />
