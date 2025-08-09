@@ -160,14 +160,14 @@
   }
 }
 
-/* Fix flex items inside sidebar for RTL */
-[dir="rtl"] .flex-row {
+/* Fix flex items inside sidebar for RTL - do not globally override row direction */
+/* [dir="rtl"] .flex-row {
   flex-direction: row-reverse !important;
 }
 
 [dir="rtl"] .flex-row-reverse {
   flex-direction: row !important;
-}
+} */
 
 /* Ensure icons are on the right side in RTL */
 /* Disabled global order override which pushed icons after labels in RTL */

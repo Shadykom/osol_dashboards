@@ -6,10 +6,10 @@
   text-align: right;
 }
 
-/* Flip layout direction for RTL */
-[dir="rtl"] .flex-row {
+/* Flip layout direction for RTL - avoid global reversal to preserve component ordering */
+/* [dir="rtl"] .flex-row {
   flex-direction: row-reverse;
-}
+} */
 
 /* Adjust spacing for RTL */
 [dir="rtl"] .space-x-2 > * + * {
@@ -459,6 +459,11 @@
 /* Ensure all flex containers in cards respect RTL */
 [dir="rtl"] .flex-row:not(.flex-row-reverse) {
   flex-direction: row-reverse;
+}
+
+/* NEW: In RTL, override explicit row-reverse to keep start at the right (icon first) */
+[dir="rtl"] .flex-row-reverse {
+  flex-direction: row !important;
 }
 
 /* Fix rounded corners for RTL */
