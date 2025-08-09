@@ -228,46 +228,8 @@ export const supabase = (() => {
 // Create a client specifically for kastle_banking schema
 export const supabaseBanking = (() => {
   if (!supabaseBankingInstance) {
-            supabaseBankingInstance = isSupabaseConfigured
-          ? createClient(supabaseUrl, supabaseAnonKey, {
-              db: {
-                schema: 'kastle_banking'
-              },
-              auth: {
-                autoRefreshToken: true,
-                persistSession: true,
-                detectSessionInUrl: true,
-                storage: window.localStorage,
-                storageKey: 'osol-auth-banking',
-                // Disable cookie-based auth to prevent domain issues
-                flowType: 'implicit',
-                // Ensure cookies are not used for auth
-                cookieOptions: {
-                  domain: '',
-                  path: '/',
-                  sameSite: 'lax',
-                  secure: false
-                }
-              },
-          realtime: {
-            params: {
-              eventsPerSecond: 10
-            },
-            headers: {
-              'X-Client-Info': 'supabase-js-web'
-            }
-          },
-          global: {
-            headers: {
-              'apikey': supabaseAnonKey,
-              // Removed global 'Prefer' header to allow per-request count and head options from supabase-js
-              'Accept-Profile': 'kastle_banking',
-              'Content-Profile': 'kastle_banking'
-            },
-            fetch: customFetch
-          }
-        })
-      : createMockClient();
+    // Reuse the singleton supabase instance to avoid multiple GoTrueClient instances
+    supabaseBankingInstance = supabase;
   }
   return supabaseBankingInstance;
 })();
