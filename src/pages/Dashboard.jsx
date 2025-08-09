@@ -907,31 +907,205 @@ export const WIDGET_CATALOG = {
             .select('*', { count: 'exact', head: true })
             .eq('account_status', 'ACTIVE');
           
-          // Apply branch filter
+          // Apply filters
           if (filters?.branch && filters.branch !== 'all') {
             query = query.eq('branch_id', filters.branch);
           }
           
           const { count, error } = await query;
           
-          console.log('Active accounts query result:', { count, error });
-          
-          if (error) {
-            console.error('Error fetching active accounts:', error);
-            throw error;
-          }
+          if (error) throw error;
           
           return {
             value: count || 0,
-            change: 8.2,
+            change: 8.3,
             trend: 'up'
           };
         } catch (error) {
-          console.error('Error in active_accounts query:', error);
+          console.error('Error fetching active accounts:', error);
           return {
             value: 0,
             change: 0,
             trend: 'neutral'
+          };
+        }
+      }
+    },
+    total_due_amount: {
+      name: 'إجمالي المبلغ المستحق',
+      nameEn: 'Total Due Amount',
+      icon: AlertCircle,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get all loan accounts with their due amounts
+          let query = supabaseBanking
+            .from(TABLES.LOAN_ACCOUNTS)
+            .select(`
+              outstanding_principal,
+              outstanding_interest,
+              overdue_amount,
+              loan_status,
+              branch_id
+            `)
+            .in('loan_status', ['ACTIVE', 'NPA', 'RESTRUCTURED']);
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: loans, error } = await query;
+          
+          if (error) throw error;
+          
+          // Calculate total due amount (principal + interest + overdue)
+          const totalDue = loans?.reduce((sum, loan) => {
+            return sum + 
+              (parseFloat(loan.outstanding_principal) || 0) + 
+              (parseFloat(loan.outstanding_interest) || 0) + 
+              (parseFloat(loan.overdue_amount) || 0);
+          }, 0) || 0;
+          
+          // Mock change percentage
+          const change = filters?.dateRange === 'today' ? 3.2 : 
+                        filters?.dateRange === 'last_7_days' ? 5.8 :
+                        filters?.dateRange === 'last_30_days' ? 8.5 : 12.3;
+          
+          return {
+            value: totalDue,
+            change: change,
+            trend: 'up'
+          };
+        } catch (error) {
+          console.error('Error fetching total due amount:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral'
+          };
+        }
+      }
+    },
+    non_due_amount: {
+      name: 'المبلغ غير المستحق',
+      nameEn: 'Non-Due Amount',
+      icon: CheckCircle,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get active loan accounts without overdue
+          let query = supabaseBanking
+            .from(TABLES.LOAN_ACCOUNTS)
+            .select(`
+              outstanding_principal,
+              outstanding_interest,
+              overdue_amount,
+              overdue_days,
+              loan_status,
+              branch_id
+            `)
+            .eq('loan_status', 'ACTIVE')
+            .or('overdue_days.eq.0,overdue_days.is.null');
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: loans, error } = await query;
+          
+          if (error) throw error;
+          
+          // Calculate non-due amount (only principal + interest for non-overdue loans)
+          const nonDue = loans?.reduce((sum, loan) => {
+            if (!loan.overdue_days || loan.overdue_days === 0) {
+              return sum + 
+                (parseFloat(loan.outstanding_principal) || 0) + 
+                (parseFloat(loan.outstanding_interest) || 0);
+            }
+            return sum;
+          }, 0) || 0;
+          
+          // Mock change percentage
+          const change = filters?.dateRange === 'today' ? -1.2 : 
+                        filters?.dateRange === 'last_7_days' ? -2.3 :
+                        filters?.dateRange === 'last_30_days' ? -3.5 : -5.2;
+          
+          return {
+            value: nonDue,
+            change: Math.abs(change),
+            trend: 'down'
+          };
+        } catch (error) {
+          console.error('Error fetching non-due amount:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral'
+          };
+        }
+      }
+    },
+    overdue_amount: {
+      name: 'المبلغ المتأخر',
+      nameEn: 'Overdue Amount',
+      icon: AlertTriangle,
+      type: 'kpi',
+      query: async (filters) => {
+        try {
+          // Get loan accounts with overdue amounts
+          let query = supabaseBanking
+            .from(TABLES.LOAN_ACCOUNTS)
+            .select(`
+              overdue_amount,
+              overdue_days,
+              loan_status,
+              branch_id
+            `)
+            .gt('overdue_days', 0)
+            .in('loan_status', ['ACTIVE', 'NPA', 'RESTRUCTURED']);
+          
+          // Apply branch filter
+          if (filters?.branch && filters.branch !== 'all') {
+            query = query.eq('branch_id', filters.branch);
+          }
+          
+          const { data: loans, error } = await query;
+          
+          if (error) throw error;
+          
+          // Calculate total overdue amount
+          const totalOverdue = loans?.reduce((sum, loan) => {
+            return sum + (parseFloat(loan.overdue_amount) || 0);
+          }, 0) || 0;
+          
+          // Calculate average overdue days for trend
+          const avgOverdueDays = loans?.length > 0 
+            ? loans.reduce((sum, loan) => sum + (loan.overdue_days || 0), 0) / loans.length
+            : 0;
+          
+          // Mock change percentage based on overdue trend
+          const change = filters?.dateRange === 'today' ? 4.5 : 
+                        filters?.dateRange === 'last_7_days' ? 7.2 :
+                        filters?.dateRange === 'last_30_days' ? 12.8 : 18.5;
+          
+          return {
+            value: totalOverdue,
+            change: change,
+            trend: avgOverdueDays > 30 ? 'up' : 'neutral',
+            metadata: {
+              count: loans?.length || 0,
+              avgDays: Math.round(avgOverdueDays)
+            }
+          };
+        } catch (error) {
+          console.error('Error fetching overdue amount:', error);
+          return {
+            value: 0,
+            change: 0,
+            trend: 'neutral',
+            metadata: { count: 0, avgDays: 0 }
           };
         }
       }
@@ -2007,6 +2181,9 @@ const DASHBOARD_TEMPLATES = {
     sections: ['overview', 'banking', 'lending', 'customers'],
     widgets: [
       { id: 'overview_total_assets_1', widget: 'total_assets', section: 'overview', size: 'large' },
+      { id: 'overview_total_due_amount_1', widget: 'total_due_amount', section: 'overview', size: 'medium' },
+      { id: 'overview_non_due_amount_1', widget: 'non_due_amount', section: 'overview', size: 'medium' },
+      { id: 'overview_overdue_amount_1', widget: 'overdue_amount', section: 'overview', size: 'medium' },
       { id: 'overview_performance_radar_1', widget: 'performance_radar', section: 'overview', size: 'large' },
       { id: 'overview_monthly_revenue_1', widget: 'monthly_revenue', section: 'overview', size: 'medium' },
       { id: 'overview_customer_growth_1', widget: 'customer_growth', section: 'overview', size: 'medium' },
@@ -2448,6 +2625,9 @@ export default function EnhancedDashboard() {
     // Map specific widgets to dedicated detail routes
     const widgetRouteMap = {
       overview_total_assets: '/dashboard/total-assets',
+      overview_total_due_amount: '/dashboard/total-due-amount',
+      overview_non_due_amount: '/dashboard/non-due-amount',
+      overview_overdue_amount: '/dashboard/overdue-amount',
       overview_performance_radar: '/dashboard/performance-indicators',
       overview_monthly_revenue: '/dashboard/monthly-revenue',
       overview_customer_growth: '/dashboard/customer-growth',
