@@ -82,7 +82,6 @@ function TabsTrigger({
         
         // RTL support
         textAlign,
-        isRTL && "flex-row-reverse",
         
         className
       )}
