@@ -3429,9 +3429,8 @@
      "marketShare": "الحصة السوقية",
      "profitability": "الربحية",
      "risk": "المخاطر",
-     "satisfaction": "رضا العملاء",
-     "riskScore": "درجة المخاطر",
-     "customerSatisfaction": "رضا العملاء"
-   }
-  }
-}
+           "satisfaction": "رضا العملاء",
+      "riskScore": "درجة المخاطر",
+      "customerSatisfaction": "رضا العملاء"
+    }
+ }
