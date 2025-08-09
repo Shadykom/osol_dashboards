@@ -247,11 +247,32 @@
     "accountTypes": "أنواع الحسابات",
     "assetCategories": "فئات الأصول",
     "statusBreakdown": "تفصيل الحالة",
-    "currencyDistribution": "توزيع العملات",
-    "topBranches": "أفضل الفروع",
-    "kycStatus": "حالة اعرف عميلك",
-    "verificationStatus": "حالة التحقق",
-    "sections": {
+"currencyDistribution": "توزيع العملات",
+"topBranches": "أفضل الفروع",
+"kycStatus": "حالة اعرف عميلك",
+"verificationStatus": "حالة التحقق",
+"totalAssets": "إجمالي الأصول",
+"totalAssetsSubtitle": "تفصيل الودائع والقروض",
+"performanceIndicators": "مؤشرات الأداء",
+"performanceIndicatorsSubtitle": "مؤشرات أساسية مع توضيح",
+"monthlyRevenue": "الإيرادات الشهرية",
+"monthlyRevenueSubtitle": "الإيرادات والربح التقديري حسب الشهر",
+"transactionVolume": "حجم المعاملات",
+"transactionVolumeSubtitle": "الأعداد والقيم حسب اليوم والنوع",
+"productDistribution": "توزيع المنتجات",
+"profitMargin": "هامش الربح",
+"riskMetrics": "مؤشرات المخاطر",
+"branchPerformance": "أداء الفروع",
+"total": "الإجمالي",
+"deposits": "الودائع",
+"loans": "القروض",
+"accounts": "الحسابات",
+"accountsNote": "الأرصدة تشمل الحسابات والقروض النشطة",
+"byType": "حسب النوع",
+"productsAndAccounts": "أنواع الحسابات والقروض",
+"byBranch": "حسب الفرع",
+"assetTrend": "اتجاه الأصول",
+"sections": {
       "overview": "نظرة عامة",
       "banking": "الخدمات المصرفية",
       "lending": "القروض والتمويل",
@@ -847,7 +868,91 @@
     },
     "specialistDashboard": {
       "title": "لوحة تحكم المختص بالتحصيل",
-      "subtitle": "قائمة العمل والمهام ورؤى الأداء لمختصي التحصيل"
+      "subtitle": "قائمة العمل والمهام ورؤى الأداء لمختصي التحصيل",
+      "activityLog": "سجل النشاط",
+      "metrics": {
+        "assignedCases": "الحالات المسندة",
+        "activeCases": "حالات نشطة",
+        "totalOverdue": "إجمالي المتأخرات",
+        "inCollection": "قيد التحصيل",
+        "collectedThisMonth": "المحصل هذا الشهر",
+        "ofTarget": "من الهدف",
+        "ptpScheduled": "وعود دفع مجدولة",
+        "expectedCollection": "التحصيل المتوقع",
+        "successRate": "معدل النجاح",
+        "contactSuccess": "نجاح التواصل"
+      },
+      "tabs": {
+        "cases": "الحالات",
+        "todaysTasks": "مهام اليوم",
+        "interactions": "التفاعلات",
+        "performance": "الأداء"
+      },
+      "filters": {
+        "title": "الفلاتر",
+        "searchPlaceholder": "ابحث برقم القرض أو اسم العميل...",
+        "priority": "الأولوية",
+        "status": "الحالة"
+      },
+      "cases": {
+        "title": "الحالات المسندة",
+        "description": "حالات مسندة إليك لاتخاذ إجراء",
+        "loanId": "رقم القرض",
+        "customer": "العميل",
+        "product": "المنتج",
+        "overdue": "مستحق",
+        "dpd": "أيام التأخير",
+        "priority": "الأولوية",
+        "nextAction": "الإجراء التالي"
+      },
+      "todaysTasks": {
+        "title": "مهام اليوم",
+        "description": "الإجراءات المستحقة اليوم عبر حالاتك",
+        "ptpDueToday": "وعود دفع مستحقة اليوم",
+        "ptpAmount": "قيمة الوعد بالدفع",
+        "followUp": "متابعة",
+        "scheduledActions": "متابعات مجدولة"
+      },
+      "interactions": {
+        "title": "أحدث التفاعلات",
+        "description": "أحدث التفاعلات عبر محفظتك"
+      },
+      "performance": {
+        "title": "نظرة عامة على الأداء",
+        "monthlyTrend": "الاتجاه الشهري",
+        "callsMade": "المكالمات المنجزة",
+        "successfulContacts": "تواصل ناجح",
+        "ptpsSecured": "وعود تم الحصول عليها",
+        "ptpKeptRate": "معدل الوفاء بالوعود",
+        "collectionBreakdown": "تفصيل التحصيل",
+        "regularPayments": "مدفوعات منتظمة",
+        "settlements": "تسويات",
+        "restructured": "إعادة هيكلة"
+      },
+      "ptp": {
+        "title": "تسجيل وعد بالدفع",
+        "amount": "المبلغ",
+        "amountPlaceholder": "أدخل المبلغ الموعود",
+        "totalOutstanding": "الإجمالي المستحق",
+        "promiseDate": "تاريخ الوعد",
+        "notes": "ملاحظات",
+        "notesPlaceholder": "أضف أي ملاحظات",
+        "schedule": "جدولة"
+      },
+      "logInteraction": {
+        "title": "تسجيل تفاعل",
+        "type": "النوع",
+        "outcome": "النتيجة",
+        "notes": "ملاحظات",
+        "notesPlaceholder": "اكتب ملاحظات الاتصال...",
+        "nextAction": "الإجراء التالي",
+        "nextActionPlaceholder": "صف الإجراء التالي",
+        "nextActionDate": "تاريخ الإجراء التالي"
+      },
+      "recommendedActions": {
+        "title": "إجراءات مقترحة",
+        "execute": "تنفيذ"
+      }
     }
   },
   "compliance": {
@@ -2352,8 +2457,8 @@
             "pending": "معلقة",
             "wrongAddress": "عنوان خاطئ",
             "refused": "مرفوضة",
-            "scheduled": "Scheduled",
-            "cancelled": "Cancelled"
+            "scheduled": "مجدولة",
+            "cancelled": "ألغيت"
           },
           "agentStatus": {
             "onVisit": "في زيارة",
@@ -2361,7 +2466,7 @@
             "available": "متاح",
             "break": "استراحة",
             "offline": "غير متصل",
-            "active": "Active"
+            "active": "نشط"
           },
           "tableHeaders": {
             "visitId": "رقم الزيارة",
@@ -2407,8 +2512,8 @@
             "customerNotAvailable": "العميل غير متواجد",
             "customer": "العميل",
             "result": "النتيجة",
-            "visitStarted": "Visit started",
-            "visitCompleted": "Visit completed"
+            "visitStarted": "بدأت الزيارة",
+            "visitCompleted": "اكتملت الزيارة"
           }
         },
         "visits": {
@@ -2491,14 +2596,14 @@
           "paymentCollectedInCash": "تم تحصيل الدفعة نقداً",
           "customerOutOfTownRescheduled": "العميل خارج المدينة، تم إعادة الجدولة",
           "partialPaymentReceived": "تم استلام دفعة جزئية",
-          "customerNotHome": "Customer not home",
-          "paymentCollected": "Payment collected",
-          "promiseToPay": "Promise to pay",
-          "disputeRaised": "Dispute raised",
-          "wrongAddress": "Wrong address",
-          "customerRefused": "Customer refused",
-          "partialPayment": "Partial payment",
-          "rescheduleRequested": "Reschedule requested"
+          "customerNotHome": "العميل غير متواجد في المنزل",
+          "paymentCollected": "تم تحصيل الدفعة",
+          "promiseToPay": "وعد بالدفع",
+          "disputeRaised": "تم رفع نزاع",
+          "wrongAddress": "عنوان خاطئ",
+          "customerRefused": "رفض العميل",
+          "partialPayment": "دفعة جزئية",
+          "rescheduleRequested": "تم طلب إعادة الجدولة"
         },
         "priority": {
           "high": "عالية",
@@ -2636,16 +2741,16 @@
           "pending": "معلقة",
           "wrongAddress": "عنوان خاطئ",
           "refused": "مرفوضة",
-          "scheduled": "Scheduled",
-          "cancelled": "Cancelled"
-        },
+          "scheduled": "مجدولة",
+          "cancelled": "ألغيت"
+         },
         "agentStatus": {
           "onVisit": "في زيارة",
           "inTransit": "في الطريق",
           "available": "متاح",
           "break": "استراحة",
           "offline": "غير متصل",
-          "active": "Active"
+          "active": "نشط"
         },
         "tableHeaders": {
           "visitId": "رقم الزيارة",
@@ -2691,8 +2796,8 @@
           "customerNotAvailable": "العميل غير متواجد",
           "customer": "العميل",
           "result": "النتيجة",
-          "visitStarted": "Visit started",
-          "visitCompleted": "Visit completed"
+          "visitStarted": "بدأت الزيارة",
+          "visitCompleted": "اكتملت الزيارة"
         }
       },
       "visits": {
@@ -2775,14 +2880,14 @@
         "paymentCollectedInCash": "تم تحصيل الدفعة نقداً",
         "customerOutOfTownRescheduled": "العميل خارج المدينة، تم إعادة الجدولة",
         "partialPaymentReceived": "تم استلام دفعة جزئية",
-        "customerNotHome": "Customer not home",
-        "paymentCollected": "Payment collected",
-        "promiseToPay": "Promise to pay",
-        "disputeRaised": "Dispute raised",
-        "wrongAddress": "Wrong address",
-        "customerRefused": "Customer refused",
-        "partialPayment": "Partial payment",
-        "rescheduleRequested": "Reschedule requested"
+        "customerNotHome": "العميل غير متواجد في المنزل",
+          "paymentCollected": "تم تحصيل الدفعة",
+          "promiseToPay": "وعد بالدفع",
+          "disputeRaised": "تم رفع نزاع",
+          "wrongAddress": "عنوان خاطئ",
+          "customerRefused": "رفض العميل",
+          "partialPayment": "دفعة جزئية",
+          "rescheduleRequested": "تم طلب إعادة الجدولة"
       },
       "priority": {
         "high": "عالية",
