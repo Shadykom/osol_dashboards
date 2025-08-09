@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFilters } from '@/contexts/FilterContext';
 import { enhancedDashboardDetailsService } from '@/services/enhancedDashboardDetailsService';
 import { format } from 'date-fns';
+import RawDataPanel from '@/components/RawDataPanel';
 
 function StatCard({ title, value, description, icon: Icon, change, trend }) {
   return (
@@ -573,15 +574,7 @@ export default function CustomerGrowthDetail() {
         </TabsContent>
 
         <TabsContent value="raw" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-[#4A5568]">Raw Customers</CardTitle>
-              <CardDescription>Direct view into the `customers` table</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="text-xs bg-gray-50 p-3 rounded border overflow-auto max-h-[420px]">{JSON.stringify(customers, null, 2)}</pre>
-            </CardContent>
-          </Card>
+          <RawDataPanel title="Raw Customers" description="Direct view into the customers table" data={customers} />
         </TabsContent>
       </Tabs>
     </div>

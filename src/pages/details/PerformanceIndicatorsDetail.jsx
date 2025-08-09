@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { supabaseBanking, TABLES } from '@/lib/supabase';
 import { ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, Tooltip } from 'recharts';
+import RawDataPanel from '@/components/RawDataPanel';
 
 export default function PerformanceIndicatorsDetail() {
   const { t } = useTranslation();
@@ -88,12 +89,7 @@ export default function PerformanceIndicatorsDetail() {
           </Card>
         </TabsContent>
         <TabsContent value="raw">
-          <Card>
-            <CardHeader><CardTitle>Raw Metrics</CardTitle></CardHeader>
-            <CardContent>
-              <pre className="text-xs bg-muted p-4 rounded-md overflow-auto">{JSON.stringify(metrics, null, 2)}</pre>
-            </CardContent>
-          </Card>
+          <RawDataPanel title="Raw Metrics" data={metrics} />
         </TabsContent>
       </Tabs>
     </div>

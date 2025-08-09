@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import FinancialReportService from '@/services/reports/financialReportService';
 import { ChartWidget } from '@/components/widgets/ChartWidget';
+import RawDataPanel from '@/components/RawDataPanel';
 
 export default function ProfitMarginDetail() {
   const { t } = useTranslation();
@@ -52,12 +53,7 @@ export default function ProfitMarginDetail() {
           </Card>
         </TabsContent>
         <TabsContent value="summary">
-          <Card>
-            <CardHeader><CardTitle>Current Metrics</CardTitle></CardHeader>
-            <CardContent>
-              <pre className="text-xs bg-muted p-4 rounded-md overflow-auto">{JSON.stringify(summary, null, 2)}</pre>
-            </CardContent>
-          </Card>
+          <RawDataPanel title="Current Metrics" data={summary} />
         </TabsContent>
       </Tabs>
     </div>
