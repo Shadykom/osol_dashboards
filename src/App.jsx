@@ -58,6 +58,7 @@ import DashboardDetailNew from './pages/DashboardDetailNew';
 import ModernDashboardDetail from './pages/ModernDashboardDetail';
 import DashboardCardsDemo from './pages/DashboardCardsDemo';
 import DashboardReports from './pages/DashboardReports';
+const ComparisonDashboardLazy = React.lazy(() => import('./pages/ComparisonDashboard'));
 import ReportsHealthCheck from './pages/ReportsHealthCheck';
 import TestDashboardRouting from './pages/TestDashboardRouting';
 import TestDashboardDetailNew from './pages/TestDashboardDetailNew';
@@ -77,6 +78,7 @@ import OverdueAmountDetail from './pages/details/OverdueAmountDetail';
 import { EnhancedCustomDashboard } from '@/components/dashboard/EnhancedCustomDashboard';
 
 import { Toaster } from './components/ui/sonner';
+
 import { useTranslation } from 'react-i18next';
 
 import 'react-grid-layout/css/styles.css';
@@ -313,6 +315,7 @@ function AppContent() {
           <Route path="/dashboard/detail/:type/:widgetId" element={<DashboardDetail />} />
           <Route path="/dashboard/detail-new/:section/:widgetId" element={<DashboardDetailNew />} />
           <Route path="/dashboard/modern-detail/:cardType" element={<ModernDashboardDetail />} />
+          <Route path="/dashboard/comparison" element={<React.Suspense fallback={null}> <ComparisonDashboardLazy /> </React.Suspense>} />
           {/* Dedicated card detail pages */}
           <Route path="/dashboard/total-assets" element={<TotalAssetsDetail />} />
           <Route path="/dashboard/performance-indicators" element={<PerformanceIndicatorsDetail />} />
