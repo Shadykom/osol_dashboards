@@ -35,6 +35,11 @@ const ExecutiveCollectionDashboard = () => {
     end: endOfMonth(new Date())
   });
 
+  // New: lists populated from DB
+  const [branches, setBranches] = useState<Array<{ branch_id: string; branch_name?: string }>>([]);
+  const [productTypes, setProductTypes] = useState<string[]>([]);
+  const [customerSegments, setCustomerSegments] = useState<string[]>([]);
+
   // State for dashboard data - US-001: Key Portfolio Metrics
   const [portfolioMetrics, setPortfolioMetrics] = useState({
     totalPortfolioValue: 0,
@@ -85,21 +90,25 @@ const ExecutiveCollectionDashboard = () => {
         casesQuery = casesQuery.eq('branch_id', selectedBranch);
       }
 
-      const { data: cases, error: casesError } = await casesQuery;
+      const { data: casesRaw, error: casesError } = await casesQuery;
 
       if (casesError) {
         console.error('Error fetching cases:', casesError);
         // Continue with empty data if RLS is blocking
-        if (casesError.code === '42501') {
+        if ((casesError as any).code === '42501') {
           console.warn('Permission denied - check RLS policies');
         }
       }
 
+      const cases = Array.isArray(casesRaw) ? casesRaw : [];
+
       // Calculate metrics
       const totalPortfolio = cases.reduce((sum, c) => sum + (c.total_outstanding || 0), 0);
-      const overdueAmount = cases.filter(c => c.days_past_due > 0)
+      const overdueAmount = cases
+        .filter(c => (c.days_past_due || 0) > 0)
         .reduce((sum, c) => sum + (c.total_outstanding || 0), 0);
-      const nplAmount = cases.filter(c => c.days_past_due > 90)
+      const nplAmount = cases
+        .filter(c => (c.days_past_due || 0) > 90)
         .reduce((sum, c) => sum + (c.total_outstanding || 0), 0);
 
       // Fetch collection targets
@@ -111,14 +120,17 @@ const ExecutiveCollectionDashboard = () => {
         .eq('target_month', currentMonth)
         .single();
 
-      // Fetch collections for current month
+      // Fetch collections for current month (correct column: total_collected)
       const { data: collections } = await supabase
         .from('daily_collection_summary')
-        .select('collection_amount')
+        .select('total_collected')
         .gte('summary_date', currentMonth)
         .lte('summary_date', format(endOfMonth(new Date()), 'yyyy-MM-dd'));
 
-      const monthlyCollection = collections?.reduce((sum, c) => sum + (c.collection_amount || 0), 0) || 0;
+      const monthlyCollection = (collections || []).reduce(
+        (sum, c: any) => sum + (c.total_collected || 0),
+        0
+      );
 
       setPortfolioMetrics({
         totalPortfolioValue: totalPortfolio,
@@ -317,6 +329,49 @@ const ExecutiveCollectionDashboard = () => {
     }
   };
 
+  // New: fetch lists for filters from DB on mount
+  useEffect(() => {
+    const loadFilterLists = async () => {
+      try {
+        const { data: branchRows } = await supabase
+          .from('branches')
+          .select('branch_id, branch_name')
+          .order('branch_id', { ascending: true });
+        setBranches(branchRows || []);
+      } catch (e) {
+        console.warn('Could not load branches', e);
+      }
+
+      try {
+        const { data: caseProducts } = await supabase
+          .from('collection_cases')
+          .select('product_type')
+          .not('product_type', 'is', null);
+        const uniqueProducts = Array.from(
+          new Set((caseProducts || []).map((r: any) => r.product_type))
+        ).filter(Boolean) as string[];
+        setProductTypes(uniqueProducts);
+      } catch (e) {
+        console.warn('Could not load product types', e);
+      }
+
+      try {
+        const { data: segRows } = await supabase
+          .from('customers')
+          .select('customer_segment')
+          .not('customer_segment', 'is', null);
+        const uniqueSegments = Array.from(
+          new Set((segRows || []).map((r: any) => r.customer_segment))
+        ).filter(Boolean) as string[];
+        setCustomerSegments(uniqueSegments);
+      } catch (e) {
+        console.warn('Could not load customer segments', e);
+      }
+    };
+
+    loadFilterLists();
+  }, []);
+
   useEffect(() => {
     loadDashboardData();
   }, [selectedPeriod, selectedBranch]);
@@ -447,6 +502,11 @@ const ExecutiveCollectionDashboard = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('dashboard.filters.allBranches')}</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name || b.branch_id}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -456,6 +516,9 @@ const ExecutiveCollectionDashboard = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('dashboard.filters.allProducts')}</SelectItem>
+              {productTypes.map((pt) => (
+                <SelectItem key={pt} value={pt}>{pt}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -465,11 +528,9 @@ const ExecutiveCollectionDashboard = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('dashboard.filters.allSegments')}</SelectItem>
-              <SelectItem value="RETAIL">RETAIL</SelectItem>
-              <SelectItem value="PREMIUM">PREMIUM</SelectItem>
-              <SelectItem value="HNI">HNI</SelectItem>
-              <SelectItem value="CORPORATE">CORPORATE</SelectItem>
-              <SelectItem value="SME">SME</SelectItem>
+              {customerSegments.map((seg) => (
+                <SelectItem key={seg} value={seg}>{seg}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -715,7 +776,7 @@ const ExecutiveCollectionDashboard = () => {
                   </span>
                 </div>
                 <Progress 
-                  value={(portfolioMetrics.monthlyAchievement / portfolioMetrics.monthlyTarget) * 100} 
+                  value={portfolioMetrics.monthlyTarget > 0 ? (portfolioMetrics.monthlyAchievement / portfolioMetrics.monthlyTarget) * 100 : 0} 
                   className="h-3"
                 />
               </div>
