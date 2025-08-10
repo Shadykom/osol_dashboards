@@ -1,6 +1,12 @@
 // src/services/dashboardButtonService.js
 import reportGenerator from '@/utils/reportGenerator';
-import html2canvas from 'html2canvas';
+let __HTML2CANVAS_MODULE = null;
+async function getHtml2Canvas() {
+  if (__HTML2CANVAS_MODULE) return __HTML2CANVAS_MODULE;
+  const mod = await import('html2canvas');
+  __HTML2CANVAS_MODULE = mod?.default || mod;
+  return __HTML2CANVAS_MODULE;
+}
 let __JSPDF_MODULE = null;
 async function getJsPDF() {
   if (__JSPDF_MODULE) return __JSPDF_MODULE;
@@ -250,6 +256,7 @@ export class DashboardButtonService {
       if (!element) {
         throw new Error('Dashboard element not found');
       }
+      const html2canvas = await getHtml2Canvas();
       const canvas = await html2canvas(element, {
         allowTaint: true,
         useCORS: true,

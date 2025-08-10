@@ -9,7 +9,13 @@ import {
 } from '@/components/ui/dialog';
 import { Printer, FileDown, X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import html2canvas from 'html2canvas';
+let __HTML2CANVAS_MODULE = null;
+async function getHtml2Canvas() {
+  if (__HTML2CANVAS_MODULE) return __HTML2CANVAS_MODULE;
+  const mod = await import('html2canvas');
+  __HTML2CANVAS_MODULE = mod?.default || mod;
+  return __HTML2CANVAS_MODULE;
+}
 let __JSPDF_MODULE = null;
 async function getJsPDF() {
   if (__JSPDF_MODULE) return __JSPDF_MODULE;
@@ -192,6 +198,7 @@ export function PrintView({
     
     try {
       // Create canvas from the content
+      const html2canvas = await getHtml2Canvas();
       const canvas = await html2canvas(printRef.current, {
         scale: 2,
         useCORS: true,

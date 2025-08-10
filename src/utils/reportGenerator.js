@@ -3,7 +3,6 @@
 // Excel and CSV formats.  It uses jsPDF and xlsx for PDF/Excel exports
 // and handles data formatting, styling, and layout for professional reports.
 
-import html2canvas from 'html2canvas';
 let __XLSX_MODULE = null;
 async function getXLSX() {
   if (__XLSX_MODULE) return __XLSX_MODULE;
