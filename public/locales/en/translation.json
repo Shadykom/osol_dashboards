@@ -3450,5 +3450,11 @@
     "satisfaction": "Customer Satisfaction",
     "riskScore": "Risk Score",
     "customerSatisfaction": "Customer Satisfaction"
+  },
+  "details": {
+    "totalDueAmountTitle": "Total Due Amount Details",
+    "totalDueAmountSubtitle": "Comprehensive view of all due amounts",
+    "nonDueAmountTitle": "Non-Due Amount Details",
+    "overdueAmountTitle": "Overdue Amount Details"
   }
 }

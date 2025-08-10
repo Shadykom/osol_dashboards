@@ -78,9 +78,8 @@ export default function OverdueAmountDetail() {
             customer_id,
             first_name,
             last_name,
-            phone,
-            email,
-            credit_score
+            mobile_number,
+            email
           )
         `)
         .gt('overdue_days', 0)
@@ -466,7 +465,7 @@ export default function OverdueAmountDetail() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <AlertTriangle className="h-6 w-6 text-red-600" />
-              {t('Overdue Amount Details', 'Overdue Amount Details')}
+              {t('details.overdueAmountTitle', 'Overdue Amount Details')}
             </h1>
             <p className="text-muted-foreground">
               {t('Analysis of delinquent loans and collection priorities', 'Analysis of delinquent loans and collection priorities')}
@@ -481,7 +480,7 @@ export default function OverdueAmountDetail() {
             disabled={refreshing}
           >
             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin", isRTL ? "ml-2" : "mr-2")} />
-            {t('Refresh', 'Refresh')}
+            {t('common.refresh', 'Refresh')}
           </Button>
           <Button
             variant="outline"
@@ -489,7 +488,7 @@ export default function OverdueAmountDetail() {
             onClick={handleExport}
           >
             <Download className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
-            {t('Export', 'Export')}
+            {t('common.export', 'Export')}
           </Button>
         </div>
       </div>
@@ -816,7 +815,7 @@ export default function OverdueAmountDetail() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            {item.customers?.phone && (
+                            {item.customers?.mobile_number && (
                               <Button variant="ghost" size="sm" className="h-6 px-2">
                                 <Phone className="h-3 w-3 mr-1" />
                                 Call

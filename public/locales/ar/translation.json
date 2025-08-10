@@ -3458,5 +3458,11 @@
            "satisfaction": "رضا العملاء",
       "riskScore": "درجة المخاطر",
       "customerSatisfaction": "رضا العملاء"
+    },
+    "details": {
+      "totalDueAmountTitle": "تفاصيل إجمالي المبالغ المستحقة",
+      "totalDueAmountSubtitle": "عرض شامل لجميع المبالغ المستحقة",
+      "nonDueAmountTitle": "تفاصيل المبالغ غير المستحقة",
+      "overdueAmountTitle": "تفاصيل المبالغ المتأخرة"
     }
- }
+  }

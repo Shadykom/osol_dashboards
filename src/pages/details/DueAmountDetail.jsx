@@ -73,7 +73,7 @@ export default function DueAmountDetail() {
             customer_id,
             first_name,
             last_name,
-            phone,
+            mobile_number,
             email
           )
         `)
@@ -331,10 +331,10 @@ export default function DueAmountDetail() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <AlertCircle className="h-6 w-6 text-yellow-600" />
-              {t('Total Due Amount Details', 'Total Due Amount Details')}
+              {t('details.totalDueAmountTitle', 'Total Due Amount Details')}
             </h1>
             <p className="text-muted-foreground">
-              {t('Comprehensive view of all due amounts', 'Comprehensive view of all due amounts')}
+              {t('details.totalDueAmountSubtitle', 'Comprehensive view of all due amounts')}
             </p>
           </div>
         </div>
@@ -346,7 +346,7 @@ export default function DueAmountDetail() {
             disabled={refreshing}
           >
             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin", isRTL ? "ml-2" : "mr-2")} />
-            {t('Refresh', 'Refresh')}
+            {t('common.refresh', 'Refresh')}
           </Button>
           <Button
             variant="outline"
@@ -354,7 +354,7 @@ export default function DueAmountDetail() {
             onClick={handleExport}
           >
             <Download className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
-            {t('Export', 'Export')}
+            {t('common.export', 'Export')}
           </Button>
         </div>
       </div>
