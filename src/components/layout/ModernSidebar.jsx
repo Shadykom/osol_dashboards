@@ -82,6 +82,12 @@ const ModernSidebar = ({ isMobile }) => {
           label: t('sidebar.executiveCollection'),
           path: '/collection/executive',
           icon: BarChart3
+        },
+        {
+          id: 'comparison',
+          label: t('sidebar.comparison'),
+          path: '/dashboard/comparison',
+          icon: BarChart3
         }
       ]
     },

@@ -2057,7 +2057,8 @@
     "transactions": "Transactions",
     "reports": "Reports",
     "settings": "Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "comparison": "Comparison"
   },
   "vintageAnalysisDashboard": {
     "title": "Vintage Analysis Dashboard",
