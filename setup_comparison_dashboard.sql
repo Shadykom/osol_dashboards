@@ -8,6 +8,47 @@
 -- =========================
 -- Sales (Transactions) Daily View
 -- =========================
+-- Create a portable source view for transactions depending on what exists
+DO $$
+BEGIN
+  IF to_regclass('kastle_banking.transactions') IS NOT NULL THEN
+    EXECUTE 'CREATE OR REPLACE VIEW kastle_banking.vw_tx_source AS SELECT * FROM kastle_banking.transactions';
+  ELSIF to_regclass('kastle_banking.transactions_view') IS NOT NULL THEN
+    EXECUTE 'CREATE OR REPLACE VIEW kastle_banking.vw_tx_source AS SELECT * FROM kastle_banking.transactions_view';
+  ELSIF to_regclass('public.transactions') IS NOT NULL THEN
+    EXECUTE 'CREATE OR REPLACE VIEW kastle_banking.vw_tx_source AS SELECT * FROM public.transactions';
+  ELSE
+    EXECUTE 'CREATE OR REPLACE VIEW kastle_banking.vw_tx_source AS 
+      SELECT 
+        NULL::bigint AS transaction_id,
+        now()::timestamptz AS transaction_date,
+        NULL::varchar AS account_number,
+        NULL::int AS transaction_type_id,
+        NULL::varchar AS debit_credit,
+        0::numeric(18,2) AS transaction_amount,
+        NULL::varchar AS currency_code,
+        NULL::numeric AS running_balance,
+        NULL::varchar AS contra_account,
+        NULL::varchar AS channel,
+        NULL::varchar AS reference_number,
+        NULL::varchar AS cheque_number,
+        NULL::text AS narration,
+        NULL::varchar AS beneficiary_name,
+        NULL::varchar AS beneficiary_account,
+        NULL::varchar AS beneficiary_bank,
+        NULL::varchar AS status,
+        NULL::varchar AS approval_status,
+        NULL::varchar AS approved_by,
+        NULL::varchar AS reversal_ref,
+        NULL::varchar AS branch_id,
+        NULL::varchar AS teller_id,
+        NULL::varchar AS device_id,
+        NULL::varchar AS ip_address,
+        now()::timestamptz AS created_at,
+        now()::timestamptz AS posted_at';
+  END IF;
+END $$;
+
 DROP VIEW IF EXISTS kastle_banking.vw_sales_daily CASCADE;
 CREATE VIEW kastle_banking.vw_sales_daily AS
 WITH tx AS (
@@ -18,7 +59,7 @@ WITH tx AS (
     t.debit_credit,
     t.status,
     t.transaction_amount::numeric(18,2) AS amount
-  FROM kastle_banking.transactions t
+  FROM kastle_banking.vw_tx_source t
   LEFT JOIN kastle_banking.accounts a
     ON a.account_number::text = t.account_number::text
 )
