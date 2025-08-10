@@ -31,7 +31,13 @@ import {
   ResponsiveContainer, ReferenceLine, Brush, ComposedChart
 } from 'recharts';
 import { cn } from '@/lib/utils';
-import html2canvas from 'html2canvas';
+let __HTML2CANVAS_MODULE = null;
+async function getHtml2Canvas() {
+  if (__HTML2CANVAS_MODULE) return __HTML2CANVAS_MODULE;
+  const mod = await import('html2canvas');
+  __HTML2CANVAS_MODULE = mod?.default || mod;
+  return __HTML2CANVAS_MODULE;
+}
 import reportGenerator from '@/utils/reportGenerator';
 import { saveAs } from 'file-saver';
 
@@ -213,6 +219,7 @@ export function EnhancedChartWidget({
     
     setIsExporting(true);
     try {
+      const html2canvas = await getHtml2Canvas();
       const canvas = await html2canvas(chartRef.current);
       canvas.toBlob(blob => {
         saveAs(blob, `${config.title || 'chart'}-${Date.now()}.png`);

@@ -76,7 +76,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'html2canvas', 'file-saver', 'xlsx', 'react-pdf'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'file-saver', 'xlsx', 'react-pdf'],
       exclude: ['jspdf'],
       force: true
     }
