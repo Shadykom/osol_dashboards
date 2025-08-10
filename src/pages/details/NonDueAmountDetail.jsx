@@ -75,9 +75,8 @@ export default function NonDueAmountDetail() {
             customer_id,
             first_name,
             last_name,
-            phone,
-            email,
-            credit_score
+            mobile_number,
+            email
           )
         `)
         .eq('loan_status', 'ACTIVE')
@@ -379,7 +378,7 @@ export default function NonDueAmountDetail() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <CheckCircle className="h-6 w-6 text-green-600" />
-              {t('Non-Due Amount Details', 'Non-Due Amount Details')}
+              {t('details.nonDueAmountTitle', 'Non-Due Amount Details')}
             </h1>
             <p className="text-muted-foreground">
               {t('Analysis of performing loans with no overdue', 'Analysis of performing loans with no overdue')}
@@ -394,7 +393,7 @@ export default function NonDueAmountDetail() {
             disabled={refreshing}
           >
             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin", isRTL ? "ml-2" : "mr-2")} />
-            {t('Refresh', 'Refresh')}
+            {t('common.refresh', 'Refresh')}
           </Button>
           <Button
             variant="outline"
@@ -402,7 +401,7 @@ export default function NonDueAmountDetail() {
             onClick={handleExport}
           >
             <Download className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
-            {t('Export', 'Export')}
+            {t('common.export', 'Export')}
           </Button>
         </div>
       </div>
