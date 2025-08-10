@@ -10,8 +10,8 @@ function toDateString(d) {
 export const ComparisonService = {
   async compareSales({ branchIds = null, productIds = null, start1, end1, start2, end2, granularity = 'month' }) {
     const { data, error } = await supabase.rpc('fn_compare_sales', {
-      p_branch_ids: branchIds,
-      p_product_ids: productIds,
+      p_branch_ids: branchIds || null,
+      p_product_ids: productIds || null,
       p_start_1: toDateString(start1),
       p_end_1: toDateString(end1),
       p_start_2: toDateString(start2),
@@ -23,7 +23,7 @@ export const ComparisonService = {
 
   async compareCollections({ branchIds = null, start1, end1, start2, end2, granularity = 'month' }) {
     const { data, error } = await supabase.rpc('fn_compare_collections', {
-      p_branch_ids: branchIds,
+      p_branch_ids: branchIds || null,
       p_start_1: toDateString(start1),
       p_end_1: toDateString(end1),
       p_start_2: toDateString(start2),
@@ -35,7 +35,7 @@ export const ComparisonService = {
 
   async compareCustomers({ branchIds = null, start1, end1, start2, end2, granularity = 'month' }) {
     const { data, error } = await supabase.rpc('fn_compare_customers', {
-      p_branch_ids: branchIds,
+      p_branch_ids: branchIds || null,
       p_start_1: toDateString(start1),
       p_end_1: toDateString(end1),
       p_start_2: toDateString(start2),
@@ -47,8 +47,8 @@ export const ComparisonService = {
 
   async compareAccounts({ branchIds = null, productIds = null, start1, end1, start2, end2, granularity = 'month' }) {
     const { data, error } = await supabase.rpc('fn_compare_accounts', {
-      p_branch_ids: branchIds,
-      p_product_ids: productIds,
+      p_branch_ids: branchIds || null,
+      p_product_ids: productIds || null,
       p_start_1: toDateString(start1),
       p_end_1: toDateString(end1),
       p_start_2: toDateString(start2),
@@ -60,8 +60,8 @@ export const ComparisonService = {
 
   async compareCases({ branchIds = null, productTypes = null, start1, end1, start2, end2, granularity = 'month' }) {
     const { data, error } = await supabase.rpc('fn_compare_cases', {
-      p_branch_ids: branchIds,
-      p_product_types: productTypes,
+      p_branch_ids: branchIds || null,
+      p_product_types: productTypes || null,
       p_start_1: toDateString(start1),
       p_end_1: toDateString(end1),
       p_start_2: toDateString(start2),

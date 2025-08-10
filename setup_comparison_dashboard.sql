@@ -201,8 +201,8 @@ $$;
 -- 1) Sales comparison
 DROP FUNCTION IF EXISTS kastle_banking.fn_compare_sales(text[], integer[], date, date, date, date, text) CASCADE;
 CREATE FUNCTION kastle_banking.fn_compare_sales(
-  p_branch_ids text[] DEFAULT NULL,
-  p_product_ids integer[] DEFAULT NULL,
+  p_branch_ids text[],
+  p_product_ids integer[],
   p_start_1 date,
   p_end_1 date,
   p_start_2 date,
@@ -257,7 +257,7 @@ $$;
 -- 2) Collections comparison
 DROP FUNCTION IF EXISTS kastle_banking.fn_compare_collections(text[], date, date, date, date, text) CASCADE;
 CREATE FUNCTION kastle_banking.fn_compare_collections(
-  p_branch_ids text[] DEFAULT NULL,
+  p_branch_ids text[],
   p_start_1 date,
   p_end_1 date,
   p_start_2 date,
@@ -306,7 +306,7 @@ $$;
 -- 3) Customers comparison (new customers)
 DROP FUNCTION IF EXISTS kastle_banking.fn_compare_customers(text[], date, date, date, date, text) CASCADE;
 CREATE FUNCTION kastle_banking.fn_compare_customers(
-  p_branch_ids text[] DEFAULT NULL,
+  p_branch_ids text[],
   p_start_1 date,
   p_end_1 date,
   p_start_2 date,
@@ -355,8 +355,8 @@ $$;
 -- 4) Accounts (Products) comparison (new accounts)
 DROP FUNCTION IF EXISTS kastle_banking.fn_compare_accounts(text[], integer[], date, date, date, date, text) CASCADE;
 CREATE FUNCTION kastle_banking.fn_compare_accounts(
-  p_branch_ids text[] DEFAULT NULL,
-  p_product_ids integer[] DEFAULT NULL,
+  p_branch_ids text[],
+  p_product_ids integer[],
   p_start_1 date,
   p_end_1 date,
   p_start_2 date,
@@ -411,8 +411,8 @@ $$;
 -- 5) Cases comparison (by product_type text)
 DROP FUNCTION IF EXISTS kastle_banking.fn_compare_cases(text[], text[], date, date, date, date, text) CASCADE;
 CREATE FUNCTION kastle_banking.fn_compare_cases(
-  p_branch_ids text[] DEFAULT NULL,
-  p_product_types text[] DEFAULT NULL,
+  p_branch_ids text[],
+  p_product_types text[],
   p_start_1 date,
   p_end_1 date,
   p_start_2 date,
