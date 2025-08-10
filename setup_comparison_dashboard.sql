@@ -178,6 +178,16 @@ AS $$
   END;
 $$;
 
+-- Also provide a public shim so unqualified calls to period_bucket() work
+DROP FUNCTION IF EXISTS public.period_bucket(date, text) CASCADE;
+CREATE FUNCTION public.period_bucket(p_date date, p_granularity text)
+RETURNS date
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT kastle_banking.period_bucket(p_date, p_granularity);
+$$;
+
 -- =========================
 -- Generic comparison helper to compute delta and pct change
 -- =========================
