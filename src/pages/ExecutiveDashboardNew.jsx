@@ -81,12 +81,12 @@ import {
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 
 // Load jsPDF lazily to avoid bundling issues during build when this page is not used
-let jsPDFPromise = null;
+let __JSPDF_MODULE = null;
 const getJsPDF = async () => {
-  if (!jsPDFPromise) {
-    jsPDFPromise = import('jspdf').then(m => m.jsPDF || m.default || m);
-  }
-  return jsPDFPromise;
+  if (__JSPDF_MODULE) return __JSPDF_MODULE;
+  const mod = await import('jspdf');
+  __JSPDF_MODULE = mod?.jsPDF || mod?.default || mod;
+  return __JSPDF_MODULE;
 };
 import reportGenerator from '@/utils/reportGenerator';
 
