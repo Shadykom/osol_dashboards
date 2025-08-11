@@ -93,6 +93,7 @@ import { BranchReportService } from '@/services/branchReportService';
 import { ProductReportService } from '@/services/productReportService';
 import { CustomerSegmentService } from '@/services/customerSegmentService';
 import { fixDashboardData, checkDatabaseStatus } from '@/utils/fixDashboardData';
+import { WidgetEditor } from '@/components/dashboard/WidgetEditor';
 
 
 // Removed mock Supabase clients - using real database connections only
@@ -2305,6 +2306,10 @@ export default function EnhancedDashboard() {
   const [databaseStatus, setDatabaseStatus] = useState(null);
   const [isFixingData, setIsFixingData] = useState(false);
   
+  // Widget editing state
+  const [selectedWidgetForEdit, setSelectedWidgetForEdit] = useState(null);
+  const [showWidgetEditor, setShowWidgetEditor] = useState(false);
+  
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
   const autoRefreshInterval = useRef(null);
@@ -2705,6 +2710,38 @@ export default function EnhancedDashboard() {
   const removeWidget = (widgetId) => {
     setWidgets(widgets.filter(w => w.id !== widgetId));
   };
+  
+  // Edit widget
+  const editWidget = (widget) => {
+    setSelectedWidgetForEdit(widget);
+    setShowWidgetEditor(true);
+  };
+  
+  // Save edited widget
+  const saveEditedWidget = async (updatedWidget) => {
+    // Update widget in local state
+    setWidgets(prevWidgets => 
+      prevWidgets.map(w => w.id === updatedWidget.id ? updatedWidget : w)
+    );
+    
+    // Save to database if using persistence
+    if (currentDashboard?.id && updatedWidget.id) {
+      try {
+        await updateWidget(updatedWidget.id, {
+          widget_type: updatedWidget.type,
+          widget_config: { ...updatedWidget.config, title: updatedWidget.title },
+          position_config: updatedWidget.position
+        });
+        toast.success('Widget updated successfully');
+      } catch (error) {
+        console.error('Error updating widget:', error);
+        toast.error('Failed to update widget');
+      }
+    }
+    
+    setShowWidgetEditor(false);
+    setSelectedWidgetForEdit(null);
+  };
 
   // Handle widget click for navigation
   const handleWidgetClick = (widget) => {
@@ -2831,17 +2868,32 @@ export default function EnhancedDashboard() {
                 </CardTitle>
               </div>
               {isEditMode && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeWidget(widget.id);
-                  }}
-                  className="h-6 w-6 p-0"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editWidget(widget);
+                    }}
+                    className="h-6 w-6 p-0"
+                    title="Edit Widget"
+                  >
+                    <Settings className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeWidget(widget.id);
+                    }}
+                    className="h-6 w-6 p-0"
+                    title="Remove Widget"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -3564,6 +3616,17 @@ export default function EnhancedDashboard() {
         
 
       </div>
+      
+      {/* Widget Editor Dialog */}
+      <WidgetEditor
+        widget={selectedWidgetForEdit}
+        isOpen={showWidgetEditor}
+        onSave={saveEditedWidget}
+        onCancel={() => {
+          setShowWidgetEditor(false);
+          setSelectedWidgetForEdit(null);
+        }}
+      />
     </div>
   );
 }

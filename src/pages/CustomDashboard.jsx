@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import useDashboardCustomization from '@/hooks/useDashboardCustomization';
+import { WidgetEditor } from '@/components/dashboard/WidgetEditor';
 import { 
   LayoutGrid, Save, RefreshCw, Settings, Plus, X,
   Eye, TrendingUp, Users, DollarSign, CreditCard, PiggyBank, 
@@ -377,6 +378,8 @@ export function CustomDashboard() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedWidget, setSelectedWidget] = useState(null);
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
+  const [showWidgetEditor, setShowWidgetEditor] = useState(false);
+  const [selectedWidgetForEdit, setSelectedWidgetForEdit] = useState(null);
 
   // Component mount effect
   useEffect(() => {
@@ -664,6 +667,38 @@ export function CustomDashboard() {
     setWidgets(prev => prev.filter(w => w.id !== widgetId));
     toast.success('Widget removed');
   };
+  
+  // Edit widget
+  const editWidget = (widget) => {
+    setSelectedWidgetForEdit(widget);
+    setShowWidgetEditor(true);
+  };
+  
+  // Save edited widget
+  const saveEditedWidget = async (updatedWidget) => {
+    // Update widget in local state
+    setWidgets(prevWidgets => 
+      prevWidgets.map(w => w.id === updatedWidget.id ? updatedWidget : w)
+    );
+    
+    // Save to database if using persistence
+    if (currentDashboard?.id && updatedWidget.id) {
+      try {
+        await updateWidget(updatedWidget.id, {
+          widget_type: updatedWidget.type,
+          widget_config: { ...updatedWidget.config, title: updatedWidget.title, description: updatedWidget.description },
+          position_config: updatedWidget.position
+        });
+        toast.success('Widget updated successfully');
+      } catch (error) {
+        console.error('Error updating widget:', error);
+        toast.error('Failed to update widget');
+      }
+    }
+    
+    setShowWidgetEditor(false);
+    setSelectedWidgetForEdit(null);
+  };
 
   // Duplicate widget
   const duplicateWidget = (widget) => {
@@ -811,6 +846,7 @@ export function CustomDashboard() {
           widget={widget}
           onRemove={() => removeWidget(widget.id)}
           onDuplicate={() => duplicateWidget(widget)}
+          onEdit={() => editWidget(widget)}
           isEditMode={isEditMode}
         >
           <div className="p-6">
@@ -855,6 +891,7 @@ export function CustomDashboard() {
           widget={widget}
           onRemove={() => removeWidget(widget.id)}
           onDuplicate={() => duplicateWidget(widget)}
+          onEdit={() => editWidget(widget)}
           isEditMode={isEditMode}
         >
           <div className="p-4">
@@ -916,6 +953,7 @@ export function CustomDashboard() {
             widget={widget}
             onRemove={() => removeWidget(widget.id)}
             onDuplicate={() => duplicateWidget(widget)}
+          onEdit={() => editWidget(widget)}
             isEditMode={isEditMode}
           >
             <ComparisonWidget
@@ -933,6 +971,7 @@ export function CustomDashboard() {
             widget={widget}
             onRemove={() => removeWidget(widget.id)}
             onDuplicate={() => duplicateWidget(widget)}
+          onEdit={() => editWidget(widget)}
             isEditMode={isEditMode}
           >
             <div className="p-4">
@@ -961,6 +1000,7 @@ export function CustomDashboard() {
             widget={widget}
             onRemove={() => removeWidget(widget.id)}
             onDuplicate={() => duplicateWidget(widget)}
+          onEdit={() => editWidget(widget)}
             isEditMode={isEditMode}
           >
             <div className="p-4 space-y-2">
@@ -987,6 +1027,7 @@ export function CustomDashboard() {
             widget={widget}
             onRemove={() => removeWidget(widget.id)}
             onDuplicate={() => duplicateWidget(widget)}
+          onEdit={() => editWidget(widget)}
             isEditMode={isEditMode}
           >
             <div className="p-4 space-y-2">
@@ -1013,6 +1054,7 @@ export function CustomDashboard() {
             widget={widget}
             onRemove={() => removeWidget(widget.id)}
             onDuplicate={() => duplicateWidget(widget)}
+          onEdit={() => editWidget(widget)}
             isEditMode={isEditMode}
           >
             <div className="p-4">
@@ -1393,12 +1435,23 @@ export function CustomDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Widget Editor Dialog */}
+      <WidgetEditor
+        widget={selectedWidgetForEdit}
+        isOpen={showWidgetEditor}
+        onSave={saveEditedWidget}
+        onCancel={() => {
+          setShowWidgetEditor(false);
+          setSelectedWidgetForEdit(null);
+        }}
+      />
     </div>
   );
 }
 
 // Widget wrapper component
-function WidgetWrapper({ widget, children, onRemove, onDuplicate, isEditMode }) {
+function WidgetWrapper({ widget, children, onRemove, onDuplicate, onEdit, isEditMode }) {
   return (
     <Card className="h-full relative group">
       <CardHeader className="pb-2">
@@ -1419,6 +1472,10 @@ function WidgetWrapper({ widget, children, onRemove, onDuplicate, isEditMode }) 
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onEdit}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Edit Widget
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDuplicate}>
                   <Copy className="h-4 w-4 mr-2" />
                   Duplicate
