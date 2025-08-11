@@ -422,7 +422,10 @@ export function EnhancedCustomDashboard() {
     localStorage.setItem('osol_custom_dashboard', JSON.stringify(dashboardConfig));
     setLastSaved(new Date());
     
-    toast.success("Dashboard Saved: Your dashboard configuration has been saved successfully");
+    toast.success("Dashboard Saved: Your dashboard configuration has been saved successfully. Switching to view mode...");
+    
+    // Automatically switch to view mode after saving
+    setIsEditMode(false);
   }, [dashboardName, selectedTemplate, layouts, widgets, colorTheme, autoRefresh, refreshInterval, showGridLines, compactMode]);
 
   // Load saved dashboard
@@ -644,25 +647,53 @@ export function EnhancedCustomDashboard() {
               Export
             </Button>
             
-            <Button
-              size="sm"
-              onClick={saveDashboard}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save Dashboard
-            </Button>
+            {isEditMode ? (
+              <>
+                <Button
+                  size="sm"
+                  onClick={saveDashboard}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Dashboard
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => {
+                    setIsEditMode(false);
+                    toast.info('Switched to view mode');
+                  }}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  View Dashboard
+                </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setTemplateName(dashboardName || 'Custom Template');
-                setShowSaveTemplate(true);
-              }}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Save as Template
-            </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setTemplateName(dashboardName || 'Custom Template');
+                    setShowSaveTemplate(true);
+                  }}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Save as Template
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsEditMode(true);
+                  toast.info('Switched to edit mode');
+                }}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Edit Dashboard
+              </Button>
+            )}
           </div>
         </div>
 
