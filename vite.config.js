@@ -39,7 +39,11 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         // Ensure consistent ESM build resolution for xlsx
-        "xlsx": path.resolve(__dirname, "./node_modules/xlsx/xlsx.mjs")
+        "xlsx": path.resolve(__dirname, "./node_modules/xlsx/xlsx.mjs"),
+        // Add jspdf alias to ensure proper resolution
+        "jspdf": path.resolve(__dirname, "./node_modules/jspdf/dist/jspdf.es.min.js"),
+        "jspdf-autotable": path.resolve(__dirname, "./node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.min.js"),
+        "html2canvas": path.resolve(__dirname, "./node_modules/html2canvas/dist/html2canvas.esm.js")
       },
     },
     // Explicitly define environment variables for build
@@ -64,11 +68,11 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'lucide': ['lucide-react']
+            'lucide': ['lucide-react'],
+            'jspdf': ['jspdf', 'jspdf-autotable']
           }
-        },
-        // Avoid bundling jspdf which we load dynamically at runtime
-        external: ['jspdf']
+        }
+        // Removed external: ['jspdf'] - jspdf needs to be bundled
       },
       // Ensure proper handling of external dependencies
       commonjsOptions: {
@@ -76,8 +80,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'file-saver', 'xlsx', 'react-pdf'],
-      exclude: ['jspdf'],
+      include: ['lucide-react', '@hello-pangea/dnd', 'pdfjs-dist', 'file-saver', 'xlsx', 'react-pdf', 'jspdf', 'jspdf-autotable', 'html2canvas'],
+      // Removed exclude: ['jspdf'] - jspdf needs to be optimized
       force: true
     }
   }

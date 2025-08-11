@@ -34,9 +34,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+// Dynamic import for jspdf - moved to function level
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 // Custom hooks for date ranges
 function useDateRangePresets() {
@@ -298,19 +298,27 @@ function DrillDownModal({ open, onClose, title, data, type }) {
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(sortedData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, title);
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
     XLSX.writeFile(wb, `${title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text(title, 14, 15);
-    doc.autoTable({
-      head: [Object.keys(sortedData[0] || {})],
-      body: sortedData.map(row => Object.values(row)),
-      startY: 25,
-    });
-    doc.save(`${title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  const exportToPDF = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
+      
+      const doc = new jsPDF();
+      doc.text(title, 14, 15);
+      doc.autoTable({
+        head: [Object.keys(sortedData[0] || {})],
+        body: sortedData.map(row => Object.values(row)),
+        startY: 25,
+      });
+      doc.save(`${title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast.error('Failed to export PDF');
+    }
   };
 
   return (
