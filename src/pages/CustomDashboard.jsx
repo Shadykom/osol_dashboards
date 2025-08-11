@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import useDashboardCustomization from '@/hooks/useDashboardCustomization';
 import { 
   LayoutGrid, Save, RefreshCw, Settings, Plus, X,
   Eye, TrendingUp, Users, DollarSign, CreditCard, PiggyBank, 
@@ -323,18 +324,52 @@ const STORAGE_KEYS = {
 export function CustomDashboard() {
   const { t } = useTranslation();
   
+  // Use database persistence for dashboard customization
+  const {
+    currentDashboard,
+    loading: dashboardLoading,
+    updateDashboard,
+    updateWidget,
+    addWidget: addDashboardWidget,
+    removeWidget: removeDashboardWidget,
+    reorderWidgets,
+    createDashboard,
+    switchDashboard,
+    dashboards
+  } = useDashboardCustomization();
+  
   // State for widgets and configurations
-  const [widgets, setWidgets] = useState([]);
+  const [widgets, setWidgets] = useState(() => {
+    // Initialize from currentDashboard if available
+    if (currentDashboard?.widgets && currentDashboard.widgets.length > 0) {
+      return currentDashboard.widgets.map(w => ({
+        id: w.id,
+        type: w.widget_type,
+        title: w.widget_config?.title || 'Widget',
+        position: w.position_config || { x: 0, y: 0, w: 3, h: 2 },
+        config: w.widget_config || {}
+      }));
+    }
+    return [];
+  });
   const [widgetData, setWidgetData] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [currentTemplate, setCurrentTemplate] = useState(() => 
+    currentDashboard?.layout_config?.template || null
+  );
   
   // Settings
-  const [dashboardName, setDashboardName] = useState('My Custom Dashboard');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30000);
+  const [dashboardName, setDashboardName] = useState(() => 
+    currentDashboard?.name || 'My Custom Dashboard'
+  );
+  const [autoRefresh, setAutoRefresh] = useState(() => 
+    currentDashboard?.layout_config?.autoRefresh ?? true
+  );
+  const [refreshInterval, setRefreshInterval] = useState(() => 
+    currentDashboard?.layout_config?.refreshInterval || 30000
+  );
   
   // Dialog states
   const [showAddWidget, setShowAddWidget] = useState(false);
@@ -394,44 +429,73 @@ export function CustomDashboard() {
     initializeWidgetData();
   }, [widgets]);
 
-  // Load dashboard configuration from localStorage
-  const loadDashboardConfiguration = () => {
-    try {
-      const savedWidgets = localStorage.getItem(STORAGE_KEYS.DASHBOARD_WIDGETS);
-      const savedSettings = localStorage.getItem(STORAGE_KEYS.DASHBOARD_SETTINGS);
-      const savedTemplate = localStorage.getItem(STORAGE_KEYS.CURRENT_TEMPLATE);
-
-      if (savedWidgets) {
-        setWidgets(JSON.parse(savedWidgets));
-      }
-
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        setDashboardName(settings.dashboardName || 'My Custom Dashboard');
-        setAutoRefresh(settings.autoRefresh ?? true);
-        setRefreshInterval(settings.refreshInterval || 30000);
-      }
-
-      if (savedTemplate) {
-        setCurrentTemplate(savedTemplate);
-      }
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
+  // Load dashboard configuration from database
+  const loadDashboardConfiguration = useCallback(() => {
+    // Configuration is already loaded from the database via useDashboardCustomization hook
+    // The state is initialized from currentDashboard in the useState calls above
+    // This function is kept for compatibility but doesn't need to do anything
+    if (currentDashboard) {
+      console.log('Dashboard loaded from database:', currentDashboard.name);
     }
-  };
+  }, [currentDashboard]);
 
-  // Save dashboard configuration
-  const saveDashboardConfiguration = useCallback(() => {
+  // Save dashboard configuration to database
+  const saveDashboardConfiguration = useCallback(async () => {
     try {
-      localStorage.setItem(STORAGE_KEYS.DASHBOARD_WIDGETS, JSON.stringify(widgets));
-      localStorage.setItem(STORAGE_KEYS.DASHBOARD_SETTINGS, JSON.stringify({
-        dashboardName,
-        autoRefresh,
-        refreshInterval,
-        savedAt: new Date().toISOString()
-      }));
-      if (currentTemplate) {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_TEMPLATE, currentTemplate);
+      if (currentDashboard?.id) {
+        // Clear existing widgets and add new ones
+        const existingWidgets = currentDashboard.widgets || [];
+        for (const widget of existingWidgets) {
+          await removeDashboardWidget(widget.id);
+        }
+        
+        // Add current widgets
+        for (let i = 0; i < widgets.length; i++) {
+          const widget = widgets[i];
+          await addDashboardWidget(currentDashboard.id, {
+            type: widget.type,
+            config: { ...widget.config, title: widget.title },
+            position: widget.position,
+            orderIndex: i
+          });
+        }
+        
+        // Update dashboard configuration
+        await updateDashboard(currentDashboard.id, {
+          name: dashboardName,
+          layout_config: {
+            template: currentTemplate,
+            autoRefresh,
+            refreshInterval,
+            savedAt: new Date().toISOString()
+          }
+        });
+      } else {
+        // Create new dashboard if none exists
+        const result = await createDashboard({
+          name: dashboardName,
+          description: 'Custom dashboard configuration',
+          layoutConfig: {
+            template: currentTemplate,
+            autoRefresh,
+            refreshInterval,
+            savedAt: new Date().toISOString()
+          },
+          isDefault: true
+        });
+        
+        if (result.success && result.dashboard) {
+          // Add widgets to new dashboard
+          for (let i = 0; i < widgets.length; i++) {
+            const widget = widgets[i];
+            await addDashboardWidget(result.dashboard.id, {
+              type: widget.type,
+              config: { ...widget.config, title: widget.title },
+              position: widget.position,
+              orderIndex: i
+            });
+          }
+        }
       }
 
       toast.success('Dashboard saved successfully');
@@ -439,7 +503,8 @@ export function CustomDashboard() {
       console.error('Error saving dashboard:', error);
       toast.error('Failed to save dashboard');
     }
-  }, [widgets, dashboardName, autoRefresh, refreshInterval, currentTemplate]);
+  }, [widgets, dashboardName, autoRefresh, refreshInterval, currentTemplate, 
+      currentDashboard, updateDashboard, addDashboardWidget, removeDashboardWidget, createDashboard]);
 
   // Load a dashboard template
   const loadTemplate = (templateId) => {
@@ -663,15 +728,41 @@ export function CustomDashboard() {
   };
 
   // Reset dashboard
-  const resetDashboard = () => {
+  const resetDashboard = async () => {
     if (confirm('Are you sure you want to reset the dashboard?')) {
-      setWidgets([]);
-      setDashboardName('My Custom Dashboard');
-      setCurrentTemplate(null);
-      localStorage.removeItem(STORAGE_KEYS.DASHBOARD_WIDGETS);
-      localStorage.removeItem(STORAGE_KEYS.DASHBOARD_SETTINGS);
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_TEMPLATE);
-      toast.success('Dashboard reset');
+      try {
+        // Clear widgets from database
+        if (currentDashboard?.id && currentDashboard.widgets) {
+          for (const widget of currentDashboard.widgets) {
+            await removeDashboardWidget(widget.id);
+          }
+        }
+        
+        // Reset local state
+        setWidgets([]);
+        setDashboardName('My Custom Dashboard');
+        setCurrentTemplate(null);
+        setAutoRefresh(true);
+        setRefreshInterval(30000);
+        
+        // Update dashboard in database
+        if (currentDashboard?.id) {
+          await updateDashboard(currentDashboard.id, {
+            name: 'My Custom Dashboard',
+            layout_config: {
+              template: null,
+              autoRefresh: true,
+              refreshInterval: 30000,
+              savedAt: new Date().toISOString()
+            }
+          });
+        }
+        
+        toast.success('Dashboard reset');
+      } catch (error) {
+        console.error('Error resetting dashboard:', error);
+        toast.error('Failed to reset dashboard');
+      }
     }
   };
 

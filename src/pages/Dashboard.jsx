@@ -85,6 +85,7 @@ import { fixDashboard } from '@/utils/fixDashboardAuth';
 import { initializeDatabase } from '@/utils/databaseInit';
 import { autoLogin, handle401Error, authenticatedQuery } from '@/utils/authHelper';
 import { useDashboard } from '@/hooks/useDashboard';
+import useDashboardCustomization from '@/hooks/useDashboardCustomization';
 import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { DataSeeder } from '@/components/dashboard/DataSeeder';
 import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
@@ -2251,21 +2252,33 @@ export default function EnhancedDashboard() {
   // Use FilterContext instead of local state
   const { filters, filterOptions, updateFilter, updateFilters, resetFilters, loadFilterOptions } = useFilters();
   
+  // Use database persistence for dashboard customization
+  const {
+    currentDashboard,
+    loading: dashboardLoading,
+    updateDashboard,
+    updateWidget,
+    addWidget: addDashboardWidget,
+    removeWidget: removeDashboardWidget,
+    reorderWidgets,
+    createDashboard,
+    switchDashboard,
+    dashboards
+  } = useDashboardCustomization();
+  
   // State Management - Initialize with default widgets immediately
   const [loading, setLoading] = useState(false); // Changed from true to false
   const [refreshing, setRefreshing] = useState(false); // Add refreshing state
   const [widgets, setWidgets] = useState(() => {
-    // Try to load from localStorage first, otherwise use default template
-    const savedConfig = localStorage.getItem('kastle_dashboard_config');
-    if (savedConfig) {
-      try {
-        const config = JSON.parse(savedConfig);
-        if (config.widgets && config.widgets.length > 0) {
-          return config.widgets;
-        }
-      } catch (error) {
-        console.error('Error loading saved config:', error);
-      }
+    // Use widgets from currentDashboard if available
+    if (currentDashboard?.widgets && currentDashboard.widgets.length > 0) {
+      return currentDashboard.widgets.map(w => ({
+        id: w.id,
+        type: w.widget_type,
+        title: w.widget_config?.title || 'Widget',
+        position: w.position_config || { x: 0, y: 0, w: 3, h: 2 },
+        config: w.widget_config || {}
+      }));
     }
     // Return default executive template widgets
     return DASHBOARD_TEMPLATES.executive.widgets;
@@ -2279,15 +2292,12 @@ export default function EnhancedDashboard() {
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(() => {
-    // Initialize template from saved config
-    const savedConfig = localStorage.getItem('kastle_dashboard_config');
-    if (savedConfig) {
-      try {
-        const config = JSON.parse(savedConfig);
-        return config.template || 'executive';
-      } catch (error) {
-        return 'executive';
-      }
+    // Use template from currentDashboard if available
+    if (currentDashboard?.template?.name) {
+      const templateKey = Object.keys(DASHBOARD_TEMPLATES).find(
+        key => DASHBOARD_TEMPLATES[key].name === currentDashboard.template.name
+      );
+      return templateKey || 'executive';
     }
     return 'executive';
   });
@@ -2494,15 +2504,68 @@ export default function EnhancedDashboard() {
     }
   }, [widgets, filters]);
 
-  // Save dashboard configuration
-  const saveDashboardConfig = () => {
-    const config = {
-      widgets,
-      template: selectedTemplate,
-      savedAt: new Date().toISOString()
-    };
-    localStorage.setItem('kastle_dashboard_config', JSON.stringify(config));
-    toast.success('Dashboard saved successfully');
+  // Save dashboard configuration to database
+  const saveDashboardConfig = async () => {
+    try {
+      // Update widgets in database
+      if (currentDashboard?.id) {
+        // Clear existing widgets and add new ones
+        const existingWidgets = currentDashboard.widgets || [];
+        for (const widget of existingWidgets) {
+          await removeDashboardWidget(widget.id);
+        }
+        
+        // Add current widgets
+        for (let i = 0; i < widgets.length; i++) {
+          const widget = widgets[i];
+          await addDashboardWidget(currentDashboard.id, {
+            type: widget.type,
+            config: { ...widget.config, title: widget.title },
+            position: widget.position,
+            orderIndex: i
+          });
+        }
+        
+        // Update dashboard configuration
+        await updateDashboard(currentDashboard.id, {
+          layout_config: {
+            template: selectedTemplate,
+            filters,
+            savedAt: new Date().toISOString()
+          }
+        });
+      } else {
+        // Create new dashboard if none exists
+        const result = await createDashboard({
+          name: 'My Dashboard',
+          description: 'Custom dashboard configuration',
+          layoutConfig: {
+            template: selectedTemplate,
+            filters,
+            savedAt: new Date().toISOString()
+          },
+          isDefault: true
+        });
+        
+        if (result.success && result.dashboard) {
+          // Add widgets to new dashboard
+          for (let i = 0; i < widgets.length; i++) {
+            const widget = widgets[i];
+            await addDashboardWidget(result.dashboard.id, {
+              type: widget.type,
+              config: { ...widget.config, title: widget.title },
+              position: widget.position,
+              orderIndex: i
+            });
+          }
+        }
+      }
+      
+      toast.success('Dashboard saved successfully');
+    } catch (error) {
+      console.error('Error saving dashboard:', error);
+      toast.error('Failed to save dashboard');
+    }
   };
 
   // Load template
@@ -2510,21 +2573,46 @@ export default function EnhancedDashboard() {
     const template = DASHBOARD_TEMPLATES[templateId];
     if (!template) return;
     
-    // Ensure widgets are properly set
-    const newWidgets = [...template.widgets];
-    setWidgets(newWidgets);
-    setSelectedTemplate(templateId);
-    setShowTemplates(false);
-    
-    // Save the configuration immediately
-    const config = {
-      widgets: newWidgets,
-      template: templateId,
-      savedAt: new Date().toISOString()
-    };
-    localStorage.setItem('kastle_dashboard_config', JSON.stringify(config));
-    
-    toast.success(`${template.nameEn} loaded`);
+    try {
+      // Ensure widgets are properly set
+      const newWidgets = [...template.widgets];
+      setWidgets(newWidgets);
+      setSelectedTemplate(templateId);
+      setShowTemplates(false);
+      
+      // Save to database if dashboard exists
+      if (currentDashboard?.id) {
+        // Clear existing widgets
+        const existingWidgets = currentDashboard.widgets || [];
+        for (const widget of existingWidgets) {
+          await removeDashboardWidget(widget.id);
+        }
+        
+        // Add new template widgets
+        for (let i = 0; i < newWidgets.length; i++) {
+          const widget = newWidgets[i];
+          await addDashboardWidget(currentDashboard.id, {
+            type: widget.type,
+            config: { ...widget.config, title: widget.title },
+            position: widget.position,
+            orderIndex: i
+          });
+        }
+        
+        // Update dashboard configuration
+        await updateDashboard(currentDashboard.id, {
+          layout_config: {
+            template: templateId,
+            savedAt: new Date().toISOString()
+          }
+        });
+      }
+      
+      toast.success(`${template.nameEn} loaded`);
+    } catch (error) {
+      console.error('Error loading template:', error);
+      toast.error('Failed to load template');
+    }
   };
 
   // Fetch monthly comparison data
