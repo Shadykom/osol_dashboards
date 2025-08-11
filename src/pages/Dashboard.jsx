@@ -2561,7 +2561,14 @@ export default function EnhancedDashboard() {
         }
       }
       
-      toast.success('Dashboard saved successfully');
+      toast.success('Dashboard saved successfully! Switching to view mode...');
+      
+      // Automatically switch to view mode after saving
+      setIsEditMode(false);
+      
+      // Refresh data to show the saved dashboard
+      await fetchDashboardData();
+      
     } catch (error) {
       console.error('Error saving dashboard:', error);
       toast.error('Failed to save dashboard');
@@ -3155,13 +3162,13 @@ export default function EnhancedDashboard() {
               </Label>
             </div>
             
-            {isEditMode && (
+            {isEditMode ? (
               <>
                 <Button
                   size="sm"
                   onClick={() => setShowTemplates(true)}
                 >
-                                      <Layers className={cn("h-4 w-4", rtl.marginEnd(2))} />
+                  <Layers className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Templates
                 </Button>
                 
@@ -3169,18 +3176,42 @@ export default function EnhancedDashboard() {
                   size="sm"
                   onClick={saveDashboardConfig}
                 >
-                                      <Save className={cn("h-4 w-4", rtl.marginEnd(2))} />
+                  <Save className={cn("h-4 w-4", rtl.marginEnd(2))} />
                   Save
                 </Button>
+                
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => {
+                    setIsEditMode(false);
+                    toast.info('Switched to view mode');
+                  }}
+                >
+                  <Eye className={cn("h-4 w-4", rtl.marginEnd(2))} />
+                  View Dashboard
+                </Button>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate('/dashboard/custom')}
-                  >
-                    Customize
-                  </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/dashboard/custom')}
+                >
+                  Customize
+                </Button>
               </>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsEditMode(true);
+                  toast.info('Switched to edit mode');
+                }}
+              >
+                <Settings className={cn("h-4 w-4", rtl.marginEnd(2))} />
+                Edit Dashboard
+              </Button>
             )}
             
             <DropdownMenu>

@@ -498,7 +498,14 @@ export function CustomDashboard() {
         }
       }
 
-      toast.success('Dashboard saved successfully');
+      toast.success('Dashboard saved successfully! Switching to view mode...');
+      
+      // Automatically switch to view mode after saving
+      setIsEditMode(false);
+      
+      // Refresh data to show the saved dashboard
+      await fetchDashboardData();
+      
     } catch (error) {
       console.error('Error saving dashboard:', error);
       toast.error('Failed to save dashboard');
@@ -1097,13 +1104,40 @@ export function CustomDashboard() {
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button
-            size="sm"
-            onClick={saveDashboardConfiguration}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Save Dashboard
-          </Button>
+          {isEditMode ? (
+            <>
+              <Button
+                size="sm"
+                onClick={saveDashboardConfiguration}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Dashboard
+              </Button>
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  setIsEditMode(false);
+                  toast.info('Switched to view mode');
+                }}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Dashboard
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setIsEditMode(true);
+                toast.info('Switched to edit mode');
+              }}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Edit Dashboard
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1116,15 +1150,27 @@ export function CustomDashboard() {
               <CardDescription>Choose a template or build your own custom dashboard</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Badge variant={isEditMode ? "default" : "secondary"} className="px-3 py-1">
+                {isEditMode ? (
+                  <>
+                    <Unlock className="w-3 h-3 mr-1" />
+                    Edit Mode
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3 h-3 mr-1" />
+                    View Mode
+                  </>
+                )}
+              </Badge>
               <Switch
                 id="edit-mode"
                 checked={isEditMode}
-                onCheckedChange={setIsEditMode}
+                onCheckedChange={(checked) => {
+                  setIsEditMode(checked);
+                  toast.info(checked ? 'Switched to edit mode' : 'Switched to view mode');
+                }}
               />
-              <Label htmlFor="edit-mode" className="cursor-pointer">
-                {isEditMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                {isEditMode ? t('dashboard.editMode') : t('dashboard.viewMode')}
-              </Label>
             </div>
           </div>
         </CardHeader>
