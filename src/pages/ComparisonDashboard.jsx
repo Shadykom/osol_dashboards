@@ -17,7 +17,12 @@ import { ComparisonService } from '@/services/comparisonService';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, subQuarters, subYears } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { EnhancedMultiSelect } from '@/components/ui/enhanced-multi-select';
+import { EnhancedDateRangePicker } from '@/components/ui/enhanced-date-picker';
+import { ComparisonVisualization } from '@/components/dashboard/ComparisonVisualization';
+import { EnhancedMetricCard } from '@/components/dashboard/EnhancedMetricCard';
 import { supabase } from '@/lib/supabase';
+import html2canvas from 'html2canvas';
 import { 
   LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -25,13 +30,19 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   ReferenceLine, ReferenceArea, Brush, LabelList
 } from 'recharts';
-import {
+import { 
   Calendar as CalendarIcon, Filter, Download, RefreshCw, TrendingUp, TrendingDown,
   ArrowUpRight, ArrowDownRight, AlertCircle, Info, ChevronRight, ChevronDown,
   Users, DollarSign, ShoppingCart, CreditCard, FileText, Target, Activity,
   BarChart3, PieChartIcon, LineChartIcon, Layers, GitBranch, Clock,
-  CheckCircle2, XCircle, Eye, Maximize2, Settings, HelpCircle, Sparkles
+  CheckCircle2, XCircle, Eye, Maximize2, Settings, HelpCircle, Sparkles, Image
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 // Dynamic import for jspdf - moved to function level
@@ -626,6 +637,141 @@ export default function ComparisonDashboard() {
     ];
   }, [data]);
 
+  // Export functions
+  const exportMetricData = (metric) => {
+    const data = {
+      metric: metric.title,
+      currentPeriod: {
+        dates: `${format(date1.from, 'yyyy-MM-dd')} to ${format(date1.to, 'yyyy-MM-dd')}`,
+        value: metric.current,
+        formatted: metric.format === 'currency' ? formatCurrency(metric.current) : formatNumber(metric.current)
+      },
+      previousPeriod: {
+        dates: `${format(date2.from, 'yyyy-MM-dd')} to ${format(date2.to, 'yyyy-MM-dd')}`,
+        value: metric.previous,
+        formatted: metric.format === 'currency' ? formatCurrency(metric.previous) : formatNumber(metric.previous)
+      },
+      change: {
+        absolute: metric.current - metric.previous,
+        percentage: ((metric.current - metric.previous) / metric.previous * 100).toFixed(2) + '%'
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${metric.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Data exported successfully');
+  };
+
+  const exportAllData = async (format = 'excel') => {
+    try {
+      const exportData = {
+        metadata: {
+          exportDate: new Date().toISOString(),
+          period1: { from: date1.from, to: date1.to },
+          period2: { from: date2.from, to: date2.to },
+          filters: {
+            branches: selectedBranches,
+            products: selectedProducts,
+            segments: selectedSegments,
+            granularity
+          }
+        },
+        summary: summaryMetrics.map(m => ({
+          metric: m.title,
+          period1Value: m.previous,
+          period2Value: m.current,
+          change: ((m.current - m.previous) / m.previous * 100).toFixed(2) + '%'
+        })),
+        salesData: data.sales?.data || [],
+        collectionsData: data.collections?.data || [],
+        customersData: data.customers?.data || [],
+        accountsData: data.accounts?.data || [],
+        casesData: data.cases?.data || []
+      };
+
+      if (format === 'excel') {
+        const wb = XLSX.utils.book_new();
+        
+        // Summary sheet
+        const summaryWs = XLSX.utils.json_to_sheet(exportData.summary);
+        XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+        
+        // Sales sheet
+        if (exportData.salesData.length > 0) {
+          const salesWs = XLSX.utils.json_to_sheet(exportData.salesData);
+          XLSX.utils.book_append_sheet(wb, salesWs, 'Sales');
+        }
+        
+        // Collections sheet
+        if (exportData.collectionsData.length > 0) {
+          const collectionsWs = XLSX.utils.json_to_sheet(exportData.collectionsData);
+          XLSX.utils.book_append_sheet(wb, collectionsWs, 'Collections');
+        }
+        
+        // Customers sheet
+        if (exportData.customersData.length > 0) {
+          const customersWs = XLSX.utils.json_to_sheet(exportData.customersData);
+          XLSX.utils.book_append_sheet(wb, customersWs, 'Customers');
+        }
+        
+        XLSX.writeFile(wb, `Comparison_Dashboard_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+        toast.success('Excel file exported successfully');
+      } else if (format === 'pdf') {
+        const { default: jsPDF } = await import('jspdf');
+        await import('jspdf-autotable');
+        
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text('Comparison Dashboard Report', 14, 22);
+        
+        doc.setFontSize(11);
+        doc.text(`Generated: ${format(new Date(), 'PPP')}`, 14, 32);
+        doc.text(`Period 1: ${format(date1.from, 'PP')} - ${format(date1.to, 'PP')}`, 14, 40);
+        doc.text(`Period 2: ${format(date2.from, 'PP')} - ${format(date2.to, 'PP')}`, 14, 48);
+        
+        // Summary table
+        doc.autoTable({
+          head: [['Metric', 'Period 1', 'Period 2', 'Change']],
+          body: exportData.summary.map(row => [
+            row.metric,
+            formatNumber(row.period1Value),
+            formatNumber(row.period2Value),
+            row.change
+          ]),
+          startY: 60,
+        });
+        
+        doc.save(`Comparison_Dashboard_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+        toast.success('PDF exported successfully');
+      } else if (format === 'image') {
+        const element = document.getElementById('comparison-dashboard');
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          logging: false,
+          useCORS: true
+        });
+        
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Comparison_Dashboard_${format(new Date(), 'yyyy-MM-dd')}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          toast.success('Image exported successfully');
+        });
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export data');
+    }
+  };
+
   // Handle drill-down
   const handleDrillDown = async (type, title) => {
     setLoading(true);
@@ -947,7 +1093,7 @@ export default function ComparisonDashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div id="comparison-dashboard" className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -957,6 +1103,28 @@ export default function ComparisonDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportAllData('excel')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAllData('pdf')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAllData('image')}>
+                <Image className="h-4 w-4 mr-2" />
+                Export as Image
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -965,25 +1133,25 @@ export default function ComparisonDashboard() {
             <Settings className="h-4 w-4 mr-2" />
             Settings
           </Button>
-          <Button variant="outline">
-            <HelpCircle className="h-4 w-4 mr-2" />
-            Help
-          </Button>
         </div>
       </div>
 
       {/* Date Range Selection */}
       <Card>
         <CardHeader>
-          <CardTitle>Date Range Selection</CardTitle>
-          <CardDescription>Select two periods to compare</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            Date Range Selection
+          </CardTitle>
+          <CardDescription>Select two periods to compare with smart presets</CardDescription>
         </CardHeader>
         <CardContent>
-          <DateRangePicker
+          <EnhancedDateRangePicker
             range1={date1}
             range2={date2}
             onRange1Change={setDate1}
             onRange2Change={setDate2}
+            showComparison={true}
           />
         </CardContent>
       </Card>
@@ -1012,32 +1180,53 @@ export default function ComparisonDashboard() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Branches</label>
-              <MultiSelect
-                options={branchOptions}
+              <label className="text-sm font-medium flex items-center gap-2">
+                <GitBranch className="h-4 w-4 text-muted-foreground" />
+                Branches
+              </label>
+              <EnhancedMultiSelect
+                options={branchOptions.map(opt => ({
+                  ...opt,
+                  description: `Branch ID: ${opt.value}`
+                }))}
                 value={selectedBranches}
                 onChange={setSelectedBranches}
-                placeholder="Select branches..."
+                placeholder="Search and select branches..."
+                searchable={true}
+                showSelectAll={true}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Products</label>
-              <MultiSelect
-                options={productOptions}
+              <label className="text-sm font-medium flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                Products
+              </label>
+              <EnhancedMultiSelect
+                options={productOptions.map(opt => ({
+                  ...opt,
+                  description: `Product offering`
+                }))}
                 value={selectedProducts}
                 onChange={setSelectedProducts}
-                placeholder="Select products..."
+                placeholder="Search and select products..."
+                searchable={true}
+                showSelectAll={true}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Customer Segments</label>
-              <MultiSelect
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                Customer Segments
+              </label>
+              <EnhancedMultiSelect
                 options={segmentOptions}
                 value={selectedSegments}
                 onChange={setSelectedSegments}
-                placeholder="Select segments..."
+                placeholder="Search and select segments..."
+                searchable={true}
+                showSelectAll={true}
               />
             </div>
           </div>
@@ -1095,9 +1284,9 @@ export default function ComparisonDashboard() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {summaryMetrics.map(metric => (
-            <MetricCard
+            <EnhancedMetricCard
               key={metric.id}
               title={metric.title}
               value={metric.current}
@@ -1106,6 +1295,12 @@ export default function ComparisonDashboard() {
               onClick={metric.onClick}
               trend={metric.trend}
               format={metric.format}
+              description={`Comparing ${format(date1.from, 'MMM dd')} - ${format(date1.to, 'MMM dd')} vs ${format(date2.from, 'MMM dd')} - ${format(date2.to, 'MMM dd')}`}
+              showProgress={false}
+              color={metric.current > metric.previous ? 'success' : 'danger'}
+              onExport={() => exportMetricData(metric)}
+              onViewDetails={() => handleDrillDown(metric.id, `${metric.title} Details`)}
+              size={window.innerWidth < 1280 ? 'compact' : 'default'}
             />
           ))}
         </div>
@@ -1121,7 +1316,16 @@ export default function ComparisonDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          {renderComparisonChart()}
+          <ComparisonVisualization
+            data={data.sales?.data?.map(item => ({
+              period: format(new Date(item.period), granularity === 'day' ? 'MMM dd' : granularity === 'month' ? 'MMM yyyy' : 'yyyy'),
+              value1: item.value_1 || 0,
+              value2: item.value_2 || 0,
+              change: item.pct_change || 0
+            })) || []}
+            title="Sales Performance Comparison"
+            description="Compare sales metrics across selected periods"
+          />
           {renderHeatmap()}
         </TabsContent>
 
