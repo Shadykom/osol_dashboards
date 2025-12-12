@@ -1,0 +1,14 @@
+{
+  "name": "@cms/db",
+  "version": "1.0.0",
+  "description": "CMS Database migrations, seeds, and RLS policies",
+  "type": "module",
+  "scripts": {
+    "migrate": "node run-migrations.js",
+    "migrate:seed": "node run-migrations.js --seed",
+    "seed": "node run-migrations.js --seed"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
