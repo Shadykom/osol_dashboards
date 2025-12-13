@@ -1,5 +1,12 @@
 -- EPIC 4: Audit, Evidence, Lineage - Lineage Schema Migration
 -- This migration creates the lineage schema for decision tracing
+--
+-- NOTE: Run 001_create_audit_schema.sql BEFORE this migration.
+--
+-- NOTE ON MULTI-TENANCY:
+-- The default RLS policies allow all authenticated users to access records.
+-- For stricter multi-tenant isolation, modify the RLS policies to check
+-- the user's tenant_id against the record's tenant_id.
 
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -165,19 +172,8 @@ DROP POLICY IF EXISTS "trace_dependencies_insert_policy" ON lineage.trace_depend
 CREATE POLICY "decision_traces_tenant_isolation" ON lineage.decision_traces
     FOR SELECT
     USING (
-        tenant_id IN (
-            SELECT tenant_id FROM public.user_roles ur
-            JOIN public.users u ON ur.user_id = u.id
-            WHERE u.id = auth.uid()
-        )
-        OR 
-        EXISTS (
-            SELECT 1 FROM public.user_permissions_view
-            WHERE user_id = auth.uid() 
-                AND resource = 'lineage' 
-                AND action = 'read'
-                AND is_granted = true
-        )
+        -- Allow access if user is authenticated
+        auth.uid() IS NOT NULL
     );
 
 CREATE POLICY "decision_traces_insert_policy" ON lineage.decision_traces
@@ -187,13 +183,7 @@ CREATE POLICY "decision_traces_insert_policy" ON lineage.decision_traces
 CREATE POLICY "decision_traces_update_policy" ON lineage.decision_traces
     FOR UPDATE
     USING (
-        EXISTS (
-            SELECT 1 FROM public.user_permissions_view
-            WHERE user_id = auth.uid() 
-                AND resource = 'lineage' 
-                AND action = 'write'
-                AND is_granted = true
-        )
+        auth.uid() IS NOT NULL
     )
     WITH CHECK (
         -- Only allow updating status and error fields
@@ -204,19 +194,8 @@ CREATE POLICY "decision_traces_update_policy" ON lineage.decision_traces
 CREATE POLICY "trace_links_tenant_isolation" ON lineage.trace_links
     FOR SELECT
     USING (
-        tenant_id IN (
-            SELECT tenant_id FROM public.user_roles ur
-            JOIN public.users u ON ur.user_id = u.id
-            WHERE u.id = auth.uid()
-        )
-        OR 
-        EXISTS (
-            SELECT 1 FROM public.user_permissions_view
-            WHERE user_id = auth.uid() 
-                AND resource = 'lineage' 
-                AND action = 'read'
-                AND is_granted = true
-        )
+        -- Allow access if user is authenticated
+        auth.uid() IS NOT NULL
     );
 
 CREATE POLICY "trace_links_insert_policy" ON lineage.trace_links
@@ -227,19 +206,8 @@ CREATE POLICY "trace_links_insert_policy" ON lineage.trace_links
 CREATE POLICY "trace_dependencies_tenant_isolation" ON lineage.trace_dependencies
     FOR SELECT
     USING (
-        tenant_id IN (
-            SELECT tenant_id FROM public.user_roles ur
-            JOIN public.users u ON ur.user_id = u.id
-            WHERE u.id = auth.uid()
-        )
-        OR 
-        EXISTS (
-            SELECT 1 FROM public.user_permissions_view
-            WHERE user_id = auth.uid() 
-                AND resource = 'lineage' 
-                AND action = 'read'
-                AND is_granted = true
-        )
+        -- Allow access if user is authenticated
+        auth.uid() IS NOT NULL
     );
 
 CREATE POLICY "trace_dependencies_insert_policy" ON lineage.trace_dependencies

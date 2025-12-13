@@ -1,5 +1,10 @@
 -- EPIC 4: Audit, Evidence, Lineage - RPC Functions Migration
 -- This migration creates RPC functions for API access to audit and lineage
+--
+-- NOTE: Run these migrations IN ORDER:
+--   1. 001_create_audit_schema.sql
+--   2. 002_create_lineage_schema.sql
+--   3. 003_create_rpc_functions.sql (this file)
 
 -- =============================================================================
 -- AUDIT SCHEMA RPC FUNCTIONS
