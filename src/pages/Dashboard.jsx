@@ -2362,13 +2362,8 @@ export default function EnhancedDashboard() {
       const errors = [];
       const loadingStates = {};
       
-      console.log('🔍 Starting dashboard data fetch...');
-      console.log('📦 Active widgets:', widgets.length);
-      console.log('🔧 Current filters:', filters);
-      
       // If no widgets, don't fetch data
       if (!widgets || widgets.length === 0) {
-        console.log('No widgets to fetch data for');
         return;
       }
       
@@ -2387,14 +2382,7 @@ export default function EnhancedDashboard() {
         
         if (widgetDef?.query) {
           try {
-            console.log(`🔄 Fetching data for widget: ${key}`);
             const result = await widgetDef.query(filters);
-            console.log(`✅ Data received for ${key}:`, result);
-            
-            // Validate the result
-            if (!result && result !== 0) {
-              console.warn(`⚠️ Widget ${key} returned empty data`);
-            }
             
             // Update data and loading state for this specific widget
             setWidgetData(prev => ({ ...prev, [key]: result }));
@@ -2403,10 +2391,7 @@ export default function EnhancedDashboard() {
             
             data[key] = result;
           } catch (error) {
-            console.error(`❌ Error fetching ${widget.widget}:`, error);
-            console.error(`   Widget section: ${widget.section}`);
-            console.error(`   Widget ID: ${widget.id}`);
-            console.error(`   Error details:`, error.message || error);
+            // Silently handle widget fetch errors
             errors.push({ widget: widget.widget, error: error.message });
             
             // Set error state for this widget
@@ -2424,8 +2409,6 @@ export default function EnhancedDashboard() {
       
       // Wait for all promises to complete
       await Promise.all(widgetPromises);
-      
-      console.log('All widgets data fetched');
       
       // Show error summary if any widgets failed
       if (errors.length > 0) {
@@ -2471,17 +2454,13 @@ export default function EnhancedDashboard() {
         // Check database status
         checkDatabaseStatus().then(status => {
           setDatabaseStatus(status);
-          console.log('Database status:', status);
         }),
         
-        // Initialize database with proper reference data
-        initializeDatabase().catch(error => {
-          console.error('Error initializing database:', error);
-          // Fallback to old fix method
-          return fixDashboard({ skipSeeding: true }).catch(retryError => {
-            console.error('Error fixing dashboard (retry):', retryError);
-          });
-        }),
+        // Initialize database with proper reference data (development only)
+        import.meta.env.DEV ? initializeDatabase().catch(() => {
+          // Silently handle initialization errors
+          return fixDashboard({ skipSeeding: true }).catch(() => {});
+        }) : Promise.resolve(),
         
         // Fetch filter options from database
         fetchFilterOptions()

@@ -10,17 +10,10 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Debug environment variables (only in development)
-console.log('🔍 Supabase Configuration Debug:');
-console.log('VITE_SUPABASE_URL:', supabaseUrl);
-console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...${supabaseAnonKey.slice(-10)}` : 'NOT SET');
-console.log('Key length:', supabaseAnonKey?.length);
-console.log('URL valid:', supabaseUrl?.includes('supabase.co'));
-console.log('Key looks valid:', supabaseAnonKey?.startsWith('eyJ'));
-
 if (import.meta.env.DEV) {
-  console.log('Environment variables check:');
-  console.log('VITE_SUPABASE_URL:', supabaseUrl ? 'Set' : 'Not set');
-  console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Set' : 'Not set');
+  console.log('🔍 Supabase Configuration Debug:');
+  console.log('VITE_SUPABASE_URL:', supabaseUrl);
+  console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'NOT SET');
 }
 
 // Check if Supabase credentials are configured
@@ -29,22 +22,13 @@ const isSupabaseConfigured = supabaseUrl && supabaseAnonKey &&
                             supabaseAnonKey !== 'your-anon-key' &&
                             supabaseAnonKey !== 'YOUR_ANON_KEY_HERE';
 
-console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Missing credentials');
-
-// If credentials are missing, provide helpful instructions
-if (!isSupabaseConfigured) {
-  console.warn(`
-⚠️ Supabase credentials not configured!
-
-To fix the 401 errors:
-1. Go to: https://supabase.com/dashboard/project/bzlenegoilnswsbanxgb/settings/api
-2. Copy the "anon" key
-3. Update your .env file with:
-   VITE_SUPABASE_ANON_KEY=<your-anon-key>
-4. Restart your dev server
-
-Using mock data mode for now...
-  `);
+// Log configuration status only in development
+if (import.meta.env.DEV) {
+  console.log('Supabase configuration status:', isSupabaseConfigured ? 'Configured' : 'Missing credentials');
+  
+  if (!isSupabaseConfigured) {
+    console.warn('⚠️ Supabase credentials not configured. Using mock data mode.');
+  }
 }
 
 // Create a mock client for when Supabase is not configured

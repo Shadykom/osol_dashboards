@@ -647,6 +647,9 @@
       "average_balance": "Average Balance",
       
       "total_assets": "Total Assets",
+      "total_due_amount": "Total Due Amount",
+      "non_due_amount": "Non-Due Amount",
+      "overdue_amount": "Overdue Amount",
       "performance_radar": "Performance Indicators",
       "monthly_revenue": "Monthly Revenue",
       "customer_growth": "Customer Growth",

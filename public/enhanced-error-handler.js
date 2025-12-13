@@ -110,5 +110,5 @@
     }
   });
   
-  console.log('Enhanced error handler initialized - Extension errors will be suppressed');
+  // Enhanced error handler initialized - Extension errors will be suppressed
 })();

@@ -121,28 +121,28 @@ i18n
     
     // Ensure keys are returned when translation is missing
     missingKeyHandler: (lng, ns, key, fallbackValue) => {
-      console.warn(`Missing translation: ${lng}/${ns}/${key}`);
+      // Silent in production - only log in development
+      if (import.meta.env.DEV) {
+        console.warn(`Missing translation: ${lng}/${ns}/${key}`);
+      }
       return fallbackValue || key;
     },
     
     // Add parseMissingKeyHandler to handle missing keys better
     parseMissingKeyHandler: (key) => {
-      console.warn(`Parse missing key: ${key}`);
+      // Silent in production
       return key;
     },
   });
 
 // Add language change listener
 i18n.on('languageChanged', (lng) => {
-  console.log('i18n languageChanged event fired:', lng);
   document.documentElement.lang = lng;
   document.documentElement.dir = lng === 'ar' ? 'rtl' : 'ltr';
 });
 
 // Function to change language
 export const changeLanguage = async (lng) => {
-  console.log('Changing language to:', lng);
-  
   // Change i18n language
   await i18n.changeLanguage(lng);
   
@@ -154,8 +154,6 @@ export const changeLanguage = async (lng) => {
   
   // Store in localStorage
   localStorage.setItem('i18nextLng', lng);
-  
-  console.log('Document lang set to:', document.documentElement.lang);
 };
 
 // Set initial language
@@ -165,6 +163,5 @@ const currentLang = storedLang || i18n.language || 'en'; // Default to English
 // Set initial language attribute
 document.documentElement.setAttribute('lang', currentLang);
 document.documentElement.setAttribute('dir', currentLang === 'ar' ? 'rtl' : 'ltr');
-console.log('Initial language setup:', currentLang);
 
 export default i18n;

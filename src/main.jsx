@@ -27,7 +27,7 @@ window.addEventListener('error', (event) => {
     return;
   }
   
-  console.error('Global error:', event.error);
+  // Show error UI for critical errors
   document.body.innerHTML = `
     <div style="padding: 20px; font-family: Arial, sans-serif;">
       <h1 style="color: red;">Application Error</h1>
@@ -46,28 +46,22 @@ window.addEventListener('unhandledrejection', (event) => {
     return;
   }
   
-  console.error('Unhandled promise rejection:', event.reason);
+  // Silently handle unhandled rejections
 });
 
 try {
-  console.log('Starting Osol Dashboard application...');
-  
   const rootElement = document.getElementById('root');
   if (!rootElement) {
     throw new Error('Root element not found');
   }
   
-  console.log('Root element found, creating React root...');
   const root = createRoot(rootElement);
   
-  console.log('Rendering App component...');
   root.render(
     <StrictMode>
       <App />
     </StrictMode>
   );
-  
-  console.log('App rendered successfully');
 } catch (error) {
   console.error('Failed to start application:', error);
   document.body.innerHTML = `

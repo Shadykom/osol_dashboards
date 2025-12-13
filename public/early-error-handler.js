@@ -2,7 +2,7 @@
 (function() {
   'use strict';
   
-  console.log('Early error handler initializing...');
+  // Silent in production
   
   // Store original console.error
   const originalError = console.error;
@@ -15,7 +15,7 @@
     // Check if this is a critical error that might break the app
     const errorString = args.join(' ');
     if (errorString.includes('Cannot access') && errorString.includes('before initialization')) {
-      console.warn('Caught initialization error, attempting to continue...');
+      // Caught initialization error, attempting to continue
       
       // Try to prevent the error from propagating
       if (window.event) {
@@ -34,11 +34,11 @@
     const error = event.error || {};
     const message = error.message || event.message || '';
     
-    console.warn('Global error caught:', message);
+    // Silently handle errors
     
     // Check for specific errors that shouldn't break the app
     if (message.includes('Cannot access') && message.includes('before initialization')) {
-      console.warn('Preventing initialization error from breaking the app');
+      // Prevent initialization error from breaking the app
       event.preventDefault();
       event.stopPropagation();
       return false;
@@ -46,19 +46,18 @@
     
     // Check for ethereum-related errors
     if (message.includes('ethereum') || message.includes('Cannot redefine property')) {
-      console.warn('Preventing ethereum error from breaking the app');
+      // Prevent ethereum error from breaking the app
       event.preventDefault();
       event.stopPropagation();
       return false;
     }
     
-    // For other errors, let them through but log them
-    console.warn('Allowing error to propagate:', message);
+    // For other errors, let them through
   }, true);
   
   // Add unhandled rejection handler
   window.addEventListener('unhandledrejection', function(event) {
-    console.warn('Unhandled promise rejection:', event.reason);
+    // Handle unhandled promise rejection silently
     
     // Prevent ethereum-related rejections from breaking the app
     const reason = String(event.reason);
@@ -82,5 +81,4 @@
     return originalSetTimeout.call(this, wrappedCallback, delay);
   };
   
-  console.log('Early error handler initialized');
 })();

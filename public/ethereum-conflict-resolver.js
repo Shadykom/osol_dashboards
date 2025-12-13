@@ -12,7 +12,7 @@
   Object.defineProperty = function(obj, prop, descriptor) {
     if (obj === window && prop === 'ethereum') {
       if (!ethereumProviderSet) {
-        console.log('[Ethereum Conflict Resolver] First provider detected');
+        // First provider detected
         ethereumProviderSet = true;
         primaryProvider = descriptor.value || (descriptor.get && descriptor.get());
         
@@ -41,7 +41,7 @@
         return originalDefineProperty.call(this, obj, prop, {
           get() { return unifiedProvider; },
           set(value) {
-            console.warn('[Ethereum Conflict Resolver] Blocked attempt to redefine window.ethereum');
+            // Blocked attempt to redefine window.ethereum
             // Store additional providers
             if (value && value !== primaryProvider) {
               providerQueue.push({
@@ -57,7 +57,7 @@
           enumerable: true
         });
       } else {
-        console.warn('[Ethereum Conflict Resolver] Blocked duplicate ethereum definition');
+        // Blocked duplicate ethereum definition
         // Store additional providers
         const newProvider = descriptor.value || (descriptor.get && descriptor.get());
         if (newProvider && newProvider !== primaryProvider) {
@@ -86,7 +86,7 @@
         get() { return primaryProvider; },
         set(value) {
           if (!ethereumProviderSet) {
-            console.log('[Ethereum Conflict Resolver] First provider set via assignment');
+            // First provider set via assignment
             ethereumProviderSet = true;
             primaryProvider = value;
             if (value) {
@@ -98,7 +98,7 @@
               });
             }
           } else {
-            console.warn('[Ethereum Conflict Resolver] Blocked ethereum assignment');
+            // Blocked ethereum assignment
             if (value && value !== primaryProvider) {
               providerQueue.push({
                 provider: value,
@@ -116,7 +116,7 @@
     } catch (e) {
       // If ethereum is already defined, we're too late
       if (window.ethereum && !ethereumProviderSet) {
-        console.log('[Ethereum Conflict Resolver] Ethereum already exists');
+        // Ethereum already exists
         ethereumProviderSet = true;
         primaryProvider = window.ethereum;
         providerQueue.push({

@@ -154,15 +154,6 @@ const LayoutContent = ({ sidebarOpen, setSidebarOpen, isMobile, isDarkMode, togg
   const { i18n, ready } = useTranslation('translation');
   const isRTL = i18n.language === 'ar';
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('🚀 [ModernLayout] Mounted - Using MODERN SIDEBAR');
-    console.log('🚀 [ModernLayout] Current path:', window.location.pathname);
-    console.log('🚀 [ModernLayout] This is the NEW layout with organized sidebar');
-    console.log('🚀 [ModernLayout] RTL Mode:', isRTL);
-    console.log('🚀 [ModernLayout] Mobile Mode:', isMobile);
-  }, [isRTL, isMobile]);
-
   if (!ready) {
     return null;
   }
