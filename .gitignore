@@ -33,3 +33,4 @@ dist-ssr
 # Build files
 .vite
 .vite-cache
+.vercel
