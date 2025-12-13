@@ -3,13 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabaseBanking, supabaseCollection, TABLES } from '@/lib/supabase';
 
-// Immediate diagnostic logging
-console.log('🔍 DiagnosticPage loaded');
-console.log('Environment variables:');
-console.log('- VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
-console.log('- VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
-console.log('- Key preview:', import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 20) + '...');
-
+// Diagnostic page for development only
 export default function DiagnosticPage() {
   const [testResults, setTestResults] = React.useState({});
   const [loading, setLoading] = React.useState(false);

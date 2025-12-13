@@ -27,7 +27,6 @@ try {
   const auditModule = await import('./auditService.js');
   AuditService = auditModule.AuditService;
 } catch (e) {
-  console.warn('[PDPService] Lineage/Audit services not available, running without tracing');
 }
 
 // =====================================================
@@ -223,8 +222,6 @@ export class PDPService {
       return response;
       
     } catch (error) {
-      console.error('PDP evaluation error:', error);
-      
       // Log error but return safe default (BLOCK for safety)
       const errorResponse = this.createResponse({
         decision: DECISIONS.BLOCK,
@@ -370,8 +367,6 @@ export class PDPService {
         timestamp: new Date().toISOString()
       };
     } catch (err) {
-      console.error('[PDPService] Policy evaluation error:', err);
-
       // Create trace even for errors (if LineageService available)
       if (LineageService) {
         await LineageService.createTrace({
@@ -590,7 +585,6 @@ export class PDPService {
       const { data, error } = await query;
       
       if (error) {
-        console.error('Error fetching policy:', error);
         return null;
       }
       
@@ -619,7 +613,6 @@ export class PDPService {
       };
       
     } catch (error) {
-      console.error('Error in getActivePolicy:', error);
       return null;
     }
   }
@@ -642,7 +635,6 @@ export class PDPService {
       case RULE_TYPES.BUCKET_RULE:
         return this.evaluateBucketRule(rule, request);
       default:
-        console.warn(`Unknown rule type: ${rule.type}`);
         return { passed: true, reason_code: null, reason_details: [] };
     }
   }
@@ -955,7 +947,6 @@ export class PDPService {
       });
       
       if (error) {
-        console.error('Error fetching contact history:', error);
         return { attempts: 0, last_attempt_at: null };
       }
       
@@ -965,7 +956,6 @@ export class PDPService {
       };
       
     } catch (error) {
-      console.error('Error in getContactHistory:', error);
       return { attempts: 0, last_attempt_at: null };
     }
   }
@@ -1076,10 +1066,8 @@ export class PDPService {
         });
       
       if (error) {
-        console.error('Error logging PDP decision:', error);
       }
     } catch (error) {
-      console.error('Error in logDecision:', error);
     }
   }
 
@@ -1127,7 +1115,6 @@ export class PDPService {
         ]
       });
     } catch (error) {
-      console.error('Error creating decision trace:', error);
     }
   }
 
@@ -1149,10 +1136,8 @@ export class PDPService {
         });
       
       if (error) {
-        console.error('Error recording contact attempt:', error);
       }
     } catch (error) {
-      console.error('Error in recordContactAttempt:', error);
     }
   }
 }

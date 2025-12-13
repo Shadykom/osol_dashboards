@@ -28,7 +28,11 @@
     /injected-penumbra-global\.js/i,
     /injected-session\.js/i,
     /Check phishing by URL/i,
-    /eth getParams/i
+    /eth getParams/i,
+    // Additional patterns for database/network errors
+    /Parse missing key/i,
+    /SIEM/i,
+    /security_events/i,
   ];
   
   // Store original console methods
@@ -55,24 +59,17 @@
   
   // Override console.error
   console.error = function(...args) {
-    // Check if this is an extension-related error
     if (shouldSuppressError(args)) {
-      // Log to debug instead of error
-      console.debug('[Suppressed Extension Error]', ...args);
-      return;
+      return; // Silently suppress
     }
-    
-    // Otherwise, call original console.error
     originalConsoleError.apply(console, args);
   };
   
   // Override console.warn for extension warnings
   console.warn = function(...args) {
     if (shouldSuppressError(args)) {
-      console.debug('[Suppressed Extension Warning]', ...args);
-      return;
+      return; // Silently suppress
     }
-    
     originalConsoleWarn.apply(console, args);
   };
   
@@ -81,13 +78,11 @@
   window.onerror = function(message, source, lineno, colno, error) {
     // Check if error is from extension
     if (source && source.includes('chrome-extension://')) {
-      console.debug('[Suppressed Extension Error]', { message, source, lineno, colno, error });
       return true; // Prevent default error handling
     }
     
     // Check error message patterns
     if (typeof message === 'string' && suppressedErrorPatterns.some(pattern => pattern.test(message))) {
-      console.debug('[Suppressed Extension Error]', { message, source, lineno, colno, error });
       return true;
     }
     
@@ -105,10 +100,7 @@
     const reasonString = reason instanceof Error ? reason.message + ' ' + reason.stack : String(reason);
     
     if (suppressedErrorPatterns.some(pattern => pattern.test(reasonString))) {
-      console.debug('[Suppressed Extension Promise Rejection]', reason);
       event.preventDefault();
     }
   });
-  
-  // Enhanced error handler initialized - Extension errors will be suppressed
 })();

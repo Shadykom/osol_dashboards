@@ -140,7 +140,6 @@ export class AuditService {
 
       if (error) {
         // If audit schema table access fails, try using RPC
-        console.warn('[AuditService] Direct table access failed, trying RPC:', error);
         return await this.getEventsViaRPC(params);
       }
 
@@ -152,7 +151,6 @@ export class AuditService {
         offset
       };
     } catch (err) {
-      console.error('[AuditService] Error fetching audit events:', err);
       return {
         success: false,
         error: err.message,
@@ -180,7 +178,6 @@ export class AuditService {
       });
 
       if (error) {
-        console.error('[AuditService] RPC error:', error);
         return {
           success: false,
           error: error.message,
@@ -197,7 +194,6 @@ export class AuditService {
         offset: params.offset || 0
       };
     } catch (err) {
-      console.error('[AuditService] Exception in RPC:', err);
       return {
         success: false,
         error: err.message,
@@ -292,7 +288,6 @@ export class AuditService {
       const { data, error, count } = await query;
 
       if (error) {
-        console.error('[AuditService] Error fetching security events:', error);
         return {
           success: false,
           error: error.message,
@@ -309,7 +304,6 @@ export class AuditService {
         offset
       };
     } catch (err) {
-      console.error('[AuditService] Exception fetching security events:', err);
       return {
         success: false,
         error: err.message,
@@ -374,7 +368,6 @@ export class AuditService {
         });
 
         if (rpcResult.error) {
-          console.error('[AuditService] Error emitting audit event:', error);
           return { success: false, error: error.message };
         }
 
@@ -391,7 +384,6 @@ export class AuditService {
         correlationId: auditEvent.correlation_id
       };
     } catch (err) {
-      console.error('[AuditService] Exception emitting audit event:', err);
       return { success: false, error: err.message };
     }
   }
@@ -420,13 +412,11 @@ export class AuditService {
         .single();
 
       if (error) {
-        console.error('[AuditService] Error logging security event:', error);
         return { success: false, error: error.message };
       }
 
       return { success: true, eventId: data.id };
     } catch (err) {
-      console.error('[AuditService] Exception logging security event:', err);
       return { success: false, error: err.message };
     }
   }
@@ -467,7 +457,6 @@ export class AuditService {
 
       return { success: true, data };
     } catch (err) {
-      console.error('[AuditService] Exception getting audit summary:', err);
       return { success: false, error: err.message };
     }
   }

@@ -22,13 +22,6 @@ export async function checkDatabaseStatus() {
       supabaseBanking.from(TABLES.TRANSACTIONS).select('*', { count: 'exact', head: true })
     ]);
 
-    // Log the results for debugging
-    console.log('Database status check results:', {
-      customers: { count: customersResult.count, error: customersResult.error },
-      accounts: { count: accountsResult.count, error: accountsResult.error },
-      transactions: { count: transactionsResult.count, error: transactionsResult.error }
-    });
-
     const hasData = (customersResult.count > 0) || (accountsResult.count > 0) || (transactionsResult.count > 0);
 
     return {
@@ -46,7 +39,6 @@ export async function checkDatabaseStatus() {
       }
     };
   } catch (error) {
-    console.error('Database status check failed:', error);
     return {
       isConnected: false,
       hasData: false,
@@ -58,11 +50,8 @@ export async function checkDatabaseStatus() {
 // Fix dashboard data issues
 export async function fixDashboardData() {
   try {
-    console.log('🔧 Starting dashboard data fix...');
-    
     // 1. Check database status
     const status = await checkDatabaseStatus();
-    console.log('Database status:', status);
 
     if (!status.isConnected) {
       toast.error('Database connection failed. Using mock data mode.');
@@ -90,7 +79,6 @@ export async function fixDashboardData() {
     return { success: true, hasData: true };
 
   } catch (error) {
-    console.error('Dashboard data fix failed:', error);
     toast.error('Failed to fix dashboard data. Using mock data mode.');
     return { success: false, error: error.message, useMockData: true };
   }
@@ -103,7 +91,7 @@ export async function safeQuery(queryFn, mockDataFn) {
     if (result.error) throw result.error;
     return result.data || mockDataFn();
   } catch (error) {
-    console.warn('Query failed, using mock data:', error.message);
+    // Query failed, use mock data silently
     return mockDataFn();
   }
 }

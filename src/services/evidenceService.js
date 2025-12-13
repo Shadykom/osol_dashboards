@@ -158,12 +158,8 @@ export class EvidenceService {
     }
 
     try {
-      console.log('[EvidenceService] Starting upload for:', { entityType, entityId });
-
       // Calculate SHA256 hash
       const sha256Hash = await this.calculateSHA256(file);
-      console.log('[EvidenceService] Calculated SHA256:', sha256Hash);
-
       // Generate storage path
       const fileName = file.name || 'evidence_file';
       const storagePath = this.generateStoragePath(tenantId, entityType, entityId, fileName);
@@ -179,12 +175,8 @@ export class EvidenceService {
         });
 
       if (uploadError) {
-        console.error('[EvidenceService] Storage upload error:', uploadError);
-        
         // If bucket doesn't exist, try creating it
         if (uploadError.message.includes('Bucket not found')) {
-          console.log('[EvidenceService] Bucket not found, attempting to create...');
-          
           // Note: Bucket creation typically requires admin privileges
           // For now, we'll use a stub storage approach
           return await this.uploadWithStubStorage(params, sha256Hash);
@@ -225,7 +217,6 @@ export class EvidenceService {
         .single();
 
       if (evidenceError) {
-        console.error('[EvidenceService] Evidence record creation error:', evidenceError);
         // Try to clean up uploaded file
         await supabase.storage.from(this.storageBucket).remove([storagePath]);
         
@@ -242,9 +233,6 @@ export class EvidenceService {
         notes: 'Evidence file uploaded',
         metadata: { ...metadata, sha256Hash }
       });
-
-      console.log('[EvidenceService] Upload complete:', evidenceData.id);
-
       return {
         success: true,
         evidenceId: evidenceData.id,
@@ -255,7 +243,6 @@ export class EvidenceService {
         mimeType
       };
     } catch (err) {
-      console.error('[EvidenceService] Exception uploading evidence:', err);
       return { success: false, error: err.message };
     }
   }
@@ -305,8 +292,6 @@ export class EvidenceService {
       });
 
       if (rpcError) {
-        console.warn('[EvidenceService] RPC fallback failed, using local storage:', rpcError);
-        
         // Store in local storage as last resort
         const localEvidenceId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
@@ -366,7 +351,6 @@ export class EvidenceService {
         isStubStorage: true
       };
     } catch (err) {
-      console.error('[EvidenceService] Stub storage error:', err);
       return { success: false, error: err.message };
     }
   }
@@ -380,8 +364,6 @@ export class EvidenceService {
   static async uploadWithRPC(params, sha256Hash) {
     // Implementation for RPC-based upload
     // This is a fallback when direct table access doesn't work
-    console.log('[EvidenceService] Using RPC fallback for evidence record creation');
-    
     return this.uploadWithStubStorage(params, sha256Hash);
   }
 
@@ -444,13 +426,11 @@ export class EvidenceService {
         .single();
 
       if (error) {
-        console.warn('[EvidenceService] Error adding chain entry:', error);
         return { success: false, error: error.message };
       }
 
       return { success: true, chainId: data.id };
     } catch (err) {
-      console.warn('[EvidenceService] Exception adding chain entry:', err);
       return { success: false, error: err.message };
     }
   }
@@ -596,7 +576,6 @@ export class EvidenceService {
         actualHash: currentHash
       };
     } catch (err) {
-      console.error('[EvidenceService] Exception verifying evidence:', err);
       return { success: false, error: err.message };
     }
   }
@@ -693,7 +672,6 @@ export class EvidenceService {
 
       return { success: true };
     } catch (err) {
-      console.error('[EvidenceService] Exception deleting evidence:', err);
       return { success: false, error: err.message };
     }
   }

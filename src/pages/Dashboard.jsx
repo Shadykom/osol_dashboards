@@ -301,7 +301,6 @@ export const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.error('Error fetching total assets:', error);
           return {
             value: 0,
             change: 0,
@@ -384,22 +383,6 @@ export const WIDGET_CATALOG = {
           const loanToDepositRatio = totalRevenue > 0 ? (totalLoans / totalRevenue) : 0;
           const riskScore = Math.max(150 - (loanToDepositRatio * 150), 0);
 
-          console.log('Performance Radar Metrics:', {
-            totalRevenue,
-            customerCount,
-            totalLoans,
-            transactionCount,
-            activeAccountsCount,
-            scores: {
-              revenue: revenueScore,
-              customers: customerScore,
-              transactions: transactionScore,
-              loans: loanScore,
-              accounts: accountScore,
-              risk: riskScore
-            }
-          });
-
           return [
             { metric: 'Revenue', A: revenueScore, B: 120, fullMark: 150 },
             { metric: 'Customers', A: customerScore, B: 100, fullMark: 150 },
@@ -409,7 +392,6 @@ export const WIDGET_CATALOG = {
             { metric: 'Risk Mgmt', A: riskScore, B: 130, fullMark: 150 }
           ];
         } catch (error) {
-          console.error('Error fetching performance radar data:', error);
           // Return empty data on error
           return [
             { metric: 'Revenue', A: 0, B: 120, fullMark: 150 },
@@ -486,7 +468,6 @@ export const WIDGET_CATALOG = {
             { month: 'No Data', revenue: 0, profit: 0 }
           ];
         } catch (error) {
-          console.error('Error fetching monthly revenue:', error);
           return [
             { month: 'No Data', revenue: 0, profit: 0 }
           ];
@@ -530,7 +511,6 @@ export const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.error('Error fetching customer count:', error);
           return {
             value: 0,
             change: 0,
@@ -678,7 +658,6 @@ export const WIDGET_CATALOG = {
             .slice(0, 5);
             
         } catch (error) {
-          console.error('Error fetching branch performance:', error);
           // Return mock data on error
           return [
             { branch: 'Riyadh Main', revenue: 1850000, customers: 4250 },
@@ -745,7 +724,6 @@ export const WIDGET_CATALOG = {
             .sort((a, b) => b.value - a.value);
             
         } catch (error) {
-          console.error('Error fetching product distribution:', error);
           // Return mock data on error
           return [
             { name: 'Personal Loans', value: 3500000, fill: '#E6B800' },
@@ -807,10 +785,7 @@ export const WIDGET_CATALOG = {
           
           const { count: totalCount, error: totalError } = await query;
           
-          console.log('Total accounts query result:', { totalCount, totalError });
-          
           if (totalError) {
-            console.error('Error fetching total accounts:', totalError);
             throw totalError;
           }
           
@@ -829,7 +804,6 @@ export const WIDGET_CATALOG = {
             suffix: '% active'
           };
         } catch (error) {
-          console.error('Error in total_accounts query:', error);
           return {
             value: 0,
             change: 0,
@@ -857,10 +831,7 @@ export const WIDGET_CATALOG = {
           
           const { data: accounts, error } = await query;
           
-          console.log('Deposits query result:', { accountsCount: accounts?.length, error });
-          
           if (error) {
-            console.error('Error fetching deposits:', error);
             throw error;
           }
           
@@ -886,7 +857,6 @@ export const WIDGET_CATALOG = {
             trend: growthRate > 0 ? 'up' : 'neutral'
           };
         } catch (error) {
-          console.error('Error in total_deposits query:', error);
           return {
             value: 0,
             change: 0,
@@ -923,7 +893,6 @@ export const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.error('Error fetching active accounts:', error);
           return {
             value: 0,
             change: 0,
@@ -979,7 +948,6 @@ export const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.error('Error fetching total due amount:', error);
           return {
             value: 0,
             change: 0,
@@ -1039,7 +1007,6 @@ export const WIDGET_CATALOG = {
             trend: 'down'
           };
         } catch (error) {
-          console.error('Error fetching non-due amount:', error);
           return {
             value: 0,
             change: 0,
@@ -1101,7 +1068,6 @@ export const WIDGET_CATALOG = {
             }
           };
         } catch (error) {
-          console.error('Error fetching overdue amount:', error);
           return {
             value: 0,
             change: 0,
@@ -1136,11 +1102,7 @@ export const WIDGET_CATALOG = {
           }
           
           const { count, error } = await query;
-          
-          console.log('Daily transactions query result:', { count, error, date: today.toISOString() });
-          
           if (error) {
-            console.error('Error fetching daily transactions:', error);
             throw error;
           }
           
@@ -1166,7 +1128,6 @@ export const WIDGET_CATALOG = {
             trend: change > 0 ? 'up' : change < 0 ? 'down' : 'neutral'
           };
         } catch (error) {
-          console.error('Error in daily_transactions query:', error);
           return {
             value: 0,
             change: 0,
@@ -1194,11 +1155,7 @@ export const WIDGET_CATALOG = {
           }
           
           const { data: accounts, error } = await query;
-          
-          console.log('Account types distribution query result:', { accountsCount: accounts?.length, error });
-          
           if (error) {
-            console.error('Error fetching account types:', error);
             throw error;
           }
           
@@ -1238,13 +1195,8 @@ export const WIDGET_CATALOG = {
             acc[typeName] = (acc[typeName] || 0) + 1;
             return acc;
           }, {});
-          
-          console.log('Account types distribution:', distribution);
-          
           // Validate that total matches
           const distributionTotal = Object.values(distribution).reduce((sum, count) => sum + count, 0);
-          console.log(`Account types total: ${distributionTotal}, Accounts count: ${accounts.length}`);
-          
           const colorMap = {
             'SAVINGS': '#E6B800',
             'CURRENT': '#4A5568',
@@ -1261,7 +1213,6 @@ export const WIDGET_CATALOG = {
           
           return result.length > 0 ? result : [];
         } catch (error) {
-          console.error('Error in account_types_distribution query:', error);
           return [];
         }
       }
@@ -1319,7 +1270,6 @@ export const WIDGET_CATALOG = {
           const result = await Promise.all(promises);
           return result;
         } catch (error) {
-          console.error('Error fetching transaction trends:', error);
           return []; // Return empty array instead of mock data
         }
       }
@@ -1371,7 +1321,6 @@ export const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.error('Error fetching loan portfolio:', error);
           return {
             value: 0,
             change: 0,
@@ -1410,7 +1359,6 @@ export const WIDGET_CATALOG = {
             suffix: '%'
           };
         } catch (error) {
-          console.error('Error fetching NPL ratio:', error);
           return {
             value: 0,
             change: 0,
@@ -1474,7 +1422,6 @@ export const WIDGET_CATALOG = {
           const result = Object.values(grouped || {});
           return result.length > 0 ? result : [];
         } catch (error) {
-          console.error('Error fetching loan by product data:', error);
           return []; // Return empty array instead of mock data
         }
       }
@@ -1509,7 +1456,6 @@ export const WIDGET_CATALOG = {
             trend: count > 0 ? 'up' : 'neutral'
           };
         } catch (error) {
-          console.log('Error in active_cases:', error);
           return {
             value: 0,
             change: 0,
@@ -1546,7 +1492,6 @@ export const WIDGET_CATALOG = {
             suffix: '%'
           };
         } catch (error) {
-          console.error('Error fetching collection rate:', error);
           return {
             value: 0,
             change: 0,
@@ -1596,7 +1541,6 @@ export const WIDGET_CATALOG = {
           
           return result;
         } catch (error) {
-          console.error('Error fetching DPD distribution:', error);
           return []; // Return empty array instead of mock data
         }
       }
@@ -1617,10 +1561,7 @@ export const WIDGET_CATALOG = {
             .select('customer_id');
           
           const totalCount = allCustomers?.length || 0;
-          console.log('Total customers query result:', { totalCount, totalError });
-          
           if (totalError) {
-            console.error('Error fetching total customers:', totalError);
             throw totalError;
           }
           
@@ -1633,7 +1574,6 @@ export const WIDGET_CATALOG = {
             trend: growthRate > 0 ? 'up' : 'neutral'
           };
         } catch (error) {
-          console.error('Error in total_customers query:', error);
           return {
             value: 0,
             change: 0,
@@ -1654,11 +1594,7 @@ export const WIDGET_CATALOG = {
           const { data: customers, error } = await supabaseBanking
             .from(TABLES.CUSTOMERS)
             .select('customer_type, customer_segment, customer_type_id');
-          
-          console.log('Customer segments query result:', { customers: customers?.length, error });
-          
           if (error) {
-            console.error('Error fetching customer segments:', error);
             throw error;
           }
           
@@ -1676,9 +1612,6 @@ export const WIDGET_CATALOG = {
             acc[segment] = (acc[segment] || 0) + 1;
             return acc;
           }, {});
-          
-          console.log('Processed segments:', segments);
-          
           // Convert to chart format with colors
           const colors = ['#E6B800', '#4A5568', '#22c55e', '#3b82f6', '#ef4444', '#f97316'];
           const result = Object.entries(segments).map(([name, value], index) => ({
@@ -1686,12 +1619,8 @@ export const WIDGET_CATALOG = {
             value,
             fill: colors[index % colors.length]
           }));
-          
-          console.log('Final segments data for chart:', result);
-          
           return result.length > 0 ? result : [];
         } catch (error) {
-          console.error('Error in customer_segments query:', error);
           return [];
         }
       }
@@ -1729,7 +1658,6 @@ export const WIDGET_CATALOG = {
             suffix: '/100'
           };
         } catch (error) {
-          console.error('Error fetching risk score:', error);
           return {
             value: 0,
             change: 0,
@@ -1756,7 +1684,6 @@ export const WIDGET_CATALOG = {
             { name: 'Regulatory Reports', value: 100, fill: '#8b5cf6' }
           ];
         } catch (error) {
-          console.error('Error fetching compliance status:', error);
           return []; // Return empty array instead of mock data
         }
       }
@@ -1802,7 +1729,6 @@ export const WIDGET_CATALOG = {
             suffix: `/${stats.total} total`
           };
         } catch (error) {
-          console.error('Error fetching account summary:', error);
           return {
             value: 0,
             change: 0,
@@ -1861,7 +1787,6 @@ export const WIDGET_CATALOG = {
           
           return Object.values(volumeByDate);
         } catch (error) {
-          console.error('Error fetching transaction volume:', error);
           return [];
         }
       }
@@ -1912,7 +1837,6 @@ export const WIDGET_CATALOG = {
           
           return result;
         } catch (error) {
-          console.error('Error fetching balance trends:', error);
           return [];
         }
       }
@@ -1956,7 +1880,6 @@ export const WIDGET_CATALOG = {
           
           return result;
         } catch (error) {
-          console.error('Error fetching branch deposits:', error);
           return [];
         }
       }
@@ -2009,7 +1932,6 @@ export const WIDGET_CATALOG = {
           
           return Object.values(growthByDate);
         } catch (error) {
-          console.error('Error fetching account growth:', error);
           return [];
         }
       }
@@ -2070,7 +1992,6 @@ export const WIDGET_CATALOG = {
           
           return result;
         } catch (error) {
-          console.error('Error fetching transaction types:', error);
           return [];
         }
       }
@@ -2114,7 +2035,6 @@ export const WIDGET_CATALOG = {
             trend: 'up'
           };
         } catch (error) {
-          console.error('Error fetching average balance:', error);
           return {
             value: 0,
             change: 0,
@@ -2160,7 +2080,6 @@ export const WIDGET_CATALOG = {
             suffix: `% of total`
           };
         } catch (error) {
-          console.error('Error fetching dormant accounts:', error);
           return {
             value: 0,
             change: 0,
@@ -2344,7 +2263,6 @@ export default function EnhancedDashboard() {
         customerSegments: segmentsResult.data || []
       });
     } catch (error) {
-      console.error('Error fetching filter options:', error);
       toast.error('Failed to load filter options');
     }
   };
@@ -2415,7 +2333,6 @@ export default function EnhancedDashboard() {
         toast.warning(`${errors.length} widget(s) failed to load data`);
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
       toast.error('Failed to fetch dashboard data');
       
       // Clear all loading states on error
@@ -2438,7 +2355,6 @@ export default function EnhancedDashboard() {
     const initializeDashboard = async () => {
       // Prevent multiple initializations
       if (hasInitialized.current) {
-        console.log('Dashboard already initialized, skipping...');
         return;
       }
       hasInitialized.current = true;
@@ -2449,7 +2365,7 @@ export default function EnhancedDashboard() {
       // Run other initialization tasks in parallel
       Promise.all([
         // Auto-login for demo purposes
-        autoLogin().catch(error => console.error('Error with auto-login:', error)),
+        autoLogin().catch(() => {}),
         
         // Check database status
         checkDatabaseStatus().then(status => {
@@ -2549,7 +2465,6 @@ export default function EnhancedDashboard() {
       await fetchDashboardData();
       
     } catch (error) {
-      console.error('Error saving dashboard:', error);
       toast.error('Failed to save dashboard');
     }
   };
@@ -2596,7 +2511,6 @@ export default function EnhancedDashboard() {
       
       toast.success(`${template.nameEn} loaded`);
     } catch (error) {
-      console.error('Error loading template:', error);
       toast.error('Failed to load template');
     }
   };
@@ -2615,7 +2529,6 @@ export default function EnhancedDashboard() {
         .eq('account_status', 'ACTIVE');
       
       if (accountsError) {
-        console.error('Error fetching accounts:', accountsError);
         // Try to fix authentication if we get a 401
         if (accountsError.code === '401' || accountsError.message?.includes('JWT')) {
           await fixDashboard({ skipSeeding: true });
@@ -2634,7 +2547,6 @@ export default function EnhancedDashboard() {
         .eq('loan_status', 'ACTIVE');
       
       if (loansError) {
-        console.error('Error fetching loans:', loansError);
       }
       
       const currentDeposits = currentAccounts?.reduce((sum, acc) => sum + (acc.current_balance || 0), 0) || 0;
@@ -2665,7 +2577,6 @@ export default function EnhancedDashboard() {
         ]
       };
     } catch (error) {
-      console.error('Error fetching comparison data:', error);
       return null;
     }
   };
@@ -2739,7 +2650,6 @@ export default function EnhancedDashboard() {
         toast.info('Excel export coming soon!');
       }
     } catch (error) {
-      console.error('Export error:', error);
       toast.error('Export failed');
     }
   };
@@ -2761,7 +2671,6 @@ export default function EnhancedDashboard() {
         await refresh();
       }
     } catch (error) {
-      console.error('Error fixing data:', error);
       toast.error('Failed to fix dashboard data');
     } finally {
       setIsFixingData(false);
@@ -3026,7 +2935,6 @@ export default function EnhancedDashboard() {
 
   // Add schema test function
   const handleSchemaTest = async () => {
-    console.log('Running schema test...');
     await testDatabaseSchema();
   };
 
@@ -3561,7 +3469,6 @@ export default function EnhancedDashboard() {
 
         <Button 
           onClick={() => {
-            console.log('Manually refreshing dashboard data...');
             fetchDashboardData(true);
           }}
           variant="outline"

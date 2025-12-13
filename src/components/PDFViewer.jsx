@@ -10,13 +10,9 @@ const setupPdfWorker = () => {
   try {
     // Use the local worker file that matches our pdfjs-dist version
     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf-worker/pdf.worker.min.js';
-    console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
-    console.log('PDF.js version:', pdfjs.version);
   } catch (error) {
-    console.error('Failed to configure PDF.js worker:', error);
     // Fallback to CDN worker with matching version
     pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-    console.log('PDF.js worker fallback configured:', pdfjs.GlobalWorkerOptions.workerSrc);
   }
 };
 

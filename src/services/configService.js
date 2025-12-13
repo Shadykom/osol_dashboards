@@ -326,7 +326,6 @@ export async function createConfigVersion({ tenantId, packageId, copyFromVersion
         });
 
       if (copyError) {
-        console.warn('Failed to copy items from source version:', copyError);
       }
     }
 
@@ -443,7 +442,6 @@ export async function submitConfigVersion({ versionId, submittedBy, approvalRole
     });
 
     if (approvalError) {
-      console.warn('Failed to create approval workflow:', approvalError);
     }
 
     return formatApiResponse({

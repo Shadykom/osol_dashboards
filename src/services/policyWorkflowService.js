@@ -76,7 +76,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data };
     } catch (error) {
-      console.error('Error creating policy profile:', error);
       return { success: false, error: error.message };
     }
   }
@@ -116,7 +115,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data: data || [] };
     } catch (error) {
-      console.error('Error fetching policy profiles:', error);
       return { success: false, error: error.message, data: [] };
     }
   }
@@ -159,7 +157,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data };
     } catch (error) {
-      console.error('Error fetching policy profile:', error);
       return { success: false, error: error.message };
     }
   }
@@ -206,7 +203,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data };
     } catch (error) {
-      console.error('Error creating policy version:', error);
       return { success: false, error: error.message };
     }
   }
@@ -251,7 +247,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data };
     } catch (error) {
-      console.error('Error updating policy version:', error);
       return { success: false, error: error.message };
     }
   }
@@ -306,7 +301,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data: { version_id: versionId, workflow_id: workflow.id } };
     } catch (error) {
-      console.error('Error submitting for approval:', error);
       return { success: false, error: error.message };
     }
   }
@@ -363,7 +357,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data: { version_id: versionId, status: VERSION_STATUS.APPROVED } };
     } catch (error) {
-      console.error('Error approving version:', error);
       return { success: false, error: error.message };
     }
   }
@@ -417,7 +410,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data: { version_id: versionId, status: VERSION_STATUS.REJECTED } };
     } catch (error) {
-      console.error('Error rejecting version:', error);
       return { success: false, error: error.message };
     }
   }
@@ -470,7 +462,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data };
     } catch (error) {
-      console.error('Error publishing version:', error);
       return { success: false, error: error.message };
     }
   }
@@ -509,7 +500,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data: data || [] };
     } catch (error) {
-      console.error('Error fetching pending approvals:', error);
       return { success: false, error: error.message, data: [] };
     }
   }
@@ -530,7 +520,6 @@ export class PolicyWorkflowService {
       
       return { success: true, data: data || [] };
     } catch (error) {
-      console.error('Error fetching workflow history:', error);
       return { success: false, error: error.message, data: [] };
     }
   }
@@ -560,7 +549,6 @@ export class PolicyWorkflowService {
         createdBy
       });
     } catch (error) {
-      console.error('Error cloning version:', error);
       return { success: false, error: error.message };
     }
   }

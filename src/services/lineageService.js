@@ -131,7 +131,6 @@ export class LineageService {
         .single();
 
       if (error) {
-        console.warn('[LineageService] Direct insert failed, trying fallback:', error);
         return await this.createTraceWithFallback(decisionTrace, entityLinks);
       }
 
@@ -139,16 +138,12 @@ export class LineageService {
       if (entityLinks && entityLinks.length > 0) {
         await this.createTraceLinks(data.id, entityLinks, tenantId);
       }
-
-      console.log('[LineageService] Trace created:', data.id);
-
       return {
         success: true,
         traceId: data.id,
         tenantId
       };
     } catch (err) {
-      console.error('[LineageService] Exception creating trace:', err);
       return { success: false, error: err.message };
     }
   }
@@ -180,8 +175,6 @@ export class LineageService {
       });
 
       if (rpcError) {
-        console.warn('[LineageService] RPC fallback failed, using local storage:', rpcError);
-        
         // Store in local storage as last resort
         const localTraceId = `local_trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
@@ -217,7 +210,6 @@ export class LineageService {
         tenantId: trace.tenant_id
       };
     } catch (err) {
-      console.error('[LineageService] Fallback error:', err);
       return { success: false, error: err.message };
     }
   }
@@ -250,13 +242,11 @@ export class LineageService {
         .select('id');
 
       if (error) {
-        console.warn('[LineageService] Error creating trace links:', error);
         return { success: false, error: error.message };
       }
 
       return { success: true, count: data.length, linkIds: data.map(l => l.id) };
     } catch (err) {
-      console.warn('[LineageService] Exception creating trace links:', err);
       return { success: false, error: err.message };
     }
   }
@@ -351,7 +341,6 @@ export class LineageService {
         }
       };
     } catch (err) {
-      console.error('[LineageService] Exception getting full trace:', err);
       return { success: false, error: err.message };
     }
   }
@@ -424,7 +413,6 @@ export class LineageService {
 
       return { success: true, data: localMatches };
     } catch (err) {
-      console.error('[LineageService] Exception getting entity traces:', err);
       return { success: false, error: err.message, data: [] };
     }
   }
@@ -506,7 +494,6 @@ export class LineageService {
 
       return { success: true, data, total: count || 0, limit, offset };
     } catch (err) {
-      console.error('[LineageService] Exception querying traces:', err);
       return { success: false, error: err.message, data: [], total: 0 };
     }
   }
@@ -533,13 +520,11 @@ export class LineageService {
         .single();
 
       if (error) {
-        console.error('[LineageService] Error creating trace dependency:', error);
         return { success: false, error: error.message };
       }
 
       return { success: true, dependencyId: data.id };
     } catch (err) {
-      console.error('[LineageService] Exception creating trace dependency:', err);
       return { success: false, error: err.message };
     }
   }
@@ -626,13 +611,11 @@ export class LineageService {
         .eq('id', traceId);
 
       if (error) {
-        console.error('[LineageService] Error updating trace status:', error);
         return { success: false, error: error.message };
       }
 
       return { success: true };
     } catch (err) {
-      console.error('[LineageService] Exception updating trace status:', err);
       return { success: false, error: err.message };
     }
   }

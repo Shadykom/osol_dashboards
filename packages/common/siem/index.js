@@ -83,10 +83,20 @@ export const SeverityLevels = {
 /**
  * SIEM Configuration - can be extended for different backends
  */
+const isDevelopment = () => {
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env.DEV === true || import.meta.env.MODE === 'development';
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.NODE_ENV === 'development';
+  }
+  return false;
+};
+
 export const SIEMConfig = {
   // Enable/disable different output methods
   enableDatabaseLogging: true,
-  enableConsoleLogging: true,
+  enableConsoleLogging: isDevelopment(), // Only log to console in development
   enableSyslog: false,        // Future: syslog forwarding
   enableHttpCollector: false, // Future: HTTP collector forwarding
   
@@ -277,7 +287,6 @@ function logToConsole(event) {
  */
 async function writeToDatabase(event) {
   if (!supabaseClient) {
-    console.warn('[SIEM] Supabase client not configured. Call configureSIEM(supabaseClient) first.');
     return { data: null, error: new Error('Supabase client not configured') };
   }
 
@@ -306,14 +315,13 @@ async function writeToDatabase(event) {
       });
     
     if (error) {
-      // Log the error but don't throw - security logging should be resilient
-      console.warn('[SIEM] Failed to write to database:', error.message);
+      // Don't throw - security logging should be resilient
       return { data: null, error };
     }
     
     return { data, error: null };
   } catch (err) {
-    console.warn('[SIEM] Database write exception:', err.message);
+    // Silently handle database write exceptions
     return { data: null, error: err };
   }
 }
@@ -326,7 +334,6 @@ function forwardToSyslog(event) {
   // TODO: Implement syslog forwarding (RFC 5424)
   // This would use a UDP/TCP socket to send to syslog server
   // Format: <PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
-  console.debug('[SIEM] Syslog forwarding not yet implemented');
 }
 
 /**
@@ -340,7 +347,6 @@ function forwardToHttpCollector(event) {
   // - Datadog Logs API
   // - Elasticsearch
   // - Azure Log Analytics
-  console.debug('[SIEM] HTTP collector forwarding not yet implemented');
 }
 
 /**
@@ -422,7 +428,6 @@ export async function emitSecurityEvent(type, payload = {}, context = {}) {
     };
   } catch (error) {
     // Security event emission should never break the application
-    console.error('[SIEM] Failed to emit security event:', error);
     return {
       success: false,
       eventId: null,

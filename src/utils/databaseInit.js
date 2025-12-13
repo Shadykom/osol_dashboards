@@ -20,8 +20,6 @@ const checkDataExists = async (table, column, value) => {
 
 // Initialize reference data
 export const initializeReferenceData = async () => {
-  console.log('Initializing reference data...');
-  
   try {
     // 1. Initialize Countries
     const countries = [
@@ -33,8 +31,7 @@ export const initializeReferenceData = async () => {
     for (const country of countries) {
       const exists = await checkDataExists('countries', 'country_code', country.country_code);
       if (!exists) {
-        const { error } = await supabaseBanking.from('countries').insert(country);
-        if (error) console.error('Error inserting country:', error);
+        await supabaseBanking.from('countries').insert(country);
       }
     }
     
@@ -48,8 +45,7 @@ export const initializeReferenceData = async () => {
     for (const currency of currencies) {
       const exists = await checkDataExists('currencies', 'currency_code', currency.currency_code);
       if (!exists) {
-        const { error } = await supabaseBanking.from('currencies').insert(currency);
-        if (error) console.error('Error inserting currency:', error);
+        await supabaseBanking.from('currencies').insert(currency);
       }
     }
     
@@ -63,8 +59,7 @@ export const initializeReferenceData = async () => {
     for (const type of customerTypes) {
       const exists = await checkDataExists('customer_types', 'type_code', type.type_code);
       if (!exists) {
-        const { error } = await supabaseBanking.from('customer_types').insert(type);
-        if (error) console.error('Error inserting customer type:', error);
+        await supabaseBanking.from('customer_types').insert(type);
       }
     }
     
@@ -88,8 +83,7 @@ export const initializeReferenceData = async () => {
     for (const type of accountTypes) {
       const exists = await checkDataExists('account_types', 'type_code', type.type_code);
       if (!exists) {
-        const { error } = await supabaseBanking.from('account_types').insert(type);
-        if (error) console.error('Error inserting account type:', error);
+        await supabaseBanking.from('account_types').insert(type);
       }
     }
     
@@ -115,8 +109,7 @@ export const initializeReferenceData = async () => {
     for (const type of transactionTypes) {
       const exists = await checkDataExists('transaction_types', 'type_code', type.type_code);
       if (!exists) {
-        const { error } = await supabaseBanking.from('transaction_types').insert(type);
-        if (error) console.error('Error inserting transaction type:', error);
+        await supabaseBanking.from('transaction_types').insert(type);
       }
     }
     
@@ -130,8 +123,7 @@ export const initializeReferenceData = async () => {
     for (const category of productCategories) {
       const exists = await checkDataExists('product_categories', 'category_code', category.category_code);
       if (!exists) {
-        const { error } = await supabaseBanking.from('product_categories').insert(category);
-        if (error) console.error('Error inserting product category:', error);
+        await supabaseBanking.from('product_categories').insert(category);
       }
     }
     
@@ -179,8 +171,7 @@ export const initializeReferenceData = async () => {
     for (const product of products) {
       const exists = await checkDataExists('products', 'product_code', product.product_code);
       if (!exists) {
-        const { error } = await supabaseBanking.from('products').insert(product);
-        if (error) console.error('Error inserting product:', error);
+        await supabaseBanking.from('products').insert(product);
       }
     }
     
@@ -230,24 +221,18 @@ export const initializeReferenceData = async () => {
     for (const branch of branches) {
       const exists = await checkDataExists('branches', 'branch_id', branch.branch_id);
       if (!exists) {
-        const { error } = await supabaseBanking.from('branches').insert(branch);
-        if (error) console.error('Error inserting branch:', error);
+        await supabaseBanking.from('branches').insert(branch);
       }
     }
-    
-    console.log('Reference data initialization completed');
     return { customerTypeMap, accountTypeMap, categoryMap };
     
   } catch (error) {
-    console.error('Error initializing reference data:', error);
     throw error;
   }
 };
 
 // Initialize sample business data
 export const initializeSampleData = async () => {
-  console.log('Initializing sample data...');
-  
   try {
     // First ensure reference data is initialized
     const { customerTypeMap, accountTypeMap } = await initializeReferenceData();
@@ -259,7 +244,6 @@ export const initializeSampleData = async () => {
     
     // If there's an error checking, try a different approach
     if (countError) {
-      console.log('Error checking customer count, trying alternative check:', countError);
       // Try to select just one customer
       const { data: existingCustomers, error: selectError } = await supabaseBanking
         .from('customers')
@@ -267,11 +251,9 @@ export const initializeSampleData = async () => {
         .limit(1);
       
       if (!selectError && existingCustomers && existingCustomers.length > 0) {
-        console.log('Sample data already exists (found customers), skipping...');
         return true;
       }
     } else if (customerCount && customerCount > 0) {
-      console.log('Sample data already exists, skipping...');
       return true;
     }
     
@@ -281,7 +263,6 @@ export const initializeSampleData = async () => {
       .select('branch_id');
     
     if (!branches || branches.length === 0) {
-      console.error('No branches found');
       return false;
     }
     
@@ -315,12 +296,10 @@ export const initializeSampleData = async () => {
       .limit(1);
     
     if (checkError) {
-      console.error('Error checking existing customers:', checkError);
       return false;
     }
     
     if (existingCustomers && existingCustomers.length > 0) {
-      console.log('Customers already exist, skipping customer insertion...');
     } else {
       // Insert customers only if they don't exist
       const { error: customerError } = await supabaseBanking
@@ -328,10 +307,8 @@ export const initializeSampleData = async () => {
         .insert(customers);
       
       if (customerError) {
-        console.error('Error inserting customers:', customerError);
         return false;
       }
-      console.log('Customers inserted successfully');
     }
     
     // Create sample accounts
@@ -367,12 +344,10 @@ export const initializeSampleData = async () => {
       .limit(1);
     
     if (checkAccountError) {
-      console.error('Error checking existing accounts:', checkAccountError);
       return false;
     }
     
     if (existingAccounts && existingAccounts.length > 0) {
-      console.log('Accounts already exist, skipping account insertion...');
     } else {
       // Insert accounts only if they don't exist
       const { error: accountError } = await supabaseBanking
@@ -380,10 +355,8 @@ export const initializeSampleData = async () => {
         .insert(accounts);
       
       if (accountError) {
-        console.error('Error inserting accounts:', accountError);
         return false;
       }
-      console.log('Accounts inserted successfully');
     }
     
     // Create sample transactions
@@ -435,18 +408,13 @@ export const initializeSampleData = async () => {
       
       if (txError) {
         if (txError.code === '23505') {
-          console.log('Some transactions already exist, continuing...');
         } else {
-          console.error('Error inserting transactions batch:', txError);
         }
       }
     }
-    
-    console.log('Sample data initialization completed');
     return true;
     
   } catch (error) {
-    console.error('Error initializing sample data:', error);
     return false;
   }
 };
@@ -455,24 +423,18 @@ export const initializeSampleData = async () => {
 export const initializeDatabase = async () => {
   // Prevent concurrent initializations
   if (isInitializing) {
-    console.log('Database initialization already in progress, skipping...');
     return;
   }
   
   isInitializing = true;
   
   try {
-    console.log('Starting database initialization...');
-    
     // Initialize reference data first
     await initializeReferenceData();
     
     // Then initialize sample data
     await initializeSampleData();
-    
-    console.log('Database initialization completed successfully');
   } catch (error) {
-    console.error('Error during database initialization:', error);
     throw error;
   } finally {
     isInitializing = false;

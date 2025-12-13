@@ -2,31 +2,50 @@
 (function() {
   'use strict';
   
-  // Silent in production
+  // Determine if we're in production mode
+  const isProduction = window.location.hostname !== 'localhost' && 
+                       !window.location.hostname.includes('127.0.0.1');
   
-  // Store original console.error
+  // Store original console methods
   const originalError = console.error;
+  const originalWarn = console.warn;
   
-  // Override console.error to catch and log errors without breaking execution
+  // Patterns to suppress in production
+  const suppressedPatterns = [
+    /ERR_NAME_NOT_RESOLVED/i,
+    /Failed to fetch/i,
+    /Error fetching/i,
+    /Error loading/i,
+    /Query error/i,
+    /Get .* error/i,
+    /Error in /i,
+    /supabase\.co/i,
+    /net::/i,
+    /Database/i,
+    /TypeError: Failed to fetch/i,
+  ];
+  
+  // Check if message should be suppressed
+  function shouldSuppress(args) {
+    if (!isProduction) return false;
+    const message = args.map(a => String(a)).join(' ');
+    return suppressedPatterns.some(pattern => pattern.test(message));
+  }
+  
+  // Override console.error to suppress database/network errors in production
   console.error = function(...args) {
-    // Call original error
-    originalError.apply(console, args);
-    
-    // Check if this is a critical error that might break the app
-    const errorString = args.join(' ');
-    if (errorString.includes('Cannot access') && errorString.includes('before initialization')) {
-      // Caught initialization error, attempting to continue
-      
-      // Try to prevent the error from propagating
-      if (window.event) {
-        try {
-          window.event.stopPropagation();
-          window.event.preventDefault();
-        } catch (e) {
-          // Ignore
-        }
-      }
+    if (shouldSuppress(args)) {
+      return; // Silently suppress
     }
+    originalError.apply(console, args);
+  };
+  
+  // Override console.warn to suppress database/network warnings in production  
+  console.warn = function(...args) {
+    if (shouldSuppress(args)) {
+      return; // Silently suppress
+    }
+    originalWarn.apply(console, args);
   };
   
   // Add global error handler to prevent white screen
@@ -34,11 +53,8 @@
     const error = event.error || {};
     const message = error.message || event.message || '';
     
-    // Silently handle errors
-    
     // Check for specific errors that shouldn't break the app
     if (message.includes('Cannot access') && message.includes('before initialization')) {
-      // Prevent initialization error from breaking the app
       event.preventDefault();
       event.stopPropagation();
       return false;
@@ -46,21 +62,27 @@
     
     // Check for ethereum-related errors
     if (message.includes('ethereum') || message.includes('Cannot redefine property')) {
-      // Prevent ethereum error from breaking the app
       event.preventDefault();
       event.stopPropagation();
       return false;
     }
-    
-    // For other errors, let them through
   }, true);
   
   // Add unhandled rejection handler
   window.addEventListener('unhandledrejection', function(event) {
-    // Handle unhandled promise rejection silently
+    const reason = String(event.reason);
+    
+    // Suppress network/database related rejections
+    if (isProduction && (
+        reason.includes('Failed to fetch') ||
+        reason.includes('ERR_NAME_NOT_RESOLVED') ||
+        reason.includes('supabase')
+    )) {
+      event.preventDefault();
+      return false;
+    }
     
     // Prevent ethereum-related rejections from breaking the app
-    const reason = String(event.reason);
     if (reason.includes('ethereum') || reason.includes('Cannot redefine property')) {
       event.preventDefault();
       return false;
@@ -74,11 +96,9 @@
       try {
         return callback.apply(this, args);
       } catch (error) {
-        console.error('Error in setTimeout callback:', error);
-        // Don't re-throw to prevent breaking the app
+        // Silently handle errors in setTimeout callbacks
       }
     };
     return originalSetTimeout.call(this, wrappedCallback, delay);
   };
-  
 })();

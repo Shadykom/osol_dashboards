@@ -66,8 +66,6 @@ export class DashboardService {
    */
   static async getExecutiveDashboard(filters = {}) {
     try {
-      console.log('🎯 Fetching executive dashboard data with filters:', filters);
-      
       // Determine previous/comparison metrics strategy
       const previousMetricsPromise = (async () => {
         if (filters.comparisonDateRange && filters.comparisonDateRange.from && filters.comparisonDateRange.to) {
@@ -118,9 +116,6 @@ export class DashboardService {
       
       // Generate trend data
       const revenueTrend = this.generateRevenueTrend(revenue);
-      
-      console.log('✅ Executive dashboard data compiled successfully');
-
       return formatApiResponse({
         // Main KPIs
         revenue: {
@@ -190,7 +185,6 @@ export class DashboardService {
       });
 
     } catch (error) {
-      console.error('❌ Executive dashboard error:', error);
       return formatApiResponse(this.getFallbackDashboardData(), error.message);
     }
   }
@@ -317,7 +311,6 @@ export class DashboardService {
       });
 
     } catch (error) {
-      console.error('Current period metrics error:', error);
       return formatApiResponse(this.getDefaultMetrics());
     }
   }
@@ -354,7 +347,6 @@ export class DashboardService {
       return formatApiResponse(previous);
 
     } catch (error) {
-      console.error('Previous period metrics error:', error);
       return formatApiResponse(this.getDefaultMetrics());
     }
   }
@@ -391,8 +383,6 @@ export class DashboardService {
 
       // If loan_types join fails, fallback to query without join
       if (error && error.message.includes('loan_types')) {
-        console.log('Loan types table not available, querying without join...');
-        
         // Rebuild query with branch filter
         let fallbackQuery = supabaseBanking.from(TABLES.LOAN_ACCOUNTS);
         if (filters.branch && filters.branch !== 'all') {
@@ -457,7 +447,6 @@ export class DashboardService {
       return formatApiResponse(portfolio);
 
     } catch (error) {
-      console.error('Portfolio distribution error:', error);
       return formatApiResponse([
         { name: 'Personal Loans', value: 35, amount: 450000000, count: 2500, growth: '+5%' },
         { name: 'Mortgages', value: 28, amount: 380000000, count: 1200, growth: '+3%' },
@@ -528,7 +517,6 @@ export class DashboardService {
       });
 
     } catch (error) {
-      console.error('Risk assessment error:', error);
       return formatApiResponse(this.getDefaultRiskMetrics());
     }
   }
@@ -586,7 +574,6 @@ export class DashboardService {
       return formatApiResponse(months);
 
     } catch (error) {
-      console.error('Revenue analytics error:', error);
       return formatApiResponse([
         { month: 'Jan', current: 95, previous: 88, target: 100 },
         { month: 'Feb', current: 98, previous: 90, target: 102 },
@@ -635,7 +622,6 @@ export class DashboardService {
       return formatApiResponse(formattedTransactions);
 
     } catch (error) {
-      console.error('Recent transactions error:', error);
       return formatApiResponse([]);
     }
   }
@@ -706,7 +692,6 @@ export class DashboardService {
       return formatApiResponse(branches);
 
     } catch (error) {
-      console.error('Branch performance error:', error);
       return formatApiResponse([]);
     }
   }
@@ -770,7 +755,6 @@ export class DashboardService {
       return formatApiResponse(productMetrics);
 
     } catch (error) {
-      console.error('Product performance error:', error);
       return formatApiResponse([]);
     }
   }
@@ -802,7 +786,6 @@ export class DashboardService {
       return formatApiResponse(data);
 
     } catch (error) {
-      console.error('Schedule report error:', error);
       throw error;
     }
   }
@@ -829,7 +812,6 @@ export class DashboardService {
       return formatApiResponse({ id: comparisonId, message: 'Comparison saved successfully' });
 
     } catch (error) {
-      console.error('Save comparison error:', error);
       throw error;
     }
   }
@@ -847,7 +829,6 @@ export class DashboardService {
       return formatApiResponse(comparisons);
 
     } catch (error) {
-      console.error('Load comparisons error:', error);
       return formatApiResponse([]);
     }
   }
@@ -868,7 +849,6 @@ export class DashboardService {
       return formatApiResponse(data || []);
 
     } catch (error) {
-      console.error('Get scheduled reports error:', error);
       return formatApiResponse([]);
     }
   }
@@ -1052,7 +1032,6 @@ export class DashboardService {
         revenue_trend: revenueTrend.data
       });
     } catch (error) {
-      console.error('Revenue details error:', error);
       return formatApiResponse(null, error.message);
     }
   }
@@ -1076,7 +1055,6 @@ export class DashboardService {
         loan_disbursement_trend: disbursementTrend.data
       });
     } catch (error) {
-      console.error('Loan details error:', error);
       return formatApiResponse(null, error.message);
     }
   }
@@ -1100,7 +1078,6 @@ export class DashboardService {
         deposit_growth_trend: growthTrend.data
       });
     } catch (error) {
-      console.error('Deposit details error:', error);
       return formatApiResponse(null, error.message);
     }
   }
@@ -1124,7 +1101,6 @@ export class DashboardService {
         npl_trend: trend.data
       });
     } catch (error) {
-      console.error('NPL details error:', error);
       return formatApiResponse(null, error.message);
     }
   }

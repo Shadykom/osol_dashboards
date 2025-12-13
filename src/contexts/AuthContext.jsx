@@ -171,7 +171,6 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error checking session:', error);
         localStorage.removeItem('osol_session');
       } finally {
         setLoading(false);
@@ -288,7 +287,6 @@ export const AuthProvider = ({ children }) => {
 
       return { data: { user: userData, session: sessionData }, error: null };
     } catch (error) {
-      console.error('Sign in error:', error);
       // Emit login failure - exception
       emitSecurityEvent(
         SecurityEventTypes.LOGIN_FAILURE,
@@ -332,7 +330,6 @@ export const AuthProvider = ({ children }) => {
       
       return { error: null };
     } catch (error) {
-      console.error('Sign out error:', error);
       return { error: { message: 'Failed to sign out' } };
     }
   };
@@ -354,7 +351,6 @@ export const AuthProvider = ({ children }) => {
 
       return { data: updatedUser, error: null };
     } catch (error) {
-      console.error('Update profile error:', error);
       return { data: null, error: { message: 'Failed to update profile' } };
     }
   };
@@ -362,10 +358,8 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email) => {
     try {
       // In a real application, this would send a password reset email
-      console.log('Password reset requested for:', email);
       return { data: {}, error: null };
     } catch (error) {
-      console.error('Reset password error:', error);
       return { data: null, error: { message: 'Failed to reset password' } };
     }
   };
@@ -379,7 +373,6 @@ export const AuthProvider = ({ children }) => {
       // In mock mode, we can't actually change the password
       return { data: {}, error: { message: 'Password change is not available in demo mode' } };
     } catch (error) {
-      console.error('Change password error:', error);
       return { data: null, error: { message: 'Failed to change password' } };
     }
   };
