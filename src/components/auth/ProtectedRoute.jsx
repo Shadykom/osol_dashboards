@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { Lock as FiLock, AlertCircle as FiAlertCircle } from 'lucide-react';
+import { emitSecurityEvent, SecurityEventTypes } from '../../../packages/common/siem';
 
 const ProtectedRoute = ({ 
   children, 
@@ -12,6 +13,93 @@ const ProtectedRoute = ({
 }) => {
   const { user, loading, hasRole, hasAnyRole, hasPermission } = useAuth();
   const location = useLocation();
+  const lastEmittedPath = useRef(null);
+
+  // Determine access status
+  const isAuthenticated = !!user;
+  const hasRequiredRole = requiredRoles.length === 0 || hasAnyRole(requiredRoles);
+  const hasAllPermissions = requiredPermissions.length === 0 || requiredPermissions.every(
+    ({ resource, action }) => hasPermission(resource, action)
+  );
+  const hasAccess = isAuthenticated && hasRequiredRole && hasAllPermissions;
+
+  // Emit security events for access decisions
+  useEffect(() => {
+    // Only emit if we have a user and are not in loading state
+    if (loading || !user) return;
+    
+    // Prevent duplicate events for the same path
+    if (lastEmittedPath.current === location.pathname) return;
+
+    // Determine if this route has access requirements
+    const hasAccessRequirements = requiredRoles.length > 0 || requiredPermissions.length > 0;
+
+    if (!hasRequiredRole && requiredRoles.length > 0) {
+      // Emit policy block event for role-based denial
+      emitSecurityEvent(
+        SecurityEventTypes.POLICY_BLOCK,
+        {
+          reason: 'role',
+          requiredRoles,
+          userRoles: user?.roles || [],
+          requestedPath: location.pathname,
+          success: false,
+          timestamp: new Date().toISOString()
+        },
+        {
+          component: 'ProtectedRoute',
+          userId: user?.id,
+          userEmail: user?.email,
+          resourceType: 'route',
+          resourceId: location.pathname,
+          resourceName: location.pathname
+        }
+      );
+      lastEmittedPath.current = location.pathname;
+    } else if (!hasAllPermissions && requiredPermissions.length > 0) {
+      // Emit policy block event for permission-based denial
+      emitSecurityEvent(
+        SecurityEventTypes.POLICY_BLOCK,
+        {
+          reason: 'permission',
+          requiredPermissions,
+          requestedPath: location.pathname,
+          success: false,
+          timestamp: new Date().toISOString()
+        },
+        {
+          component: 'ProtectedRoute',
+          userId: user?.id,
+          userEmail: user?.email,
+          resourceType: 'route',
+          resourceId: location.pathname,
+          resourceName: location.pathname
+        }
+      );
+      lastEmittedPath.current = location.pathname;
+    } else if (hasAccess && hasAccessRequirements) {
+      // Emit access granted event for protected routes
+      emitSecurityEvent(
+        SecurityEventTypes.ACCESS_GRANTED,
+        {
+          requestedPath: location.pathname,
+          requiredRoles: requiredRoles.length > 0 ? requiredRoles : undefined,
+          requiredPermissions: requiredPermissions.length > 0 ? requiredPermissions : undefined,
+          success: true,
+          timestamp: new Date().toISOString()
+        },
+        {
+          component: 'ProtectedRoute',
+          userId: user?.id,
+          userEmail: user?.email,
+          resourceType: 'route',
+          resourceId: location.pathname,
+          resourceName: location.pathname
+        }
+      );
+      lastEmittedPath.current = location.pathname;
+    }
+  }, [location.pathname, loading, user, hasRequiredRole, hasAllPermissions, hasAccess, requiredRoles, requiredPermissions]);
 
   // Show loading spinner while checking authentication
   if (loading) {
@@ -27,26 +115,18 @@ const ProtectedRoute = ({
   }
 
   // Check if user is authenticated
-  if (!user) {
+  if (!isAuthenticated) {
     return <Navigate to={fallbackPath} state={{ from: location }} replace />;
   }
 
   // Check role-based access
-  if (requiredRoles.length > 0) {
-    const hasRequiredRole = hasAnyRole(requiredRoles);
-    if (!hasRequiredRole) {
-      return <AccessDenied reason="role" requiredRoles={requiredRoles} />;
-    }
+  if (!hasRequiredRole) {
+    return <AccessDenied reason="role" requiredRoles={requiredRoles} />;
   }
 
   // Check permission-based access
-  if (requiredPermissions.length > 0) {
-    const hasAllPermissions = requiredPermissions.every(
-      ({ resource, action }) => hasPermission(resource, action)
-    );
-    if (!hasAllPermissions) {
-      return <AccessDenied reason="permission" requiredPermissions={requiredPermissions} />;
-    }
+  if (!hasAllPermissions) {
+    return <AccessDenied reason="permission" requiredPermissions={requiredPermissions} />;
   }
 
   return children;

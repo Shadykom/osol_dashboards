@@ -1,0 +1,21 @@
+{
+  "name": "@osol/common",
+  "version": "1.0.0",
+  "description": "Common utilities and services for the OSOL banking platform",
+  "main": "index.js",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./siem": "./siem/index.js"
+  },
+  "keywords": [
+    "osol",
+    "banking",
+    "siem",
+    "security",
+    "audit"
+  ],
+  "author": "OSOL Banking Team",
+  "license": "UNLICENSED",
+  "private": true
+}
