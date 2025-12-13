@@ -1,6 +1,7 @@
 -- Security Events Table for SIEM Integration
 -- This table stores all security-relevant events for audit logging and SIEM forwarding
 -- Run this script in your Supabase SQL editor
+-- This script is idempotent - safe to run multiple times
 
 -- Create the security_events table in the kastle_banking schema
 CREATE TABLE IF NOT EXISTS kastle_banking.security_events (
@@ -72,6 +73,30 @@ CREATE INDEX IF NOT EXISTS idx_security_events_type_timestamp
 
 -- Enable Row Level Security
 ALTER TABLE kastle_banking.security_events ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist, then recreate them
+DO $$
+BEGIN
+    -- Drop insert policy if exists
+    IF EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'kastle_banking' 
+        AND tablename = 'security_events' 
+        AND policyname = 'security_events_insert_policy'
+    ) THEN
+        DROP POLICY security_events_insert_policy ON kastle_banking.security_events;
+    END IF;
+    
+    -- Drop select policy if exists
+    IF EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'kastle_banking' 
+        AND tablename = 'security_events' 
+        AND policyname = 'security_events_select_policy'
+    ) THEN
+        DROP POLICY security_events_select_policy ON kastle_banking.security_events;
+    END IF;
+END $$;
 
 -- Policy: Allow insert for authenticated users (audit logging)
 CREATE POLICY security_events_insert_policy ON kastle_banking.security_events
@@ -151,15 +176,26 @@ $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION kastle_banking.cleanup_old_security_events IS 'Removes security events older than the specified retention period';
 
--- Grant necessary permissions
+-- Grant necessary permissions (idempotent)
 GRANT INSERT ON kastle_banking.security_events TO anon, authenticated;
 GRANT SELECT ON kastle_banking.security_events TO authenticated;
 GRANT SELECT ON kastle_banking.recent_security_events TO authenticated;
 GRANT SELECT ON kastle_banking.security_alerts TO authenticated;
-GRANT USAGE ON SEQUENCE kastle_banking.security_events_id_seq TO anon, authenticated;
+
+-- Grant sequence usage (check if sequence exists first)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_sequences 
+        WHERE schemaname = 'kastle_banking' 
+        AND sequencename = 'security_events_id_seq'
+    ) THEN
+        GRANT USAGE ON SEQUENCE kastle_banking.security_events_id_seq TO anon, authenticated;
+    END IF;
+END $$;
 
 -- Output success message
 DO $$ 
 BEGIN
-    RAISE NOTICE 'Security events table created successfully in kastle_banking schema';
+    RAISE NOTICE 'Security events table created/updated successfully in kastle_banking schema';
 END $$;
