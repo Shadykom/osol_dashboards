@@ -11,7 +11,16 @@
  * - Forward to cloud SIEM services (Azure Sentinel, AWS Security Hub, etc.)
  */
 
-import { supabase } from '../../src/lib/supabase';
+// Supabase client will be injected via configure()
+let supabaseClient = null;
+
+/**
+ * Configure the SIEM module with a Supabase client
+ * @param {Object} client - Supabase client instance
+ */
+export function configureSIEM(client) {
+  supabaseClient = client;
+}
 
 /**
  * Security Event Types - Categorizes security-relevant events
@@ -83,21 +92,32 @@ export const SIEMConfig = {
   
   // Syslog configuration (future use)
   syslog: {
-    host: process.env.SIEM_SYSLOG_HOST || 'localhost',
-    port: parseInt(process.env.SIEM_SYSLOG_PORT || '514', 10),
-    protocol: process.env.SIEM_SYSLOG_PROTOCOL || 'udp',
+    host: typeof process !== 'undefined' ? (process.env?.SIEM_SYSLOG_HOST || 'localhost') : 'localhost',
+    port: typeof process !== 'undefined' ? parseInt(process.env?.SIEM_SYSLOG_PORT || '514', 10) : 514,
+    protocol: typeof process !== 'undefined' ? (process.env?.SIEM_SYSLOG_PROTOCOL || 'udp') : 'udp',
     facility: 16, // local0
     appName: 'osol-banking',
   },
   
   // HTTP collector configuration (future use)
   httpCollector: {
-    endpoint: process.env.SIEM_HTTP_ENDPOINT || '',
-    apiKey: process.env.SIEM_HTTP_API_KEY || '',
-    batchSize: parseInt(process.env.SIEM_BATCH_SIZE || '100', 10),
-    flushInterval: parseInt(process.env.SIEM_FLUSH_INTERVAL || '5000', 10),
+    endpoint: typeof process !== 'undefined' ? (process.env?.SIEM_HTTP_ENDPOINT || '') : '',
+    apiKey: typeof process !== 'undefined' ? (process.env?.SIEM_HTTP_API_KEY || '') : '',
+    batchSize: typeof process !== 'undefined' ? parseInt(process.env?.SIEM_BATCH_SIZE || '100', 10) : 100,
+    flushInterval: typeof process !== 'undefined' ? parseInt(process.env?.SIEM_FLUSH_INTERVAL || '5000', 10) : 5000,
   },
 };
+
+/**
+ * Generate a unique event ID
+ * @returns {string} UUID or fallback unique ID
+ */
+function generateEventId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
 
 /**
  * Formats a security event into structured JSON for logging/forwarding
@@ -108,7 +128,18 @@ export const SIEMConfig = {
  */
 function formatSecurityEvent(type, payload, context = {}) {
   const timestamp = new Date().toISOString();
-  const eventId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const eventId = generateEventId();
+  
+  // Safely get environment mode
+  const getEnvironment = () => {
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      return import.meta.env.MODE || 'development';
+    }
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.NODE_ENV || 'development';
+    }
+    return 'development';
+  };
   
   return {
     // CEF-like structured format
@@ -122,7 +153,7 @@ function formatSecurityEvent(type, payload, context = {}) {
     source: {
       application: 'osol-banking',
       component: context.component || 'unknown',
-      environment: import.meta?.env?.MODE || 'development',
+      environment: getEnvironment(),
     },
     
     // Actor information (who triggered the event)
@@ -245,10 +276,14 @@ function logToConsole(event) {
  * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
 async function writeToDatabase(event) {
+  if (!supabaseClient) {
+    console.warn('[SIEM] Supabase client not configured. Call configureSIEM(supabaseClient) first.');
+    return { data: null, error: new Error('Supabase client not configured') };
+  }
+
   try {
     // Try to insert into the security_events table
-    // The table should be in the audit schema, falling back to kastle_banking
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('security_events')
       .insert({
         event_id: event.event_id,
@@ -364,7 +399,7 @@ export async function emitSecurityEvent(type, payload = {}, context = {}) {
     }
     
     // Write to database
-    if (SIEMConfig.enableDatabaseLogging) {
+    if (SIEMConfig.enableDatabaseLogging && supabaseClient) {
       operations.push(writeToDatabase(event));
     }
     

@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { emitSecurityEvent, SecurityEventTypes } from '../../packages/common/siem';
+import { emitSecurityEvent, SecurityEventTypes, configureSIEM } from '../../packages/common/siem';
+
+// Configure SIEM with Supabase client
+configureSIEM(supabase);
 
 const AuthContext = createContext({});
 
