@@ -1,0 +1,34 @@
+{
+  "name": "@osol/common",
+  "version": "1.0.0",
+  "description": "Common utilities for EPIC 4: Audit, Evidence, Lineage",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./auditEmitter": "./auditEmitter.js",
+    "./lineageEmitter": "./lineageEmitter.js",
+    "./evidenceUtils": "./evidenceUtils.js"
+  },
+  "files": [
+    "index.js",
+    "auditEmitter.js",
+    "lineageEmitter.js",
+    "evidenceUtils.js"
+  ],
+  "keywords": [
+    "audit",
+    "evidence",
+    "lineage",
+    "tracing",
+    "compliance"
+  ],
+  "author": "OSOL Team",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.52.1"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}
