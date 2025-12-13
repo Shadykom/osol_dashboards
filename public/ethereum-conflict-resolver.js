@@ -108,7 +108,6 @@
               });
             }
           }
-          return true;
         },
         configurable: false,
         enumerable: true

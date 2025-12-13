@@ -1,12 +1,17 @@
 // Test Dashboard Data Consistency
 import { supabaseBanking, TABLES } from '@/lib/supabase';
-import { validateCustomerSegments, validateDashboardKPIs } from './dashboardValidation';
+import { validateDashboardKPIs } from './dashboardValidation';
 
 /**
  * Test dashboard data consistency
  */
 export async function testDashboardConsistency() {
   console.log('🔍 Testing Dashboard Data Consistency...\n');
+  
+  // Track results across scopes
+  let segments = {};
+  let segmentTotal = 0;
+  let uniqueActiveCustomers = 0;
   
   try {
     // 1. Test Total Customers
@@ -31,7 +36,7 @@ export async function testDashboardConsistency() {
       console.error('❌ Error fetching customer segments:', segmentError);
     } else {
       // Count by segment
-      const segments = customers.reduce((acc, customer) => {
+      segments = customers.reduce((acc, customer) => {
         const segment = customer.customer_segment || 
                       customer.customer_type || 
                       (customer.customer_type_id ? `Type ${customer.customer_type_id}` : 'Standard');
@@ -45,7 +50,7 @@ export async function testDashboardConsistency() {
       });
       
       // Validate consistency
-      const segmentTotal = Object.values(segments).reduce((sum, count) => sum + count, 0);
+      segmentTotal = Object.values(segments).reduce((sum, count) => sum + count, 0);
       console.log(`\n📊 Segment total: ${segmentTotal}`);
       console.log(`📊 Direct total: ${totalCustomers}`);
       
@@ -66,7 +71,7 @@ export async function testDashboardConsistency() {
     if (activeError) {
       console.error('❌ Error fetching active accounts:', activeError);
     } else {
-      const uniqueActiveCustomers = new Set(activeAccounts.map(a => a.customer_id)).size;
+      uniqueActiveCustomers = new Set(activeAccounts.map(a => a.customer_id)).size;
       console.log(`✅ Active customers (with active accounts): ${uniqueActiveCustomers}`);
       console.log(`📊 Active customer percentage: ${((uniqueActiveCustomers / totalCustomers) * 100).toFixed(2)}%`);
     }
