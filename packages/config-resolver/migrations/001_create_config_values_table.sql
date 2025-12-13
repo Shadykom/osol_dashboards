@@ -1,8 +1,10 @@
+-- ============================================================================
 -- Migration: Create config_values table for @osol/config-resolver
 -- Run this script in your Supabase SQL Editor
+-- ============================================================================
 
 -- ============================================================================
--- Step 1: Create the schema if it doesn't exist
+-- STEP 1: Create the schema if it doesn't exist
 -- ============================================================================
 CREATE SCHEMA IF NOT EXISTS kastle_banking;
 
@@ -17,7 +19,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA kastle_banking
   GRANT SELECT ON TABLES TO anon;
 
 -- ============================================================================
--- Step 2: Create the config_values table
+-- STEP 2: Create the config_values table
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS kastle_banking.config_values (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,13 +74,18 @@ CREATE TABLE IF NOT EXISTS kastle_banking.config_values (
   CONSTRAINT valid_value_type CHECK (value_type IN ('string', 'number', 'boolean', 'object', 'array'))
 );
 
--- Add comments for documentation
+-- ============================================================================
+-- STEP 3: Add table comments
+-- ============================================================================
 COMMENT ON TABLE kastle_banking.config_values IS 'Stores tenant configuration values with effective dating and scope-based resolution';
 COMMENT ON COLUMN kastle_banking.config_values.scope IS 'Scope hierarchy: user > branch > region > tenant > global (more specific scopes override less specific)';
 COMMENT ON COLUMN kastle_banking.config_values.effective_from IS 'Configuration becomes active at this time';
 COMMENT ON COLUMN kastle_banking.config_values.effective_to IS 'Configuration expires at this time (NULL = never expires)';
 
--- Create indexes for efficient querying
+-- ============================================================================
+-- STEP 4: Create indexes for efficient querying
+-- ============================================================================
+
 -- Primary lookup index: tenant + key + status + effective dates
 CREATE INDEX IF NOT EXISTS idx_config_values_lookup 
   ON kastle_banking.config_values(tenant_id, key, status, effective_from);
@@ -95,7 +102,9 @@ CREATE INDEX IF NOT EXISTS idx_config_values_effective_range
 CREATE INDEX IF NOT EXISTS idx_config_values_resolution
   ON kastle_banking.config_values(tenant_id, key, status, effective_from, scope);
 
--- Create updated_at trigger
+-- ============================================================================
+-- STEP 5: Create updated_at trigger
+-- ============================================================================
 CREATE OR REPLACE FUNCTION kastle_banking.update_config_values_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -110,51 +119,51 @@ CREATE TRIGGER trigger_config_values_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION kastle_banking.update_config_values_updated_at();
 
--- Enable Row Level Security (RLS)
+-- ============================================================================
+-- STEP 6: Enable Row Level Security (RLS)
+-- ============================================================================
 ALTER TABLE kastle_banking.config_values ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Users can only read configs for their tenant
--- Note: This policy assumes auth_user_profiles table exists. 
--- If it doesn't exist yet, use the simpler policy below instead.
-
--- Option A: If you have auth_user_profiles table with tenant_id
--- CREATE POLICY config_values_tenant_isolation ON kastle_banking.config_values
---   FOR ALL
---   USING (
---     tenant_id IN (
---       SELECT tenant_id FROM kastle_banking.auth_user_profiles 
---       WHERE user_id = auth.uid()
---     )
---   );
-
--- Option B: Simple policy - allow authenticated users to access all configs
--- (Use this if you don't have tenant isolation set up yet)
+-- Simple policy: allow authenticated users to access all configs
+-- For tenant isolation, replace this with a policy that checks tenant_id
 CREATE POLICY config_values_authenticated_access ON kastle_banking.config_values
   FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
--- Grant permissions
-GRANT SELECT ON kastle_banking.config_values TO authenticated;
-GRANT INSERT, UPDATE, DELETE ON kastle_banking.config_values TO authenticated;
+-- ============================================================================
+-- STEP 7: Grant permissions
+-- ============================================================================
+GRANT SELECT, INSERT, UPDATE, DELETE ON kastle_banking.config_values TO authenticated;
+GRANT SELECT ON kastle_banking.config_values TO anon;
 
 -- ============================================================================
--- Sample data (optional - remove in production)
+-- DONE! The config_values table is ready to use.
 -- ============================================================================
 
--- Uncomment to insert sample configurations:
+-- ============================================================================
+-- OPTIONAL: Insert sample data (uncomment to use)
+-- ============================================================================
 /*
--- Global default configuration
-INSERT INTO kastle_banking.config_values (tenant_id, key, value_json, value_type, scope, status, effective_from)
-VALUES 
-  ('00000000-0000-0000-0000-000000000001', 'ui.theme', '"default"', 'string', 'global', 'PUBLISHED', NOW()),
-  ('00000000-0000-0000-0000-000000000001', 'feature.darkMode', 'true', 'boolean', 'global', 'PUBLISHED', NOW()),
-  ('00000000-0000-0000-0000-000000000001', 'limits.maxItemsPerPage', '50', 'number', 'global', 'PUBLISHED', NOW()),
-  ('00000000-0000-0000-0000-000000000001', 'app.settings', '{"language": "en", "timezone": "UTC"}', 'object', 'tenant', 'PUBLISHED', NOW());
+-- Sample tenant ID (replace with your actual tenant ID)
+DO $$
+DECLARE
+  sample_tenant_id UUID := '00000000-0000-0000-0000-000000000001';
+BEGIN
+  -- Global default configurations
+  INSERT INTO kastle_banking.config_values (tenant_id, key, value_json, value_type, scope, status, effective_from)
+  VALUES 
+    (sample_tenant_id, 'ui.theme', '"default"', 'string', 'global', 'PUBLISHED', NOW()),
+    (sample_tenant_id, 'feature.darkMode', 'true', 'boolean', 'global', 'PUBLISHED', NOW()),
+    (sample_tenant_id, 'limits.maxItemsPerPage', '50', 'number', 'global', 'PUBLISHED', NOW()),
+    (sample_tenant_id, 'app.settings', '{"language": "en", "timezone": "UTC"}', 'object', 'tenant', 'PUBLISHED', NOW());
 
--- Branch-specific override
-INSERT INTO kastle_banking.config_values (tenant_id, key, value_json, value_type, scope, scope_id, status, effective_from)
-VALUES 
-  ('00000000-0000-0000-0000-000000000001', 'limits.maxItemsPerPage', '100', 'number', 'branch', 'branch-001', 'PUBLISHED', NOW());
+  -- Branch-specific override example
+  INSERT INTO kastle_banking.config_values (tenant_id, key, value_json, value_type, scope, scope_id, status, effective_from)
+  VALUES 
+    (sample_tenant_id, 'limits.maxItemsPerPage', '100', 'number', 'branch', 'branch-001', 'PUBLISHED', NOW());
+    
+  RAISE NOTICE 'Sample data inserted successfully';
+END $$;
 */
