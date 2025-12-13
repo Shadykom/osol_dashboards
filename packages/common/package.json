@@ -1,21 +1,72 @@
 {
   "name": "@osol/common",
   "version": "1.0.0",
-  "description": "Common utilities and services for the OSOL banking platform",
-  "main": "index.js",
+  "description": "Common utilities for OSOL: Audit, Evidence, Lineage, SIEM, Types, Logging, Errors, and Context",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
-  "exports": {
-    ".": "./index.js",
-    "./siem": "./siem/index.js"
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
   },
-  "keywords": [
-    "osol",
-    "banking",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./index.js"
+    },
+    "./siem": "./siem/index.js",
+    "./auditEmitter": "./auditEmitter.js",
+    "./lineageEmitter": "./lineageEmitter.js",
+    "./evidenceUtils": "./evidenceUtils.js",
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./logging": {
+      "types": "./dist/logging/index.d.ts",
+      "import": "./dist/logging/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "import": "./dist/errors/index.js"
+    },
+    "./context": {
+      "types": "./dist/context/index.d.ts",
+      "import": "./dist/context/index.js"
+    }
+  },
+  "files": [
+    "index.js",
     "siem",
-    "security",
-    "audit"
+    "auditEmitter.js",
+    "lineageEmitter.js",
+    "evidenceUtils.js",
+    "dist"
   ],
-  "author": "OSOL Banking Team",
-  "license": "UNLICENSED",
-  "private": true
+  "keywords": [
+    "audit",
+    "evidence",
+    "lineage",
+    "tracing",
+    "compliance",
+    "logging",
+    "errors",
+    "siem",
+    "security"
+  ],
+  "author": "OSOL Team",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.52.1",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  }
 }
