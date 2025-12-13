@@ -129,9 +129,9 @@ CREATE OR REPLACE FUNCTION public.create_evidence_item(
     p_storage_bucket VARCHAR(100),
     p_storage_path TEXT,
     p_sha256_hash VARCHAR(64),
+    p_uploaded_by UUID,
     p_description TEXT DEFAULT NULL,
-    p_tags TEXT DEFAULT '[]',
-    p_uploaded_by UUID
+    p_tags TEXT DEFAULT '[]'
 )
 RETURNS UUID AS $$
 DECLARE
