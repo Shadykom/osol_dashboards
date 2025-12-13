@@ -38,6 +38,8 @@ servers:
 tags:
   - name: Decisions
     description: Policy decision evaluation endpoints
+  - name: Actions
+    description: Contact action endpoints with PDP enforcement
   - name: Profiles
     description: Policy profile management
   - name: Versions
@@ -552,6 +554,339 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PendingApprovalsResponse'
+
+  # =====================================================
+  # Action Endpoints with PDP Enforcement (PEP Pattern)
+  # =====================================================
+
+  /actions/contact:
+    post:
+      tags:
+        - Actions
+      summary: Initiate contact action
+      description: |
+        Initiates a customer contact action with PDP enforcement.
+        
+        **PDP Decision Handling:**
+        - `ALLOW` → Execute action and return 200
+        - `BLOCK` → Return 403 Forbidden with reason
+        - `APPROVAL_REQUIRED` → Create approval workflow, return 202 Accepted
+        
+        This endpoint demonstrates the PEP (Policy Enforcement Point) pattern:
+        PDP is called before any action execution.
+      operationId: initiateContactAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactActionRequest'
+            examples:
+              callAction:
+                summary: Initiate a call action
+                value:
+                  tenant_id: "00000000-0000-0000-0000-000000000001"
+                  customer_id: "CUST-001"
+                  contract_id: "CONT-001"
+                  channel: "CALL"
+                  action_type: "CALL"
+                  customer_type: "RETAIL"
+                  consent_status: "GIVEN"
+                  bucket: "31-60"
+                  requester_id: "AGENT-001"
+                  message: "Follow-up on payment"
+              smsAction:
+                summary: Initiate an SMS action
+                value:
+                  tenant_id: "00000000-0000-0000-0000-000000000001"
+                  customer_id: "CUST-002"
+                  channel: "SMS"
+                  action_type: "SMS"
+                  consent_status: "GIVEN"
+                  message: "Your payment is due"
+      responses:
+        '200':
+          description: Action allowed and initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactActionResponse'
+              example:
+                success: true
+                status: 200
+                data:
+                  action_id: "ACT-1702500000-abc123def"
+                  action_type: "CALL"
+                  channel: "CALL"
+                  customer_id: "CUST-001"
+                  contract_id: "CONT-001"
+                  status: "INITIATED"
+                  message: "Contact action initiated successfully"
+                  pdp_decision:
+                    decision: "ALLOW"
+                    policy_profile_id: "profile-uuid"
+                    policy_version_id: "version-uuid"
+                  initiated_at: "2024-12-13T10:00:00Z"
+        '202':
+          description: Action requires approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequiredResponse'
+              example:
+                success: true
+                status: 202
+                message: "Action requires approval"
+                approval_id: "approval-uuid"
+                reason_code: "LIMIT_APPROACHING"
+                reason_details:
+                  - "Approaching limit: 8/10 attempts in 7d"
+                required_evidence:
+                  - "manager_approval"
+                  - "justification_required"
+        '403':
+          description: Action blocked by policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockedResponse'
+              example:
+                success: false
+                status: 403
+                error: "Action blocked by policy"
+                reason_code: "MAX_ATTEMPTS_EXCEEDED"
+                reason_details:
+                  - "Maximum 10 attempts per 7d exceeded. Current: 10"
+                cooling_period_until: "2024-12-20T10:00:00Z"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/contact/execute:
+    post:
+      tags:
+        - Actions
+      summary: Execute approved contact action
+      description: |
+        Executes a previously approved contact action.
+        This endpoint is used after an action has been approved through the workflow.
+      operationId: executeApprovedContactAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approval_id
+              properties:
+                approval_id:
+                  type: string
+                  format: uuid
+                  description: The approval ID from the 202 response
+      responses:
+        '200':
+          description: Action executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactActionResponse'
+        '403':
+          description: Approval not granted or still pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/contact/bulk:
+    post:
+      tags:
+        - Actions
+      summary: Initiate bulk contact actions
+      description: |
+        Initiates multiple contact actions with individual PDP enforcement.
+        Each action is evaluated separately against PDP policies.
+      operationId: initiateBulkContactActions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkContactActionRequest'
+      responses:
+        '200':
+          description: Bulk actions processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkContactActionResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/approvals:
+    get:
+      tags:
+        - Actions
+      summary: Get pending action approvals
+      description: Retrieves pending action approvals for a tenant
+      operationId: getPendingActionApprovals
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, ALL]
+            default: PENDING
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Approvals retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionApprovalsResponse'
+
+  /actions/approvals/{approvalId}:
+    get:
+      tags:
+        - Actions
+      summary: Get approval details
+      description: Retrieves details of a specific approval
+      operationId: getApprovalDetails
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Approval details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalDetailResponse'
+        '404':
+          description: Approval not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/approvals/{approvalId}/approve:
+    post:
+      tags:
+        - Actions
+      summary: Approve pending action
+      description: Approves a pending action (Checker action)
+      operationId: approveAction
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionApprovalRequest'
+      responses:
+        '200':
+          description: Action approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionApprovalResultResponse'
+        '400':
+          description: Invalid request or missing evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Approval not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/approvals/{approvalId}/reject:
+    post:
+      tags:
+        - Actions
+      summary: Reject pending action
+      description: Rejects a pending action (Checker action)
+      operationId: rejectAction
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRejectionRequest'
+      responses:
+        '200':
+          description: Action rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionApprovalResultResponse'
+        '400':
+          description: Invalid request or missing comments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Approval not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -1119,3 +1454,371 @@ components:
           type: array
           items:
             type: string
+
+    # =====================================================
+    # Action Schemas
+    # =====================================================
+
+    ContactActionRequest:
+      type: object
+      required:
+        - tenant_id
+        - customer_id
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant identifier
+        customer_id:
+          type: string
+          description: Customer identifier
+        contract_id:
+          type: string
+          description: Contract/loan identifier
+        channel:
+          type: string
+          enum: [CALL, SMS, EMAIL, WHATSAPP, IVR]
+          description: Communication channel
+        action_type:
+          type: string
+          enum: [CALL, SMS, EMAIL, WHATSAPP, IVR, FIELD_VISIT]
+          description: Type of contact action
+        customer_type:
+          type: string
+          enum: [RETAIL, SME, CORP]
+          default: RETAIL
+          description: Customer segment
+        consent_status:
+          type: string
+          enum: [GIVEN, NOT_GIVEN, WITHDRAWN, PENDING]
+          description: Customer consent status
+        bucket:
+          type: string
+          description: Delinquency bucket
+        contact_history:
+          $ref: '#/components/schemas/ContactHistory'
+        requester_id:
+          type: string
+          description: ID of the user/agent initiating the action
+        message:
+          type: string
+          description: Message content for SMS/Email
+        metadata:
+          type: object
+          description: Additional metadata
+
+    ContactActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: integer
+        data:
+          type: object
+          properties:
+            action_id:
+              type: string
+              description: Unique action identifier
+            action_type:
+              type: string
+            channel:
+              type: string
+            customer_id:
+              type: string
+            contract_id:
+              type: string
+            status:
+              type: string
+              enum: [INITIATED, QUEUED, EXECUTED]
+            message:
+              type: string
+            pdp_decision:
+              type: object
+              properties:
+                decision:
+                  type: string
+                policy_profile_id:
+                  type: string
+                policy_version_id:
+                  type: string
+            initiated_at:
+              type: string
+              format: date-time
+
+    ApprovalRequiredResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        status:
+          type: integer
+          example: 202
+        message:
+          type: string
+          example: "Action requires approval"
+        approval_id:
+          type: string
+          format: uuid
+        reason_code:
+          type: string
+        reason_details:
+          type: array
+          items:
+            type: string
+        required_evidence:
+          type: array
+          items:
+            type: string
+        policy_profile_id:
+          type: string
+          format: uuid
+        policy_version_id:
+          type: string
+          format: uuid
+
+    BlockedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        status:
+          type: integer
+          example: 403
+        error:
+          type: string
+          example: "Action blocked by policy"
+        reason_code:
+          type: string
+        reason_details:
+          type: array
+          items:
+            type: string
+        policy_profile_id:
+          type: string
+          format: uuid
+        policy_version_id:
+          type: string
+          format: uuid
+        cooling_period_until:
+          type: string
+          format: date-time
+          nullable: true
+
+    BulkContactActionRequest:
+      type: object
+      required:
+        - tenant_id
+        - actions
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        requester_id:
+          type: string
+        actions:
+          type: array
+          items:
+            type: object
+            required:
+              - customer_id
+              - action_type
+            properties:
+              customer_id:
+                type: string
+              contract_id:
+                type: string
+              action_type:
+                type: string
+              channel:
+                type: string
+              consent_status:
+                type: string
+              message:
+                type: string
+
+    BulkContactActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: integer
+        data:
+          type: object
+          properties:
+            summary:
+              type: object
+              properties:
+                total:
+                  type: integer
+                allowed:
+                  type: integer
+                blocked:
+                  type: integer
+                approval_required:
+                  type: integer
+                errors:
+                  type: integer
+            results:
+              type: object
+              properties:
+                allowed:
+                  type: array
+                  items:
+                    type: object
+                blocked:
+                  type: array
+                  items:
+                    type: object
+                approval_required:
+                  type: array
+                  items:
+                    type: object
+                errors:
+                  type: array
+                  items:
+                    type: object
+
+    ActionApprovalsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionApproval'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ActionApproval:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        action_type:
+          type: string
+        channel:
+          type: string
+        customer_id:
+          type: string
+        contract_id:
+          type: string
+        reason_code:
+          type: string
+        reason_details:
+          type: array
+          items:
+            type: string
+        required_evidence:
+          type: array
+          items:
+            type: string
+        requested_by:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        reviewed_by:
+          type: string
+        reviewed_at:
+          type: string
+          format: date-time
+        review_comments:
+          type: string
+
+    ApprovalDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: integer
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+            is_approved:
+              type: boolean
+            is_pending:
+              type: boolean
+            is_rejected:
+              type: boolean
+            approved_by:
+              type: string
+            approved_at:
+              type: string
+              format: date-time
+            metadata:
+              type: object
+
+    ActionApprovalRequest:
+      type: object
+      required:
+        - approved_by
+      properties:
+        approved_by:
+          type: string
+          description: ID of the approver
+        comments:
+          type: string
+          description: Approval comments
+        evidence:
+          type: object
+          description: Evidence documents/data if required
+          additionalProperties: true
+
+    ActionRejectionRequest:
+      type: object
+      required:
+        - rejected_by
+        - comments
+      properties:
+        rejected_by:
+          type: string
+          description: ID of the rejector
+        comments:
+          type: string
+          description: Rejection reason (required)
+
+    ActionApprovalResultResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: integer
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum: [APPROVED, REJECTED]
+            approved_by:
+              type: string
+            rejected_by:
+              type: string
+            approved_at:
+              type: string
+              format: date-time
+            rejected_at:
+              type: string
+              format: date-time
+            message:
+              type: string
