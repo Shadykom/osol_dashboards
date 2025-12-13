@@ -1,0 +1,358 @@
+openapi: 3.1.0
+info:
+  title: CMS Collection Management System API
+  version: 1.0.0
+  description: |
+    Multi-tenant Collection Management System API.
+    
+    ## Authentication
+    All endpoints (except /health and /ready) require authentication via Bearer token.
+    
+    ## Multi-Tenancy
+    All requests must include tenant context. In development, use the `x-tenant-id` header.
+    In production, tenant is derived from the JWT token.
+    
+    ## Request Tracing
+    Include `x-request-id` and `x-correlation-id` headers for distributed tracing.
+  contact:
+    name: CMS Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+  - url: https://api.cms.example.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Tenants
+    description: Tenant management (future)
+  - name: Users
+    description: User management (future)
+  - name: Cases
+    description: Collection case management (future)
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness probe
+      description: Returns 200 if the service is running. Does not check dependencies.
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /ready:
+    get:
+      operationId: getReady
+      summary: Readiness probe
+      description: |
+        Checks all dependencies (database, cache, etc.) and returns the health status.
+        Returns 503 if any critical dependency is down.
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is ready to accept traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyStatus'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyStatus'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token with tenant and user claims
+
+  parameters:
+    TenantIdHeader:
+      name: x-tenant-id
+      in: header
+      description: Tenant ID (required in development, optional in production with JWT)
+      required: false
+      schema:
+        type: string
+        format: uuid
+        example: 00000000-0000-0000-0000-000000000001
+
+    RequestIdHeader:
+      name: x-request-id
+      in: header
+      description: Unique request identifier for tracing
+      required: false
+      schema:
+        type: string
+        format: uuid
+
+    CorrelationIdHeader:
+      name: x-correlation-id
+      in: header
+      description: Correlation ID for distributed tracing
+      required: false
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - timestamp
+        - version
+        - uptime
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          description: Overall health status
+        timestamp:
+          type: string
+          format: date-time
+          description: Current server timestamp
+        version:
+          type: string
+          description: API version
+        uptime:
+          type: integer
+          description: Server uptime in seconds
+
+    ReadyStatus:
+      allOf:
+        - $ref: '#/components/schemas/HealthStatus'
+        - type: object
+          required:
+            - checks
+          properties:
+            checks:
+              type: object
+              properties:
+                database:
+                  $ref: '#/components/schemas/ComponentHealth'
+              additionalProperties:
+                $ref: '#/components/schemas/ComponentHealth'
+
+    ComponentHealth:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [up, down]
+        latency:
+          type: integer
+          description: Response time in milliseconds
+        message:
+          type: string
+          description: Additional status message
+
+    ApiResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+        data:
+          description: Response data (varies by endpoint)
+        error:
+          $ref: '#/components/schemas/ApiError'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+        stack:
+          type: string
+          description: Stack trace (development only)
+
+    ResponseMeta:
+      type: object
+      required:
+        - requestId
+        - timestamp
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - pageSize
+        - totalItems
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    Tenant:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          maxLength: 100
+          pattern: ^[a-z0-9-]+$
+        status:
+          type: string
+          enum: [active, suspended, pending, inactive]
+        config:
+          $ref: '#/components/schemas/TenantConfig'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TenantConfig:
+      type: object
+      properties:
+        features:
+          type: object
+          additionalProperties:
+            type: boolean
+        branding:
+          type: object
+          properties:
+            logoUrl:
+              type: string
+              format: uri
+            primaryColor:
+              type: string
+              pattern: ^#[0-9A-Fa-f]{6}$
+            secondaryColor:
+              type: string
+              pattern: ^#[0-9A-Fa-f]{6}$
+        locale:
+          type: object
+          properties:
+            defaultLanguage:
+              type: string
+            supportedLanguages:
+              type: array
+              items:
+                type: string
+            timezone:
+              type: string
+            dateFormat:
+              type: string
+            currency:
+              type: string
+        limits:
+          type: object
+          properties:
+            maxUsers:
+              type: integer
+            maxCases:
+              type: integer
+            maxStorage:
+              type: integer
+
+    User:
+      type: object
+      required:
+        - id
+        - tenantId
+        - email
+        - name
+        - role
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          maxLength: 255
+        role:
+          type: string
+          enum: [super_admin, tenant_admin, manager, supervisor, officer, readonly]
+        status:
+          type: string
+          enum: [active, inactive, pending, locked]
+        permissions:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+security:
+  - bearerAuth: []
