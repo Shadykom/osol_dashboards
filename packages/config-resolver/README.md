@@ -154,36 +154,46 @@ Scopes are resolved from most specific to least specific:
 
 When multiple configurations match, the most specific scope wins. If there are multiple versions at the same scope, the one with the most recent `effective_from` date (that is <= now) is selected.
 
-## Database Schema
+## Database Setup (Supabase)
 
-The resolver expects a configuration table with the following structure:
+Before using this package, you need to create the `config_values` table in your Supabase database.
 
-```sql
-CREATE TABLE config_values (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL,
-  key VARCHAR(255) NOT NULL,
-  value_json JSONB NOT NULL,
-  value_type VARCHAR(50) DEFAULT 'string',
-  scope VARCHAR(50) NOT NULL DEFAULT 'global',
-  scope_id VARCHAR(255),
-  status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-  version INTEGER NOT NULL DEFAULT 1,
-  effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  effective_to TIMESTAMPTZ,
-  metadata JSONB DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  CONSTRAINT valid_scope CHECK (scope IN ('global', 'tenant', 'region', 'branch', 'user')),
-  CONSTRAINT valid_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))
-);
+### Run the Migration
 
--- Indexes for efficient querying
-CREATE INDEX idx_config_values_tenant_key ON config_values(tenant_id, key);
-CREATE INDEX idx_config_values_effective ON config_values(effective_from, effective_to);
-CREATE INDEX idx_config_values_scope ON config_values(scope, scope_id);
+1. Open your Supabase project dashboard
+2. Go to **SQL Editor**
+3. Copy and paste the contents of `migrations/001_create_config_values_table.sql`
+4. Click **Run**
+
+Or run via Supabase CLI:
+
+```bash
+supabase db push
 ```
+
+### Database Schema
+
+The migration creates a `config_values` table with the following structure:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `tenant_id` | UUID | Tenant identifier |
+| `key` | VARCHAR(255) | Configuration key (e.g., 'feature.enabled') |
+| `value_json` | JSONB | The configuration value |
+| `value_type` | VARCHAR(50) | Type hint: 'string', 'number', 'boolean', 'object', 'array' |
+| `scope` | VARCHAR(50) | Scope level: 'global', 'tenant', 'region', 'branch', 'user' |
+| `scope_id` | VARCHAR(255) | Scope identifier (e.g., user_id, branch_id) |
+| `status` | VARCHAR(50) | 'DRAFT', 'PUBLISHED', or 'ARCHIVED' |
+| `version` | INTEGER | Version number |
+| `effective_from` | TIMESTAMPTZ | When configuration becomes active |
+| `effective_to` | TIMESTAMPTZ | When configuration expires (NULL = never) |
+| `metadata` | JSONB | Additional metadata |
+
+The migration also creates:
+- Optimized indexes for fast queries
+- Row Level Security (RLS) policies for tenant isolation
+- Auto-updating `updated_at` trigger
 
 ## Testing
 
