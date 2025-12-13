@@ -1,0 +1,1121 @@
+openapi: 3.0.3
+info:
+  title: EPIC 3 - Policy Decision Point (PDP) API
+  description: |
+    Regulatory Policy Engine API for evaluating contact policy decisions.
+    
+    ## Overview
+    The PDP API provides endpoints for:
+    - **Policy Decisions**: Evaluate whether a contact action is allowed based on regulatory policies
+    - **Policy Management**: Create, update, and manage policy profiles and versions
+    - **Maker-Checker Workflow**: Submit, approve, reject, and publish policy changes
+    - **Audit Trail**: Track all decisions and policy changes
+    
+    ## Decision Types
+    - `ALLOW`: Action is permitted
+    - `BLOCK`: Action is not permitted
+    - `APPROVAL_REQUIRED`: Action requires manual approval
+    
+    ## Rule Types
+    - `max_attempts`: Limit contact attempts per time window
+    - `time_window`: Restrict contact to specific hours/days
+    - `cooling_period`: Enforce waiting period between contacts
+    - `consent_check`: Verify consent for specific channels
+    - `channel_restriction`: Block or whitelist specific channels
+    - `bucket_rule`: Apply rules based on delinquency bucket
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api-support@example.com
+  license:
+    name: Proprietary
+    
+servers:
+  - url: /api/v1
+    description: API v1
+    
+tags:
+  - name: Decisions
+    description: Policy decision evaluation endpoints
+  - name: Profiles
+    description: Policy profile management
+  - name: Versions
+    description: Policy version management
+  - name: Workflow
+    description: Maker-checker workflow operations
+  - name: Audit
+    description: Audit and logging endpoints
+
+paths:
+  /pdp/decision:
+    post:
+      tags:
+        - Decisions
+      summary: Evaluate policy decision
+      description: |
+        Evaluates a contact action against active policies and returns a decision.
+        This endpoint should be called **before** any contact action is executed.
+        
+        The decision is based on:
+        - Tenant-specific policies
+        - Customer type (RETAIL/SME/CORP)
+        - Configured rules (max attempts, time windows, consent, etc.)
+        - Contact history
+      operationId: evaluateDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PDPDecisionRequest'
+            examples:
+              retailCall:
+                summary: Retail customer call
+                value:
+                  tenant_id: "00000000-0000-0000-0000-000000000001"
+                  customer_type: "RETAIL"
+                  secured_flag: false
+                  action_type: "CALL"
+                  channel: "PHONE"
+                  customer_id: "CUST-001"
+                  contract_id: "CONT-001"
+                  portfolio_id: "PORT-001"
+                  bucket: "31-60"
+                  timestamp: "2024-01-15T10:30:00Z"
+                  consent_status: "GIVEN"
+                  contact_history:
+                    window: "7d"
+                    attempts: 5
+                    last_attempt_at: "2024-01-14T14:00:00Z"
+                  additional_context:
+                    agent_id: "AGENT-001"
+                    campaign_id: "CAMP-001"
+      responses:
+        '200':
+          description: Decision evaluated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PDPDecisionResponse'
+              examples:
+                allowed:
+                  summary: Action allowed
+                  value:
+                    decision: "ALLOW"
+                    reason_code: "POLICY_COMPLIANT"
+                    reason_details: ["All rules passed"]
+                    policy_profile_id: "profile-uuid"
+                    policy_version_id: "version-uuid"
+                    required_evidence: []
+                    cooling_period_until: null
+                    max_attempts: 10
+                    window: "7d"
+                blocked:
+                  summary: Action blocked
+                  value:
+                    decision: "BLOCK"
+                    reason_code: "MAX_ATTEMPTS_EXCEEDED"
+                    reason_details: ["Maximum 10 attempts per 7d exceeded. Current: 10"]
+                    policy_profile_id: "profile-uuid"
+                    policy_version_id: "version-uuid"
+                    required_evidence: []
+                    cooling_period_until: null
+                    max_attempts: 10
+                    window: "7d"
+                approvalRequired:
+                  summary: Approval required
+                  value:
+                    decision: "APPROVAL_REQUIRED"
+                    reason_code: "LIMIT_APPROACHING"
+                    reason_details: ["Approaching limit: 8/10 attempts in 7d"]
+                    policy_profile_id: "profile-uuid"
+                    policy_version_id: "version-uuid"
+                    required_evidence: ["manager_approval", "justification_required"]
+                    cooling_period_until: null
+                    max_attempts: 10
+                    window: "7d"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/record-attempt:
+    post:
+      tags:
+        - Decisions
+      summary: Record contact attempt
+      description: |
+        Records a contact attempt for tracking purposes.
+        Should be called after a contact action is executed.
+      operationId: recordContactAttempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordAttemptRequest'
+      responses:
+        '201':
+          description: Attempt recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      recorded:
+                        type: boolean
+                        example: true
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/decision-log:
+    get:
+      tags:
+        - Audit
+      summary: Get decision audit log
+      description: Retrieves the decision audit log with optional filtering
+      operationId: getDecisionLog
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+        - name: contract_id
+          in: query
+          schema:
+            type: string
+        - name: decision
+          in: query
+          schema:
+            type: string
+            enum: [ALLOW, BLOCK, APPROVAL_REQUIRED]
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: Decision log retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionLogResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/profiles:
+    get:
+      tags:
+        - Profiles
+      summary: List policy profiles
+      description: Retrieves all policy profiles for a tenant
+      operationId: getPolicyProfiles
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: customer_type
+          in: query
+          schema:
+            type: string
+            enum: [RETAIL, SME, CORP]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, ARCHIVED]
+      responses:
+        '200':
+          description: Profiles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileListResponse'
+    post:
+      tags:
+        - Profiles
+      summary: Create policy profile
+      description: Creates a new policy profile
+      operationId: createPolicyProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '201':
+          description: Profile created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/profiles/{profileId}:
+    get:
+      tags:
+        - Profiles
+      summary: Get policy profile details
+      description: Retrieves a policy profile with all versions
+      operationId: getPolicyProfile
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileDetailResponse'
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/versions:
+    post:
+      tags:
+        - Versions
+      summary: Create policy version
+      description: Creates a new policy version in DRAFT status
+      operationId: createPolicyVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVersionRequest'
+      responses:
+        '201':
+          description: Version created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+        '400':
+          description: Invalid request or rules validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/versions/{versionId}:
+    put:
+      tags:
+        - Versions
+      summary: Update policy version
+      description: Updates a DRAFT policy version
+      operationId: updatePolicyVersion
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVersionRequest'
+      responses:
+        '200':
+          description: Version updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+        '400':
+          description: Invalid request or version not in DRAFT status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/versions/{versionId}/submit:
+    post:
+      tags:
+        - Workflow
+      summary: Submit version for approval
+      description: Submits a DRAFT version for approval (Maker action)
+      operationId: submitForApproval
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitRequest'
+      responses:
+        '200':
+          description: Version submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowResponse'
+        '400':
+          description: Invalid request or version not in DRAFT status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/versions/{versionId}/approve:
+    post:
+      tags:
+        - Workflow
+      summary: Approve version
+      description: Approves a SUBMITTED version (Checker action)
+      operationId: approveVersion
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+      responses:
+        '200':
+          description: Version approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowResponse'
+        '400':
+          description: Invalid request or version not in SUBMITTED status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/versions/{versionId}/reject:
+    post:
+      tags:
+        - Workflow
+      summary: Reject version
+      description: Rejects a SUBMITTED version (Checker action)
+      operationId: rejectVersion
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectionRequest'
+      responses:
+        '200':
+          description: Version rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowResponse'
+        '400':
+          description: Invalid request or version not in SUBMITTED status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/versions/{versionId}/publish:
+    post:
+      tags:
+        - Workflow
+      summary: Publish version
+      description: Publishes an APPROVED version, making it active
+      operationId: publishVersion
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: Version published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+        '400':
+          description: Invalid request or version not in APPROVED status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdp/pending-approvals:
+    get:
+      tags:
+        - Workflow
+      summary: Get pending approvals
+      description: Retrieves pending approvals for a checker
+      operationId: getPendingApprovals
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pending approvals retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingApprovalsResponse'
+
+components:
+  schemas:
+    PDPDecisionRequest:
+      type: object
+      required:
+        - tenant_id
+        - customer_type
+        - action_type
+        - customer_id
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant identifier for multi-tenancy
+        customer_type:
+          type: string
+          enum: [RETAIL, SME, CORP]
+          description: Customer segment type
+        secured_flag:
+          type: boolean
+          nullable: true
+          description: Whether the loan is secured (true) or unsecured (false)
+        action_type:
+          type: string
+          enum: [CALL, WHATSAPP, SMS, EMAIL, IVR, FIELD_VISIT, LEGAL]
+          description: Type of contact action
+        channel:
+          type: string
+          description: Communication channel
+        customer_id:
+          type: string
+          description: Customer identifier
+        contract_id:
+          type: string
+          description: Contract/loan identifier
+        portfolio_id:
+          type: string
+          description: Portfolio identifier
+        bucket:
+          type: string
+          description: Delinquency bucket (e.g., "1-30", "31-60", "91+")
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the action (defaults to now)
+        consent_status:
+          type: string
+          enum: [GIVEN, NOT_GIVEN, WITHDRAWN, PENDING]
+          description: Customer consent status
+        contact_history:
+          $ref: '#/components/schemas/ContactHistory'
+        additional_context:
+          type: object
+          description: Additional context data
+
+    ContactHistory:
+      type: object
+      properties:
+        window:
+          type: string
+          description: Time window (e.g., "7d", "24h")
+        attempts:
+          type: integer
+          description: Number of attempts in window
+        last_attempt_at:
+          type: string
+          format: date-time
+          description: Timestamp of last attempt
+
+    PDPDecisionResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [ALLOW, BLOCK, APPROVAL_REQUIRED]
+          description: The policy decision
+        reason_code:
+          type: string
+          description: Machine-readable reason code
+        reason_details:
+          type: array
+          items:
+            type: string
+          description: Human-readable explanation
+        policy_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Profile used for decision
+        policy_version_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Version used for decision
+        required_evidence:
+          type: array
+          items:
+            type: string
+          description: Required evidence for approval
+        cooling_period_until:
+          type: string
+          format: date-time
+          nullable: true
+          description: When cooling period ends
+        max_attempts:
+          type: integer
+          nullable: true
+          description: Maximum allowed attempts
+        window:
+          type: string
+          nullable: true
+          description: Time window for attempts
+
+    RecordAttemptRequest:
+      type: object
+      required:
+        - tenant_id
+        - customer_id
+        - action_type
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+        contract_id:
+          type: string
+        action_type:
+          type: string
+        channel:
+          type: string
+        outcome:
+          type: string
+          description: Outcome of the attempt (e.g., ANSWERED, NO_ANSWER)
+        metadata:
+          type: object
+
+    RulesJson:
+      type: object
+      required:
+        - rules
+      properties:
+        version:
+          type: string
+          description: Rules schema version
+        description:
+          type: string
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+        metadata:
+          type: object
+
+    Rule:
+      type: object
+      required:
+        - type
+      properties:
+        id:
+          type: string
+          description: Unique rule identifier
+        type:
+          type: string
+          enum: [max_attempts, time_window, cooling_period, consent_check, channel_restriction, bucket_rule]
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+          default: true
+        on_violation:
+          type: string
+          enum: [BLOCK, APPROVAL_REQUIRED]
+          default: BLOCK
+        # Type-specific fields
+        max_attempts:
+          type: integer
+          description: For max_attempts rule
+        window:
+          type: string
+          description: For max_attempts rule (e.g., "7d")
+        action_types:
+          type: array
+          items:
+            type: string
+        allowed_windows:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeWindow'
+        cooling_period:
+          type: string
+          description: For cooling_period rule (e.g., "24h")
+        channels_requiring_consent:
+          type: array
+          items:
+            type: string
+        blocked_channels:
+          type: array
+          items:
+            type: string
+        allowed_channels:
+          type: array
+          items:
+            type: string
+        bucket_restrictions:
+          type: object
+          additionalProperties:
+            type: object
+
+    TimeWindow:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            type: integer
+          description: Days of week (0=Sunday, 6=Saturday)
+        start_time:
+          type: string
+          description: Start time (HH:MM)
+        end_time:
+          type: string
+          description: End time (HH:MM)
+        description:
+          type: string
+
+    CreateProfileRequest:
+      type: object
+      required:
+        - tenant_id
+        - name
+        - customer_type
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        customer_type:
+          type: string
+          enum: [RETAIL, SME, CORP]
+        secured_flag:
+          type: boolean
+          nullable: true
+        priority:
+          type: integer
+          default: 100
+        metadata:
+          type: object
+        created_by:
+          type: string
+          format: uuid
+
+    CreateVersionRequest:
+      type: object
+      required:
+        - tenant_id
+        - profile_id
+        - rules_json
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        profile_id:
+          type: string
+          format: uuid
+        rules_json:
+          $ref: '#/components/schemas/RulesJson'
+        change_reason:
+          type: string
+        effective_from:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: uuid
+
+    UpdateVersionRequest:
+      type: object
+      properties:
+        rules_json:
+          $ref: '#/components/schemas/RulesJson'
+        change_reason:
+          type: string
+        effective_from:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          format: uuid
+
+    SubmitRequest:
+      type: object
+      required:
+        - submitted_by
+      properties:
+        submitted_by:
+          type: string
+          format: uuid
+        comments:
+          type: string
+
+    ApprovalRequest:
+      type: object
+      required:
+        - approved_by
+      properties:
+        approved_by:
+          type: string
+          format: uuid
+        comments:
+          type: string
+
+    RejectionRequest:
+      type: object
+      required:
+        - rejected_by
+      properties:
+        rejected_by:
+          type: string
+          format: uuid
+        comments:
+          type: string
+
+    PublishRequest:
+      type: object
+      required:
+        - published_by
+      properties:
+        published_by:
+          type: string
+          format: uuid
+
+    ProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/PolicyProfile'
+        error:
+          type: string
+
+    ProfileListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyProfile'
+
+    ProfileDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/PolicyProfile'
+            - type: object
+              properties:
+                policy_versions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PolicyVersion'
+
+    VersionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/PolicyVersion'
+        error:
+          type: string
+
+    WorkflowResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            version_id:
+              type: string
+              format: uuid
+            workflow_id:
+              type: string
+              format: uuid
+            status:
+              type: string
+        error:
+          type: string
+
+    PendingApprovalsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowApproval'
+
+    DecisionLogResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionLogEntry'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    PolicyProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        customer_type:
+          type: string
+        secured_flag:
+          type: boolean
+          nullable: true
+        status:
+          type: string
+        priority:
+          type: integer
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PolicyVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile_id:
+          type: string
+          format: uuid
+        version_no:
+          type: integer
+        status:
+          type: string
+          enum: [DRAFT, SUBMITTED, APPROVED, PUBLISHED, REJECTED, ARCHIVED]
+        effective_from:
+          type: string
+          format: date-time
+        effective_to:
+          type: string
+          format: date-time
+        rules_json:
+          $ref: '#/components/schemas/RulesJson'
+        change_reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    WorkflowApproval:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+        workflow_status:
+          type: string
+        maker_id:
+          type: string
+          format: uuid
+        maker_comments:
+          type: string
+        made_at:
+          type: string
+          format: date-time
+        checker_id:
+          type: string
+          format: uuid
+        checker_comments:
+          type: string
+        checked_at:
+          type: string
+          format: date-time
+
+    DecisionLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+        action_type:
+          type: string
+        decision:
+          type: string
+        reason_code:
+          type: string
+        policy_profile_id:
+          type: string
+          format: uuid
+        policy_version_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        details:
+          type: array
+          items:
+            type: string
