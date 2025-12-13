@@ -1,7 +1,24 @@
 -- Migration: Create config_values table for @osol/config-resolver
 -- Run this script in your Supabase SQL Editor
 
--- Create the config_values table in the kastle_banking schema
+-- ============================================================================
+-- Step 1: Create the schema if it doesn't exist
+-- ============================================================================
+CREATE SCHEMA IF NOT EXISTS kastle_banking;
+
+-- Grant usage on the schema
+GRANT USAGE ON SCHEMA kastle_banking TO anon, authenticated, service_role;
+
+-- Set default privileges for future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA kastle_banking
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA kastle_banking
+  GRANT SELECT ON TABLES TO anon;
+
+-- ============================================================================
+-- Step 2: Create the config_values table
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS kastle_banking.config_values (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
@@ -97,14 +114,26 @@ CREATE TRIGGER trigger_config_values_updated_at
 ALTER TABLE kastle_banking.config_values ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Users can only read configs for their tenant
-CREATE POLICY config_values_tenant_isolation ON kastle_banking.config_values
+-- Note: This policy assumes auth_user_profiles table exists. 
+-- If it doesn't exist yet, use the simpler policy below instead.
+
+-- Option A: If you have auth_user_profiles table with tenant_id
+-- CREATE POLICY config_values_tenant_isolation ON kastle_banking.config_values
+--   FOR ALL
+--   USING (
+--     tenant_id IN (
+--       SELECT tenant_id FROM kastle_banking.auth_user_profiles 
+--       WHERE user_id = auth.uid()
+--     )
+--   );
+
+-- Option B: Simple policy - allow authenticated users to access all configs
+-- (Use this if you don't have tenant isolation set up yet)
+CREATE POLICY config_values_authenticated_access ON kastle_banking.config_values
   FOR ALL
-  USING (
-    tenant_id IN (
-      SELECT tenant_id FROM kastle_banking.auth_user_profiles 
-      WHERE user_id = auth.uid()
-    )
-  );
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 -- Grant permissions
 GRANT SELECT ON kastle_banking.config_values TO authenticated;
