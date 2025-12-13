@@ -1,20 +1,34 @@
 /**
  * =====================================================
- * EPIC 3: Policy Decision Point (PDP) Service
+ * EPIC 3 + EPIC 4: Policy Decision Point (PDP) Service
  * =====================================================
  * 
- * This service implements the regulatory policy engine that evaluates
- * collection contact rules and returns decisions (ALLOW/BLOCK/APPROVAL_REQUIRED).
+ * This service combines:
+ * - EPIC 3: Regulatory policy engine for collection contact rules
+ * - EPIC 4: Lineage tracing for audit and compliance
  * 
  * Key Features:
  * - Policy lookup by tenant/customer type/secured flag
  * - Rule evaluation engine with support for multiple rule types
  * - Explainable decisions with reason codes and details
- * - Audit logging for compliance
+ * - Decision lineage tracing for compliance
+ * - Audit logging
  * - Tenant isolation via RLS
  */
 
-import { supabasePolicy, PDP_TABLES, PDP_FUNCTIONS } from '@/lib/supabasePolicy';
+import { supabase } from '@/lib/supabase';
+
+// Try to import lineage service if available
+let LineageService = null;
+let AuditService = null;
+try {
+  const lineageModule = await import('./lineageService.js');
+  LineageService = lineageModule.LineageService;
+  const auditModule = await import('./auditService.js');
+  AuditService = auditModule.AuditService;
+} catch (e) {
+  console.warn('[PDPService] Lineage/Audit services not available, running without tracing');
+}
 
 // =====================================================
 // Constants and Rule Types
@@ -23,7 +37,12 @@ import { supabasePolicy, PDP_TABLES, PDP_FUNCTIONS } from '@/lib/supabasePolicy'
 export const DECISIONS = {
   ALLOW: 'ALLOW',
   BLOCK: 'BLOCK',
-  APPROVAL_REQUIRED: 'APPROVAL_REQUIRED'
+  APPROVAL_REQUIRED: 'APPROVAL_REQUIRED',
+  // EPIC 4 compatible decision types
+  APPROVED: 'APPROVED',
+  DENIED: 'DENIED',
+  PENDING: 'PENDING',
+  CONDITIONALLY_APPROVED: 'CONDITIONALLY_APPROVED'
 };
 
 export const REASON_CODES = {
@@ -54,6 +73,28 @@ export const RULE_TYPES = {
   BUCKET_RULE: 'bucket_rule'
 };
 
+// Trace types for lineage (EPIC 4)
+export const TRACE_TYPES = {
+  POLICY: 'POLICY',
+  ALLOCATION: 'ALLOCATION',
+  AI: 'AI'
+};
+
+// Link types for lineage (EPIC 4)
+export const LINK_TYPES = {
+  AFFECTS: 'AFFECTS',
+  TRIGGERED_BY: 'TRIGGERED_BY',
+  REFERENCES: 'REFERENCES'
+};
+
+// PDP Tables
+const PDP_TABLES = {
+  POLICY_PROFILES: 'pdp_policy_profiles',
+  POLICY_VERSIONS: 'pdp_policy_versions',
+  DECISION_LOG: 'pdp_decision_log',
+  CONTACT_ATTEMPT_CACHE: 'pdp_contact_attempt_cache'
+};
+
 // =====================================================
 // PDP Service Class
 // =====================================================
@@ -62,6 +103,10 @@ export class PDPService {
   constructor() {
     this.defaultTenantId = '00000000-0000-0000-0000-000000000000';
   }
+
+  // =====================================================
+  // EPIC 3: Regulatory Policy Evaluation
+  // =====================================================
 
   /**
    * Main entry point: Evaluate a policy decision request
@@ -172,8 +217,8 @@ export class PDPService {
       // Log the decision for audit
       await this.logDecision(request, response, rulesEvaluated, Date.now() - startTime);
       
-      // Emit to audit hook if configured
-      await this.emitAuditEvent(request, response, rulesEvaluated);
+      // Create lineage trace (EPIC 4)
+      await this.createDecisionTrace(request, response, rulesEvaluated, Date.now() - startTime);
       
       return response;
       
@@ -194,6 +239,304 @@ export class PDPService {
       return errorResponse;
     }
   }
+
+  // =====================================================
+  // EPIC 4: Generic Access Control with Lineage
+  // =====================================================
+
+  /**
+   * Evaluate a generic policy decision (EPIC 4 style)
+   * @param {Object} request - Policy evaluation request
+   * @returns {Promise<Object>} - Decision result with trace ID
+   */
+  static async evaluatePolicy(request) {
+    const {
+      tenantId,
+      policyId,
+      policyName,
+      policyVersion = '1.0',
+      subject,        // Who is requesting (user, service, etc.)
+      resource,       // What resource is being accessed
+      action,         // What action is being performed
+      context = {},   // Additional context for the decision
+      entityLinks = [] // Entities affected by this decision
+    } = request;
+
+    const startTime = Date.now();
+    let decision = null;
+    let explanation = '';
+    let factors = [];
+    let reasoning = {};
+
+    try {
+      // Perform policy evaluation
+      const evaluationResult = await PDPService.performPolicyEvaluation({
+        policyId,
+        subject,
+        resource,
+        action,
+        context
+      });
+
+      decision = evaluationResult.decision;
+      explanation = evaluationResult.explanation;
+      factors = evaluationResult.factors;
+      reasoning = evaluationResult.reasoning;
+
+      const endTime = Date.now();
+      const durationMs = endTime - startTime;
+
+      // Create lineage trace for this policy decision (if LineageService available)
+      let traceId = null;
+      if (LineageService) {
+        const traceResult = await LineageService.createTrace({
+          tenantId,
+          traceType: TRACE_TYPES.POLICY,
+          traceRefId: policyId,
+          input: {
+            policyId,
+            policyName,
+            subject,
+            resource,
+            action,
+            context
+          },
+          output: {
+            decision,
+            details: evaluationResult.details || {}
+          },
+          decisionResult: decision,
+          explanation,
+          reasoning,
+          factors,
+          actorUserId: subject?.userId || null,
+          actorSystem: 'PDP',
+          policyVersion,
+          startedAt: new Date(startTime).toISOString(),
+          completedAt: new Date(endTime).toISOString(),
+          durationMs,
+          entityLinks: [
+            subject?.userId ? {
+              entityType: 'USER',
+              entityId: subject.userId,
+              linkType: LINK_TYPES.TRIGGERED_BY
+            } : null,
+            resource?.type && resource?.id ? {
+              entityType: resource.type,
+              entityId: resource.id,
+              linkType: LINK_TYPES.AFFECTS
+            } : null,
+            ...entityLinks
+          ].filter(Boolean),
+          metadata: {
+            policyName,
+            evaluationContext: context
+          }
+        });
+        traceId = traceResult.traceId;
+      }
+
+      // Emit audit event (if AuditService available)
+      if (AuditService) {
+        await AuditService.emitEvent({
+          tenantId,
+          eventType: 'POLICY_EVALUATION',
+          actorUserId: subject?.userId,
+          actorRole: subject?.role,
+          entityType: 'POLICY',
+          entityId: policyId,
+          source: 'PDP',
+          after: {
+            decision,
+            policyName,
+            resource,
+            action,
+            traceId
+          },
+          metadata: {
+            durationMs,
+            factors: factors.length
+          }
+        });
+      }
+
+      return {
+        success: true,
+        decision,
+        explanation,
+        factors,
+        traceId,
+        durationMs,
+        timestamp: new Date().toISOString()
+      };
+    } catch (err) {
+      console.error('[PDPService] Policy evaluation error:', err);
+
+      // Create trace even for errors (if LineageService available)
+      if (LineageService) {
+        await LineageService.createTrace({
+          tenantId,
+          traceType: TRACE_TYPES.POLICY,
+          traceRefId: policyId,
+          input: { policyId, subject, resource, action, context },
+          output: { error: err.message },
+          decisionResult: DECISIONS.DENIED,
+          explanation: `Policy evaluation failed: ${err.message}`,
+          actorSystem: 'PDP',
+          status: 'FAILED',
+          metadata: { error: err.message }
+        });
+      }
+
+      return {
+        success: false,
+        decision: DECISIONS.DENIED,
+        explanation: `Policy evaluation error: ${err.message}`,
+        error: err.message
+      };
+    }
+  }
+
+  /**
+   * Perform the actual policy evaluation logic (EPIC 4 style)
+   */
+  static async performPolicyEvaluation(params) {
+    const { subject, resource, action, context } = params;
+
+    const factors = [];
+    let decision = DECISIONS.DENIED;
+    let explanation = '';
+    const reasoning = {
+      rules_evaluated: [],
+      conditions_met: [],
+      conditions_failed: []
+    };
+
+    // Factor 1: Check if subject exists
+    if (subject && subject.userId) {
+      factors.push({
+        name: 'subject_authenticated',
+        weight: 0.3,
+        value: true,
+        description: 'Subject is authenticated'
+      });
+      reasoning.conditions_met.push('Subject is authenticated');
+    } else {
+      factors.push({
+        name: 'subject_authenticated',
+        weight: 0.3,
+        value: false,
+        description: 'Subject is not authenticated'
+      });
+      reasoning.conditions_failed.push('Subject not authenticated');
+      return {
+        decision: DECISIONS.DENIED,
+        explanation: 'Access denied: Subject not authenticated',
+        factors,
+        reasoning
+      };
+    }
+
+    // Factor 2: Check role-based access
+    const allowedRoles = context.allowedRoles || ['admin', 'manager', 'user'];
+    const hasRole = allowedRoles.includes(subject.role);
+    
+    factors.push({
+      name: 'role_check',
+      weight: 0.3,
+      value: hasRole,
+      description: `Role '${subject.role}' access check`
+    });
+
+    if (hasRole) {
+      reasoning.conditions_met.push(`Subject has allowed role: ${subject.role}`);
+    } else {
+      reasoning.conditions_failed.push(`Subject role '${subject.role}' not in allowed roles`);
+    }
+
+    // Factor 3: Check resource access
+    const hasResourceAccess = !context.restrictedResources || 
+      !context.restrictedResources.includes(resource?.type);
+    
+    factors.push({
+      name: 'resource_access',
+      weight: 0.2,
+      value: hasResourceAccess,
+      description: 'Resource access check'
+    });
+
+    if (hasResourceAccess) {
+      reasoning.conditions_met.push('Resource is accessible');
+    } else {
+      reasoning.conditions_failed.push('Resource is restricted');
+    }
+
+    // Factor 4: Check action permissions
+    const actionPermissions = {
+      admin: ['create', 'read', 'update', 'delete', 'approve', 'manage'],
+      manager: ['create', 'read', 'update', 'approve'],
+      user: ['create', 'read', 'update'],
+      viewer: ['read']
+    };
+
+    const rolePermissions = actionPermissions[subject.role] || ['read'];
+    const hasActionPermission = rolePermissions.includes(action);
+
+    factors.push({
+      name: 'action_permission',
+      weight: 0.2,
+      value: hasActionPermission,
+      description: `Action '${action}' permission check for role '${subject.role}'`
+    });
+
+    if (hasActionPermission) {
+      reasoning.conditions_met.push(`Action '${action}' is permitted for role '${subject.role}'`);
+    } else {
+      reasoning.conditions_failed.push(`Action '${action}' is not permitted for role '${subject.role}'`);
+    }
+
+    // Calculate final decision based on factors
+    const totalWeight = factors.reduce((sum, f) => sum + f.weight, 0);
+    const positiveScore = factors
+      .filter(f => f.value)
+      .reduce((sum, f) => sum + f.weight, 0);
+    
+    const score = positiveScore / totalWeight;
+
+    if (score >= 0.8) {
+      decision = DECISIONS.APPROVED;
+      explanation = 'Access approved: All policy conditions met';
+    } else if (score >= 0.5) {
+      decision = DECISIONS.CONDITIONALLY_APPROVED;
+      explanation = 'Access conditionally approved: Some conditions not met';
+    } else {
+      decision = DECISIONS.DENIED;
+      explanation = 'Access denied: Policy conditions not satisfied';
+    }
+
+    reasoning.rules_evaluated.push({
+      rule: 'composite_policy_evaluation',
+      score,
+      threshold: 0.8
+    });
+
+    return {
+      decision,
+      explanation,
+      factors,
+      reasoning,
+      details: {
+        score,
+        threshold: 0.8,
+        positiveScore,
+        totalWeight
+      }
+    };
+  }
+
+  // =====================================================
+  // EPIC 3: Rule Evaluation Methods
+  // =====================================================
 
   /**
    * Validate the request object
@@ -217,8 +560,7 @@ export class PDPService {
    */
   async getActivePolicy(tenantId, customerType, securedFlag) {
     try {
-      // First try to get policy with exact secured_flag match
-      let query = supabasePolicy
+      let query = supabase
         .from(PDP_TABLES.POLICY_PROFILES)
         .select(`
           id,
@@ -241,7 +583,6 @@ export class PDPService {
         .order('priority', { ascending: true })
         .limit(1);
       
-      // Handle secured_flag matching
       if (securedFlag !== null && securedFlag !== undefined) {
         query = query.or(`secured_flag.is.null,secured_flag.eq.${securedFlag}`);
       }
@@ -258,11 +599,9 @@ export class PDPService {
       }
       
       const profile = data[0];
-      // Get the joined versions (key matches the table name used in select)
       const versions = profile[PDP_TABLES.POLICY_VERSIONS] || profile.pdp_policy_versions || [];
       const version = versions[0];
       
-      // Check effective dates
       const now = new Date();
       if (version.effective_from && new Date(version.effective_from) > now) {
         return null;
@@ -292,22 +631,16 @@ export class PDPService {
     switch (rule.type) {
       case RULE_TYPES.MAX_ATTEMPTS:
         return await this.evaluateMaxAttemptsRule(rule, request, contactHistory);
-      
       case RULE_TYPES.TIME_WINDOW:
         return this.evaluateTimeWindowRule(rule, request);
-      
       case RULE_TYPES.COOLING_PERIOD:
         return await this.evaluateCoolingPeriodRule(rule, request, contactHistory);
-      
       case RULE_TYPES.CONSENT_CHECK:
         return this.evaluateConsentRule(rule, request);
-      
       case RULE_TYPES.CHANNEL_RESTRICTION:
         return this.evaluateChannelRestrictionRule(rule, request);
-      
       case RULE_TYPES.BUCKET_RULE:
         return this.evaluateBucketRule(rule, request);
-      
       default:
         console.warn(`Unknown rule type: ${rule.type}`);
         return { passed: true, reason_code: null, reason_details: [] };
@@ -320,7 +653,6 @@ export class PDPService {
   async evaluateMaxAttemptsRule(rule, request, contactHistory) {
     const { max_attempts, window, action_types, channels } = rule;
     
-    // Check if this rule applies to the current action/channel
     if (action_types && !action_types.includes(request.action_type)) {
       return { passed: true, reason_code: null, reason_details: [] };
     }
@@ -328,18 +660,12 @@ export class PDPService {
       return { passed: true, reason_code: null, reason_details: [] };
     }
     
-    // Get attempts from contact history or database
     let attempts = 0;
-    let lastAttemptAt = null;
     
     if (contactHistory) {
-      // Use provided contact history
       attempts = contactHistory.attempts || 0;
-      lastAttemptAt = contactHistory.last_attempt_at;
       
-      // Validate window matches
       if (contactHistory.window !== window) {
-        // Fetch from database if window doesn't match
         const dbHistory = await this.getContactHistory(
           request.tenant_id, 
           request.customer_id, 
@@ -347,10 +673,8 @@ export class PDPService {
           window
         );
         attempts = dbHistory.attempts;
-        lastAttemptAt = dbHistory.last_attempt_at;
       }
     } else {
-      // Fetch from database
       const dbHistory = await this.getContactHistory(
         request.tenant_id, 
         request.customer_id, 
@@ -358,10 +682,8 @@ export class PDPService {
         window
       );
       attempts = dbHistory.attempts;
-      lastAttemptAt = dbHistory.last_attempt_at;
     }
     
-    // Check if limit exceeded
     if (attempts >= max_attempts) {
       return {
         passed: false,
@@ -377,7 +699,6 @@ export class PDPService {
       };
     }
     
-    // Check if approaching limit (80% threshold for warning)
     const threshold = Math.floor(max_attempts * 0.8);
     if (attempts >= threshold && rule.on_violation !== 'BLOCK') {
       return {
@@ -404,25 +725,21 @@ export class PDPService {
    * Evaluate time window rule (allowed contact hours)
    */
   evaluateTimeWindowRule(rule, request) {
-    const { allowed_windows, timezone = 'UTC' } = rule;
+    const { allowed_windows } = rule;
     
-    // Get current time in the specified timezone
     const requestTime = request.timestamp 
       ? new Date(request.timestamp) 
       : new Date();
     
     const currentHour = requestTime.getHours();
     const currentMinute = requestTime.getMinutes();
-    const currentDay = requestTime.getDay(); // 0 = Sunday
+    const currentDay = requestTime.getDay();
     
-    // Check if current time falls within any allowed window
     for (const window of allowed_windows) {
-      // Check day of week if specified
       if (window.days && !window.days.includes(currentDay)) {
         continue;
       }
       
-      // Parse time range
       const [startHour, startMin] = window.start_time.split(':').map(Number);
       const [endHour, endMin] = window.end_time.split(':').map(Number);
       
@@ -430,14 +747,12 @@ export class PDPService {
       const startTimeInMinutes = startHour * 60 + startMin;
       const endTimeInMinutes = endHour * 60 + endMin;
       
-      // Check if current time is within window
       if (currentTimeInMinutes >= startTimeInMinutes && 
           currentTimeInMinutes <= endTimeInMinutes) {
         return { passed: true, reason_code: null, reason_details: [] };
       }
     }
     
-    // Time is outside allowed windows
     const windowDescriptions = allowed_windows.map(w => {
       const days = w.days ? w.days.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(',') : 'All days';
       return `${days}: ${w.start_time}-${w.end_time}`;
@@ -457,9 +772,8 @@ export class PDPService {
    * Evaluate cooling period rule
    */
   async evaluateCoolingPeriodRule(rule, request, contactHistory) {
-    const { cooling_period, trigger_condition } = rule;
+    const { cooling_period } = rule;
     
-    // Get last contact attempt
     let lastAttemptAt = contactHistory?.last_attempt_at;
     
     if (!lastAttemptAt) {
@@ -467,17 +781,15 @@ export class PDPService {
         request.tenant_id,
         request.customer_id,
         request.action_type,
-        '30d'  // Look back 30 days for last attempt
+        '30d'
       );
       lastAttemptAt = dbHistory.last_attempt_at;
     }
     
     if (!lastAttemptAt) {
-      // No previous attempts, cooling period doesn't apply
       return { passed: true, reason_code: null, reason_details: [] };
     }
     
-    // Parse cooling period (e.g., "24h", "2d", "48h")
     const coolingMs = this.parseTimeInterval(cooling_period);
     const lastAttemptTime = new Date(lastAttemptAt).getTime();
     const currentTime = new Date(request.timestamp || Date.now()).getTime();
@@ -505,12 +817,10 @@ export class PDPService {
   evaluateConsentRule(rule, request) {
     const { required_consent_types, channels_requiring_consent } = rule;
     
-    // Check if channel requires consent
     if (channels_requiring_consent && !channels_requiring_consent.includes(request.channel)) {
       return { passed: true, reason_code: null, reason_details: [] };
     }
     
-    // Check consent status
     const consentStatus = request.consent_status;
     
     if (!consentStatus || consentStatus === 'NOT_GIVEN' || consentStatus === 'WITHDRAWN') {
@@ -526,7 +836,6 @@ export class PDPService {
       };
     }
     
-    // Check if specific consent type is required
     if (required_consent_types && required_consent_types.length > 0) {
       const consentType = request.additional_context?.consent_type;
       if (!consentType || !required_consent_types.includes(consentType)) {
@@ -551,7 +860,6 @@ export class PDPService {
   evaluateChannelRestrictionRule(rule, request) {
     const { blocked_channels, allowed_channels, blocked_action_types } = rule;
     
-    // Check blocked channels
     if (blocked_channels && blocked_channels.includes(request.channel)) {
       return {
         passed: false,
@@ -563,7 +871,6 @@ export class PDPService {
       };
     }
     
-    // Check allowed channels (whitelist mode)
     if (allowed_channels && !allowed_channels.includes(request.channel)) {
       return {
         passed: false,
@@ -575,7 +882,6 @@ export class PDPService {
       };
     }
     
-    // Check blocked action types
     if (blocked_action_types && blocked_action_types.includes(request.action_type)) {
       return {
         passed: false,
@@ -605,7 +911,6 @@ export class PDPService {
       return { passed: true, reason_code: null, reason_details: [] };
     }
     
-    // Check if action is allowed for this bucket
     if (bucketRule.allowed_actions && !bucketRule.allowed_actions.includes(request.action_type)) {
       return {
         passed: false,
@@ -617,7 +922,6 @@ export class PDPService {
       };
     }
     
-    // Check if bucket is completely blocked
     if (bucketRule.blocked === true) {
       return {
         passed: false,
@@ -632,6 +936,10 @@ export class PDPService {
     return { passed: true, reason_code: null, reason_details: [] };
   }
 
+  // =====================================================
+  // Helper Methods
+  // =====================================================
+
   /**
    * Get contact history from database
    */
@@ -639,7 +947,7 @@ export class PDPService {
     try {
       const windowInterval = this.parseTimeIntervalForPostgres(window);
       
-      const { data, error } = await supabasePolicy.rpc(PDP_FUNCTIONS.COUNT_CONTACT_ATTEMPTS, {
+      const { data, error } = await supabase.rpc('pdp_count_contact_attempts', {
         p_tenant_id: tenantId,
         p_customer_id: customerId,
         p_action_type: actionType,
@@ -675,10 +983,10 @@ export class PDPService {
     const unit = match[2];
     
     const msMultipliers = {
-      'h': 60 * 60 * 1000,        // hours
-      'd': 24 * 60 * 60 * 1000,   // days
-      'w': 7 * 24 * 60 * 60 * 1000,  // weeks
-      'm': 30 * 24 * 60 * 60 * 1000  // months (approx)
+      'h': 60 * 60 * 1000,
+      'd': 24 * 60 * 60 * 1000,
+      'w': 7 * 24 * 60 * 60 * 1000,
+      'm': 30 * 24 * 60 * 60 * 1000
     };
     
     return value * msMultipliers[unit];
@@ -690,7 +998,7 @@ export class PDPService {
   parseTimeIntervalForPostgres(interval) {
     const match = interval.match(/^(\d+)(h|d|w|m)$/);
     if (!match) {
-      return '7 days';  // default
+      return '7 days';
     }
     
     const value = parseInt(match[1]);
@@ -738,7 +1046,7 @@ export class PDPService {
    */
   async logDecision(request, response, rulesEvaluated, evaluationTimeMs) {
     try {
-      const { error } = await supabasePolicy
+      const { error } = await supabase
         .from(PDP_TABLES.DECISION_LOG)
         .insert({
           tenant_id: request.tenant_id,
@@ -776,42 +1084,51 @@ export class PDPService {
   }
 
   /**
-   * Emit audit event to external hook (if configured)
+   * Create lineage trace for decision (EPIC 4)
    */
-  async emitAuditEvent(request, response, rulesEvaluated) {
-    // This can be extended to emit to:
-    // - Webhook endpoints
-    // - Message queues (Kafka, RabbitMQ)
-    // - Event bus
-    // - External audit systems
+  async createDecisionTrace(request, response, rulesEvaluated, evaluationTimeMs) {
+    if (!LineageService) return;
     
-    const auditEvent = {
-      event_type: 'PDP_DECISION',
-      timestamp: new Date().toISOString(),
-      tenant_id: request.tenant_id,
-      request: {
-        customer_id: request.customer_id,
-        action_type: request.action_type,
-        channel: request.channel,
-        customer_type: request.customer_type
-      },
-      response: {
-        decision: response.decision,
-        reason_code: response.reason_code
-      },
-      rules_count: rulesEvaluated.length,
-      rules_passed: rulesEvaluated.filter(r => r.result.passed).length
-    };
-    
-    // Log to console for now (can be replaced with actual emission)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('PDP Audit Event:', JSON.stringify(auditEvent, null, 2));
+    try {
+      await LineageService.createTrace({
+        tenantId: request.tenant_id,
+        traceType: TRACE_TYPES.POLICY,
+        traceRefId: response.policy_profile_id,
+        input: {
+          customer_type: request.customer_type,
+          action_type: request.action_type,
+          channel: request.channel,
+          customer_id: request.customer_id,
+          bucket: request.bucket
+        },
+        output: {
+          decision: response.decision,
+          reason_code: response.reason_code,
+          reason_details: response.reason_details
+        },
+        decisionResult: response.decision,
+        explanation: response.reason_details?.join('; ') || response.reason_code,
+        factors: rulesEvaluated.map(r => ({
+          name: r.rule_type,
+          passed: r.result.passed,
+          reason: r.result.reason_code
+        })),
+        actorSystem: 'PDP',
+        metadata: {
+          evaluation_time_ms: evaluationTimeMs,
+          rules_count: rulesEvaluated.length
+        },
+        entityLinks: [
+          {
+            entityType: 'CUSTOMER',
+            entityId: request.customer_id,
+            linkType: LINK_TYPES.AFFECTS
+          }
+        ]
+      });
+    } catch (error) {
+      console.error('Error creating decision trace:', error);
     }
-    
-    // TODO: Emit to configured webhook/event system
-    // await this.emitToWebhook(auditEvent);
-    
-    return auditEvent;
   }
 
   /**
@@ -819,7 +1136,7 @@ export class PDPService {
    */
   async recordContactAttempt(tenantId, customerId, actionType, channel, outcome, metadata = {}) {
     try {
-      const { error } = await supabasePolicy
+      const { error } = await supabase
         .from(PDP_TABLES.CONTACT_ATTEMPT_CACHE)
         .insert({
           tenant_id: tenantId,
@@ -851,10 +1168,17 @@ export const pdpService = new PDPService();
 // =====================================================
 
 /**
- * Quick decision check - simplified API
+ * Quick decision check - simplified API (EPIC 3 style)
  */
 export async function checkPolicyDecision(request) {
   return pdpService.evaluateDecision(request);
+}
+
+/**
+ * Generic policy evaluation (EPIC 4 style)
+ */
+export async function evaluatePolicy(request) {
+  return PDPService.evaluatePolicy(request);
 }
 
 /**

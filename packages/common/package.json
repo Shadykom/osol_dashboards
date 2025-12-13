@@ -1,7 +1,7 @@
 {
-  "name": "@cms/common",
+  "name": "@osol/common",
   "version": "1.0.0",
-  "description": "Common types, logging, errors, and request context for CMS",
+  "description": "Common utilities for OSOL: Audit, Evidence, Lineage, Types, Logging, Errors, and Context",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -13,8 +13,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./index.js"
     },
+    "./auditEmitter": "./auditEmitter.js",
+    "./lineageEmitter": "./lineageEmitter.js",
+    "./evidenceUtils": "./evidenceUtils.js",
     "./types": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js"
@@ -32,11 +36,33 @@
       "import": "./dist/context/index.js"
     }
   },
+  "files": [
+    "index.js",
+    "auditEmitter.js",
+    "lineageEmitter.js",
+    "evidenceUtils.js",
+    "dist"
+  ],
+  "keywords": [
+    "audit",
+    "evidence",
+    "lineage",
+    "tracing",
+    "compliance",
+    "logging",
+    "errors"
+  ],
+  "author": "OSOL Team",
+  "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.52.1",
     "pino": "^9.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.0.0"
   }
 }
