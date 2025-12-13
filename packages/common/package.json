@@ -1,7 +1,7 @@
 {
   "name": "@osol/common",
   "version": "1.0.0",
-  "description": "Common utilities for OSOL: Audit, Evidence, Lineage, Types, Logging, Errors, and Context",
+  "description": "Common utilities for OSOL: Audit, Evidence, Lineage, SIEM, Types, Logging, Errors, and Context",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -16,6 +16,7 @@
       "import": "./dist/index.js",
       "default": "./index.js"
     },
+    "./siem": "./siem/index.js",
     "./auditEmitter": "./auditEmitter.js",
     "./lineageEmitter": "./lineageEmitter.js",
     "./evidenceUtils": "./evidenceUtils.js",
@@ -38,6 +39,7 @@
   },
   "files": [
     "index.js",
+    "siem",
     "auditEmitter.js",
     "lineageEmitter.js",
     "evidenceUtils.js",
@@ -50,7 +52,9 @@
     "tracing",
     "compliance",
     "logging",
-    "errors"
+    "errors",
+    "siem",
+    "security"
   ],
   "author": "OSOL Team",
   "license": "MIT",

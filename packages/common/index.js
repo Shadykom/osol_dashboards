@@ -1,7 +1,15 @@
 /**
  * EPIC 4: Audit, Evidence, Lineage
- * Common Package - Exports all utilities for audit, evidence, and lineage
+ * Common Package - Exports all utilities for audit, evidence, lineage, and SIEM
  */
+
+// SIEM Forwarding Module
+export { 
+  emitSecurityEvent, 
+  SecurityEventTypes as SIEMSecurityEventTypes, 
+  SIEMConfig, 
+  configureSIEM 
+} from './siem/index.js';
 
 // Audit Emitter
 export { default as auditEmitter, AuditEmitter } from './auditEmitter.js';
@@ -47,6 +55,13 @@ import evidenceUtils, {
   EvidenceUtils
 } from './evidenceUtils.js';
 
+import { 
+  emitSecurityEvent, 
+  configureSIEM, 
+  SIEMConfig,
+  SecurityEventTypes as SIEMSecurityEventTypes 
+} from './siem/index.js';
+
 export const audit = {
   emitter: auditEmitter,
   AuditEmitter,
@@ -71,6 +86,13 @@ export const evidence = {
   actions: EvidenceActions
 };
 
+export const siem = {
+  emit: emitSecurityEvent,
+  configure: configureSIEM,
+  config: SIEMConfig,
+  eventTypes: SIEMSecurityEventTypes
+};
+
 /**
  * Initialize all audit system components with a single config
  * @param {Object} config - Configuration object
@@ -86,6 +108,7 @@ export function initAuditSystem(config) {
     auditEmitter.setClient(supabaseClient);
     lineageEmitter.setClient(supabaseClient);
     evidenceUtils.setClient(supabaseClient);
+    configureSIEM(supabaseClient); // Also configure SIEM
   }
   
   if (tenantId) {
@@ -101,7 +124,8 @@ export function initAuditSystem(config) {
   return {
     auditEmitter,
     lineageEmitter,
-    evidenceUtils
+    evidenceUtils,
+    siem: { emit: emitSecurityEvent, configure: configureSIEM }
   };
 }
 
@@ -111,6 +135,10 @@ export default {
   lineageEmitter,
   evidenceUtils,
   initAuditSystem,
+  // SIEM
+  siem,
+  emitSecurityEvent,
+  configureSIEM,
   // Constants
   AuditEventTypes,
   SecurityEventTypes,
@@ -120,5 +148,7 @@ export default {
   DecisionResults,
   LinkTypes,
   TraceStatus,
-  EvidenceActions
+  EvidenceActions,
+  SIEMSecurityEventTypes,
+  SIEMConfig
 };

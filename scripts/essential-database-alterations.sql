@@ -2,6 +2,7 @@
 -- Essential Database Alterations
 -- Version: 1.0.0
 -- Description: Safe alterations that check for table existence
+-- This script is idempotent - safe to run multiple times
 -- =====================================================
 
 -- Ensure kastle_banking schema exists
@@ -186,9 +187,12 @@ BEGIN
             ALTER TABLE kastle_banking.loan_accounts
             ADD CONSTRAINT loan_accounts_branch_id_fkey
             FOREIGN KEY (branch_id) REFERENCES kastle_banking.branches(branch_id);
+            RAISE NOTICE 'Foreign key constraint loan_accounts_branch_id_fkey added';
         EXCEPTION WHEN OTHERS THEN
             RAISE NOTICE 'Could not add loan_accounts_branch_id_fkey: %', SQLERRM;
         END;
+    ELSE
+        RAISE NOTICE 'Foreign key constraint loan_accounts_branch_id_fkey already exists';
     END IF;
     
     -- accounts -> account_types FK
@@ -201,9 +205,12 @@ BEGIN
             ALTER TABLE kastle_banking.accounts
             ADD CONSTRAINT accounts_account_type_id_fkey
             FOREIGN KEY (account_type_id) REFERENCES kastle_banking.account_types(type_id);
+            RAISE NOTICE 'Foreign key constraint accounts_account_type_id_fkey added';
         EXCEPTION WHEN OTHERS THEN
             RAISE NOTICE 'Could not add accounts_account_type_id_fkey: %', SQLERRM;
         END;
+    ELSE
+        RAISE NOTICE 'Foreign key constraint accounts_account_type_id_fkey already exists';
     END IF;
 END $$;
 

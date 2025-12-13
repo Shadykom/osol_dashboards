@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { emitSecurityEvent, SecurityEventTypes, configureSIEM } from '../../packages/common/siem';
+
+// Configure SIEM with Supabase client
+configureSIEM(supabase);
 
 const AuthContext = createContext({});
 
@@ -183,21 +187,71 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signIn = async ({ email, password }) => {
+    // Emit login attempt event
+    emitSecurityEvent(
+      SecurityEventTypes.LOGIN_ATTEMPT,
+      { email, timestamp: new Date().toISOString() },
+      { component: 'AuthContext', userEmail: email }
+    );
+
     try {
       // Find user in mock data
       const userData = MOCK_USERS.find(u => u.email === email);
 
       if (!userData) {
+        // Emit login failure - user not found
+        emitSecurityEvent(
+          SecurityEventTypes.LOGIN_FAILURE,
+          { 
+            email, 
+            success: false, 
+            reason: 'User not found',
+            timestamp: new Date().toISOString()
+          },
+          { component: 'AuthContext', userEmail: email }
+        );
         return { data: null, error: { message: 'Invalid email or password' } };
       }
 
       // Check if account is active
       if (!userData.is_active) {
+        // Emit login failure - account deactivated
+        emitSecurityEvent(
+          SecurityEventTypes.LOGIN_FAILURE,
+          { 
+            email, 
+            success: false, 
+            reason: 'Account deactivated',
+            userId: userData.id,
+            timestamp: new Date().toISOString()
+          },
+          { 
+            component: 'AuthContext', 
+            userId: userData.id, 
+            userEmail: email 
+          }
+        );
         return { data: null, error: { message: 'Account is deactivated. Please contact support.' } };
       }
 
       // Verify password (in mock mode, just compare directly)
       if (password !== userData.password) {
+        // Emit login failure - invalid password
+        emitSecurityEvent(
+          SecurityEventTypes.LOGIN_FAILURE,
+          { 
+            email, 
+            success: false, 
+            reason: 'Invalid password',
+            userId: userData.id,
+            timestamp: new Date().toISOString()
+          },
+          { 
+            component: 'AuthContext', 
+            userId: userData.id, 
+            userEmail: email 
+          }
+        );
         return { data: null, error: { message: 'Invalid email or password' } };
       }
 
@@ -215,15 +269,60 @@ export const AuthProvider = ({ children }) => {
       setUserPermissionsFromRoles(userData.roles || []);
       localStorage.setItem('osol_session', JSON.stringify(sessionData));
 
+      // Emit login success
+      emitSecurityEvent(
+        SecurityEventTypes.LOGIN_SUCCESS,
+        { 
+          email, 
+          success: true, 
+          roles: userData.roles,
+          timestamp: new Date().toISOString()
+        },
+        { 
+          component: 'AuthContext', 
+          userId: userData.id, 
+          userEmail: email,
+          sessionId: sessionData.access_token
+        }
+      );
+
       return { data: { user: userData, session: sessionData }, error: null };
     } catch (error) {
       console.error('Sign in error:', error);
+      // Emit login failure - exception
+      emitSecurityEvent(
+        SecurityEventTypes.LOGIN_FAILURE,
+        { 
+          email, 
+          success: false, 
+          reason: 'System error',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        },
+        { component: 'AuthContext', userEmail: email }
+      );
       return { data: null, error: { message: 'Failed to sign in' } };
     }
   };
 
   const signOut = async () => {
     try {
+      // Emit logout event before clearing session
+      if (user) {
+        emitSecurityEvent(
+          SecurityEventTypes.LOGOUT,
+          { 
+            timestamp: new Date().toISOString()
+          },
+          { 
+            component: 'AuthContext', 
+            userId: user.id, 
+            userEmail: user.email,
+            sessionId: session?.access_token
+          }
+        );
+      }
+
       // Clear session
       setUser(null);
       setSession(null);
@@ -285,6 +384,54 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Function to emit role change events (for admin operations)
+  const emitRoleChangeEvent = async (targetUserId, targetUserEmail, previousRoles, newRoles, changedBy) => {
+    return emitSecurityEvent(
+      SecurityEventTypes.ROLE_CHANGE,
+      {
+        previousRoles,
+        newRoles,
+        changedBy: changedBy || user?.email,
+        timestamp: new Date().toISOString()
+      },
+      {
+        component: 'AuthContext',
+        userId: targetUserId,
+        userEmail: targetUserEmail,
+        resourceType: 'user_role',
+        resourceId: targetUserId,
+        resourceName: targetUserEmail
+      }
+    );
+  };
+
+  // Function to emit approval action events
+  const emitApprovalEvent = async (action, resourceType, resourceId, resourceName, details = {}) => {
+    const eventType = action === 'granted' 
+      ? SecurityEventTypes.APPROVAL_GRANTED 
+      : action === 'denied'
+      ? SecurityEventTypes.APPROVAL_DENIED
+      : SecurityEventTypes.APPROVAL_REQUESTED;
+
+    return emitSecurityEvent(
+      eventType,
+      {
+        action,
+        ...details,
+        timestamp: new Date().toISOString()
+      },
+      {
+        component: 'ApprovalWorkflow',
+        userId: user?.id,
+        userEmail: user?.email,
+        resourceType,
+        resourceId,
+        resourceName,
+        sessionId: session?.access_token
+      }
+    );
+  };
+
   const value = {
     user,
     session,
@@ -300,6 +447,9 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     resetPassword,
     changePassword,
+    // SIEM event emitters for security logging
+    emitRoleChangeEvent,
+    emitApprovalEvent,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
