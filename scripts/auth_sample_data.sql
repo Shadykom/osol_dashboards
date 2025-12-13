@@ -1,8 +1,14 @@
 -- =====================================================
 -- OSOL Authentication System Sample Data
 -- Version: 1.0.0
--- Description: Inserts sample data for testing the authentication system
--- IMPORTANT: Run auth_schema.sql FIRST before running this script
+-- 
+-- !! IMPORTANT !!
+-- DO NOT RUN THIS FILE DIRECTLY.
+-- Instead, run: auth_complete_setup.sql
+-- That file contains BOTH schema creation AND sample data.
+-- =====================================================
+-- If you still want to run this file separately,
+-- you MUST run auth_schema.sql FIRST.
 -- =====================================================
 
 -- =====================================================
