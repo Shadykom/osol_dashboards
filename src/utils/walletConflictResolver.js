@@ -43,9 +43,8 @@ export const resolveWalletConflicts = () => {
         get() {
           return ethereumProxy;
         },
-        set(value) {
+        set() {
           console.warn('Attempted to redefine window.ethereum, ignoring to prevent conflicts');
-          return true;
         },
         configurable: false,
         enumerable: true
@@ -65,7 +64,6 @@ export const resolveWalletConflicts = () => {
           } else {
             console.warn('Attempted to redefine window.ethereum, ignoring to prevent conflicts');
           }
-          return true;
         },
         configurable: false,
         enumerable: true
