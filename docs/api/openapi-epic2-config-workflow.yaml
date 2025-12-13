@@ -1,0 +1,1515 @@
+openapi: 3.1.0
+info:
+  title: OSOL Configuration & Workflow API
+  description: |
+    EPIC 2: Configuration & Maker-Checker API
+    
+    This API provides endpoints for:
+    - Versioned configuration management
+    - Maker-checker approval workflows
+    - Effective dating for published configurations
+    - Tenant-isolated configuration resolution
+    
+    ## Key Concepts
+    
+    ### Configuration Packages
+    Top-level groupings of related configuration items (e.g., "core", "collections").
+    
+    ### Configuration Versions
+    Versioned snapshots of configuration with maker-checker workflow:
+    - DRAFT: Initial state, editable
+    - SUBMITTED: Awaiting approval
+    - APPROVED: Approved by checker
+    - PUBLISHED: Active and effective
+    - REJECTED: Not approved
+    - SUPERSEDED: Replaced by newer version
+    
+    ### Configuration Items
+    Individual key-value pairs with:
+    - Namespaced keys (e.g., "policy.retail.max_contact_attempts")
+    - JSON values with type hints
+    - Optional scope filters (portfolio, product, bucket, etc.)
+    
+    ### Approval Workflow
+    Multi-step approval process with role-based authorization.
+    
+  version: 1.0.0
+  contact:
+    name: OSOL Development Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: /api/v1
+    description: API Base URL
+
+security:
+  - bearerAuth: []
+  - apiKey: []
+
+tags:
+  - name: Config Packages
+    description: Configuration package management
+  - name: Config Versions
+    description: Configuration version management with maker-checker workflow
+  - name: Config Items
+    description: Configuration item management
+  - name: Config Resolution
+    description: Resolve effective configuration values
+  - name: Workflow Approvals
+    description: Approval workflow management
+  - name: Audit
+    description: Audit log access
+
+paths:
+  # ============================================================================
+  # CONFIG PACKAGES
+  # ============================================================================
+  
+  /config/packages:
+    get:
+      tags:
+        - Config Packages
+      summary: List configuration packages
+      description: Get all configuration packages for the current tenant
+      operationId: getConfigPackages
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, archived]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of configuration packages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigPackageListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    
+    post:
+      tags:
+        - Config Packages
+      summary: Create a configuration package
+      description: Create a new configuration package
+      operationId: createConfigPackage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConfigPackageRequest'
+      responses:
+        '201':
+          description: Package created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigPackageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Package with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /config/packages/{packageId}:
+    parameters:
+      - $ref: '#/components/parameters/PackageId'
+    
+    get:
+      tags:
+        - Config Packages
+      summary: Get a configuration package
+      description: Get a single configuration package with version list
+      operationId: getConfigPackage
+      responses:
+        '200':
+          description: Configuration package details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigPackageDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    patch:
+      tags:
+        - Config Packages
+      summary: Update a configuration package
+      description: Update package name, description, or status
+      operationId: updateConfigPackage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConfigPackageRequest'
+      responses:
+        '200':
+          description: Package updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigPackageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================================
+  # CONFIG VERSIONS
+  # ============================================================================
+  
+  /config/packages/{packageId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/PackageId'
+    
+    get:
+      tags:
+        - Config Versions
+      summary: List package versions
+      description: Get all versions for a configuration package
+      operationId: getConfigVersions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, SUBMITTED, APPROVED, PUBLISHED, REJECTED, SUPERSEDED]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of configuration versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigVersionListResponse'
+    
+    post:
+      tags:
+        - Config Versions
+      summary: Create a draft version
+      description: Create a new draft version, optionally copying from an existing version
+      operationId: createConfigVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConfigVersionRequest'
+      responses:
+        '201':
+          description: Draft version created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigVersionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /config/versions/{versionId}:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+    
+    get:
+      tags:
+        - Config Versions
+      summary: Get version details
+      description: Get a configuration version with all its items
+      operationId: getConfigVersion
+      responses:
+        '200':
+          description: Configuration version details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigVersionDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /config/versions/{versionId}/submit:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+    
+    post:
+      tags:
+        - Config Versions
+      summary: Submit version for approval (Maker action)
+      description: |
+        Submit a draft version for approval. This creates an approval workflow
+        that must be completed before the version can be published.
+      operationId: submitConfigVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitVersionRequest'
+      responses:
+        '200':
+          description: Version submitted for approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitVersionResponse'
+        '400':
+          description: Invalid state (not DRAFT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /config/versions/{versionId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+    
+    post:
+      tags:
+        - Config Versions
+      summary: Publish an approved version
+      description: |
+        Publish an approved version, making it effective. Previous published 
+        versions will be marked as SUPERSEDED.
+      operationId: publishConfigVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishVersionRequest'
+      responses:
+        '200':
+          description: Version published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigVersionResponse'
+        '400':
+          description: Invalid state (not APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============================================================================
+  # CONFIG ITEMS
+  # ============================================================================
+  
+  /config/versions/{versionId}/items:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+    
+    get:
+      tags:
+        - Config Items
+      summary: List version items
+      description: Get all configuration items in a version
+      operationId: getConfigItems
+      parameters:
+        - name: keyPrefix
+          in: query
+          description: Filter by key prefix (e.g., "policy.retail")
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of configuration items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigItemListResponse'
+    
+    post:
+      tags:
+        - Config Items
+      summary: Add/update configuration item
+      description: |
+        Add or update a configuration item in a draft version.
+        Key must be namespaced (e.g., "policy.retail.max_contact_attempts").
+      operationId: upsertConfigItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertConfigItemRequest'
+      responses:
+        '200':
+          description: Item created/updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigItemResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /config/versions/{versionId}/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/VersionId'
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    
+    delete:
+      tags:
+        - Config Items
+      summary: Delete configuration item
+      description: Delete a configuration item from a draft version
+      operationId: deleteConfigItem
+      responses:
+        '200':
+          description: Item deleted successfully
+        '400':
+          description: Cannot delete from non-DRAFT version
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================================
+  # CONFIG RESOLUTION
+  # ============================================================================
+  
+  /config/resolve:
+    get:
+      tags:
+        - Config Resolution
+      summary: Resolve configuration values
+      description: |
+        Resolve effective configuration values for the specified keys.
+        Returns values from PUBLISHED versions based on effective dating.
+      operationId: resolveConfig
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: keys
+          in: query
+          description: Comma-separated list of config keys
+          schema:
+            type: string
+          example: "policy.retail.max_contact_attempts,policy.retail.escalation_threshold_days"
+        - name: effectiveAt
+          in: query
+          description: Point in time for resolution (default now)
+          schema:
+            type: string
+            format: date-time
+        - name: scope
+          in: query
+          description: Scope filter as JSON
+          schema:
+            type: string
+          example: '{"portfolio":"retail","product":"personal_loan"}'
+      responses:
+        '200':
+          description: Resolved configuration values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveConfigResponse'
+
+  /config/effective:
+    get:
+      tags:
+        - Config Resolution
+      summary: Get all effective configuration
+      description: Get all currently effective configuration for the tenant
+      operationId: getEffectiveConfig
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: keyPrefix
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Effective configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectiveConfigResponse'
+
+  # ============================================================================
+  # WORKFLOW APPROVALS
+  # ============================================================================
+  
+  /workflow/approvals:
+    get:
+      tags:
+        - Workflow Approvals
+      summary: List approvals
+      description: Get approval requests for the tenant
+      operationId: getApprovals
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, IN_PROGRESS, APPROVED, REJECTED, CANCELLED, EXPIRED]
+        - name: objectType
+          in: query
+          schema:
+            type: string
+        - name: requestedBy
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of approvals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalListResponse'
+    
+    post:
+      tags:
+        - Workflow Approvals
+      summary: Create approval request
+      description: Create a new approval request
+      operationId: createApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApprovalRequest'
+      responses:
+        '201':
+          description: Approval created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+
+  /workflow/approvals/pending:
+    get:
+      tags:
+        - Workflow Approvals
+      summary: Get pending approvals for role
+      description: Get approvals pending action by the specified role
+      operationId: getPendingApprovalsForRole
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: userRole
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "config_checker"
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Pending approvals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingApprovalListResponse'
+
+  /workflow/approvals/{approvalId}:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+    
+    get:
+      tags:
+        - Workflow Approvals
+      summary: Get approval details
+      description: Get full details of an approval including all steps
+      operationId: getApproval
+      responses:
+        '200':
+          description: Approval details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workflow/approvals/{approvalId}/approve:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+    
+    post:
+      tags:
+        - Workflow Approvals
+      summary: Approve a step (Checker action)
+      description: |
+        Approve the current pending step in an approval workflow.
+        The user must have the role required for the current step.
+      operationId: approveStep
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveStepRequest'
+      responses:
+        '200':
+          description: Step approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApproveStepResponse'
+        '400':
+          description: Invalid state or role mismatch
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workflow/approvals/{approvalId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+    
+    post:
+      tags:
+        - Workflow Approvals
+      summary: Reject an approval
+      description: Reject an approval request with a reason
+      operationId: rejectApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectApprovalRequest'
+      responses:
+        '200':
+          description: Approval rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+        '400':
+          description: Reason is required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /workflow/approvals/{approvalId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+    
+    post:
+      tags:
+        - Workflow Approvals
+      summary: Cancel an approval
+      description: Cancel a pending approval (only by requester)
+      operationId: cancelApproval
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Approval cancelled
+        '400':
+          description: Cannot cancel (invalid state)
+        '403':
+          description: Only the requester can cancel
+
+  # ============================================================================
+  # AUDIT
+  # ============================================================================
+  
+  /config/audit:
+    get:
+      tags:
+        - Audit
+      summary: Get configuration audit log
+      description: Get audit trail for configuration changes
+      operationId: getConfigAuditLog
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: objectType
+          in: query
+          schema:
+            type: string
+        - name: objectId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: eventType
+          in: query
+          schema:
+            type: string
+            enum: [CREATE, UPDATE, DELETE, STATE_CHANGE]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: apikey
+
+  parameters:
+    TenantId:
+      name: tenantId
+      in: query
+      required: true
+      description: Tenant identifier
+      schema:
+        type: string
+        format: uuid
+    
+    PackageId:
+      name: packageId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    
+    VersionId:
+      name: versionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    
+    ApprovalId:
+      name: approvalId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Common schemas
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+    
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          nullable: true
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            details:
+              type: object
+              nullable: true
+    
+    # Config Package schemas
+    ConfigPackage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "core"
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, archived]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    CreateConfigPackageRequest:
+      type: object
+      required:
+        - tenantId
+        - name
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          pattern: '^[a-z][a-z0-9_]*$'
+          example: "core"
+        description:
+          type: string
+    
+    UpdateConfigPackageRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, archived]
+    
+    ConfigPackageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/ConfigPackage'
+        error:
+          nullable: true
+    
+    ConfigPackageListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigPackage'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    
+    ConfigPackageDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/ConfigPackage'
+            - type: object
+              properties:
+                versions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ConfigVersionSummary'
+    
+    # Config Version schemas
+    ConfigVersionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        version_no:
+          type: integer
+        status:
+          type: string
+          enum: [DRAFT, SUBMITTED, APPROVED, PUBLISHED, REJECTED, SUPERSEDED]
+        effective_from:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    
+    ConfigVersion:
+      allOf:
+        - $ref: '#/components/schemas/ConfigVersionSummary'
+        - type: object
+          properties:
+            tenant_id:
+              type: string
+              format: uuid
+            package_id:
+              type: string
+              format: uuid
+            effective_to:
+              type: string
+              format: date-time
+              nullable: true
+            submitted_at:
+              type: string
+              format: date-time
+              nullable: true
+            submitted_by:
+              type: string
+              format: uuid
+              nullable: true
+            approved_at:
+              type: string
+              format: date-time
+              nullable: true
+            approved_by:
+              type: string
+              format: uuid
+              nullable: true
+            published_at:
+              type: string
+              format: date-time
+              nullable: true
+            published_by:
+              type: string
+              format: uuid
+              nullable: true
+            rejection_reason:
+              type: string
+              nullable: true
+    
+    CreateConfigVersionRequest:
+      type: object
+      required:
+        - tenantId
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        copyFromVersionId:
+          type: string
+          format: uuid
+          description: Copy items from existing version
+        createdBy:
+          type: string
+          format: uuid
+    
+    SubmitVersionRequest:
+      type: object
+      required:
+        - submittedBy
+      properties:
+        submittedBy:
+          type: string
+          format: uuid
+        approvalRoles:
+          type: array
+          items:
+            type: string
+          default: ["config_checker"]
+    
+    PublishVersionRequest:
+      type: object
+      required:
+        - publishedBy
+      properties:
+        publishedBy:
+          type: string
+          format: uuid
+        effectiveFrom:
+          type: string
+          format: date-time
+          description: When the version becomes effective (default now)
+    
+    ConfigVersionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/ConfigVersion'
+    
+    ConfigVersionListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigVersion'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    
+    ConfigVersionDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/ConfigVersion'
+            - type: object
+              properties:
+                package:
+                  $ref: '#/components/schemas/ConfigPackage'
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ConfigItem'
+    
+    SubmitVersionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            version:
+              $ref: '#/components/schemas/ConfigVersion'
+            approval_id:
+              type: string
+              format: uuid
+    
+    # Config Item schemas
+    ConfigItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        version_id:
+          type: string
+          format: uuid
+        key:
+          type: string
+          example: "policy.retail.max_contact_attempts"
+        value_json:
+          description: JSON-encoded value
+        value_type:
+          type: string
+          enum: [string, number, boolean, object, array]
+        scope_json:
+          type: object
+          nullable: true
+          example: {"portfolio": "retail", "product": "personal_loan"}
+        description:
+          type: string
+          nullable: true
+        validation_rules:
+          type: object
+          nullable: true
+        is_sensitive:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    UpsertConfigItemRequest:
+      type: object
+      required:
+        - tenantId
+        - key
+        - value
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        key:
+          type: string
+          pattern: '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'
+          example: "policy.retail.max_contact_attempts"
+        value:
+          description: Value (will be JSON-encoded)
+        scope:
+          type: object
+          nullable: true
+          example: {"portfolio": "retail"}
+        description:
+          type: string
+        validationRules:
+          type: object
+        isSensitive:
+          type: boolean
+          default: false
+    
+    ConfigItemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/ConfigItem'
+    
+    ConfigItemListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    
+    # Config Resolution schemas
+    ResolveConfigResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            values:
+              type: object
+              additionalProperties: true
+              description: Key-value map of resolved configs
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  value:
+                    description: The resolved value
+                  type:
+                    type: string
+                  scope:
+                    type: object
+                    nullable: true
+                  package:
+                    type: string
+                  version:
+                    type: integer
+                  effectiveFrom:
+                    type: string
+                    format: date-time
+            resolvedAt:
+              type: string
+              format: date-time
+            effectiveAt:
+              type: string
+              format: date-time
+    
+    EffectiveConfigResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              tenant_id:
+                type: string
+                format: uuid
+              key:
+                type: string
+              value_json:
+                description: JSON value
+              value_type:
+                type: string
+              scope_json:
+                type: object
+                nullable: true
+              package_name:
+                type: string
+              version_no:
+                type: integer
+              effective_from:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    
+    # Approval schemas
+    Approval:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        object_type:
+          type: string
+          example: "config_version"
+        object_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, APPROVED, REJECTED, CANCELLED, EXPIRED]
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        requested_by:
+          type: string
+          format: uuid
+        requested_at:
+          type: string
+          format: date-time
+        approved_by:
+          type: string
+          format: uuid
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        rejection_reason:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+          nullable: true
+    
+    ApprovalStep:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        approval_id:
+          type: string
+          format: uuid
+        step_no:
+          type: integer
+        role_required:
+          type: string
+          example: "config_checker"
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, SKIPPED]
+        acted_by:
+          type: string
+          format: uuid
+          nullable: true
+        acted_at:
+          type: string
+          format: date-time
+          nullable: true
+        comments:
+          type: string
+          nullable: true
+    
+    CreateApprovalRequest:
+      type: object
+      required:
+        - tenantId
+        - objectType
+        - objectId
+        - requestedBy
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        objectType:
+          type: string
+        objectId:
+          type: string
+          format: uuid
+        requestedBy:
+          type: string
+          format: uuid
+        approvalRoles:
+          type: array
+          items:
+            type: string
+          default: ["checker"]
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          default: "normal"
+        expiresAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+    
+    ApproveStepRequest:
+      type: object
+      required:
+        - userId
+        - userRole
+      properties:
+        userId:
+          type: string
+          format: uuid
+        userRole:
+          type: string
+          example: "config_checker"
+        comments:
+          type: string
+    
+    RejectApprovalRequest:
+      type: object
+      required:
+        - userId
+        - reason
+      properties:
+        userId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
+    
+    ApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Approval'
+    
+    ApprovalListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Approval'
+              - type: object
+                properties:
+                  steps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApprovalStep'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    
+    ApprovalDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Approval'
+            - type: object
+              properties:
+                steps:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ApprovalStep'
+    
+    PendingApprovalListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              approval_id:
+                type: string
+                format: uuid
+              tenant_id:
+                type: string
+                format: uuid
+              object_type:
+                type: string
+              object_id:
+                type: string
+                format: uuid
+              approval_status:
+                type: string
+              priority:
+                type: string
+              requested_by:
+                type: string
+                format: uuid
+              requested_at:
+                type: string
+                format: date-time
+              step_id:
+                type: string
+                format: uuid
+              step_no:
+                type: integer
+              role_required:
+                type: string
+              step_status:
+                type: string
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    
+    ApproveStepResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            approval:
+              $ref: '#/components/schemas/Approval'
+            allStepsApproved:
+              type: boolean
+            message:
+              type: string
+    
+    # Audit schemas
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          enum: [CREATE, UPDATE, DELETE, STATE_CHANGE]
+        event_subtype:
+          type: string
+          nullable: true
+          example: "DRAFT_TO_SUBMITTED"
+        object_type:
+          type: string
+        object_id:
+          type: string
+          format: uuid
+        old_value:
+          type: object
+          nullable: true
+        new_value:
+          type: object
+          nullable: true
+        changed_fields:
+          type: array
+          items:
+            type: string
+          nullable: true
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        user_email:
+          type: string
+          nullable: true
+        user_role:
+          type: string
+          nullable: true
+        correlation_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    
+    AuditLogResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

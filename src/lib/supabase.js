@@ -238,6 +238,87 @@ export const supabaseBanking = (() => {
 // This maintains backward compatibility while using the unified schema
 export const supabaseCollection = supabaseBanking;
 
+// EPIC 2: Create clients for config and workflow schemas
+// These are created lazily to avoid issues if schemas don't exist yet
+let supabaseConfigInstance = null;
+let supabaseWorkflowInstance = null;
+let supabaseAuditInstance = null;
+
+// Create a Supabase client for the config schema
+export const getConfigClient = () => {
+  if (!supabaseConfigInstance && isSupabaseConfigured) {
+    supabaseConfigInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      db: {
+        schema: 'config'
+      },
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+        storage: window.localStorage,
+        storageKey: 'osol-auth'
+      },
+      global: {
+        headers: {
+          'apikey': supabaseAnonKey
+        },
+        fetch: customFetch
+      }
+    });
+  }
+  return supabaseConfigInstance || createMockClient();
+};
+
+// Create a Supabase client for the workflow schema
+export const getWorkflowClient = () => {
+  if (!supabaseWorkflowInstance && isSupabaseConfigured) {
+    supabaseWorkflowInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      db: {
+        schema: 'workflow'
+      },
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+        storage: window.localStorage,
+        storageKey: 'osol-auth'
+      },
+      global: {
+        headers: {
+          'apikey': supabaseAnonKey
+        },
+        fetch: customFetch
+      }
+    });
+  }
+  return supabaseWorkflowInstance || createMockClient();
+};
+
+// Create a Supabase client for the audit schema
+export const getAuditClient = () => {
+  if (!supabaseAuditInstance && isSupabaseConfigured) {
+    supabaseAuditInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      db: {
+        schema: 'audit'
+      },
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+        storage: window.localStorage,
+        storageKey: 'osol-auth'
+      },
+      global: {
+        headers: {
+          'apikey': supabaseAnonKey
+        },
+        fetch: customFetch
+      }
+    });
+  }
+  return supabaseAuditInstance || createMockClient();
+};
+
 // Database schema constants - all tables now in kastle_banking schema
 export const TABLES = {
   // Core banking tables
