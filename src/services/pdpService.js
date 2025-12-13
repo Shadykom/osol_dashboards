@@ -760,7 +760,7 @@ export class PDPService {
           required_evidence: response.required_evidence,
           cooling_period_until: response.cooling_period_until,
           max_attempts: response.max_attempts,
-          window: response.window,
+          time_window: response.window,
           rules_evaluated: rulesEvaluated,
           evaluation_time_ms: evaluationTimeMs
         });

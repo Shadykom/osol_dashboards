@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS policy.pdp_decision_log (
     required_evidence JSONB,
     cooling_period_until TIMESTAMPTZ,
     max_attempts INTEGER,
-    window VARCHAR(20),
+    time_window VARCHAR(20),
     
     -- Metadata
     rules_evaluated JSONB,  -- which rules were checked and their results
