@@ -13,7 +13,7 @@
  * - Tenant isolation
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabasePolicy, PDP_TABLES } from '@/lib/supabasePolicy';
 
 // =====================================================
 // Workflow Status Constants
@@ -55,8 +55,8 @@ export class PolicyWorkflowService {
     createdBy
   }) {
     try {
-      const { data, error } = await supabase
-        .from('policy_profiles')
+      const { data, error } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_PROFILES)
         .insert({
           tenant_id: tenantId,
           name,
@@ -126,8 +126,8 @@ export class PolicyWorkflowService {
    */
   async getPolicyProfile(profileId) {
     try {
-      const { data, error } = await supabase
-        .from('policy_profiles')
+      const { data, error } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_PROFILES)
         .select(`
           *,
           policy_versions (
@@ -177,8 +177,8 @@ export class PolicyWorkflowService {
   }) {
     try {
       // Get next version number
-      const { data: existingVersions } = await supabase
-        .from('policy_versions')
+      const { data: existingVersions } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .select('version_no')
         .eq('profile_id', profileId)
         .order('version_no', { ascending: false })
@@ -187,8 +187,8 @@ export class PolicyWorkflowService {
       const nextVersionNo = (existingVersions?.[0]?.version_no || 0) + 1;
       
       // Create new version in DRAFT status
-      const { data, error } = await supabase
-        .from('policy_versions')
+      const { data, error } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .insert({
           tenant_id: tenantId,
           profile_id: profileId,
@@ -222,8 +222,8 @@ export class PolicyWorkflowService {
   }) {
     try {
       // Verify version is in DRAFT status
-      const { data: existingVersion } = await supabase
-        .from('policy_versions')
+      const { data: existingVersion } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .select('status')
         .eq('id', versionId)
         .single();
@@ -240,8 +240,8 @@ export class PolicyWorkflowService {
       if (changeReason) updateData.change_reason = changeReason;
       if (effectiveFrom !== undefined) updateData.effective_from = effectiveFrom;
       
-      const { data, error } = await supabase
-        .from('policy_versions')
+      const { data, error } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .update(updateData)
         .eq('id', versionId)
         .select()
@@ -262,8 +262,8 @@ export class PolicyWorkflowService {
   async submitForApproval(versionId, { submittedBy, comments }) {
     try {
       // Verify version is in DRAFT status
-      const { data: existingVersion } = await supabase
-        .from('policy_versions')
+      const { data: existingVersion } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .select('status, tenant_id, profile_id')
         .eq('id', versionId)
         .single();
@@ -276,8 +276,8 @@ export class PolicyWorkflowService {
       }
       
       // Update version status
-      const { error: updateError } = await supabase
-        .from('policy_versions')
+      const { error: updateError } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .update({
           status: VERSION_STATUS.SUBMITTED,
           submitted_by: submittedBy,
@@ -288,8 +288,8 @@ export class PolicyWorkflowService {
       if (updateError) throw updateError;
       
       // Create workflow approval record
-      const { data: workflow, error: workflowError } = await supabase
-        .from('workflow_approvals')
+      const { data: workflow, error: workflowError } = await supabasePolicy
+        .from(PDP_TABLES.WORKFLOW_APPROVALS)
         .insert({
           tenant_id: existingVersion.tenant_id,
           entity_type: 'POLICY_VERSION',
@@ -317,8 +317,8 @@ export class PolicyWorkflowService {
   async approveVersion(versionId, { approvedBy, comments }) {
     try {
       // Verify version is in SUBMITTED status
-      const { data: existingVersion } = await supabase
-        .from('policy_versions')
+      const { data: existingVersion } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .select('status, tenant_id')
         .eq('id', versionId)
         .single();
@@ -331,8 +331,8 @@ export class PolicyWorkflowService {
       }
       
       // Update version status
-      const { error: updateError } = await supabase
-        .from('policy_versions')
+      const { error: updateError } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .update({
           status: VERSION_STATUS.APPROVED,
           reviewed_by: approvedBy,
@@ -346,8 +346,8 @@ export class PolicyWorkflowService {
       if (updateError) throw updateError;
       
       // Update workflow approval record
-      const { error: workflowError } = await supabase
-        .from('workflow_approvals')
+      const { error: workflowError } = await supabasePolicy
+        .from(PDP_TABLES.WORKFLOW_APPROVALS)
         .update({
           workflow_status: WORKFLOW_STATUS.APPROVED,
           checker_id: approvedBy,
@@ -374,8 +374,8 @@ export class PolicyWorkflowService {
   async rejectVersion(versionId, { rejectedBy, comments }) {
     try {
       // Verify version is in SUBMITTED status
-      const { data: existingVersion } = await supabase
-        .from('policy_versions')
+      const { data: existingVersion } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .select('status, tenant_id')
         .eq('id', versionId)
         .single();
@@ -388,8 +388,8 @@ export class PolicyWorkflowService {
       }
       
       // Update version status back to DRAFT for corrections
-      const { error: updateError } = await supabase
-        .from('policy_versions')
+      const { error: updateError } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .update({
           status: VERSION_STATUS.REJECTED,
           reviewed_by: rejectedBy,
@@ -401,8 +401,8 @@ export class PolicyWorkflowService {
       if (updateError) throw updateError;
       
       // Update workflow approval record
-      const { error: workflowError } = await supabase
-        .from('workflow_approvals')
+      const { error: workflowError } = await supabasePolicy
+        .from(PDP_TABLES.WORKFLOW_APPROVALS)
         .update({
           workflow_status: WORKFLOW_STATUS.REJECTED,
           checker_id: rejectedBy,
@@ -428,8 +428,8 @@ export class PolicyWorkflowService {
   async publishVersion(versionId, { publishedBy }) {
     try {
       // Verify version is in APPROVED status
-      const { data: existingVersion } = await supabase
-        .from('policy_versions')
+      const { data: existingVersion } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .select('status, tenant_id, profile_id')
         .eq('id', versionId)
         .single();
@@ -442,8 +442,8 @@ export class PolicyWorkflowService {
       }
       
       // Archive any currently published version for this profile
-      const { error: archiveError } = await supabase
-        .from('policy_versions')
+      const { error: archiveError } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .update({
           status: VERSION_STATUS.ARCHIVED,
           effective_to: new Date().toISOString()
@@ -454,8 +454,8 @@ export class PolicyWorkflowService {
       if (archiveError) throw archiveError;
       
       // Publish the new version
-      const { data, error: publishError } = await supabase
-        .from('policy_versions')
+      const { data, error: publishError } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .update({
           status: VERSION_STATUS.PUBLISHED,
           published_by: publishedBy,
@@ -519,8 +519,8 @@ export class PolicyWorkflowService {
    */
   async getWorkflowHistory(versionId) {
     try {
-      const { data, error } = await supabase
-        .from('workflow_approvals')
+      const { data, error } = await supabasePolicy
+        .from(PDP_TABLES.WORKFLOW_APPROVALS)
         .select('*')
         .eq('entity_type', 'POLICY_VERSION')
         .eq('entity_id', versionId)
@@ -541,8 +541,8 @@ export class PolicyWorkflowService {
   async cloneVersion(sourceVersionId, { tenantId, createdBy, changeReason }) {
     try {
       // Get source version
-      const { data: sourceVersion } = await supabase
-        .from('policy_versions')
+      const { data: sourceVersion } = await supabasePolicy
+        .from(PDP_TABLES.POLICY_VERSIONS)
         .select('*')
         .eq('id', sourceVersionId)
         .single();

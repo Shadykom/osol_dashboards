@@ -14,7 +14,7 @@
  * - Tenant isolation via RLS
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabasePolicy, PDP_TABLES, PDP_FUNCTIONS } from '@/lib/supabasePolicy';
 
 // =====================================================
 // Constants and Rule Types
@@ -218,15 +218,15 @@ export class PDPService {
   async getActivePolicy(tenantId, customerType, securedFlag) {
     try {
       // First try to get policy with exact secured_flag match
-      let query = supabase
-        .from('policy_profiles')
+      let query = supabasePolicy
+        .from(PDP_TABLES.POLICY_PROFILES)
         .select(`
           id,
           name,
           customer_type,
           secured_flag,
           priority,
-          policy_versions!inner (
+          ${PDP_TABLES.POLICY_VERSIONS}!inner (
             id,
             version_no,
             rules_json,
@@ -237,7 +237,7 @@ export class PDPService {
         .eq('tenant_id', tenantId)
         .eq('customer_type', customerType)
         .eq('status', 'ACTIVE')
-        .eq('policy_versions.status', 'PUBLISHED')
+        .eq(`${PDP_TABLES.POLICY_VERSIONS}.status`, 'PUBLISHED')
         .order('priority', { ascending: true })
         .limit(1);
       
@@ -258,7 +258,9 @@ export class PDPService {
       }
       
       const profile = data[0];
-      const version = profile.policy_versions[0];
+      // Get the joined versions (key matches the table name used in select)
+      const versions = profile[PDP_TABLES.POLICY_VERSIONS] || profile.pdp_policy_versions || [];
+      const version = versions[0];
       
       // Check effective dates
       const now = new Date();
@@ -637,7 +639,7 @@ export class PDPService {
     try {
       const windowInterval = this.parseTimeIntervalForPostgres(window);
       
-      const { data, error } = await supabase.rpc('count_contact_attempts', {
+      const { data, error } = await supabasePolicy.rpc(PDP_FUNCTIONS.COUNT_CONTACT_ATTEMPTS, {
         p_tenant_id: tenantId,
         p_customer_id: customerId,
         p_action_type: actionType,
@@ -736,8 +738,8 @@ export class PDPService {
    */
   async logDecision(request, response, rulesEvaluated, evaluationTimeMs) {
     try {
-      const { error } = await supabase
-        .from('pdp_decision_log')
+      const { error } = await supabasePolicy
+        .from(PDP_TABLES.DECISION_LOG)
         .insert({
           tenant_id: request.tenant_id,
           customer_type: request.customer_type,
@@ -817,8 +819,8 @@ export class PDPService {
    */
   async recordContactAttempt(tenantId, customerId, actionType, channel, outcome, metadata = {}) {
     try {
-      const { error } = await supabase
-        .from('contact_attempt_cache')
+      const { error } = await supabasePolicy
+        .from(PDP_TABLES.CONTACT_ATTEMPT_CACHE)
         .insert({
           tenant_id: tenantId,
           customer_id: customerId,

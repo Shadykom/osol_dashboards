@@ -24,7 +24,7 @@
 
 import { pdpService, DECISIONS, REASON_CODES } from '@/services/pdpService';
 import { policyWorkflowService } from '@/services/policyWorkflowService';
-import { supabase } from '@/lib/supabase';
+import { supabasePolicy, PDP_TABLES } from '@/lib/supabasePolicy';
 
 // =====================================================
 // PDP Decision Endpoints
@@ -130,8 +130,8 @@ export async function getDecisionLog(params = {}) {
       };
     }
     
-    let query = supabase
-      .from('pdp_decision_log')
+    let query = supabasePolicy
+      .from(PDP_TABLES.DECISION_LOG)
       .select('*', { count: 'exact' })
       .eq('tenant_id', tenant_id)
       .order('created_at', { ascending: false });

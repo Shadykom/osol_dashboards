@@ -26,7 +26,7 @@ import {
   createPDPEnforcer
 } from '@/middleware/pdpEnforcement';
 import { pdpService } from '@/services/pdpService';
-import { supabase } from '@/lib/supabase';
+import { supabasePolicy, PDP_TABLES } from '@/lib/supabasePolicy';
 
 // =====================================================
 // Contact Action Endpoint
@@ -273,8 +273,8 @@ export async function getPendingActionApprovals(params) {
       };
     }
     
-    let query = supabase
-      .from('workflow_approvals')
+    let query = supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .select('*', { count: 'exact' })
       .eq('tenant_id', tenant_id)
       .eq('entity_type', 'CONTACT_ACTION')
@@ -358,8 +358,8 @@ export async function approveAction(approvalId, request) {
     }
     
     // Get current approval
-    const { data: approval, error: fetchError } = await supabase
-      .from('workflow_approvals')
+    const { data: approval, error: fetchError } = await supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .select('*')
       .eq('id', approvalId)
       .single();
@@ -393,8 +393,8 @@ export async function approveAction(approvalId, request) {
     }
     
     // Update approval status
-    const { data: updatedApproval, error: updateError } = await supabase
-      .from('workflow_approvals')
+    const { data: updatedApproval, error: updateError } = await supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .update({
         workflow_status: 'APPROVED',
         checker_id: approved_by,
@@ -472,8 +472,8 @@ export async function rejectAction(approvalId, request) {
     }
     
     // Get current approval
-    const { data: approval, error: fetchError } = await supabase
-      .from('workflow_approvals')
+    const { data: approval, error: fetchError } = await supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .select('*')
       .eq('id', approvalId)
       .single();
@@ -497,8 +497,8 @@ export async function rejectAction(approvalId, request) {
     }
     
     // Update approval status
-    const { data: updatedApproval, error: updateError } = await supabase
-      .from('workflow_approvals')
+    const { data: updatedApproval, error: updateError } = await supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .update({
         workflow_status: 'REJECTED',
         checker_id: rejected_by,

@@ -19,7 +19,7 @@
  */
 
 import { pdpService, DECISIONS } from '@/services/pdpService';
-import { supabase } from '@/lib/supabase';
+import { supabasePolicy, PDP_TABLES } from '@/lib/supabasePolicy';
 
 // =====================================================
 // Workflow Approval Creator
@@ -43,8 +43,8 @@ async function createActionApproval({
   requestContext
 }) {
   try {
-    const { data, error } = await supabase
-      .from('workflow_approvals')
+    const { data, error } = await supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .insert({
         tenant_id: tenantId,
         entity_type: entityType || 'CONTACT_ACTION',
@@ -405,8 +405,8 @@ export async function enforceContactAction(request, options = {}) {
  */
 export async function checkApprovalStatus(approvalId) {
   try {
-    const { data, error } = await supabase
-      .from('workflow_approvals')
+    const { data, error } = await supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .select('*')
       .eq('id', approvalId)
       .single();
@@ -462,8 +462,8 @@ export async function executeApprovedAction(approvalId, actionExecutor) {
     const result = await actionExecutor(statusResult.data.metadata);
     
     // Record the execution in the approval metadata
-    await supabase
-      .from('workflow_approvals')
+    await supabasePolicy
+      .from(PDP_TABLES.WORKFLOW_APPROVALS)
       .update({
         metadata: {
           ...statusResult.data.metadata,
