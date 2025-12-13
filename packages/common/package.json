@@ -1,32 +1,66 @@
 {
   "name": "@osol/common",
   "version": "1.0.0",
-  "description": "Common utilities for EPIC 4: Audit, Evidence, Lineage",
+  "description": "Common utilities for OSOL: Audit, Evidence, Lineage, Types, Logging, Errors, and Context",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
-  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./index.js"
+    },
     "./auditEmitter": "./auditEmitter.js",
     "./lineageEmitter": "./lineageEmitter.js",
-    "./evidenceUtils": "./evidenceUtils.js"
+    "./evidenceUtils": "./evidenceUtils.js",
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    },
+    "./logging": {
+      "types": "./dist/logging/index.d.ts",
+      "import": "./dist/logging/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "import": "./dist/errors/index.js"
+    },
+    "./context": {
+      "types": "./dist/context/index.d.ts",
+      "import": "./dist/context/index.js"
+    }
   },
   "files": [
     "index.js",
     "auditEmitter.js",
     "lineageEmitter.js",
-    "evidenceUtils.js"
+    "evidenceUtils.js",
+    "dist"
   ],
   "keywords": [
     "audit",
     "evidence",
     "lineage",
     "tracing",
-    "compliance"
+    "compliance",
+    "logging",
+    "errors"
   ],
   "author": "OSOL Team",
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "^2.52.1"
+    "@supabase/supabase-js": "^2.52.1",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "^2.0.0"

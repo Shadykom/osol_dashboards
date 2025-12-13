@@ -1,0 +1,26 @@
+{
+  "name": "osol-api",
+  "version": "1.0.0",
+  "description": "OSOL Banking Platform API with multi-tenant enforcement",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test src/**/*.test.js",
+    "test:integration": "node --test src/**/*.integration.test.js",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "uuid": "^10.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "eslint": "^9.25.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
