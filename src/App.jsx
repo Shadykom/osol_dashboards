@@ -88,6 +88,9 @@ import { testDatabaseSchema } from '@/utils/testDatabaseSchema';
 import { testDashboardConsistency } from '@/utils/testDashboardConsistency';
 import DailyCollectionDetail from './pages/DailyCollectionDetail';
 
+// EPIC 5 - Admin Routes
+import AdminRoutes from './routes/adminRoutes';
+
 // Route Redirect Component
 function RouteRedirect() {
   const location = useLocation();
@@ -434,6 +437,9 @@ function AppContent() {
           <Route path="/collection-officer-performance" element={<Navigate to="/collection/officer-performance" replace />} />
           <Route path="/collection-sharia-compliance" element={<Navigate to="/collection/sharia-compliance" replace />} />
           <Route path="/collection-vintage-analysis" element={<Navigate to="/collection/vintage-analysis" replace />} />
+          
+          {/* EPIC 5 - Admin Routes (MDM & Integration) */}
+          <Route path="/admin/*" element={<AdminRoutes />} />
           
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
