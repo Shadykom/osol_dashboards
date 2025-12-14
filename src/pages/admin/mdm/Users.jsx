@@ -47,8 +47,8 @@ const Users = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
-    home_org_unit_id: '',
-    nationality_code: '',
+    home_org_unit_id: '__none__',
+    nationality_code: '__none__',
     languages_json: [],
     skills_json: []
   });
@@ -109,8 +109,8 @@ const Users = () => {
   const openEditDialog = (user) => {
     setEditingUser(user);
     setFormData({
-      home_org_unit_id: user.home_org_unit_id || '',
-      nationality_code: user.nationality_code || '',
+      home_org_unit_id: user.home_org_unit_id || '__none__',
+      nationality_code: user.nationality_code || '__none__',
       languages_json: user.languages_json || [],
       skills_json: user.skills_json || []
     });
@@ -131,8 +131,8 @@ const Users = () => {
           'x-tenant-id': TENANT_ID
         },
         body: JSON.stringify({
-          home_org_unit_id: formData.home_org_unit_id || null,
-          nationality_code: formData.nationality_code || null,
+          home_org_unit_id: formData.home_org_unit_id === '__none__' ? null : formData.home_org_unit_id,
+          nationality_code: formData.nationality_code === '__none__' ? null : formData.nationality_code,
           languages_json: formData.languages_json,
           skills_json: formData.skills_json
         })
@@ -347,7 +347,7 @@ const Users = () => {
                   <SelectValue placeholder="Select org unit" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {orgUnits.map(ou => (
                     <SelectItem key={ou.id} value={ou.id}>
                       {ou.name} ({ou.type})
@@ -367,7 +367,7 @@ const Users = () => {
                   <SelectValue placeholder="Select nationality" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {nationalities.map(nat => (
                     <SelectItem key={nat.code} value={nat.code}>
                       {nat.name_en}

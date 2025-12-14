@@ -33,8 +33,8 @@ const IngestionRuns = () => {
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    dataset: '',
-    status: '',
+    dataset: '__all__',
+    status: '__all__',
     source_system: ''
   });
   const [pagination, setPagination] = useState({
@@ -47,8 +47,8 @@ const IngestionRuns = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filters.dataset) params.append('dataset', filters.dataset);
-      if (filters.status) params.append('status', filters.status);
+      if (filters.dataset && filters.dataset !== '__all__') params.append('dataset', filters.dataset);
+      if (filters.status && filters.status !== '__all__') params.append('status', filters.status);
       if (filters.source_system) params.append('source_system', filters.source_system);
       params.append('limit', pagination.limit);
       params.append('offset', pagination.offset);
@@ -146,7 +146,7 @@ const IngestionRuns = () => {
                 <SelectValue placeholder="All Datasets" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Datasets</SelectItem>
+                <SelectItem value="__all__">All Datasets</SelectItem>
                 <SelectItem value="PARTY">Party</SelectItem>
                 <SelectItem value="CONTRACT">Contract</SelectItem>
                 <SelectItem value="CHARGE">Charge</SelectItem>
@@ -160,18 +160,18 @@ const IngestionRuns = () => {
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="__all__">All Status</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
                 <SelectItem value="partial">Partial</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
                 <SelectItem value="running">Running</SelectItem>
               </SelectContent>
             </Select>
-            {(filters.dataset || filters.status) && (
+            {(filters.dataset !== '__all__' || filters.status !== '__all__') && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setFilters({ dataset: '', status: '', source_system: '' })}
+                onClick={() => setFilters({ dataset: '__all__', status: '__all__', source_system: '' })}
               >
                 Clear
               </Button>

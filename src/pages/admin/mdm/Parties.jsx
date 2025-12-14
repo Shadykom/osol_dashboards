@@ -34,8 +34,8 @@ const Parties = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: '',
-    party_type: '',
-    status: ''
+    party_type: '__all__',
+    status: '__all__'
   });
   const [pagination, setPagination] = useState({
     total: 0,
@@ -48,8 +48,8 @@ const Parties = () => {
     try {
       const params = new URLSearchParams();
       if (filters.search) params.append('search', filters.search);
-      if (filters.party_type) params.append('party_type', filters.party_type);
-      if (filters.status) params.append('status', filters.status);
+      if (filters.party_type && filters.party_type !== '__all__') params.append('party_type', filters.party_type);
+      if (filters.status && filters.status !== '__all__') params.append('status', filters.status);
       params.append('limit', pagination.limit);
       params.append('offset', pagination.offset);
 
@@ -194,7 +194,7 @@ const Parties = () => {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="__all__">All Types</SelectItem>
                 <SelectItem value="PERSON">Person</SelectItem>
                 <SelectItem value="ORGANIZATION">Organization</SelectItem>
               </SelectContent>
@@ -207,7 +207,7 @@ const Parties = () => {
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="__all__">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
                 <SelectItem value="merged">Merged</SelectItem>
@@ -217,11 +217,11 @@ const Parties = () => {
               <Filter className="w-4 h-4 mr-2" />
               Filter
             </Button>
-            {(filters.search || filters.party_type || filters.status) && (
+            {(filters.search || filters.party_type !== '__all__' || filters.status !== '__all__') && (
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setFilters({ search: '', party_type: '', status: '' })}
+                onClick={() => setFilters({ search: '', party_type: '__all__', status: '__all__' })}
               >
                 Clear
               </Button>
