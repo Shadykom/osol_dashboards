@@ -34,6 +34,28 @@ tags:
     description: User management (future)
   - name: Cases
     description: Collection case management (future)
+  - name: MDM - Sources
+    description: Source system management (EPIC 5)
+  - name: MDM - Reference Data
+    description: Reference data - countries, nationalities, fee types (EPIC 5)
+  - name: MDM - Parties
+    description: Party golden records (EPIC 5)
+  - name: MDM - Contracts
+    description: Contract golden records (EPIC 5)
+  - name: MDM - Users
+    description: User profile management (EPIC 5)
+  - name: MDM - Data Quality
+    description: Data quality issue management (EPIC 5)
+  - name: Integration - Ingest
+    description: Data ingestion endpoints (EPIC 5)
+  - name: Integration - Runs
+    description: Ingestion run management (EPIC 5)
+  - name: Integration - Freshness
+    description: Data freshness monitoring (EPIC 5)
+  - name: Integration - Mappings
+    description: Mapping template management (EPIC 5)
+  - name: Integration - Config
+    description: Integration configuration (EPIC 5)
 
 paths:
   /health:
@@ -73,6 +95,649 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadyStatus'
+
+  # ========== EPIC 5: MDM - Sources ==========
+  /api/v1/mdm/sources:
+    get:
+      operationId: listSourceSystems
+      summary: List source systems
+      tags:
+        - MDM - Sources
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, deprecated]
+      responses:
+        '200':
+          description: List of source systems
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createSourceSystem
+      summary: Create source system
+      tags:
+        - MDM - Sources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSourceSystem'
+      responses:
+        '201':
+          description: Source system created
+
+  # ========== EPIC 5: MDM - Reference Data ==========
+  /api/v1/mdm/reference-data:
+    get:
+      operationId: listReferenceData
+      summary: List reference data by domain
+      tags:
+        - MDM - Reference Data
+      parameters:
+        - name: domain
+          in: query
+          schema:
+            type: string
+          description: Filter by domain (COUNTRY, NATIONALITY, FEE_TYPE, etc.)
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        '200':
+          description: List of reference data
+    post:
+      operationId: createReferenceData
+      summary: Create reference data entry
+      tags:
+        - MDM - Reference Data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReferenceData'
+      responses:
+        '201':
+          description: Reference data created
+
+  /api/v1/mdm/reference-data/domains:
+    get:
+      operationId: listDomains
+      summary: List available reference data domains
+      tags:
+        - MDM - Reference Data
+      responses:
+        '200':
+          description: List of domains with counts
+
+  # ========== EPIC 5: MDM - Parties ==========
+  /api/v1/mdm/parties:
+    get:
+      operationId: listParties
+      summary: Search and list party golden records
+      tags:
+        - MDM - Parties
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: party_type
+          in: query
+          schema:
+            type: string
+            enum: [PERSON, ORGANIZATION]
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of parties with DQ issue counts
+
+  /api/v1/mdm/parties/{party_id}:
+    get:
+      operationId: getParty
+      summary: Get party with contacts, sources, and DQ issues
+      tags:
+        - MDM - Parties
+      parameters:
+        - name: party_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Party details with related data
+
+  /api/v1/mdm/parties/{party_id}/sources:
+    get:
+      operationId: getPartySources
+      summary: Get source mappings for a party
+      tags:
+        - MDM - Parties
+      parameters:
+        - name: party_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of source system mappings
+
+  # ========== EPIC 5: MDM - Contracts ==========
+  /api/v1/mdm/contracts:
+    get:
+      operationId: listContracts
+      summary: Search and list contract golden records
+      tags:
+        - MDM - Contracts
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: party_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of contracts
+
+  /api/v1/mdm/contracts/{contract_id}:
+    get:
+      operationId: getContract
+      summary: Get contract with sources and DQ issues
+      tags:
+        - MDM - Contracts
+      parameters:
+        - name: contract_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Contract details with related data
+
+  # ========== EPIC 5: MDM - Users ==========
+  /api/v1/mdm/users:
+    get:
+      operationId: listMdmUsers
+      summary: List users with MDM profiles
+      tags:
+        - MDM - Users
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: has_profile
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of users with profiles
+
+  /api/v1/mdm/users/{user_id}/profile:
+    patch:
+      operationId: updateUserProfile
+      summary: Update user MDM profile
+      tags:
+        - MDM - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfile'
+      responses:
+        '200':
+          description: Profile updated
+
+  # ========== EPIC 5: MDM - Data Quality ==========
+  /api/v1/mdm/data-quality/issues:
+    get:
+      operationId: listDataQualityIssues
+      summary: List data quality issues
+      tags:
+        - MDM - Data Quality
+      parameters:
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+            enum: [PARTY, CONTRACT]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low, info]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, resolved, ignored, in_progress]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of DQ issues
+
+  /api/v1/mdm/data-quality/summary:
+    get:
+      operationId: getDataQualitySummary
+      summary: Get DQ summary by severity and entity type
+      tags:
+        - MDM - Data Quality
+      responses:
+        '200':
+          description: DQ issue counts grouped by severity and entity type
+
+  # ========== EPIC 5: Integration - Ingest ==========
+  /api/v1/integration/ingest:
+    post:
+      operationId: ingestData
+      summary: Main data ingestion endpoint (FILE/MANUAL/API)
+      description: |
+        Accepts data via FILE (multipart), MANUAL (JSON), or API (JSON) modes.
+        Implements idempotency via (tenant_id, source_system_id, external_ref) + payload_hash.
+      tags:
+        - Integration - Ingest
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV or XLSX file
+                dataset:
+                  type: string
+                  enum: [PARTY, CONTRACT, CHARGE]
+                source_system_code:
+                  type: string
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRequest'
+      responses:
+        '200':
+          description: Ingestion successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResponse'
+        '207':
+          description: Partial success - some records failed
+        '422':
+          description: Ingestion failed
+
+  /api/v1/integration/ingest/method:
+    get:
+      operationId: getIntegrationMethod
+      summary: Get configured integration method for a dataset
+      tags:
+        - Integration - Ingest
+      parameters:
+        - name: dataset
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [PARTY, CONTRACT, CHARGE]
+      responses:
+        '200':
+          description: Integration method for dataset
+
+  /api/v1/integration/ingest/webhook-info:
+    get:
+      operationId: getWebhookInfo
+      summary: Get webhook endpoint info and sample payload
+      tags:
+        - Integration - Ingest
+      parameters:
+        - name: dataset
+          in: query
+          schema:
+            type: string
+        - name: source_system_code
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook info with sample payload
+
+  # ========== EPIC 5: Integration - Runs ==========
+  /api/v1/integration/runs:
+    get:
+      operationId: listIngestionRuns
+      summary: List ingestion runs with filters
+      tags:
+        - Integration - Runs
+      parameters:
+        - name: dataset
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [running, success, partial, failed]
+        - name: source_system
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of ingestion runs
+
+  /api/v1/integration/runs/{run_id}:
+    get:
+      operationId: getIngestionRun
+      summary: Get run with reconciliation summary
+      tags:
+        - Integration - Runs
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Run details with reconciliation
+
+  /api/v1/integration/runs/{run_id}/items:
+    get:
+      operationId: getRunItems
+      summary: Get individual items for a run
+      tags:
+        - Integration - Runs
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum: [INSERTED, UPDATED, SKIPPED, FAILED]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of ingestion items
+
+  /api/v1/integration/runs/{run_id}/errors/csv:
+    get:
+      operationId: downloadRunErrorsCsv
+      summary: Download errors as CSV file
+      tags:
+        - Integration - Runs
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: CSV file with error details
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  # ========== EPIC 5: Integration - Freshness ==========
+  /api/v1/integration/freshness:
+    get:
+      operationId: getDataFreshness
+      summary: Get data freshness overview
+      description: |
+        Returns freshness status for all datasets and source systems.
+        Includes overall health indicator (healthy/degraded/critical).
+      tags:
+        - Integration - Freshness
+      parameters:
+        - name: dataset
+          in: query
+          schema:
+            type: string
+        - name: source_system
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Freshness data with overall health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FreshnessOverview'
+
+  /api/v1/integration/freshness/timeline:
+    get:
+      operationId: getFreshnessTimeline
+      summary: Get freshness history over time
+      tags:
+        - Integration - Freshness
+      parameters:
+        - name: dataset
+          in: query
+          schema:
+            type: string
+        - name: source_system
+          in: query
+          schema:
+            type: string
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: Freshness timeline data
+
+  # ========== EPIC 5: Integration - Mappings ==========
+  /api/v1/integration/mappings:
+    get:
+      operationId: listMappingTemplates
+      summary: List mapping templates
+      tags:
+        - Integration - Mappings
+      parameters:
+        - name: dataset
+          in: query
+          schema:
+            type: string
+        - name: source_system
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of mapping templates
+    post:
+      operationId: createMappingTemplate
+      summary: Create mapping template
+      tags:
+        - Integration - Mappings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMappingTemplate'
+      responses:
+        '201':
+          description: Mapping template created
+
+  /api/v1/integration/mappings/{id}:
+    get:
+      operationId: getMappingTemplate
+      summary: Get mapping template by ID
+      tags:
+        - Integration - Mappings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Mapping template details
+    patch:
+      operationId: updateMappingTemplate
+      summary: Update mapping template
+      tags:
+        - Integration - Mappings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMappingTemplate'
+      responses:
+        '200':
+          description: Mapping template updated
+
+  # ========== EPIC 5: Integration - Config ==========
+  /api/v1/integration/config:
+    get:
+      operationId: getIntegrationConfig
+      summary: Get all integration configuration
+      tags:
+        - Integration - Config
+      responses:
+        '200':
+          description: Integration configuration
+
+  /api/v1/integration/config/methods:
+    get:
+      operationId: getIntegrationMethods
+      summary: Get integration methods for all datasets
+      tags:
+        - Integration - Config
+      responses:
+        '200':
+          description: Methods by dataset (PARTY, CONTRACT, CHARGE)
+    put:
+      operationId: updateIntegrationMethods
+      summary: Update integration methods
+      tags:
+        - Integration - Config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                methods:
+                  type: object
+                  description: Dataset to method mapping
+                  additionalProperties:
+                    type: string
+                    enum: [FILE, MANUAL, API, DB]
+      responses:
+        '200':
+          description: Methods updated
 
 components:
   securitySchemes:
@@ -353,6 +1018,418 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    # ========== EPIC 5: MDM Schemas ==========
+    SourceSystem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, deprecated]
+        config_json:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateSourceSystem:
+      type: object
+      required:
+        - code
+        - name
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        config_json:
+          type: object
+
+    ReferenceData:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        domain:
+          type: string
+        code:
+          type: string
+        name_ar:
+          type: string
+        name_en:
+          type: string
+        extra_json:
+          type: object
+        sort_order:
+          type: integer
+        status:
+          type: string
+          enum: [active, inactive]
+
+    CreateReferenceData:
+      type: object
+      required:
+        - domain
+        - code
+      properties:
+        domain:
+          type: string
+        code:
+          type: string
+        name_ar:
+          type: string
+        name_en:
+          type: string
+        extra_json:
+          type: object
+        sort_order:
+          type: integer
+
+    PartyGolden:
+      type: object
+      properties:
+        party_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        party_type:
+          type: string
+          enum: [PERSON, ORGANIZATION]
+        primary_name:
+          type: string
+        primary_name_ar:
+          type: string
+        identifiers_json:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              value:
+                type: string
+        attributes_json:
+          type: object
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ContractGolden:
+      type: object
+      properties:
+        contract_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        party_id:
+          type: string
+          format: uuid
+        contract_type:
+          type: string
+        product_type:
+          type: string
+        original_amount:
+          type: number
+        outstanding_amount:
+          type: number
+        currency_code:
+          type: string
+        status:
+          type: string
+        start_date:
+          type: string
+          format: date
+        maturity_date:
+          type: string
+          format: date
+        attributes_json:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DataQualityIssue:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        rule_code:
+          type: string
+        rule_name:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+          enum: [open, resolved, ignored, in_progress]
+        created_at:
+          type: string
+          format: date-time
+
+    UpdateUserProfile:
+      type: object
+      properties:
+        home_org_unit_id:
+          type: string
+          format: uuid
+          nullable: true
+        nationality_code:
+          type: string
+          nullable: true
+        languages_json:
+          type: array
+          items:
+            type: string
+        skills_json:
+          type: array
+          items:
+            type: string
+
+    # ========== EPIC 5: Integration Schemas ==========
+    IngestRequest:
+      type: object
+      required:
+        - dataset
+        - source_system_code
+        - data
+      properties:
+        dataset:
+          type: string
+          enum: [PARTY, CONTRACT, CHARGE]
+        source_system_code:
+          type: string
+        mode:
+          type: string
+          enum: [FILE, MANUAL, API]
+        data:
+          type: array
+          items:
+            type: object
+        mapping:
+          type: object
+
+    IngestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            run_id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum: [success, partial, failed]
+            stats:
+              type: object
+              properties:
+                totalReceived:
+                  type: integer
+                totalProcessed:
+                  type: integer
+                totalInserted:
+                  type: integer
+                totalUpdated:
+                  type: integer
+                totalSkipped:
+                  type: integer
+                totalFailed:
+                  type: integer
+            dq_issues_count:
+              type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              externalRef:
+                type: string
+              error:
+                type: string
+
+    IngestionRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        source_system_id:
+          type: string
+          format: uuid
+        dataset:
+          type: string
+        method:
+          type: string
+          enum: [FILE, MANUAL, API, DB]
+        status:
+          type: string
+          enum: [running, success, partial, failed]
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        stats_json:
+          type: object
+          properties:
+            totalReceived:
+              type: integer
+            totalProcessed:
+              type: integer
+            totalInserted:
+              type: integer
+            totalUpdated:
+              type: integer
+            totalSkipped:
+              type: integer
+            totalFailed:
+              type: integer
+        error_summary:
+          type: string
+
+    FreshnessOverview:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              source_system_code:
+                type: string
+              dataset:
+                type: string
+              last_success_at:
+                type: string
+                format: date-time
+                nullable: true
+              last_status:
+                type: string
+              record_count:
+                type: integer
+              freshness_status:
+                type: string
+                enum: [fresh, aging, stale, never]
+        meta:
+          type: object
+          properties:
+            overallHealth:
+              type: string
+              enum: [healthy, degraded, critical, unknown]
+            summary:
+              type: object
+              properties:
+                total:
+                  type: integer
+                fresh:
+                  type: integer
+                aging:
+                  type: integer
+                stale:
+                  type: integer
+                never:
+                  type: integer
+
+    CreateMappingTemplate:
+      type: object
+      required:
+        - source_system_code
+        - dataset
+        - name
+        - mapping_json
+      properties:
+        source_system_code:
+          type: string
+        dataset:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        mapping_json:
+          type: object
+          description: |
+            Field mapping configuration. Example:
+            {
+              "external_ref": "customerId",
+              "primary_name": "fullName",
+              "party_type": { "field": "type", "transform": "uppercase" },
+              "identifiers": [
+                { "type": "NATIONAL_ID", "field": "nationalId" }
+              ]
+            }
+        is_default:
+          type: boolean
+
+    UpdateMappingTemplate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        mapping_json:
+          type: object
+        is_default:
+          type: boolean
+        status:
+          type: string
+          enum: [active, inactive, draft]
 
 security:
   - bearerAuth: []
