@@ -26,7 +26,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const DataFreshness = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [freshness, setFreshness] = useState([]);
   const [summary, setSummary] = useState(null);
   const [overallHealth, setOverallHealth] = useState('unknown');

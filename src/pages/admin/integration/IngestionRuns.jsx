@@ -28,7 +28,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const IngestionRuns = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const navigate = useNavigate();
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +42,6 @@ const IngestionRuns = () => {
     limit: 20,
     offset: 0
   });
-
-  useEffect(() => {
-    loadRuns();
-  }, [filters, pagination.offset]);
 
   const loadRuns = async () => {
     setLoading(true);
@@ -72,6 +68,11 @@ const IngestionRuns = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadRuns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, pagination.offset]);
 
   const getStatusBadge = (status) => {
     const variants = {

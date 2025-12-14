@@ -36,7 +36,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const Users = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [nationalities, setNationalities] = useState([]);
   const [orgUnits, setOrgUnits] = useState([]);
@@ -54,14 +54,6 @@ const Users = () => {
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    loadUsers();
-  }, [search]);
 
   const loadData = async () => {
     try {
@@ -84,6 +76,10 @@ const Users = () => {
     }
   };
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -104,6 +100,11 @@ const Users = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const openEditDialog = (user) => {
     setEditingUser(user);

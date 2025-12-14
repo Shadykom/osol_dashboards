@@ -25,7 +25,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const Ingest = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   
@@ -62,9 +62,23 @@ const Ingest = () => {
   }, [dataset, methods]);
 
   useEffect(() => {
-    if (currentMethod === 'API') {
-      loadWebhookInfo();
-    }
+    const loadInfo = async () => {
+      if (currentMethod === 'API') {
+        try {
+          const res = await fetch(
+            `${API_BASE}/integration/ingest/webhook-info?dataset=${dataset}&source_system_code=${sourceSystem}`,
+            { headers: { 'x-tenant-id': TENANT_ID } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setWebhookInfo(data.data);
+          }
+        } catch (err) {
+          console.error('Error loading webhook info:', err);
+        }
+      }
+    };
+    loadInfo();
   }, [currentMethod, dataset, sourceSystem]);
 
   const loadData = async () => {
@@ -94,20 +108,6 @@ const Ingest = () => {
     }
   };
 
-  const loadWebhookInfo = async () => {
-    try {
-      const res = await fetch(
-        `${API_BASE}/integration/ingest/webhook-info?dataset=${dataset}&source_system_code=${sourceSystem}`,
-        { headers: { 'x-tenant-id': TENANT_ID } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setWebhookInfo(data.data);
-      }
-    } catch (error) {
-      console.error('Error loading webhook info:', error);
-    }
-  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
@@ -145,7 +145,7 @@ const Ingest = () => {
           if (!Array.isArray(data)) {
             data = [data];
           }
-        } catch (e) {
+        } catch {
           setError('Invalid JSON format');
           setSubmitting(false);
           return;

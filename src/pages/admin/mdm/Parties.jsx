@@ -28,7 +28,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const Parties = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const navigate = useNavigate();
   const [parties, setParties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +42,6 @@ const Parties = () => {
     limit: 20,
     offset: 0
   });
-
-  useEffect(() => {
-    loadParties();
-  }, [filters, pagination.offset]);
 
   const loadParties = async () => {
     setLoading(true);
@@ -72,6 +68,11 @@ const Parties = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadParties();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, pagination.offset]);
 
   const handleSearch = (e) => {
     e.preventDefault();

@@ -38,7 +38,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const ReferenceData = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [domains, setDomains] = useState([]);
   const [selectedDomain, setSelectedDomain] = useState('');
   const [items, setItems] = useState([]);
@@ -58,16 +58,6 @@ const ReferenceData = () => {
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
-
-  useEffect(() => {
-    loadDomains();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDomain) {
-      loadItems();
-    }
-  }, [selectedDomain, search]);
 
   const loadDomains = async () => {
     try {
@@ -109,6 +99,18 @@ const ReferenceData = () => {
     }
   };
 
+  useEffect(() => {
+    loadDomains();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (selectedDomain) {
+      loadItems();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDomain, search]);
+
   const openCreateDialog = () => {
     setEditingItem(null);
     setFormData({
@@ -143,7 +145,7 @@ const ReferenceData = () => {
       let extraJson;
       try {
         extraJson = JSON.parse(formData.extra_json);
-      } catch (e) {
+      } catch {
         setMessage({ type: 'error', text: 'Invalid JSON in extra data' });
         setSaving(false);
         return;

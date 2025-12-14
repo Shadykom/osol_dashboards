@@ -29,23 +29,15 @@ const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const RunDetail = () => {
   const { id } = useParams();
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const navigate = useNavigate();
   const [run, setRun] = useState(null);
-  const [reconciliation, setReconciliation] = useState(null);
+  const [_reconciliation, setReconciliation] = useState(null);
   const [items, setItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [outcomeFilter, setOutcomeFilter] = useState('');
   const [itemsPagination, setItemsPagination] = useState({ total: 0, limit: 50, offset: 0 });
-
-  useEffect(() => {
-    loadRunDetails();
-  }, [id]);
-
-  useEffect(() => {
-    loadItems();
-  }, [id, outcomeFilter, itemsPagination.offset]);
 
   const loadRunDetails = async () => {
     setLoading(true);
@@ -89,6 +81,16 @@ const RunDetail = () => {
       setItemsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadRunDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => {
+    loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, outcomeFilter, itemsPagination.offset]);
 
   const downloadErrorsCsv = async () => {
     try {

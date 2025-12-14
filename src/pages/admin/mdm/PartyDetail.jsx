@@ -28,16 +28,12 @@ const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const PartyDetail = () => {
   const { id } = useParams();
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const navigate = useNavigate();
   const [party, setParty] = useState(null);
   const [sources, setSources] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadPartyDetails();
-  }, [id]);
 
   const loadPartyDetails = async () => {
     setLoading(true);
@@ -68,6 +64,11 @@ const PartyDetail = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadPartyDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const getContactIcon = (type) => {
     switch (type) {

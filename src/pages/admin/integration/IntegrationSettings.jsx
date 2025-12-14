@@ -21,7 +21,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'demo-tenant-id';
 
 const IntegrationSettings = () => {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [methods, setMethods] = useState({});
   const [mappings, setMappings] = useState([]);
   const [selectedMapping, setSelectedMapping] = useState(null);
@@ -89,7 +89,7 @@ const IntegrationSettings = () => {
       } else {
         throw new Error('Failed to save');
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to save method' });
     } finally {
       setSaving(false);
@@ -109,7 +109,7 @@ const IntegrationSettings = () => {
       let parsedJson;
       try {
         parsedJson = JSON.parse(mappingJson);
-      } catch (e) {
+      } catch {
         setMessage({ type: 'error', text: 'Invalid JSON format' });
         setSaving(false);
         return;
@@ -130,7 +130,7 @@ const IntegrationSettings = () => {
       } else {
         throw new Error('Failed to save');
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to save mapping' });
     } finally {
       setSaving(false);
