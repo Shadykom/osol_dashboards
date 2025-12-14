@@ -368,6 +368,69 @@ const getNavigationItems = (t, useTranslation = false) => {
         },
       ],
     },
+    
+    // Admin Section - EPIC 5 MDM & Integration
+    {
+      title: getText('navigation.administration', 'ADMINISTRATION'),
+      items: [
+        {
+          title: getText('navigation.integration', 'Integration'),
+          icon: Zap,
+          items: [
+            { 
+              title: getText('navigation.integrationSettings', 'Settings'), 
+              href: '/admin/integration/settings', 
+              icon: Settings,
+              description: getText('navigation.integrationSettingsDesc', 'Configure integration methods')
+            },
+            { 
+              title: getText('navigation.dataIngestion', 'Data Ingestion'), 
+              href: '/admin/integration/ingest', 
+              icon: FileText,
+              description: getText('navigation.dataIngestionDesc', 'Upload files or enter data manually')
+            },
+            { 
+              title: getText('navigation.ingestionRuns', 'Ingestion Runs'), 
+              href: '/admin/integration/runs', 
+              icon: Activity,
+              description: getText('navigation.ingestionRunsDesc', 'View ingestion history')
+            },
+            { 
+              title: getText('navigation.dataFreshness', 'Data Freshness'), 
+              href: '/admin/integration/freshness', 
+              icon: TrendingUp,
+              badge: getText('common.new', 'NEW'),
+              badgeVariant: 'default',
+              description: getText('navigation.dataFreshnessDesc', 'Monitor data freshness status')
+            },
+          ],
+        },
+        {
+          title: getText('navigation.masterData', 'Master Data'),
+          icon: Layers,
+          items: [
+            { 
+              title: getText('navigation.parties', 'Parties'), 
+              href: '/admin/mdm/parties', 
+              icon: Users,
+              description: getText('navigation.partiesDesc', 'View party golden records')
+            },
+            { 
+              title: getText('navigation.referenceData', 'Reference Data'), 
+              href: '/admin/mdm/reference-data', 
+              icon: BookOpen,
+              description: getText('navigation.referenceDataDesc', 'Manage reference data')
+            },
+            { 
+              title: getText('navigation.mdmUsers', 'MDM Users'), 
+              href: '/admin/mdm/users', 
+              icon: UserCheck,
+              description: getText('navigation.mdmUsersDesc', 'MDM user profiles')
+            },
+          ],
+        },
+      ],
+    },
   ];
 };
 
