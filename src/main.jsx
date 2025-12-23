@@ -4,9 +4,18 @@ import './index.css'
 import './i18n/i18n'
 import App from './App.jsx'
 import { initializeWalletProtection } from './utils/walletConflictResolver'
+import { productionErrorFixes } from './utils/productionErrorFixes'
+import { productionErrorHandler } from './utils/productionErrorHandler'
 
 // Initialize wallet protection before anything else
 initializeWalletProtection();
+
+// Activate production error handler
+console.log('[EALAANI] Activating production error handler');
+productionErrorHandler.activate();
+
+// Initialize production error fixes
+productionErrorFixes.initialize();
 
 // Clear old language setting to ensure new default is applied
 // This can be removed after initial deployment
