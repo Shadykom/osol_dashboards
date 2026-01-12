@@ -128,7 +128,7 @@ export function Loans() {
       }
       
       if (filterType !== 'all') {
-        query = query.eq('loan_type', filterType.toUpperCase());
+        query = query.eq('loan_type_id', filterType.toUpperCase());
       }
 
       const { data, error } = await query;
@@ -211,15 +211,16 @@ export function Loans() {
       // Get loan type distribution
       const { data: typeData } = await supabaseBanking
         .from(TABLES.LOAN_ACCOUNTS)
-        .select('loan_type, outstanding_balance')
+        .select('loan_type_id, outstanding_balance')
         .in('loan_status', ['ACTIVE', 'DISBURSED']);
 
       const typeCounts = typeData?.reduce((acc, curr) => {
-        if (!acc[curr.loan_type]) {
-          acc[curr.loan_type] = { count: 0, value: 0 };
+        const loanType = curr.loan_type_id || 'Unknown';
+        if (!acc[loanType]) {
+          acc[loanType] = { count: 0, value: 0 };
         }
-        acc[curr.loan_type].count += 1;
-        acc[curr.loan_type].value += parseFloat(curr.outstanding_balance || 0);
+        acc[loanType].count += 1;
+        acc[loanType].value += parseFloat(curr.outstanding_balance || 0);
         return acc;
       }, {});
 
@@ -673,7 +674,7 @@ export function Loans() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {LOAN_TYPES[loan.loan_type]?.label || loan.loan_type}
+                              {LOAN_TYPES[loan.loan_type_id]?.label || loan.loan_type_id || 'Unknown'}
                             </Badge>
                           </TableCell>
                           <TableCell>SAR {parseFloat(loan.loan_amount).toLocaleString()}</TableCell>
